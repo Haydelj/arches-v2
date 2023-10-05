@@ -8,12 +8,9 @@ UnitBlockingCache::UnitBlockingCache(Configuration config) :
 	_return_cross_bar(config.num_ports, config.num_banks),
 	_banks(config.num_banks, config.data_array_latency)
 {
-	_configuration = config;
-
 	_mem_higher = config.mem_higher;
 	_mem_higher_port_offset = config.mem_higher_port_offset;
-
-	uint bank_index_bits = log2i(config.num_banks);
+	_mem_higher_port_stride = config.mem_higher_port_stride;
 }
 
 UnitBlockingCache::~UnitBlockingCache()
@@ -62,7 +59,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 	}
 	else if(bank.state == Bank::State::ISSUED)
 	{
-		uint mem_higher_port_index = _mem_higher_port_offset + bank_index;
+		uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
 		if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return;
 
 		const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
@@ -84,7 +81,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 	Bank& bank = _banks[bank_index];
 	if(bank.state == Bank::State::MISSED)
 	{
-		uint mem_higher_port_index = _mem_higher_port_offset + bank_index;
+		uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
 		if(_mem_higher->request_port_write_valid(mem_higher_port_index))
 		{
 			if(bank.current_request.type == MemoryRequest::Type::LOAD)

@@ -102,7 +102,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -116,7 +116,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -127,27 +127,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\aabb.hpp" />
-    <ClInclude Include="src\bvh.hpp" />
-    <ClInclude Include="src\camera.hpp" />
     <ClInclude Include="src\custom-instr.hpp" />
     <ClInclude Include="src\intersect.hpp" />
-    <ClInclude Include="src\mesh.hpp" />
-    <ClInclude Include="src\random-number-generator.hpp" />
-    <ClInclude Include="src\ray-tracing-include.hpp" />
-    <ClInclude Include="src\ray.hpp" />
-    <ClInclude Include="src\rtm.hpp" />
+    <ClInclude Include="src\include.hpp" />
     <ClInclude Include="src\sampling.hpp" />
     <ClInclude Include="src\stdafx.hpp" />
     <ClInclude Include="src\treelet-bvh.hpp" />
-    <ClInclude Include="src\triangle.hpp" />
-    <ClInclude Include="src\uvec3.hpp" />
-    <ClInclude Include="src\vec2.hpp" />
-    <ClInclude Include="src\vec3.hpp" />
-    <ClInclude Include="src\vec4.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\path-tracer.cpp" />
+    <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

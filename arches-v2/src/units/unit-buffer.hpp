@@ -13,71 +13,50 @@ public:
 	struct Configuration
 	{
 		uint64_t size{1024};
-		uint port_width{CACHE_BLOCK_SIZE};
-		uint num_banks{1};
 		uint num_ports{1};
-		uint penalty{1};
-
-		float dynamic_read_energy;
-		float bank_leakge_power;
+		uint num_banks{1};
+		uint64_t bank_select_mask{0};
+		uint latency{1};
 	};
 
 private:
 	struct Bank
 	{
-		uint cycles_remaining{0u};
-
-		uint64_t request_mask{0x0ull};
-		MemoryRequest request;
-
-		uint8_t return_reg[CACHE_BLOCK_SIZE];
+		Pipline<MemoryRequest> data_pipline;
+		Bank(uint latency) : data_pipline(latency, 1) {}
 	};
 
-	Configuration _configuration; //nice for debugging
+	uint8_t* _data_u8;
+	uint64_t _buffer_address_mask;
 
-	uint _bank_index_offset;
-	uint64_t _buffer_address_mask, _bank_index_mask;
-
-	uint _penalty, _port_width;
-
-	uint8_t* data_u8;
 	std::vector<Bank> _banks;
-
-	CrossBar<MemoryRequest> _request_cross_bar;
-	CrossBar<MemoryReturn> _return_cross_bar;
+	MemoryRequestCrossBar _request_cross_bar;
+	MemoryReturnCrossBar _return_cross_bar;
 
 public:
 	UnitBuffer(Configuration config) : UnitMemoryBase(),
-		_request_cross_bar(config.num_ports, config.num_banks), _return_cross_bar(config.num_banks, config.num_ports)
+		_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask), _return_cross_bar(config.num_ports, config.num_banks), _banks(config.num_banks, config.latency)
 	{
-		data_u8 = (uint8_t*)malloc(config.size);
-
-		_port_width = config.port_width;
-		_bank_index_mask = generate_nbit_mask(log2i(config.num_banks));
-		_bank_index_offset = log2i(config.port_width); //stride in terms of port width
-
+		_data_u8 = (uint8_t*)malloc(config.size);
 		_buffer_address_mask = generate_nbit_mask(log2i(config.size));
-
-		_penalty = config.penalty;
 	}
 
 	~UnitBuffer()
 	{
-		free(data_u8);
+		free(_data_u8);
 	}
 
 	void clock_rise() override
 	{
-		//select next request
+		_request_cross_bar.clock();
+
+		//select next request and issue to pipline
 		for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
 		{
 			Bank& bank = _banks[bank_index];
-			if(bank.request_mask) continue;
-
-			if(!_request_cross_bar.is_read_valid(bank_index)) continue;
-			uint port_index;
-			bank.request = _request_cross_bar.read(bank_index, port_index);
-			bank.request_mask |= 0x1ull << port_index;
+			bank.data_pipline.clock();
+			if(!bank.data_pipline.is_write_valid() || !_request_cross_bar.is_read_valid(bank_index)) continue;
+			bank.data_pipline.write(_request_cross_bar.read(bank_index));
 		}
 	}
 
@@ -86,33 +65,27 @@ public:
 		for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
 		{
 			Bank& bank = _banks[bank_index];
-			if(bank.cycles_remaining == 0 || --bank.cycles_remaining != 0) continue;
+			if(!bank.data_pipline.is_read_valid()) continue;
 
-			paddr_t buffer_addr = _get_buffer_addr(bank.request.paddr);
-			if(bank.request.type == MemoryRequest::Type::LOAD)
+			const MemoryRequest& req = bank.data_pipline.peek();
+			paddr_t buffer_addr = _get_buffer_addr(req.paddr);
+			if(req.type == MemoryRequest::Type::LOAD)
 			{
-				if(!_return_cross_bar.is_write_valid(bank_index))
-				{
-					//cant return because of network trafic we must stall and try again next cycle
-					bank.cycles_remaining = 1;
-					continue;
-				}
+				if(!_request_cross_bar.is_write_valid(bank_index)) continue;
 
-				MemoryReturn ret;
-				ret.type = MemoryReturn::Type::LOAD_RETURN;
-				ret.size = bank.request.size;
-				ret.paddr = bank.request.paddr;
-				std::memcpy(ret.data, &data_u8[buffer_addr], bank.request.size);
-
-				_return_cross_bar.broadcast(ret, bank_index, bank.request_mask);
-				bank.request_mask = 0x0ull;//we are ready for the next request
+				MemoryReturn ret = req;
+				std::memcpy(ret.data, &_data_u8[buffer_addr], ret.size);
+				_return_cross_bar.write(ret, bank_index);
+				bank.data_pipline.read();
 			}
-			else if(bank.request.type == MemoryRequest::Type::STORE)
+			else if(req.type == MemoryRequest::Type::STORE)
 			{
-				std::memcpy(&data_u8[buffer_addr], bank.request.data, bank.request.size);
-				bank.request_mask = 0x0ull;
+				std::memcpy(&_data_u8[buffer_addr], req.data, req.size);
+				bank.data_pipline.read();
 			}
 		}
+
+		_return_cross_bar.clock();
 	}
 
 	bool request_port_write_valid(uint port_index) override
@@ -122,8 +95,8 @@ public:
 
 	void write_request(const MemoryRequest& request, uint port_index) override
 	{
-		uint bank_index = _get_bank_index(request.paddr);
-		_request_cross_bar.write(request, port_index, bank_index);
+		assert(request.port == port_index);
+		_request_cross_bar.write(request, port_index);
 	}
 
 	bool return_port_read_valid(uint port_index) override
@@ -142,7 +115,6 @@ public:
 	}
 
 private:
-	paddr_t _get_bank_index(paddr_t paddr) { return (paddr >> _bank_index_offset) & _bank_index_mask; }
 	paddr_t _get_buffer_addr(paddr_t paddr) { return paddr & _buffer_address_mask; }
 };
 

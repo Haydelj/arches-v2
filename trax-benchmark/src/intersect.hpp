@@ -1,22 +1,17 @@
 #pragma once
 #include "stdafx.hpp"
 
-#include "ray.hpp"
-#include "aabb.hpp"
-#include "triangle.hpp"
-#include "bvh.hpp"
-
-#ifdef ARCH_RISCV
+#ifdef __riscv
 //#define HARDWARE_INTERSECT
 #endif
 
 struct MeshPointers
 {
-	BVH::Node* blas;
-	Triangle*  tris;
+	rtm::BVH::Node* blas;
+	rtm::Triangle*  tris;
 };
 
-inline float intersect(const AABB aabb, const Ray& ray, const rtm::vec3& inv_d)
+inline float intersect(const rtm::AABB aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
 #ifdef HARDWARE_INTERSECT
 	register float f3 asm("f3") = ray.o.x;
@@ -37,7 +32,7 @@ inline float intersect(const AABB aabb, const Ray& ray, const rtm::vec3& inv_d)
 	float t;
 	asm volatile
 	(
-		"boxisect %0"
+		"boxisect %0\t\n"
 		: "=f" (t)
 		: "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10),  "f" (f11), "f" (f12), "f" (f13), "f" (f14),  "f" (f15), "f" (f16)
 	);
@@ -58,7 +53,7 @@ inline float intersect(const AABB aabb, const Ray& ray, const rtm::vec3& inv_d)
 	#endif
 }
 
-inline bool intersect(const Triangle tri, const Ray& ray, Hit& hit)
+inline bool intersect(const rtm::Triangle tri, const rtm::Ray& ray, rtm::Hit& hit)
 {
 #ifdef HARDWARE_INTERSECT
 	register float f0 asm("f0") = hit.t;
@@ -85,7 +80,7 @@ inline bool intersect(const Triangle tri, const Ray& ray, Hit& hit)
 	uint32_t is_hit;
 	asm volatile
 	(
-		"triisect %0"
+		"triisect %0\t\n"
 		: "=r" (is_hit), "+f" (f0), "+f" (f1), "+f" (f2)
 		: "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10),  "f" (f11), "f" (f12), "f" (f13), "f" (f14),  "f" (f15), "f" (f16), "f" (f17), "f" (f18), "f" (f19)
 	);
@@ -139,14 +134,14 @@ inline bool intersect(const Triangle tri, const Ray& ray, Hit& hit)
 	return true;
 #endif
 }
-inline bool intersect(const MeshPointers& mesh, const Ray& ray, Hit& hit, bool first_hit = false)
+inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
 	struct NodeStackEntry
 	{
 		float t;
-		BVH::NodeData data;
+		rtm::BVH::NodeData data;
 	};
 
 	NodeStackEntry node_stack[32];

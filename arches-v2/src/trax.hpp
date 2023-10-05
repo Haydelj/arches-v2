@@ -12,7 +12,7 @@
 
 #include "util/elf.hpp"
 
-#include "../../trax-benchmark/src/ray-tracing-include.hpp"
+#include "../../trax-benchmark/src/include.hpp"
 
 namespace Arches {
 
@@ -30,7 +30,7 @@ const static InstructionInfo traxamoin(0b00010, "fchthrd", InstrType::CUSTOM0, E
 	req.dst = reg_addr.u8;
 	req.size = sizeof(uint32_t);
 	req.vaddr = 0x0ull;
-	req.type = MemoryRequest::Type::FCHTHRD;
+	req.type = MemoryRequest::Type::LOAD;
 
 	return req;
 });
@@ -59,9 +59,19 @@ static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignmen
 
 static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address)
 {
+	rtm::Mesh mesh("../datasets/sponza.obj");
+	rtm::BVH blas;
+	std::vector<rtm::Triangle> tris;
+	std::vector<rtm::BVH::BuildObject> build_objects;
+	for(uint i = 0; i < mesh.size(); ++i)
+		build_objects.push_back(mesh.get_build_object(i));
+	blas.build(build_objects);
+	mesh.reorder(build_objects);
+	mesh.get_triangles(tris);
+
 	KernelArgs args;
-	args.framebuffer_width = 256;
-	args.framebuffer_height = 256;
+	args.framebuffer_width = 64;
+	args.framebuffer_height = 64;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
@@ -71,19 +81,8 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	args.max_depth = 1;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-	args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//global_data.camera = Camera(global_data.framebuffer_width, global_data.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
-
-	Mesh mesh("../trax-benchmark/res/sponza.obj");
-	BVH blas;
-	std::vector<BuildObject> build_objects;
-	for(uint i = 0; i < mesh.size(); ++i)
-		build_objects.push_back(mesh.get_build_object(i));
-	blas.build(build_objects);
-	mesh.reorder(build_objects);
-
-	std::vector<Triangle> tris;
-	mesh.get_triangles(tris);
 
 	heap_address = align_to(CACHE_BLOCK_SIZE, heap_address) + 32;
 	args.mesh.blas = write_vector(main_memory, 32, blas.nodes, heap_address);
@@ -100,7 +99,7 @@ static void run_sim_trax(int argc, char* argv[])
 	uint num_tms_per_l2 = 8;
 	uint num_l2 = 4;
 
-	uint num_tps = num_l2 * num_tms_per_l2 * num_l2;
+	uint num_tps = num_l2 * num_tms_per_l2 * num_tps_per_tm;
 	uint num_tms = num_tms_per_l2 * num_l2;
 	uint sfu_table_size = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES);
 
@@ -109,9 +108,9 @@ static void run_sim_trax(int argc, char* argv[])
 
 	//cached global data
 	uint64_t stack_size = 2048; //1KB
-	vaddr_t stack_pointer = 0x0ull;
 
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::TRaX::traxamoin;
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 
 	Simulator simulator;
 
@@ -211,7 +210,7 @@ static void run_sim_trax(int argc, char* argv[])
 				tp_config.tp_index = tp_index;
 				tp_config.tm_index = tm_index;
 				tp_config.pc = elf.elf_header->e_entry.u64;
-				tp_config.sp = stack_pointer;
+				tp_config.sp = 0x0;
 				tp_config.gp = 0x0000000000012c34;
 				tp_config.stack_size = stack_size;
 				tp_config.cheat_memory = mm._data_u8;

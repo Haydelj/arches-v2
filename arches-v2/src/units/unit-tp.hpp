@@ -34,7 +34,7 @@ public:
 		const std::vector<UnitMemoryBase*>* unique_mems;
 	};
 
-private:
+protected:
 	ISA::RISCV::IntegerRegisterFile       _int_regs{};
 	ISA::RISCV::FloatingPointRegisterFile _float_regs{};
 	vaddr_t                               _pc{};
@@ -62,10 +62,10 @@ public:
 	void clock_rise() override;
 	void clock_fall() override;
 
-private:
+protected:
 	void _process_load_return(const MemoryReturn& ret);
-	uint8_t _check_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
-	void _set_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
+	virtual uint8_t _check_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
+	virtual void _set_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
 	void _clear_register_pending(const ISA::RISCV::RegAddr& dst);
 	void _log_instruction_issue(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info, const ISA::RISCV::ExecutionItem& exec_item);
 
@@ -148,7 +148,7 @@ public:
 			for(uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
 				total += _instruction_counters[i];
-				_instruction_counter_pairs.push_back({ISA::RISCV::instr_type_names[i].c_str(), _instruction_counters[i]});
+				_instruction_counter_pairs.push_back({ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)i].c_str(), _instruction_counters[i]});
 			}
 			std::sort(_instruction_counter_pairs.begin(), _instruction_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
@@ -164,7 +164,7 @@ public:
 			for(uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
 				total += _resource_stall_counters[i];
-				_resource_stall_counter_pairs.push_back({ISA::RISCV::instr_type_names[i].c_str(), _resource_stall_counters[i]});
+				_resource_stall_counter_pairs.push_back({ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)i].c_str(), _resource_stall_counters[i]});
 			}
 			std::sort(_resource_stall_counter_pairs.begin(), _resource_stall_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
@@ -180,7 +180,7 @@ public:
 			for(uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
 				total += _data_stall_counters[i];
-				_data_stall_counter_pairs.push_back({ISA::RISCV::instr_type_names[i].c_str(), _data_stall_counters[i]});
+				_data_stall_counter_pairs.push_back({ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)i].c_str(), _data_stall_counters[i]});
 			}
 			std::sort(_data_stall_counter_pairs.begin(), _data_stall_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });

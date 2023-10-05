@@ -105,6 +105,9 @@
     <None Include="src\units\usimm\config-files\gddr5_amd_map1_128col.cfg" />
     <None Include="src\units\usimm\config-files\gddr5_amd_map1_128col_8ch.cfg" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="src\units\dual-streaming\unit-ds-tp.hpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

@@ -1,19 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="src\aabb.hpp" />
-    <ClInclude Include="src\bvh.hpp" />
-    <ClInclude Include="src\camera.hpp" />
     <ClInclude Include="src\custom-instr.hpp" />
     <ClInclude Include="src\intersect.hpp" />
-    <ClInclude Include="src\mesh.hpp" />
-    <ClInclude Include="src\ray.hpp" />
-    <ClInclude Include="src\ray-tracing-include.hpp" />
-    <ClInclude Include="src\sampling.hpp" />
-    <ClInclude Include="src\stb_image.h" />
-    <ClInclude Include="src\stb_image_write.h" />
     <ClInclude Include="src\stdafx.hpp" />
-    <ClInclude Include="src\triangle.hpp" />
     <ClInclude Include="src\rtm\rtm.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
@@ -40,7 +30,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\path-tracer.cpp" />
+    <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="rtm">

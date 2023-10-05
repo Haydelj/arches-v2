@@ -1,48 +1,24 @@
 #pragma once
 #include "stdafx.hpp"
 
-#include "ray-tracing-include.hpp"
-
-#ifdef ARCH_X86
+#ifndef __riscv
 static std::atomic_uint _next_thread;
 #endif
 
 uint32_t inline fchthrd()
 {
-	#ifdef ARCH_RISCV
+#ifdef __riscv
 	uint32_t value = 0;
-	asm volatile("traxamoin %[rd]\n\t" : [rd] "=r" (value));
+	asm volatile("fchthrd %0\n\t" : "=r" (value));
 	return value;
-	#endif
-
-	#ifdef ARCH_X86
+#else
 	return _next_thread++;
-	#endif
-
-	return 0;
+#endif
 }
 
-#ifdef ARCH_X86
-void reset_atomicinc()
+#ifndef __riscv
+void reset_fchthrd()
 {
  	_next_thread = 0;
-}
-#endif
-
-#ifdef ARCH_X86
-void dump_framebuffer(uint32_t* framebuffer_address, const char* path, uint width, uint height)
-{
-	FILE* file = fopen(path, "wb");
-	fprintf(file,"P6\n%u %u\n255\n", width, height);
-	for (size_t j = 0; j < height; ++j)
-	{
-		for (size_t i = 0; i < width; ++i)
-		{
-			size_t index = j * width + i;
-			fwrite(framebuffer_address + index, sizeof(uint8_t), 3, file);
-		}
-	}
-	fclose(file);
-
 }
 #endif

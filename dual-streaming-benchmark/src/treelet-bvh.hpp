@@ -1,12 +1,9 @@
 #pragma once
 #include "stdafx.hpp"
 
-#include "bvh.hpp"
-#include "mesh.hpp"
-
 struct alignas(32) TreeletNode
 {
-	AABB aabb;
+	rtm::AABB aabb;
 	union
 	{
 		uint32_t data;
@@ -22,8 +19,8 @@ struct alignas(32) TreeletNode
 
 struct TreeletTriangle
 {
-	Triangle tri;
-	uint     id;
+	rtm::Triangle tri;
+	uint          id;
 };
 
 #define TREELET_SIZE (64 * 1024)
@@ -33,34 +30,34 @@ struct alignas(8 * 1024) Treelet
 	uint8_t	data[64 * 1024];
 };
 
-#ifdef ARCH_X86
+#ifndef __riscv
 class TreeletBVH
 {
 public:
 	std::vector<Treelet> treelets;
 
-	TreeletBVH(const BVH& bvh, const Mesh& mesh)
+	TreeletBVH(const rtm::BVH& bvh, const rtm::Mesh& mesh)
 	{
 		printf("Treelet BVH Building\n");
 		build_treelet_breadth_first(bvh, mesh);
 		printf("Treelet BVH Built\n");
 	}
 
-	uint get_node_size(uint node, const BVH& bvh, const Mesh& mesh)
+	uint get_node_size(uint node, const rtm::BVH& bvh, const rtm::Mesh& mesh)
 	{
 		uint node_size = sizeof(TreeletNode);
-		if(bvh.nodes[node].is_leaf)
-			node_size += sizeof(TreeletTriangle) * (bvh.nodes[node].lst_chld_ofst + 1);
+		if(bvh.nodes[node].data.is_leaf)
+			node_size += sizeof(TreeletTriangle) * (bvh.nodes[node].data.lst_chld_ofst + 1);
 
 		return node_size;
 	}
 
-	void build_treelet_breadth_first(const BVH& bvh, const Mesh& mesh)
+	void build_treelet_breadth_first(const rtm::BVH& bvh, const rtm::Mesh& mesh)
 	{
 		std::vector<std::vector<uint>> treelet_assignments;
 
 		std::queue<uint> root_node_queue;
-		root_node_queue.push(bvh.nodes[0].fst_chld_ind);
+		root_node_queue.push(bvh.nodes[0].data.fst_chld_ind);
 		
 		size_t bytes = 0;
 
@@ -84,8 +81,8 @@ public:
 					treelet_assignments.back().push_back(node + 0);
 					treelet_assignments.back().push_back(node + 1);
 
-					if(!bvh.nodes[node + 0].is_leaf) node_queue.push(bvh.nodes[node + 0].fst_chld_ind);
-					if(!bvh.nodes[node + 1].is_leaf) node_queue.push(bvh.nodes[node + 1].fst_chld_ind);
+					if(!bvh.nodes[node + 0].data.is_leaf) node_queue.push(bvh.nodes[node + 0].data.fst_chld_ind);
+					if(!bvh.nodes[node + 1].data.is_leaf) node_queue.push(bvh.nodes[node + 1].data.fst_chld_ind);
 				}
 				else root_node_queue.push(node);
 			}
@@ -107,7 +104,7 @@ public:
 			for(uint j = 0; j < num_nodes; ++j)
 			{
 				uint node_id = treelet_assignments[i][j];
-				BVHNode node = bvh.nodes[node_id];
+				rtm::BVH::Node node = bvh.nodes[node_id];
 				node_map[node_id].first = i;
 				node_map[node_id].second = j * (sizeof(TreeletNode) / 4);
 			}
@@ -117,41 +114,42 @@ public:
 			for(uint j = 0; j < num_nodes; ++j)
 			{
 				uint node_id = treelet_assignments[i][j];
-				BVHNode node = bvh.nodes[node_id];
+				rtm::BVH::Node node = bvh.nodes[node_id];
 
 				TreeletNode& tnode = ((TreeletNode*)treelets[i].data)[j];
 				tnode.aabb = node.aabb;
-				tnode.is_leaf = node.is_leaf;
+				tnode.is_leaf = node.data.is_leaf;
 
-				if(node.is_leaf)
+				if(node.data.is_leaf)
 				{
-					tnode.last_tri_offset = node.lst_chld_ofst;
+					tnode.last_tri_offset = node.data.lst_chld_ofst;
 					tnode.child_index = current_word;
 
 					TreeletTriangle* tris = (TreeletTriangle*)(&treelets[i].data[current_word * 4]);
-					for(uint k = 0; k <= node.lst_chld_ofst; ++k)
+					for(uint k = 0; k <= node.data.lst_chld_ofst; ++k)
 					{
 						num_tris_assigned++;
-						tris[k].id = node.fst_chld_ind + k;
-						tris[k].tri = mesh.triangles[node.fst_chld_ind + k];
+						tris[k].id = node.data.fst_chld_ind + k;
+
+						tris[k].tri = mesh.get_triangle(node.data.fst_chld_ind + k);
 					}
 
-					current_word += (sizeof(TreeletTriangle) / 4) * (node.lst_chld_ofst + 1);
+					current_word += (sizeof(TreeletTriangle) / 4) * (node.data.lst_chld_ofst + 1);
 				}
 				else
 				{
-					tnode.is_treelet_leaf = node_map[node.fst_chld_ind].first != i;
-					if(tnode.is_treelet_leaf) tnode.child_index = node_map[node.fst_chld_ind].first;
-					else                      tnode.child_index = node_map[node.fst_chld_ind].second;
+					tnode.is_treelet_leaf = node_map[node.data.fst_chld_ind].first != i;
+					if(tnode.is_treelet_leaf) tnode.child_index = node_map[node.data.fst_chld_ind].first;
+					else                      tnode.child_index = node_map[node.data.fst_chld_ind].second;
 
 				}
 			}
 		}
 
-		printf("Nodes Assigned: %u/%u\n", num_nodes_assigned, bvh.num_nodes);
-		printf("Tris Assigned: %u/%u\n", num_tris_assigned, mesh.num_triangles);
-		printf("Treelets: %lu\n", treelets.size());
-		printf("Bytes/Treelet: %lu\n", bytes / treelets.size());
+		printf("Nodes Assigned: %u/%zu\n", num_nodes_assigned, bvh.nodes.size());
+		printf("Tris Assigned: %u/%zu\n", num_tris_assigned, mesh.vertex_indices.size());
+		printf("Treelets: %zu\n", treelets.size());
+		printf("Bytes/Treelet: %zu\n", bytes / treelets.size());
 	}
 
 };

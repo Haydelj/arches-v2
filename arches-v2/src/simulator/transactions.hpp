@@ -26,14 +26,6 @@ public:
 		AMO_MAX,
 		AMO_MINU,
 		AMO_MAXU,
-
-		FCHTHRD,
-		LBRAY,
-		SBRAY,
-		CSHIT,
-
-		//other non instruction mem ops
-		LOAD_RAY_BUCKET,
 	};
 
 	//meta data 
@@ -138,6 +130,28 @@ public:
 	}
 };
 
+struct StreamSchedulerRequest
+{
+public:
+	enum class Type : uint8_t
+	{
+		NA,
+		LOAD_BUCKET,
+		STORE_WORKITEM,
+	};
+
+	Type     type;
+
+	union
+	{
+		struct
+		{
+			uint     port;
+			uint     last_segment;
+		};
+		WorkItem work_item;
+	};
+};
 
 struct SFURequest
 {

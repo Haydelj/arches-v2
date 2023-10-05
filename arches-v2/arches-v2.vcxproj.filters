@@ -106,9 +106,6 @@
     <ClInclude Include="src\units\dual-streaming\unit-ray-staging-buffer.hpp">
       <Filter>units\dual-streaming</Filter>
     </ClInclude>
-    <ClInclude Include="src\units\dual-streaming\unit-stream-scheduler.hpp">
-      <Filter>units\dual-streaming</Filter>
-    </ClInclude>
     <ClInclude Include="src\util\arbitration.hpp">
       <Filter>util</Filter>
     </ClInclude>
@@ -138,6 +135,9 @@
     </ClInclude>
     <ClInclude Include="src\units\unit-blocking-cache.hpp">
       <Filter>units</Filter>
+    </ClInclude>
+    <ClInclude Include="src\units\dual-streaming\unit-stream-scheduler.hpp">
+      <Filter>units\dual-streaming</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -237,5 +237,10 @@
     <None Include="src\units\usimm\config-files\gddr5_amd_map1_128col_8ch.cfg">
       <Filter>units\usimm\config-files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="src\units\dual-streaming\unit-ds-tp.hpp">
+      <Filter>units\dual-streaming</Filter>
+    </Text>
   </ItemGroup>
 </Project>

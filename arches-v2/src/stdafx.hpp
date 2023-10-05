@@ -143,6 +143,8 @@
 #include <intrin.h>
 #include <xmmintrin.h>
 
+#include "../../include/rtm/rtm.hpp"
+
 typedef unsigned int uint;
 
 namespace Arches {

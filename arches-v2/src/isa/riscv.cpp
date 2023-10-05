@@ -7,6 +7,8 @@
 
 namespace Arches { namespace ISA { namespace RISCV {
 
+InstructionTypeNameDatabase* InstructionTypeNameDatabase::_instance = nullptr;
+
 #define CALLBACK_GETSTR(STR) [](Instruction const& /*instr*/) { return STR; }
 #define CALLBACK_SUBISA(TO_INSTR_INF) [](Instruction const& instr) -> const char* { return TO_INSTR_INF.get_mnemonic(instr); }
 
@@ -708,11 +710,14 @@ InstructionInfo const isa_OP_FP[32] = //r.funct5
 	{
 		unit->float_regs->registers[instr.r.rd].f32 = _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ps1(unit->float_regs->registers[instr.r.rs1].f32)));
 	}),
-	InstructionInfo(0b011'00, "frcp.s", InstrType::FRCP, Encoding::R, RegType::FLOAT, EXEC_DECL 
+	InstructionInfo(0b011'00, "fisqrt.s", InstrType::FSQRT, Encoding::R, RegType::FLOAT, EXEC_DECL
+	{
+		unit->float_regs->registers[instr.r.rd].f32 = _mm_cvtss_f32(_mm_rsqrt_ps(_mm_set_ps1(unit->float_regs->registers[instr.r.rs1].f32)));
+	}),
+	InstructionInfo(0b011'01, "frcp.s", InstrType::FRCP, Encoding::R, RegType::FLOAT, EXEC_DECL
 	{
 		unit->float_regs->registers[instr.r.rd].f32 = _mm_cvtss_f32(_mm_rcp_ss(_mm_set_ps1(unit->float_regs->registers[instr.r.rs1].f32)));
 	}),
-	InstructionInfo(0b011'01, IMPL_NONE),
 	InstructionInfo(0b011'10, IMPL_NONE),
 	InstructionInfo(0b011'11, IMPL_NONE),
 

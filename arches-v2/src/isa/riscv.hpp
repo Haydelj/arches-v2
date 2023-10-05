@@ -98,46 +98,72 @@ enum class InstrType : uint8_t
 	NUM_TYPES,
 };
 
-const std::string instr_type_names[] =
+
+
+class InstructionTypeNameDatabase
 {
-	"NA",
+public:
+	InstructionTypeNameDatabase(const InstructionTypeNameDatabase& other) = delete;
 
-	"LOAD",
-	"STORE",
-	"ATOMIC",
-	"PREFETCH",
+	static InstructionTypeNameDatabase& get_instance()
+	{
+		if(!InstructionTypeNameDatabase::_instance)
+			InstructionTypeNameDatabase::_instance = new InstructionTypeNameDatabase();
+		
+		return *InstructionTypeNameDatabase::_instance;
+	}
 
-	"SYS",
+	std::string& operator[](const InstrType type)
+	{
+		return _instr_type_names[(uint)type];
+	}
 
-	"JUMP",
-	"BRANCH",
+private:
+	static InstructionTypeNameDatabase* _instance;
 
-	"MOVE",
-	"CONVERT",
+	std::string _instr_type_names[(uint)InstrType::NUM_TYPES]
+	{
+		"NA",
 
-	"ILOGICAL",
-	"IADD",
-	"IMUL",
-	"IDIV",
+		"LOAD",
+		"STORE",
+		"ATOMIC",
+		"PREFETCH",
 
-	"FCMP",
-	"FSIGN",
-	"FMIN_MAX",
-	"FADD",
-	"FMUL",
-	"FFMAD",
-	"FDIV",
-	"FSQRT",
-	"FRCP",
+		"SYS",
 
-	"CUSTOM0",
-	"CUSTOM1",
-	"CUSTOM2",
-	"CUSTOM3",
-	"CUSTOM4",
-	"CUSTOM5",
-	"CUSTOM6",
-	"CUSTOM7",
+		"JUMP",
+		"BRANCH",
+
+		"MOVE",
+		"CONVERT",
+
+		"ILOGICAL",
+		"IADD",
+		"IMUL",
+		"IDIV",
+
+		"FCMP",
+		"FSIGN",
+		"FMIN_MAX",
+		"FADD",
+		"FMUL",
+		"FFMAD",
+		"FDIV",
+		"FSQRT",
+		"FRCP",
+
+		"CUSTOM0",
+		"CUSTOM1",
+		"CUSTOM2",
+		"CUSTOM3",
+		"CUSTOM4",
+		"CUSTOM5",
+		"CUSTOM6",
+		"CUSTOM7",
+	};
+
+	InstructionTypeNameDatabase() = default;
 };
 
 enum class ExecType : uint8_t
@@ -158,7 +184,8 @@ enum class Encoding : uint8_t
 	S,
 	B,
 	U,
-	J
+	J,
+	C,
 };
 
 class InstructionInfo;
@@ -286,7 +313,7 @@ public:
 			uint32_t imm_10_1	: 10;
 			uint32_t imm_20		: 1;
 		}j;
-	
+
 		uint32_t data;
 	};
 	
@@ -403,6 +430,10 @@ public:
 		case ISA::RISCV::Encoding::J:
 			fprintf(stream, "%s\t%c%d,%d", mnemonic, drfc, instr.rd, (int32_t)j_imm(instr));
 			break;
+
+		default:
+			fprintf(stream, "%s", mnemonic);
+			break;
 		}
 	}
 
@@ -439,6 +470,10 @@ public:
 
 		case ISA::RISCV::Encoding::J:
 			printf("\t%lld", exec_item.int_regs->registers[instr.j.rd].u64);
+			break;
+
+		default:
+			printf("\t");
 			break;
 		}
 	}

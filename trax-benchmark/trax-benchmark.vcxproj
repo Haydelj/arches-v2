@@ -127,14 +127,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\aabb.hpp" />
-    <ClInclude Include="src\bvh.hpp" />
-    <ClInclude Include="src\camera.hpp" />
     <ClInclude Include="src\custom-instr.hpp" />
     <ClInclude Include="src\intersect.hpp" />
-    <ClInclude Include="src\mesh.hpp" />
-    <ClInclude Include="src\ray-tracing-include.hpp" />
-    <ClInclude Include="src\ray.hpp" />
     <ClInclude Include="src\rtm\rtm-float.hpp" />
     <ClInclude Include="src\rtm\rtm-int.hpp" />
     <ClInclude Include="src\rtm\rtm-rng.hpp" />
@@ -143,14 +137,10 @@
     <ClInclude Include="src\rtm\rtm-vec3.hpp" />
     <ClInclude Include="src\rtm\rtm-vec4.hpp" />
     <ClInclude Include="src\rtm\rtm.hpp" />
-    <ClInclude Include="src\sampling.hpp" />
-    <ClInclude Include="src\stb_image.h" />
-    <ClInclude Include="src\stb_image_write.h" />
     <ClInclude Include="src\stdafx.hpp" />
-    <ClInclude Include="src\triangle.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\path-tracer.cpp" />
+    <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,12 +1,9 @@
 #pragma once 
-#include "../../../stdafx.hpp"
+#include "../../stdafx.hpp"
 
 #include "../unit-base.hpp"
 #include "../unit-memory-base.hpp"
 #include "unit-stream-scheduler.hpp"
-
-#include "../../../../benchmarks/dual-streaming/src/ray.hpp"
-
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
@@ -32,13 +29,17 @@ struct RayBucketBuffer
 class UnitRayStagingBuffer : public UnitMemoryBase
 {
 public:
-	UnitRayStagingBuffer(uint num_tp, uint tm_index, UnitStreamScheduler* stream_scheduler) : UnitMemoryBase(num_tp, 1), tm_index(tm_index)
+	UnitRayStagingBuffer(uint num_tp, uint tm_index, UnitStreamScheduler* stream_scheduler) : UnitMemoryBase(),
+		_request_network(num_tp, 1), _return_network(num_tp), tm_index(tm_index), _stream_scheduler(stream_scheduler)
 	{
 		front_buffer = &ray_buffer[0];
 		back_buffer = &ray_buffer[1];
 	}
 
-	UnitStreamScheduler* stream_scheduler;
+	Casscade<MemoryRequest> _request_network;
+	FIFOArray<MemoryReturn> _return_network;
+
+	UnitStreamScheduler* _stream_scheduler;
 
 	uint tm_index;
 
@@ -46,90 +47,97 @@ public:
 	RayBucketBuffer* back_buffer;
 	RayBucketBuffer ray_buffer[2];
 
-	uint request_index{~0u};
+	bool request_valid{false};
 	MemoryRequest request;
 
 	void clock_rise() override
 	{
 		//requests
-		interconnect.propagate_requests([](const MemoryRequest& req, uint client, uint num_clients, uint num_servers)->uint
-		{
-			return 0;
-		});
+		_request_network.clock();
 
-		if(request_index == ~0u) return;
-
-		uint port_index;
-		const MemoryRequest* req = interconnect.get_request(0, port_index);
-		if(req)
+		if(_request_network.is_read_valid(0))
 		{
-			request = *req;
-			request_index = port_index;
-			interconnect.acknowlege_request(0, port_index);
+			request = _request_network.read(0);
+			request_valid = true;
 		}
 
 		//returns
-		const MemoryReturn* ret = stream_scheduler->interconnect.get_return(tm_index);
-		if(ret)
+		if(_stream_scheduler->return_port_read_valid(tm_index))
 		{
-			uint buffer_address = ret->paddr % RAY_BUCKET_SIZE;
-			std::memcpy(&back_buffer->data_u8[buffer_address], ret->data, ret->size);
-			stream_scheduler->interconnect.acknowlege_return(tm_index);
-
-			back_buffer->bytes_returned += ret->size;
+			MemoryReturn ret = _stream_scheduler->read_return(tm_index);
+			uint buffer_address = ret.paddr % RAY_BUCKET_SIZE;
+			std::memcpy(&back_buffer->data_u8[buffer_address], ret.data, ret.size);
+			back_buffer->bytes_returned += ret.size;
 		}
 	}
 
 	void clock_fall() override
 	{
-		interconnect.propagate_ack();
-
-		//requests
-		if(front_buffer->next_ray == front_buffer->ray_bucket.num_rays &&
-		   back_buffer->bytes_returned == RAY_BUCKET_SIZE)
-		{
-			//swap buffers
+		if(front_buffer->next_ray == front_buffer->ray_bucket.num_rays && back_buffer->bytes_returned == RAY_BUCKET_SIZE)
 			std::swap(front_buffer, back_buffer);
-		}
 
-		if(!back_buffer->requested)
+		if(!back_buffer->requested && _stream_scheduler->request_port_write_valid(tm_index))
 		{
 			MemoryRequest req;
-			req.type = MemoryRequest::Type::LOAD_RAY_BUCKET;
-			req.size = RAY_BUCKET_SIZE;
+			req.type = MemoryRequest::Type::LOAD;
+			req.size = 0;
 			req.paddr = 0x0;
-			stream_scheduler->interconnect.add_request(req, tm_index);
+			req.port = tm_index;
+			_stream_scheduler->write_request(req, req.port);
 			back_buffer->requested = true;
+			return;
 		}
 
-		//returns
-		if(request_index == ~0u) return;
+		if(!request_valid) return;
 
-		if(request.type == MemoryRequest::Type::LBRAY)
+		if(request.type == MemoryRequest::Type::LOAD)
 		{
 			//if we have a filled bucket pop a ray from it otherwise stall
 			if(front_buffer->next_ray < front_buffer->ray_bucket.num_rays)
 			{
-				MemoryReturn ret;
-				ret.type == MemoryReturn::Type::LOAD_RETURN;
-				ret.size = sizeof(BucketRay);
-				ret.paddr = 0x0ull;
-				ret.data = &front_buffer->ray_bucket.bucket_rays[front_buffer->next_ray];
-				interconnect.add_return(ret, 0, request_index);
-
+				MemoryReturn ret = request;
+				std::memcpy(ret.data, &front_buffer->ray_bucket.bucket_rays[front_buffer->next_ray], ret.size);
+				_return_network.write(ret, 0);
 				front_buffer->next_ray++;
 			}
 		}
-		else if(request.type == MemoryRequest::Type::SBRAY || request.type == MemoryRequest::Type::CSHIT) //ray write or conditionally store hit
+		else if(request.type == MemoryRequest::Type::STORE) //ray write or conditionally store hit
 		{
 			//forward to stream scheduler
-			if(!stream_scheduler->interconnect.request_port_write_valid(tm_index))
+			if(_stream_scheduler->request_port_write_valid(tm_index))
 			{
-				stream_scheduler->interconnect.add_request(request, tm_index);
+				request.port = tm_index;
+				_stream_scheduler->write_request(request, request.port);
+				request_valid = false;
 			}
 		}
 
-		interconnect.propagate_returns();
+		_return_network.clock();
+	}
+
+	bool request_port_write_valid(uint port_index) override
+	{
+		return _request_network.is_write_valid(port_index);
+	}
+
+	void write_request(const MemoryRequest& request, uint port_index) override
+	{
+		_request_network.write(request, port_index);
+	}
+
+	bool return_port_read_valid(uint port_index) override
+	{
+		return _return_network.is_read_valid(port_index);
+	}
+
+	const MemoryReturn& peek_return(uint port_index) override
+	{
+		return _return_network.peek(port_index);
+	}
+
+	const MemoryReturn read_return(uint port_index) override
+	{
+		return _return_network.read(port_index);
 	}
 };
 

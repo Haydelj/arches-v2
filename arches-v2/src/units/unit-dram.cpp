@@ -31,7 +31,6 @@ bool UnitDRAM::request_port_write_valid(uint port_index)
 
 void UnitDRAM::write_request(const MemoryRequest& request, uint port_index)
 {
-	uint channel_index = calcDramAddr(request.paddr).channel;
 	_request_network.write(request, port_index);
 }
 

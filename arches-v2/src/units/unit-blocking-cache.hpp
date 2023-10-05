@@ -13,14 +13,15 @@ public:
 		uint size{1024};
 		uint associativity{1};
 
+		uint data_array_latency{0};
+
 		uint num_ports{1};
 		uint num_banks{1};
 		uint64_t bank_select_mask{0};
 
-		uint data_array_latency{0};
-
-		UnitMemoryBase* mem_higher;
-		uint            mem_higher_port_offset;
+		UnitMemoryBase* mem_higher{nullptr};
+		uint            mem_higher_port_offset{0};
+		uint            mem_higher_port_stride{1};
 	};
 
 	UnitBlockingCache(Configuration config);
@@ -52,14 +53,13 @@ private:
 		Bank(uint data_array_latency) : data_array_pipline(data_array_latency) {}
 	};
 
-	Configuration _configuration; //nice for debugging
-
 	std::vector<Bank> _banks;
-	CacheRequestCrossBar _request_cross_bar;
-	CacheReturnCrossBar _return_cross_bar;
+	MemoryRequestCrossBar _request_cross_bar;
+	MemoryReturnCrossBar _return_cross_bar;
 
 	UnitMemoryBase* _mem_higher;
 	uint _mem_higher_port_offset;
+	uint _mem_higher_port_stride;
 
 	void _clock_rise(uint bank_index);
 	void _clock_fall(uint bank_index);

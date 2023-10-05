@@ -7,16 +7,13 @@ UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) :
 	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
 	_return_cross_bar(config.num_ports, config.num_banks)
 {
-	_configuration = config;
+	_check_retired_lfb = config.check_retired_lfb;
 
 	_mem_higher = config.mem_higher;
 	_mem_higher_port_offset = config.mem_higher_port_offset;
+	_mem_higher_port_stride = config.mem_higher_port_stride;
 
 	_banks.resize(config.num_banks, {config.num_lfb, config.data_array_latency});
-
-	uint bank_index_bits = log2i(config.num_banks);
-	_bank_index_mask = generate_nbit_mask(bank_index_bits);
-	_bank_index_offset = log2i(CACHE_BLOCK_SIZE); //line stride for now
 }
 
 UnitNonBlockingCache::~UnitNonBlockingCache()
@@ -111,7 +108,7 @@ void UnitNonBlockingCache::_clock_data_array(uint bank_index)
 	if(!bank.data_array_pipline.is_read_valid()) return;
 
 	uint lfb_index = bank.data_array_pipline.read();
-	if(lfb_index == ~0u) return;
+	if(lfb_index == ~0u) return; 
 
 	LFB& lfb = bank.lfbs[lfb_index];
 	assert(lfb.state == LFB::State::DATA_ARRAY);
@@ -121,7 +118,7 @@ void UnitNonBlockingCache::_clock_data_array(uint bank_index)
 
 bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 {
-	uint mem_higher_port_index = _mem_higher_port_offset + bank_index;
+	uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
 	if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return false;
 
 	const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
@@ -263,7 +260,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 {
 	Bank& bank = _banks[bank_index];
-	uint mem_higher_port_index = _mem_higher_port_offset + bank_index;
+	uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
 
 	if(bank.lfb_request_queue.empty() || !_mem_higher->request_port_write_valid(mem_higher_port_index)) return;
 	
@@ -315,7 +312,8 @@ void UnitNonBlockingCache::_try_return_lfb(uint bank_index)
 
 	if(lfb.sub_entries.empty())
 	{
-		lfb.state = LFB::State::RETIRED;
+		if(_check_retired_lfb) lfb.state = LFB::State::RETIRED;
+		else                  lfb.state = LFB::State::INVALID;
 		bank.lfb_return_queue.pop();
 	}
 }

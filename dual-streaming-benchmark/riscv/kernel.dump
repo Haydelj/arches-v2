@@ -1,0 +1,115 @@
+
+./riscv/kernel:     file format elf64-littleriscv
+./riscv/kernel
+architecture: riscv:rv64, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED
+start address 0x00000000000100b0
+
+Program Header:
+0x70000003 off    0x0000000000001233 vaddr 0x0000000000000000 paddr 0x0000000000000000 align 2**0
+         filesz 0x000000000000003d memsz 0x0000000000000000 flags r--
+    LOAD off    0x0000000000000000 vaddr 0x0000000000010000 paddr 0x0000000000010000 align 2**12
+         filesz 0x0000000000001218 memsz 0x0000000000001218 flags r-x
+
+Sections:
+Idx Name          Size      VMA               LMA               File off  Algn
+  0 .text         00000114  00000000000100b0  00000000000100b0  000000b0  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .eh_frame     00000040  00000000000101c8  00000000000101c8  000001c8  2**3
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  2 .sdata        00000010  0000000000011208  0000000000011208  00001208  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  3 .comment      0000001b  0000000000000000  0000000000000000  00001218  2**0
+                  CONTENTS, READONLY
+  4 .riscv.attributes 0000003d  0000000000000000  0000000000000000  00001233  2**0
+                  CONTENTS, READONLY
+SYMBOL TABLE:
+00000000000100b0 l    d  .text	0000000000000000 .text
+00000000000101c8 l    d  .eh_frame	0000000000000000 .eh_frame
+0000000000011208 l    d  .sdata	0000000000000000 .sdata
+0000000000000000 l    d  .comment	0000000000000000 .comment
+0000000000000000 l    d  .riscv.attributes	0000000000000000 .riscv.attributes
+0000000000000000 l    df *ABS*	0000000000000000 main.cpp
+0000000000011a08 g       *ABS*	0000000000000000 __global_pointer$
+0000000000011208 g       .sdata	0000000000000000 __SDATA_BEGIN__
+0000000000011218 g       .sdata	0000000000000000 __BSS_END__
+0000000000011218 g       .sdata	0000000000000000 __bss_start
+00000000000100b0 g     F .text	0000000000000114 main
+0000000000011208 g       .sdata	0000000000000000 __DATA_BEGIN__
+0000000000011218 g       .sdata	0000000000000000 _edata
+0000000000011218 g       .sdata	0000000000000000 _end
+
+
+
+Disassembly of section .text:
+
+00000000000100b0 <main>:
+   100b0:	0000078b          	fchthrd	a5
+   100b4:	10802503          	lw	a0,264(zero) # 108 <main-0xffa8>
+   100b8:	0007879b          	sext.w	a5,a5
+   100bc:	10a7f063          	bgeu	a5,a0,101bc <main+0x10c>
+   100c0:	00011737          	lui	a4,0x11
+   100c4:	20872707          	flw	fa4,520(a4) # 11208 <__DATA_BEGIN__>
+   100c8:	00011737          	lui	a4,0x11
+   100cc:	20c72787          	flw	fa5,524(a4) # 1120c <__DATA_BEGIN__+0x4>
+   100d0:	00011737          	lui	a4,0x11
+   100d4:	ff010113          	add	sp,sp,-16
+   100d8:	21072387          	flw	ft7,528(a4) # 11210 <__DATA_BEGIN__+0x8>
+   100dc:	00011737          	lui	a4,0x11
+   100e0:	01212227          	fsw	fs2,4(sp)
+   100e4:	10002683          	lw	a3,256(zero) # 100 <main-0xffb0>
+   100e8:	11c02907          	flw	fs2,284(zero) # 11c <main-0xff94>
+   100ec:	12002f87          	flw	ft11,288(zero) # 120 <main-0xff90>
+   100f0:	13002f07          	flw	ft10,304(zero) # 130 <main-0xff80>
+   100f4:	13402e87          	flw	ft9,308(zero) # 134 <main-0xff7c>
+   100f8:	13802e07          	flw	ft8,312(zero) # 138 <main-0xff78>
+   100fc:	13c02887          	flw	fa7,316(zero) # 13c <main-0xff74>
+   10100:	14002807          	flw	fa6,320(zero) # 140 <main-0xff70>
+   10104:	14402507          	flw	fa0,324(zero) # 144 <main-0xff6c>
+   10108:	14802587          	flw	fa1,328(zero) # 148 <main-0xff68>
+   1010c:	14c02607          	flw	fa2,332(zero) # 14c <main-0xff64>
+   10110:	15002687          	flw	fa3,336(zero) # 150 <main-0xff60>
+   10114:	12402007          	flw	ft0,292(zero) # 124 <main-0xff8c>
+   10118:	12802087          	flw	ft1,296(zero) # 128 <main-0xff88>
+   1011c:	12c02107          	flw	ft2,300(zero) # 12c <main-0xff84>
+   10120:	16803803          	ld	a6,360(zero) # 168 <main-0xff48>
+   10124:	21472187          	flw	ft3,532(a4) # 11214 <__DATA_BEGIN__+0xc>
+   10128:	00812627          	fsw	fs0,12(sp)
+   1012c:	00912427          	fsw	fs1,8(sp)
+   10130:	01312027          	fsw	fs3,0(sp)
+   10134:	02d7d63b          	divuw	a2,a5,a3
+   10138:	02079593          	sll	a1,a5,0x20
+   1013c:	f0078453          	fmv.w.x	fs0,a5
+   10140:	01c5d713          	srl	a4,a1,0x1c
+   10144:	00e80733          	add	a4,a6,a4
+   10148:	f00004d3          	fmv.w.x	fs1,zero
+   1014c:	00772027          	fsw	ft7,0(a4)
+   10150:	02d7f7bb          	remuw	a5,a5,a3
+   10154:	d0167253          	fcvt.s.wu	ft4,a2
+   10158:	00e27253          	fadd.s	ft4,ft4,fa4
+   1015c:	79f27243          	fmadd.s	ft4,ft4,ft11,fa5
+   10160:	110272d3          	fmul.s	ft5,ft4,fa6
+   10164:	10a279d3          	fmul.s	fs3,ft4,fa0
+   10168:	11127253          	fmul.s	ft4,ft4,fa7
+   1016c:	d017f353          	fcvt.s.wu	ft6,a5
+   10170:	00e37353          	fadd.s	ft6,ft6,fa4
+   10174:	79237343          	fmadd.s	ft6,ft6,fs2,fa5
+   10178:	21e37243          	fmadd.s	ft4,ft6,ft10,ft4
+   1017c:	29d372c3          	fmadd.s	ft5,ft6,ft9,ft5
+   10180:	99c37343          	fmadd.s	ft6,ft6,ft8,fs3
+   10184:	08b27253          	fsub.s	ft4,ft4,fa1
+   10188:	08c2f2d3          	fsub.s	ft5,ft5,fa2
+   1018c:	08d37353          	fsub.s	ft6,ft6,fa3
+   10190:	0000200b          	swi	ft0,0(zero) # 0 <main-0x100b0>
+   10194:	0000078b          	fchthrd	a5
+   10198:	0007879b          	sext.w	a5,a5
+   1019c:	f8a7ece3          	bltu	a5,a0,10134 <main+0x84>
+   101a0:	00c12407          	flw	fs0,12(sp)
+   101a4:	00812487          	flw	fs1,8(sp)
+   101a8:	00412907          	flw	fs2,4(sp)
+   101ac:	00012987          	flw	fs3,0(sp)
+   101b0:	00000513          	li	a0,0
+   101b4:	01010113          	add	sp,sp,16
+   101b8:	00008067          	ret
+   101bc:	00000513          	li	a0,0
+   101c0:	00008067          	ret

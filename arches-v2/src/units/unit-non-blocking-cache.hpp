@@ -14,15 +14,18 @@ public:
 		uint size{1024};
 		uint associativity{1};
 
+		uint data_array_latency{0};
+
 		uint num_ports{1};
 		uint num_banks{1};
 		uint64_t bank_select_mask{0};
+
 		uint num_lfb{1};
+		bool check_retired_lfb{true};
 
-		uint data_array_latency{0};
-
-		UnitMemoryBase* mem_higher;
-		uint            mem_higher_port_offset;
+		UnitMemoryBase* mem_higher{nullptr};
+		uint            mem_higher_port_offset{0};
+		uint            mem_higher_port_stride{1};
 	};
 
 	UnitNonBlockingCache(Configuration config);
@@ -78,6 +81,7 @@ private:
 		Type type{Type::READ};
 		State state{State::INVALID};
 
+
 		LFB() = default;
 
 		bool operator==(const LFB& other) const
@@ -96,20 +100,14 @@ private:
 		Bank(uint num_lfb, uint data_array_latency) : lfbs(num_lfb), data_array_pipline(data_array_latency) {}
 	};
 
-	Configuration _configuration; //nice for debugging
-
-	uint _bank_index_offset;
-	uint64_t _bank_index_mask;
-
-	uint _data_array_access_cycles, _tag_array_access_cycles;
-
+	bool _check_retired_lfb;
 	std::vector<Bank> _banks;
-
-	CacheRequestCrossBar _request_cross_bar;
-	CacheReturnCrossBar _return_cross_bar;
+	MemoryRequestCrossBar _request_cross_bar;
+	MemoryReturnCrossBar _return_cross_bar;
 
 	UnitMemoryBase* _mem_higher;
 	uint _mem_higher_port_offset;
+	uint _mem_higher_port_stride;
 
 	void _push_request(LFB& lfb, const MemoryRequest& request);
 	MemoryRequest _pop_request(LFB& lfb);
@@ -125,8 +123,6 @@ private:
 
 	void _try_request_lfb(uint bank_index);
 	void _try_return_lfb(uint bank_index);
-
-	paddr_t _get_bank_index(paddr_t paddr) { return (paddr >> _bank_index_offset) & _bank_index_mask; }
 
 public:
 	class Log

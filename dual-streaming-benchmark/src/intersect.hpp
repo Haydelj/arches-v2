@@ -1,12 +1,88 @@
 #pragma once
 #include "stdafx.hpp"
 
-#include "ray.hpp"
 #include "treelet-bvh.hpp"
 
-inline float intersect(const AABB& aabb, const Ray& ray, const rtm::vec3& inv_d)
+struct BucketRay
 {
-	#ifdef ARCH_RISCV
+	rtm::Ray ray;
+	uint32_t id{~0u};
+};
+
+struct WorkItem
+{
+	BucketRay bray;
+	uint32_t  segment;
+};
+
+inline WorkItem _lwi()
+{
+#ifdef __riscv
+	register float f0 asm("f0");
+	register float f1 asm("f1");
+	register float f2 asm("f2");
+	register float f3 asm("f3");
+	register float f4 asm("f4");
+	register float f5 asm("f5");
+	register float f6 asm("f6");
+	register float f7 asm("f7");
+	register float f8 asm("f8");
+	register float f9 asm("f9");
+	asm volatile("lwi f0, 0(x0)" : "=f" (f0),  "=f" (f1), "=f" (f2), "=f" (f3), "=f" (f4), "=f" (f5), "=f" (f6), "=f" (f7), "=f" (f8), "=f" (f9));
+
+	WorkItem wi;
+	wi.bray.ray.o.x = f0;
+	wi.bray.ray.o.y = f1;
+	wi.bray.ray.o.z = f2;
+	wi.bray.ray.t_min = f3;
+	wi.bray.ray.d.x = f4;
+	wi.bray.ray.d.y = f5;
+	wi.bray.ray.d.z = f6;
+	wi.bray.ray.t_min = f7;
+
+	float _f8 = f8;
+	wi.bray.id = *(uint*)&_f8;
+
+	float _f9 = f9;
+	wi.segment = *(uint*)&_f9;
+
+	return wi;
+#else
+	return WorkItem();
+#endif
+}
+
+inline void _swi(const WorkItem& wi)
+{
+#ifdef __riscv
+	register float f0 asm("f0") = wi.bray.ray.o.x;
+	register float f1 asm("f1") = wi.bray.ray.o.y;
+	register float f2 asm("f2") = wi.bray.ray.o.z;
+	register float f3 asm("f3") = wi.bray.ray.t_min;
+	register float f4 asm("f4") = wi.bray.ray.d.x;
+	register float f5 asm("f5") = wi.bray.ray.d.y;
+	register float f6 asm("f6") = wi.bray.ray.d.z;
+	register float f7 asm("f7") = wi.bray.ray.t_max;
+	register float f8 asm("f8") = *(float*)&wi.bray.id;
+	register float f9 asm("f9") = *(float*)&wi.segment;
+	asm volatile("swi f0, 0(x0)" : : "f" (f0),  "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9));
+#endif
+}
+
+inline void _cshit(const rtm::Hit& hit, rtm::Hit* dst)
+{
+#ifdef __riscv
+	register float f17 asm("f17") = hit.t;
+	register float f18 asm("f18") = hit.bc.x;
+	register float f19 asm("f19") = hit.bc.y;
+	register float f20 asm("f20") = *(float*)&hit.id;
+	asm volatile("cshit f17, 0(x0)" : : "f" (f17),  "f" (f18), "f" (f19), "f" (f20));
+#endif
+}
+
+inline float intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
+{
+#ifdef __riscv
 	register float f0 asm("f0") = ray.o.x;
 	register float f1 asm("f1") = ray.o.y;
 	register float f2 asm("f2") = ray.o.z;
@@ -21,7 +97,6 @@ inline float intersect(const AABB& aabb, const Ray& ray, const rtm::vec3& inv_d)
 	register float f10 asm("f10") = aabb.max.y;
 	register float f11 asm("f11") = aabb.max.z;
 
-	//todo need to block for loads
 	float t;
 	asm volatile
 	(
@@ -44,26 +119,14 @@ inline float intersect(const AABB& aabb, const Ray& ray, const rtm::vec3& inv_d)
 	);
 
 	return t;
-	#endif
-
-	#ifdef ARCH_X86
-	rtm::vec3 t0 = (aabb.min - ray.o) * inv_d;
-	rtm::vec3 t1 = (aabb.max - ray.o) * inv_d;
-
-	rtm::vec3 tminv = rtm::min(t0, t1);
-	rtm::vec3 tmaxv = rtm::max(t0, t1);
-
-	float tmin = std::max(std::max(tminv.x, tminv.y), std::max(tminv.z, T_MIN));
-	float tmax = std::min(std::min(tmaxv.x, tmaxv.y), std::min(tmaxv.z, T_MAX));
-
-	if (tmin > tmax || tmax < T_MIN) return T_MAX;//no hit || behind
-	return tmin;
-	#endif
+#else
+	return rtm::intersect_aabb(aabb, ray, inv_d);
+#endif
 }
 
-inline bool intersect(const Triangle& tri, const Ray& ray, Hit& hit)
+inline bool intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)
 {
-#ifdef ARCH_RISCV
+#ifdef __riscv
 	register float f0 asm("f0") = ray.o.x;
 	register float f1 asm("f1") = ray.o.y;
 	register float f2 asm("f2") = ray.o.z;
@@ -85,11 +148,10 @@ inline bool intersect(const Triangle& tri, const Ray& ray, Hit& hit)
 	register float f16 asm("f16") = hit.bc.x;
 	register float f17 asm("f17") = hit.bc.y;
 
-	//todo need to block for loads
 	uint is_hit;
 	asm volatile
 	(
-		"triisect %0"
+		"triisect %0\n\t"
 		: 
 		"=r" (is_hit),
 		"+f" (f15),
@@ -118,31 +180,12 @@ inline bool intersect(const Triangle& tri, const Ray& ray, Hit& hit)
 	hit.bc.y = f17;
 
 	return is_hit;
-#endif
-
-#ifdef ARCH_X86
-	rtm::vec3 bc;
-	bc[0] = rtm::dot(rtm::cross(tri.vrts[2] - tri.vrts[1], tri.vrts[1] - ray.o), ray.d);
-	bc[1] = rtm::dot(rtm::cross(tri.vrts[0] - tri.vrts[2], tri.vrts[2] - ray.o), ray.d);
-	bc[2] = rtm::dot(rtm::cross(tri.vrts[1] - tri.vrts[0], tri.vrts[0] - ray.o), ray.d);
-		
-	if(bc[0] < 0.0f || bc[1] < 0.0f || bc[2] < 0.0f) return false;
-
-	rtm::vec3 gn = rtm::cross(tri.vrts[1] - tri.vrts[0], tri.vrts[2] - tri.vrts[0]);
-	float gn_dot_d = rtm::dot(gn, ray.d);
-
-	//TODO divides should be done in software
-	float t = rtm::dot(gn, tri.vrts[0] - ray.o) / gn_dot_d;
-
-	if(t < T_MIN || t > hit.t) return false;
-
-	hit.bc = rtm::vec2(bc.x, bc.y) / (bc[0] + bc[1] + bc[2]);
-	hit.t = t;
-	return true;
+#else
+	return rtm::intersect_tri(tri, ray, hit);
 #endif
 }
 
-bool inline intersect_treelet(const Treelet& treelet, const Ray& ray, Hit& hit, uint* treelet_stack, uint& treelet_stack_size)
+bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::Hit& hit, uint* treelet_stack, uint& treelet_stack_size)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
@@ -220,7 +263,7 @@ bool inline intersect_treelet(const Treelet& treelet, const Ray& ray, Hit& hit, 
 				TreeletTriangle tri = tris[i];
 				if(intersect(tri.tri, ray, hit))
 				{
-					hit.prim_id = tri.id;
+					hit.id = tri.id;
 					is_hit |= true;
 				}
 			}
@@ -230,7 +273,7 @@ bool inline intersect_treelet(const Treelet& treelet, const Ray& ray, Hit& hit, 
 	return is_hit;
 }
 
-bool inline intersect(const Treelet* treelets, const Ray& ray, Hit& hit)
+bool inline intersect(const Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
 {
 	uint treelet_stack_size = 1u;  uint treelet_stack[64];
 	treelet_stack[0] = 0;
@@ -246,135 +289,28 @@ bool inline intersect(const Treelet* treelets, const Ray& ray, Hit& hit)
 	return is_hit;
 }
 
-BucketRay _lbray(const void* ray_staging_buffer, uint& treelet_index)
+bool inline intersect_buckets(void* ray_staging_buffer, const Treelet* scene_buffer, rtm::Hit* hit_records)
 {
-#ifdef ARCH_RISCV
-	register float f0 asm("f0");
-	register float f1 asm("f1");
-	register float f2 asm("f2");
-	register float f3 asm("f3");
-	register float f4 asm("f4");
-	register float f5 asm("f5");
-	register float f6 asm("f6");
-	register float f7 asm("f7");
-
-	//todo need to block for loads
-	float t;
-	asm volatile
-	(
-		"lbray %0, 0(%8)"
-		:
-		"=f" (f0),
-		"=f" (f1),
-		"=f" (f2),
-		"=f" (f3),
-		"=f" (f4),
-		"=f" (f5),
-		"=f" (f6),
-		"=f" (f7)
-		:
-		"r" (ray_staging_buffer)
-	);
-
-	BucketRay bray;
-	bray.ray.o.x = f0;
-	bray.ray.o.y = f1;
-	bray.ray.o.z = f2;
-	bray.ray.d.x = f3;
-	bray.ray.d.y = f4;
-	bray.ray.d.z = f5;
-
-	float _f8 = f6;
-	float _f9 = f7;
-
-	bray.id = *(uint*)&_f8;
-	treelet_index = *(uint*)&_f9;
-
-	return bray;
-#else
-	return BucketRay();
-#endif
-}
-
-void _sbray(const BucketRay& bray, const uint treelet_index, const void* ray_staging_buffer)
-{
-#ifdef ARCH_RISCV
-	register float f0 asm("f0") = bray.ray.o.x;
-	register float f1 asm("f1") = bray.ray.o.y;
-	register float f2 asm("f2") = bray.ray.o.z;
-	register float f3 asm("f3") = bray.ray.d.x;
-	register float f4 asm("f4") = bray.ray.d.y;
-	register float f5 asm("f5") = bray.ray.d.z;
-	register float f6 asm("f6") = *(float*)&bray.id;
-	register float f7 asm("f7") = *(float*)&treelet_index;
-
-	//todo need to block for loads
-	float t;
-	asm volatile
-	(
-		"sbray %1, 0(%0)"
-		:
-		:
-		"r" (ray_staging_buffer),
-		"f" (f0),
-		"f" (f1),
-		"f" (f2),
-		"f" (f3),
-		"f" (f4),
-		"f" (f5),
-		"f" (f6),
-		"f" (f7)
-	);
-#endif
-}
-
-void _cshit(const Hit& src, Hit* dst)
-{
-#ifdef ARCH_RISCV
-	register float f17 asm("f17") = src.t;
-	register float f18 asm("f18") = src.bc.x;
-	register float f19 asm("f19") = src.bc.y;
-	register float f20 asm("f20") = *(float*)&src.prim_id;
-
-	//todo need to block for loads
-	float t;
-	asm volatile
-	(
-		"sbray %1, 0(%0)"
-		:
-		:
-		"r" (dst),
-		"f" (f17),
-		"f" (f18),
-		"f" (f19),
-		"f" (f20)
-	);
-#endif
-}
-
-bool inline intersect_buckets(void* ray_staging_buffer, const Treelet* scene_buffer, Hit* hit_records)
-{
-	uint treelet_stack_size = 0u;  uint treelet_stack[64];
-
 	bool is_hit = false;
 	while(1)
 	{
-		uint treelet_index;
-		BucketRay bray = _lbray(ray_staging_buffer, treelet_index);
+		WorkItem work_item = _lwi();
+		if(work_item.segment == ~0u) break;
 
-		Hit hit; hit.t = T_MAX; //TODO should we load hit t from hit records
-		//TODO in dual streaming this comes from the current scene segment we are traversing
-		if(intersect_treelet(scene_buffer[treelet_index], bray.ray, hit, treelet_stack, treelet_stack_size))
+		rtm::Hit hit; hit.t = T_MAX;
+		uint treelet_stack[64]; uint treelet_stack_size = 0;
+		if(intersect_treelet(scene_buffer[work_item.segment], work_item.bray.ray, hit, treelet_stack, treelet_stack_size))
 		{
 			//update hit record with hit using cshit
-			_cshit(hit, hit_records + bray.id);
+			_cshit(hit, hit_records + work_item.bray.id);
 		}
 		
 		//drain treelet stack
 		for(uint i = 0; i < treelet_stack_size; ++i)
-			_sbray(bray, treelet_stack[i], ray_staging_buffer);
-
-		treelet_stack_size = 0;
+		{
+			work_item.segment = treelet_stack[i];
+			_swi(work_item);
+		}
 	}
 
 	return is_hit;

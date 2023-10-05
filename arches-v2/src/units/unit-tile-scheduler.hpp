@@ -58,7 +58,6 @@ public:
 		{
 			_current_request = _request_network.read(0);
 			_current_request_valid = true;
-			assert(_current_request.type == MemoryRequest::Type::FCHTHRD);
 		}
 	}
 
