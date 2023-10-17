@@ -1,44 +1,34 @@
 #pragma once
 #include "stdafx.hpp"
 
-#ifdef ARCH_X86
-static std::atomic_uint32_t _next_thread;
+#ifndef __riscv
+static std::atomic_uint _next_thread;
 #endif
 
 uint32_t inline fchthrd()
 {
-	#ifdef ARCH_RISCV
-	uint32_t value;
-	asm volatile("fchthrd %[rd]\n\t" : [rd] "=r" (value));
+#ifdef __riscv
+	uint32_t value = 0;
+	asm volatile("fchthrd %0\n\t" : "=r" (value));
 	return value;
-	#endif
-
-	#ifdef ARCH_X86
+#else
 	return _next_thread++;
-	#endif
-
-	return 0;
+#endif
 }
+
+#ifndef __riscv
+void reset_fchthrd()
+{
+ 	_next_thread = 0;
+}
+#endif
 
 inline void ebreak()
 {
-	#ifdef ARCH_RISCV
+	#ifdef __riscv
 	asm volatile
 	(
 		"ebreak\n\t"
 	);
 	#endif
-}
-
-float inline static rcp(float in)
-{
-#ifdef ARCH_RISCV
-	float out;
-	asm volatile("frcp.s %0,%1\n\t"
-		: "=f" (out)
-		: "f" (in));
-	return out;
-#else
-	return 1.0f / in;
-#endif
 }

@@ -33,14 +33,14 @@ inline static void kernel(const KernelArgs& args)
 		wi.bray.ray = args.camera.generate_ray_through_pixel(x, y);
 		wi.bray.id = index;
 		wi.segment = 0;
-		
-		args.hit_records[index].t = T_MAX;
+
+		//write root ray to ray bucket
 		_swi(wi);
 	}
 
-#if 0
-	intersect_buckets(args.ray_staging_buffer, args.scene_buffer, args.hit_records);
+	intersect_buckets(args.treelets, args.hit_records);
 
+#if 0
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint fb_index = index;

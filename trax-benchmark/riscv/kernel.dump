@@ -1,0 +1,1256 @@
+
+./riscv/kernel:     file format elf64-littleriscv
+./riscv/kernel
+architecture: riscv:rv64, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED
+start address 0x00000000000100b0
+
+Program Header:
+0x70000003 off    0x00000000000024d7 vaddr 0x0000000000000000 paddr 0x0000000000000000 align 2**0
+         filesz 0x000000000000003d memsz 0x0000000000000000 flags r--
+    LOAD off    0x0000000000000000 vaddr 0x0000000000010000 paddr 0x0000000000010000 align 2**12
+         filesz 0x00000000000024bc memsz 0x00000000000024bc flags r-x
+
+Sections:
+Idx Name          Size      VMA               LMA               File off  Algn
+  0 .text         000012dc  00000000000100b0  00000000000100b0  000000b0  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .eh_frame     000000fc  0000000000011390  0000000000011390  00001390  2**3
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  2 .sdata        00000030  000000000001248c  000000000001248c  0000248c  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  3 .comment      0000001b  0000000000000000  0000000000000000  000024bc  2**0
+                  CONTENTS, READONLY
+  4 .riscv.attributes 0000003d  0000000000000000  0000000000000000  000024d7  2**0
+                  CONTENTS, READONLY
+SYMBOL TABLE:
+00000000000100b0 l    d  .text	0000000000000000 .text
+0000000000011390 l    d  .eh_frame	0000000000000000 .eh_frame
+000000000001248c l    d  .sdata	0000000000000000 .sdata
+0000000000000000 l    d  .comment	0000000000000000 .comment
+0000000000000000 l    d  .riscv.attributes	0000000000000000 .riscv.attributes
+0000000000000000 l    df *ABS*	0000000000000000 main.cpp
+00000000000100d0 l     F .text	00000000000012bc _ZL6kernelRK10KernelArgs.constprop.0
+0000000000012c8c g       *ABS*	0000000000000000 __global_pointer$
+000000000001248c g       .sdata	0000000000000000 __SDATA_BEGIN__
+00000000000124c0 g       .sdata	0000000000000000 __BSS_END__
+00000000000124bc g       .sdata	0000000000000000 __bss_start
+00000000000100b0 g     F .text	0000000000000020 main
+000000000001248c g       .sdata	0000000000000000 __DATA_BEGIN__
+00000000000124bc g       .sdata	0000000000000000 _edata
+00000000000124c0 g       .sdata	0000000000000000 _end
+
+
+
+Disassembly of section .text:
+
+00000000000100b0 <main>:
+   100b0:	ff010113          	add	sp,sp,-16
+   100b4:	00113423          	sd	ra,8(sp)
+   100b8:	00000097          	auipc	ra,0x0
+   100bc:	018080e7          	jalr	24(ra) # 100d0 <_ZL6kernelRK10KernelArgs.constprop.0>
+   100c0:	00813083          	ld	ra,8(sp)
+   100c4:	00000513          	li	a0,0
+   100c8:	01010113          	add	sp,sp,16
+   100cc:	00008067          	ret
+
+00000000000100d0 <_ZL6kernelRK10KernelArgs.constprop.0>:
+   100d0:	0000058b          	fchthrd	a1
+   100d4:	10802783          	lw	a5,264(zero) # 108 <main-0xffa8>
+   100d8:	0005859b          	sext.w	a1,a1
+   100dc:	00f5e463          	bltu	a1,a5,100e4 <_ZL6kernelRK10KernelArgs.constprop.0+0x14>
+   100e0:	2480106f          	j	11328 <_ZL6kernelRK10KernelArgs.constprop.0+0x1258>
+   100e4:	dd010113          	add	sp,sp,-560
+   100e8:	00012e37          	lui	t3,0x12
+   100ec:	00012337          	lui	t1,0x12
+   100f0:	000127b7          	lui	a5,0x12
+   100f4:	1b812627          	fsw	fs8,428(sp)
+   100f8:	1ba12227          	fsw	fs10,420(sp)
+   100fc:	1bb12027          	fsw	fs11,416(sp)
+   10100:	11003803          	ld	a6,272(zero) # 110 <main-0xffa0>
+   10104:	49032c07          	flw	fs8,1168(t1) # 12490 <__DATA_BEGIN__+0x4>
+   10108:	49c7ad07          	flw	fs10,1180(a5) # 1249c <__DATA_BEGIN__+0x10>
+   1010c:	4ace2d87          	flw	fs11,1196(t3) # 124ac <__DATA_BEGIN__+0x20>
+   10110:	22813423          	sd	s0,552(sp)
+   10114:	22913023          	sd	s1,544(sp)
+   10118:	21213c23          	sd	s2,536(sp)
+   1011c:	21313823          	sd	s3,528(sp)
+   10120:	21413423          	sd	s4,520(sp)
+   10124:	21513023          	sd	s5,512(sp)
+   10128:	1f613c23          	sd	s6,504(sp)
+   1012c:	1f713823          	sd	s7,496(sp)
+   10130:	1f813423          	sd	s8,488(sp)
+   10134:	1f913023          	sd	s9,480(sp)
+   10138:	1da13c23          	sd	s10,472(sp)
+   1013c:	1c812627          	fsw	fs0,460(sp)
+   10140:	1c912427          	fsw	fs1,456(sp)
+   10144:	1d212227          	fsw	fs2,452(sp)
+   10148:	1d312027          	fsw	fs3,448(sp)
+   1014c:	1b412e27          	fsw	fs4,444(sp)
+   10150:	1b512c27          	fsw	fs5,440(sp)
+   10154:	1b612a27          	fsw	fs6,436(sp)
+   10158:	1b712827          	fsw	fs7,432(sp)
+   1015c:	1b912427          	fsw	fs9,424(sp)
+   10160:	00000893          	li	a7,0
+   10164:	00012fb7          	lui	t6,0x12
+   10168:	000123b7          	lui	t2,0x12
+   1016c:	0015879b          	addw	a5,a1,1
+   10170:	00a7971b          	sllw	a4,a5,0xa
+   10174:	00f7073b          	addw	a4,a4,a5
+   10178:	0067579b          	srlw	a5,a4,0x6
+   1017c:	00e7c7b3          	xor	a5,a5,a4
+   10180:	0037969b          	sllw	a3,a5,0x3
+   10184:	00f686bb          	addw	a3,a3,a5
+   10188:	00b6d71b          	srlw	a4,a3,0xb
+   1018c:	10002783          	lw	a5,256(zero) # 100 <main-0xffb0>
+   10190:	11802903          	lw	s2,280(zero) # 118 <main-0xff98>
+   10194:	00d74733          	xor	a4,a4,a3
+   10198:	00f7151b          	sllw	a0,a4,0xf
+   1019c:	02f5f6bb          	remuw	a3,a1,a5
+   101a0:	00e5053b          	addw	a0,a0,a4
+   101a4:	02f5d7bb          	divuw	a5,a1,a5
+   101a8:	00091463          	bnez	s2,101b0 <_ZL6kernelRK10KernelArgs.constprop.0+0xe0>
+   101ac:	1740106f          	j	11320 <_ZL6kernelRK10KernelArgs.constprop.0+0x1250>
+   101b0:	00012437          	lui	s0,0x12
+   101b4:	d016fe53          	fcvt.s.wu	ft8,a3
+   101b8:	49842787          	flw	fa5,1176(s0) # 12498 <__DATA_BEGIN__+0xc>
+   101bc:	00012eb7          	lui	t4,0x12
+   101c0:	17002e87          	flw	ft9,368(zero) # 170 <main-0xff40>
+   101c4:	17802807          	flw	fa6,376(zero) # 178 <main-0xff38>
+   101c8:	d017f8d3          	fcvt.s.wu	fa7,a5
+   101cc:	00fe7fd3          	fadd.s	ft11,ft8,fa5
+   101d0:	48cea787          	flw	fa5,1164(t4) # 1248c <__DATA_BEGIN__>
+   101d4:	21ce0753          	fmv.s	fa4,ft8
+   101d8:	21de8553          	fmv.s	fa0,ft9
+   101dc:	08f8f453          	fsub.s	fs0,fa7,fa5
+   101e0:	211887d3          	fmv.s	fa5,fa7
+   101e4:	210808d3          	fmv.s	fa7,fa6
+   101e8:	11c02283          	lw	t0,284(zero) # 11c <main-0xff94>
+   101ec:	16002207          	flw	ft4,352(zero) # 160 <main-0xff50>
+   101f0:	16402287          	flw	ft5,356(zero) # 164 <main-0xff4c>
+   101f4:	16802187          	flw	ft3,360(zero) # 168 <main-0xff48>
+   101f8:	16c02087          	flw	ft1,364(zero) # 16c <main-0xff44>
+   101fc:	17402f07          	flw	ft10,372(zero) # 174 <main-0xff3c>
+   10200:	00000493          	li	s1,0
+   10204:	00012823          	sw	zero,16(sp)
+   10208:	00012a23          	sw	zero,20(sp)
+   1020c:	00012c23          	sw	zero,24(sp)
+   10210:	000129b7          	lui	s3,0x12
+   10214:	00100793          	li	a5,1
+   10218:	14402607          	flw	fa2,324(zero) # 144 <main-0xff6c>
+   1021c:	14802307          	flw	ft6,328(zero) # 148 <main-0xff68>
+   10220:	15802007          	flw	ft0,344(zero) # 158 <main-0xff58>
+   10224:	15c02587          	flw	fa1,348(zero) # 15c <main-0xff54>
+   10228:	14c02387          	flw	ft7,332(zero) # 14c <main-0xff64>
+   1022c:	15002e07          	flw	ft8,336(zero) # 150 <main-0xff60>
+   10230:	15402807          	flw	fa6,340(zero) # 154 <main-0xff5c>
+   10234:	00f91463          	bne	s2,a5,1023c <_ZL6kernelRK10KernelArgs.constprop.0+0x16c>
+   10238:	0a40106f          	j	112dc <_ZL6kernelRK10KernelArgs.constprop.0+0x120c>
+   1023c:	001966b7          	lui	a3,0x196
+   10240:	60d6869b          	addw	a3,a3,1549 # 19660d <__global_pointer$+0x183981>
+   10244:	000127b7          	lui	a5,0x12
+   10248:	02d5073b          	mulw	a4,a0,a3
+   1024c:	48c7a687          	flw	fa3,1164(a5) # 1248c <__DATA_BEGIN__>
+   10250:	008007b7          	lui	a5,0x800
+   10254:	fff78793          	add	a5,a5,-1 # 7fffff <__global_pointer$+0x7ed373>
+   10258:	00f57633          	and	a2,a0,a5
+   1025c:	3f800f37          	lui	t5,0x3f800
+   10260:	08d776d3          	fsub.s	fa3,fa4,fa3
+   10264:	01e66633          	or	a2,a2,t5
+   10268:	f0060153          	fmv.w.x	ft2,a2
+   1026c:	3c6ef537          	lui	a0,0x3c6ef
+   10270:	35f5051b          	addw	a0,a0,863 # 3c6ef35f <__global_pointer$+0x3c6dc6d3>
+   10274:	0026f6d3          	fadd.s	fa3,fa3,ft2
+   10278:	00a7073b          	addw	a4,a4,a0
+   1027c:	4949a107          	flw	ft2,1172(s3) # 12494 <__DATA_BEGIN__+0x8>
+   10280:	00e7f7b3          	and	a5,a5,a4
+   10284:	01e7e7b3          	or	a5,a5,t5
+   10288:	10c6f6c3          	fmadd.s	fa3,fa3,fa2,ft2
+   1028c:	f0078653          	fmv.w.x	fa2,a5
+   10290:	02d7073b          	mulw	a4,a4,a3
+   10294:	00c47653          	fadd.s	fa2,fs0,fa2
+   10298:	5006f047          	fmsub.s	ft0,fa3,ft0,fa0
+   1029c:	f0b6f5c7          	fmsub.s	fa1,fa3,fa1,ft10
+   102a0:	8846f6c7          	fmsub.s	fa3,fa3,ft4,fa7
+   102a4:	10667643          	fmadd.s	fa2,fa2,ft6,ft2
+   102a8:	00a7053b          	addw	a0,a4,a0
+   102ac:	00567043          	fmadd.s	ft0,fa2,ft5,ft0
+   102b0:	58367cc3          	fmadd.s	fs9,fa2,ft3,fa1
+   102b4:	68167a43          	fmadd.s	fs4,fa2,ft1,fa3
+   102b8:	5e028ae3          	beqz	t0,110ac <_ZL6kernelRK10KernelArgs.constprop.0+0xfdc>
+   102bc:	13003c03          	ld	s8,304(zero) # 130 <main-0xff80>
+   102c0:	48cea687          	flw	fa3,1164(t4)
+   102c4:	01012627          	fsw	fa6,12(sp)
+   102c8:	000c2607          	flw	fa2,0(s8)
+   102cc:	08812627          	fsw	fs0,140(sp)
+   102d0:	49032b87          	flw	fs7,1168(t1)
+   102d4:	00c12e27          	fsw	fa2,28(sp)
+   102d8:	004c2607          	flw	fa2,4(s8)
+   102dc:	20d68b53          	fmv.s	fs6,fa3
+   102e0:	20d68853          	fmv.s	fa6,fa3
+   102e4:	02c12027          	fsw	fa2,32(sp)
+   102e8:	008c2607          	flw	fa2,8(s8)
+   102ec:	20000453          	fmv.s	fs0,ft0
+   102f0:	00000f13          	li	t5,0
+   102f4:	02c12227          	fsw	fa2,36(sp)
+   102f8:	00cc2607          	flw	fa2,12(s8)
+   102fc:	00712427          	fsw	ft7,8(sp)
+   10300:	06e12227          	fsw	fa4,100(sp)
+   10304:	02c12427          	fsw	fa2,40(sp)
+   10308:	010c2607          	flw	fa2,16(s8)
+   1030c:	06f12427          	fsw	fa5,104(sp)
+   10310:	06412627          	fsw	ft4,108(sp)
+   10314:	02c12627          	fsw	fa2,44(sp)
+   10318:	014c2607          	flw	fa2,20(s8)
+   1031c:	06512827          	fsw	ft5,112(sp)
+   10320:	06312a27          	fsw	ft3,116(sp)
+   10324:	02c12827          	fsw	fa2,48(sp)
+   10328:	06112c27          	fsw	ft1,120(sp)
+   1032c:	06a12e27          	fsw	fa0,124(sp)
+   10330:	09e12027          	fsw	ft10,128(sp)
+   10334:	09112227          	fsw	fa7,132(sp)
+   10338:	09f12427          	fsw	ft11,136(sp)
+   1033c:	188b72d3          	fdiv.s	ft5,fs6,fs0
+   10340:	00812707          	flw	fa4,8(sp)
+   10344:	01c12787          	flw	fa5,28(sp)
+   10348:	02812607          	flw	fa2,40(sp)
+   1034c:	03012007          	flw	ft0,48(sp)
+   10350:	08e7f6d3          	fsub.s	fa3,fa5,fa4
+   10354:	08e67553          	fsub.s	fa0,fa2,fa4
+   10358:	02012787          	flw	fa5,32(sp)
+   1035c:	02c12707          	flw	fa4,44(sp)
+   10360:	02412607          	flw	fa2,36(sp)
+   10364:	09c7f7d3          	fsub.s	fa5,fa5,ft8
+   10368:	09c775d3          	fsub.s	fa1,fa4,ft8
+   1036c:	00c12707          	flw	fa4,12(sp)
+   10370:	49032087          	flw	ft1,1168(t1)
+   10374:	08e67653          	fsub.s	fa2,fa2,fa4
+   10378:	08e07753          	fsub.s	fa4,ft0,fa4
+   1037c:	4ace2007          	flw	ft0,1196(t3)
+   10380:	199b7353          	fdiv.s	ft6,fs6,fs9
+   10384:	10557553          	fmul.s	fa0,fa0,ft5
+   10388:	1056f6d3          	fmul.s	fa3,fa3,ft5
+   1038c:	28a68153          	fmin.s	ft2,fa3,fa0
+   10390:	28a696d3          	fmax.s	fa3,fa3,fa0
+   10394:	194b7f53          	fdiv.s	ft10,fs6,fs4
+   10398:	1067f7d3          	fmul.s	fa5,fa5,ft6
+   1039c:	1065f5d3          	fmul.s	fa1,fa1,ft6
+   103a0:	28b78553          	fmin.s	fa0,fa5,fa1
+   103a4:	28b797d3          	fmax.s	fa5,fa5,fa1
+   103a8:	28a11553          	fmax.s	fa0,ft2,fa0
+   103ac:	28f687d3          	fmin.s	fa5,fa3,fa5
+   103b0:	28051553          	fmax.s	fa0,fa0,ft0
+   103b4:	281787d3          	fmin.s	fa5,fa5,ft1
+   103b8:	11e67653          	fmul.s	fa2,fa2,ft10
+   103bc:	11e776d3          	fmul.s	fa3,fa4,ft10
+   103c0:	28d60753          	fmin.s	fa4,fa2,fa3
+   103c4:	28d616d3          	fmax.s	fa3,fa2,fa3
+   103c8:	28e51753          	fmax.s	fa4,fa0,fa4
+   103cc:	28d787d3          	fmin.s	fa5,fa5,fa3
+   103d0:	a0e797d3          	flt.s	a5,fa5,fa4
+   103d4:	72079c63          	bnez	a5,10b0c <_ZL6kernelRK10KernelArgs.constprop.0+0xa3c>
+   103d8:	a00797d3          	flt.s	a5,fa5,ft0
+   103dc:	72079863          	bnez	a5,10b0c <_ZL6kernelRK10KernelArgs.constprop.0+0xa3c>
+   103e0:	018c2783          	lw	a5,24(s8)
+   103e4:	49032987          	flw	fs3,1168(t1)
+   103e8:	21080053          	fmv.s	ft0,fa6
+   103ec:	4ace2f87          	flw	ft11,1196(t3)
+   103f0:	48cea487          	flw	fs1,1164(t4)
+   103f4:	f0000953          	fmv.w.x	fs2,zero
+   103f8:	00812387          	flw	ft7,8(sp)
+   103fc:	00c12807          	flw	fa6,12(sp)
+   10400:	0ae12027          	fsw	fa4,160(sp)
+   10404:	0af12223          	sw	a5,164(sp)
+   10408:	00000c93          	li	s9,0
+   1040c:	00000613          	li	a2,0
+   10410:	01312027          	fsw	fs3,0(sp)
+   10414:	02061713          	sll	a4,a2,0x20
+   10418:	01d75793          	srl	a5,a4,0x1d
+   1041c:	09010693          	add	a3,sp,144
+   10420:	00012787          	flw	fa5,0(sp)
+   10424:	11078713          	add	a4,a5,272
+   10428:	00d70733          	add	a4,a4,a3
+   1042c:	f0073683          	ld	a3,-256(a4)
+   10430:	a0e78753          	fle.s	a4,fa5,fa4
+   10434:	08d13c23          	sd	a3,152(sp)
+   10438:	02070463          	beqz	a4,10460 <_ZL6kernelRK10KernelArgs.constprop.0+0x390>
+   1043c:	46060463          	beqz	a2,108a4 <_ZL6kernelRK10KernelArgs.constprop.0+0x7d4>
+   10440:	fff6061b          	addw	a2,a2,-1
+   10444:	02061713          	sll	a4,a2,0x20
+   10448:	01d75793          	srl	a5,a4,0x1d
+   1044c:	11078793          	add	a5,a5,272
+   10450:	09010713          	add	a4,sp,144
+   10454:	00e787b3          	add	a5,a5,a4
+   10458:	f007a707          	flw	fa4,-256(a5)
+   1045c:	fb9ff06f          	j	10414 <_ZL6kernelRK10KernelArgs.constprop.0+0x344>
+   10460:	0a010713          	add	a4,sp,160
+   10464:	00f707b3          	add	a5,a4,a5
+   10468:	0047a703          	lw	a4,4(a5)
+   1046c:	09c12a03          	lw	s4,156(sp)
+   10470:	20f78653          	fmv.s	fa2,fa5
+   10474:	0017569b          	srlw	a3,a4,0x1
+   10478:	0076fa93          	and	s5,a3,7
+   1047c:	001a9a93          	sll	s5,s5,0x1
+   10480:	001a7a13          	and	s4,s4,1
+   10484:	ff077793          	and	a5,a4,-16
+   10488:	015a6a33          	or	s4,s4,s5
+   1048c:	00fa6a33          	or	s4,s4,a5
+   10490:	09412e23          	sw	s4,156(sp)
+   10494:	001a7a13          	and	s4,s4,1
+   10498:	0076f693          	and	a3,a3,7
+   1049c:	0047571b          	srlw	a4,a4,0x4
+   104a0:	060a0663          	beqz	s4,1050c <_ZL6kernelRK10KernelArgs.constprop.0+0x43c>
+   104a4:	2980006f          	j	1073c <_ZL6kernelRK10KernelArgs.constprop.0+0x66c>
+   104a8:	a0c69753          	flt.s	a4,fa3,fa2
+   104ac:	f80708e3          	beqz	a4,1043c <_ZL6kernelRK10KernelArgs.constprop.0+0x36c>
+   104b0:	a0d71753          	flt.s	a4,fa4,fa3
+   104b4:	24071a63          	bnez	a4,10708 <_ZL6kernelRK10KernelArgs.constprop.0+0x638>
+   104b8:	0187a703          	lw	a4,24(a5)
+   104bc:	0017569b          	srlw	a3,a4,0x1
+   104c0:	0076fa13          	and	s4,a3,7
+   104c4:	001a179b          	sllw	a5,s4,0x1
+   104c8:	ff177a93          	and	s5,a4,-15
+   104cc:	00faeab3          	or	s5,s5,a5
+   104d0:	00fafa93          	and	s5,s5,15
+   104d4:	ff077793          	and	a5,a4,-16
+   104d8:	00faeab3          	or	s5,s5,a5
+   104dc:	000a0693          	mv	a3,s4
+   104e0:	0047571b          	srlw	a4,a4,0x4
+   104e4:	09512e23          	sw	s5,156(sp)
+   104e8:	09c12783          	lw	a5,156(sp)
+   104ec:	001a1a93          	sll	s5,s4,0x1
+   104f0:	00471a1b          	sllw	s4,a4,0x4
+   104f4:	0017f793          	and	a5,a5,1
+   104f8:	0157e7b3          	or	a5,a5,s5
+   104fc:	0147e7b3          	or	a5,a5,s4
+   10500:	08f12e23          	sw	a5,156(sp)
+   10504:	0017f793          	and	a5,a5,1
+   10508:	22079a63          	bnez	a5,1073c <_ZL6kernelRK10KernelArgs.constprop.0+0x66c>
+   1050c:	00571693          	sll	a3,a4,0x5
+   10510:	00dc06b3          	add	a3,s8,a3
+   10514:	0006a787          	flw	fa5,0(a3)
+   10518:	0046a587          	flw	fa1,4(a3)
+   1051c:	00c6a107          	flw	ft2,12(a3)
+   10520:	0106a087          	flw	ft1,16(a3)
+   10524:	0877f7d3          	fsub.s	fa5,fa5,ft7
+   10528:	09c5f5d3          	fsub.s	fa1,fa1,ft8
+   1052c:	08717153          	fsub.s	ft2,ft2,ft7
+   10530:	09c0f0d3          	fsub.s	ft1,ft1,ft8
+   10534:	0086a687          	flw	fa3,8(a3)
+   10538:	0146a507          	flw	fa0,20(a3)
+   1053c:	1057f7d3          	fmul.s	fa5,fa5,ft5
+   10540:	1065f5d3          	fmul.s	fa1,fa1,ft6
+   10544:	10517153          	fmul.s	ft2,ft2,ft5
+   10548:	1060f0d3          	fmul.s	ft1,ft1,ft6
+   1054c:	0906f6d3          	fsub.s	fa3,fa3,fa6
+   10550:	09057553          	fsub.s	fa0,fa0,fa6
+   10554:	28278753          	fmin.s	fa4,fa5,ft2
+   10558:	281581d3          	fmin.s	ft3,fa1,ft1
+   1055c:	282797d3          	fmax.s	fa5,fa5,ft2
+   10560:	281595d3          	fmax.s	fa1,fa1,ft1
+   10564:	11e6f6d3          	fmul.s	fa3,fa3,ft10
+   10568:	11e57553          	fmul.s	fa0,fa0,ft10
+   1056c:	28b787d3          	fmin.s	fa5,fa5,fa1
+   10570:	28371753          	fmax.s	fa4,fa4,ft3
+   10574:	297787d3          	fmin.s	fa5,fa5,fs7
+   10578:	28a685d3          	fmin.s	fa1,fa3,fa0
+   1057c:	29f71753          	fmax.s	fa4,fa4,ft11
+   10580:	28a696d3          	fmax.s	fa3,fa3,fa0
+   10584:	28b71753          	fmax.s	fa4,fa4,fa1
+   10588:	28d787d3          	fmin.s	fa5,fa5,fa3
+   1058c:	a0e797d3          	flt.s	a5,fa5,fa4
+   10590:	10079c63          	bnez	a5,106a8 <_ZL6kernelRK10KernelArgs.constprop.0+0x5d8>
+   10594:	a1f797d3          	flt.s	a5,fa5,ft11
+   10598:	10079863          	bnez	a5,106a8 <_ZL6kernelRK10KernelArgs.constprop.0+0x5d8>
+   1059c:	00170793          	add	a5,a4,1
+   105a0:	00579793          	sll	a5,a5,0x5
+   105a4:	00fc07b3          	add	a5,s8,a5
+   105a8:	0007a787          	flw	fa5,0(a5)
+   105ac:	0047a507          	flw	fa0,4(a5)
+   105b0:	00c7a187          	flw	ft3,12(a5)
+   105b4:	0107a107          	flw	ft2,16(a5)
+   105b8:	0877f7d3          	fsub.s	fa5,fa5,ft7
+   105bc:	09c57553          	fsub.s	fa0,fa0,ft8
+   105c0:	0871f1d3          	fsub.s	ft3,ft3,ft7
+   105c4:	09c17153          	fsub.s	ft2,ft2,ft8
+   105c8:	0087a587          	flw	fa1,8(a5)
+   105cc:	0147a087          	flw	ft1,20(a5)
+   105d0:	1057f7d3          	fmul.s	fa5,fa5,ft5
+   105d4:	10657553          	fmul.s	fa0,fa0,ft6
+   105d8:	1051f1d3          	fmul.s	ft3,ft3,ft5
+   105dc:	10617153          	fmul.s	ft2,ft2,ft6
+   105e0:	0905f5d3          	fsub.s	fa1,fa1,fa6
+   105e4:	0900f0d3          	fsub.s	ft1,ft1,fa6
+   105e8:	283786d3          	fmin.s	fa3,fa5,ft3
+   105ec:	28250253          	fmin.s	ft4,fa0,ft2
+   105f0:	283797d3          	fmax.s	fa5,fa5,ft3
+   105f4:	28251553          	fmax.s	fa0,fa0,ft2
+   105f8:	11e5f5d3          	fmul.s	fa1,fa1,ft10
+   105fc:	11e0f0d3          	fmul.s	ft1,ft1,ft10
+   10600:	28a787d3          	fmin.s	fa5,fa5,fa0
+   10604:	284696d3          	fmax.s	fa3,fa3,ft4
+   10608:	297787d3          	fmin.s	fa5,fa5,fs7
+   1060c:	28158553          	fmin.s	fa0,fa1,ft1
+   10610:	29f696d3          	fmax.s	fa3,fa3,ft11
+   10614:	281595d3          	fmax.s	fa1,fa1,ft1
+   10618:	28a696d3          	fmax.s	fa3,fa3,fa0
+   1061c:	28b787d3          	fmin.s	fa5,fa5,fa1
+   10620:	a0d79753          	flt.s	a4,fa5,fa3
+   10624:	06071e63          	bnez	a4,106a0 <_ZL6kernelRK10KernelArgs.constprop.0+0x5d0>
+   10628:	a1f79753          	flt.s	a4,fa5,ft11
+   1062c:	06071a63          	bnez	a4,106a0 <_ZL6kernelRK10KernelArgs.constprop.0+0x5d0>
+   10630:	a0c71753          	flt.s	a4,fa4,fa2
+   10634:	e6070ae3          	beqz	a4,104a8 <_ZL6kernelRK10KernelArgs.constprop.0+0x3d8>
+   10638:	a0d71753          	flt.s	a4,fa4,fa3
+   1063c:	06070a63          	beqz	a4,106b0 <_ZL6kernelRK10KernelArgs.constprop.0+0x5e0>
+   10640:	0186ab03          	lw	s6,24(a3)
+   10644:	a0c69ad3          	flt.s	s5,fa3,fa2
+   10648:	001b569b          	srlw	a3,s6,0x1
+   1064c:	0076fa13          	and	s4,a3,7
+   10650:	001a1b9b          	sllw	s7,s4,0x1
+   10654:	ff1b7713          	and	a4,s6,-15
+   10658:	01776733          	or	a4,a4,s7
+   1065c:	00f77713          	and	a4,a4,15
+   10660:	ff0b7b93          	and	s7,s6,-16
+   10664:	01776733          	or	a4,a4,s7
+   10668:	08e12e23          	sw	a4,156(sp)
+   1066c:	000a0693          	mv	a3,s4
+   10670:	004b571b          	srlw	a4,s6,0x4
+   10674:	e60a8ae3          	beqz	s5,104e8 <_ZL6kernelRK10KernelArgs.constprop.0+0x418>
+   10678:	02061b13          	sll	s6,a2,0x20
+   1067c:	0187aa83          	lw	s5,24(a5)
+   10680:	01db5793          	srl	a5,s6,0x1d
+   10684:	11078793          	add	a5,a5,272
+   10688:	09010b13          	add	s6,sp,144
+   1068c:	016787b3          	add	a5,a5,s6
+   10690:	f0d7a027          	fsw	fa3,-256(a5)
+   10694:	f157a223          	sw	s5,-252(a5)
+   10698:	0016061b          	addw	a2,a2,1
+   1069c:	e4dff06f          	j	104e8 <_ZL6kernelRK10KernelArgs.constprop.0+0x418>
+   106a0:	217b86d3          	fmv.s	fa3,fs7
+   106a4:	f8dff06f          	j	10630 <_ZL6kernelRK10KernelArgs.constprop.0+0x560>
+   106a8:	217b8753          	fmv.s	fa4,fs7
+   106ac:	ef1ff06f          	j	1059c <_ZL6kernelRK10KernelArgs.constprop.0+0x4cc>
+   106b0:	0187a703          	lw	a4,24(a5)
+   106b4:	0186a783          	lw	a5,24(a3)
+   106b8:	02061693          	sll	a3,a2,0x20
+   106bc:	01d6db13          	srl	s6,a3,0x1d
+   106c0:	0017569b          	srlw	a3,a4,0x1
+   106c4:	0076fa13          	and	s4,a3,7
+   106c8:	001a1b9b          	sllw	s7,s4,0x1
+   106cc:	ff177a93          	and	s5,a4,-15
+   106d0:	017aeab3          	or	s5,s5,s7
+   106d4:	00fafa93          	and	s5,s5,15
+   106d8:	ff077b93          	and	s7,a4,-16
+   106dc:	110b0b13          	add	s6,s6,272
+   106e0:	09010d13          	add	s10,sp,144
+   106e4:	01ab0b33          	add	s6,s6,s10
+   106e8:	017aeab3          	or	s5,s5,s7
+   106ec:	000a0693          	mv	a3,s4
+   106f0:	0047571b          	srlw	a4,a4,0x4
+   106f4:	09512e23          	sw	s5,156(sp)
+   106f8:	f0eb2027          	fsw	fa4,-256(s6)
+   106fc:	f0fb2223          	sw	a5,-252(s6)
+   10700:	0016061b          	addw	a2,a2,1
+   10704:	de5ff06f          	j	104e8 <_ZL6kernelRK10KernelArgs.constprop.0+0x418>
+   10708:	0186a703          	lw	a4,24(a3)
+   1070c:	0017569b          	srlw	a3,a4,0x1
+   10710:	0076fa13          	and	s4,a3,7
+   10714:	001a1b1b          	sllw	s6,s4,0x1
+   10718:	ff177a93          	and	s5,a4,-15
+   1071c:	016aeab3          	or	s5,s5,s6
+   10720:	00fafa93          	and	s5,s5,15
+   10724:	ff077b13          	and	s6,a4,-16
+   10728:	016aeab3          	or	s5,s5,s6
+   1072c:	000a0693          	mv	a3,s4
+   10730:	0047571b          	srlw	a4,a4,0x4
+   10734:	09512e23          	sw	s5,156(sp)
+   10738:	f41ff06f          	j	10678 <_ZL6kernelRK10KernelArgs.constprop.0+0x5a8>
+   1073c:	13803a03          	ld	s4,312(zero) # 138 <main-0xff78>
+   10740:	00e686b3          	add	a3,a3,a4
+   10744:	00369b13          	sll	s6,a3,0x3
+   10748:	00371793          	sll	a5,a4,0x3
+   1074c:	00db0b33          	add	s6,s6,a3
+   10750:	00e787b3          	add	a5,a5,a4
+   10754:	00279793          	sll	a5,a5,0x2
+   10758:	002b1b13          	sll	s6,s6,0x2
+   1075c:	024a0693          	add	a3,s4,36
+   10760:	00fa07b3          	add	a5,s4,a5
+   10764:	00db0b33          	add	s6,s6,a3
+   10768:	00012227          	fsw	ft0,4(sp)
+   1076c:	0187a107          	flw	ft2,24(a5)
+   10770:	0207a007          	flw	ft0,32(a5)
+   10774:	0147a207          	flw	ft4,20(a5)
+   10778:	0007a087          	flw	ft1,0(a5)
+   1077c:	01c7a587          	flw	fa1,28(a5)
+   10780:	08027253          	fsub.s	ft4,ft4,ft0
+   10784:	0820f0d3          	fsub.s	ft1,ft1,ft2
+   10788:	00c7a187          	flw	ft3,12(a5)
+   1078c:	0107a607          	flw	fa2,16(a5)
+   10790:	0087a507          	flw	fa0,8(a5)
+   10794:	0821f1d3          	fsub.s	ft3,ft3,ft2
+   10798:	08b67653          	fsub.s	fa2,fa2,fa1
+   1079c:	08057553          	fsub.s	fa0,fa0,ft0
+   107a0:	101278d3          	fmul.s	fa7,ft4,ft1
+   107a4:	0047a707          	flw	fa4,4(a5)
+   107a8:	10a676d3          	fmul.s	fa3,fa2,fa0
+   107ac:	08b77753          	fsub.s	fa4,fa4,fa1
+   107b0:	88a1f8c7          	fmsub.s	fa7,ft3,fa0,fa7
+   107b4:	68e276c7          	fmsub.s	fa3,ft4,fa4,fa3
+   107b8:	10e1f7d3          	fmul.s	fa5,ft3,fa4
+   107bc:	1118f8d3          	fmul.s	fa7,fa7,fa7
+   107c0:	781677c7          	fmsub.s	fa5,fa2,ft1,fa5
+   107c4:	88d6f6c3          	fmadd.s	fa3,fa3,fa3,fa7
+   107c8:	68f7f7c3          	fmadd.s	fa5,fa5,fa5,fa3
+   107cc:	5807f7d3          	fsqrt.s	fa5,fa5
+   107d0:	108277d3          	fmul.s	fa5,ft4,fs0
+   107d4:	10ca7ed3          	fmul.s	ft9,fs4,fa2
+   107d8:	1191f8d3          	fmul.s	fa7,ft3,fs9
+   107dc:	08be75d3          	fsub.s	fa1,ft8,fa1
+   107e0:	0823f153          	fsub.s	ft2,ft7,ft2
+   107e4:	783a77c7          	fmsub.s	fa5,fs4,ft3,fa5
+   107e8:	e9927ec7          	fmsub.s	ft9,ft4,fs9,ft9
+   107ec:	888678c7          	fmsub.s	fa7,fa2,fs0,fa7
+   107f0:	08087053          	fsub.s	ft0,fa6,ft0
+   107f4:	10b0fad3          	fmul.s	fs5,ft1,fa1
+   107f8:	10f776d3          	fmul.s	fa3,fa4,fa5
+   107fc:	102579d3          	fmul.s	fs3,fa0,ft2
+   10800:	10b7f7d3          	fmul.s	fa5,fa5,fa1
+   10804:	02478793          	add	a5,a5,36
+   10808:	a8277ac7          	fmsub.s	fs5,fa4,ft2,fs5
+   1080c:	69d0f6c3          	fmadd.s	fa3,ft1,ft9,fa3
+   10810:	10077753          	fmul.s	fa4,fa4,ft0
+   10814:	782ef7c3          	fmadd.s	fa5,ft9,ft2,fa5
+   10818:	9800f9c7          	fmsub.s	fs3,ft1,ft0,fs3
+   1081c:	691576c3          	fmadd.s	fa3,fa0,fa7,fa3
+   10820:	70b57747          	fmsub.s	fa4,fa0,fa1,fa4
+   10824:	7808f7c3          	fmadd.s	fa5,fa7,ft0,fa5
+   10828:	1199f053          	fmul.s	ft0,fs3,fs9
+   1082c:	18d4f6d3          	fdiv.s	fa3,fs1,fa3
+   10830:	008775c3          	fmadd.s	fa1,fa4,fs0,ft0
+   10834:	595a75c3          	fmadd.s	fa1,fs4,fs5,fa1
+   10838:	10f6f7d3          	fmul.s	fa5,fa3,fa5
+   1083c:	10b6f5d3          	fmul.s	fa1,fa3,fa1
+   10840:	a12796d3          	flt.s	a3,fa5,fs2
+   10844:	a0f49a53          	flt.s	s4,fs1,fa5
+   10848:	a1259ad3          	flt.s	s5,fa1,fs2
+   1084c:	04069463          	bnez	a3,10894 <_ZL6kernelRK10KernelArgs.constprop.0+0x7c4>
+   10850:	00b7f7d3          	fadd.s	fa5,fa5,fa1
+   10854:	040a1063          	bnez	s4,10894 <_ZL6kernelRK10KernelArgs.constprop.0+0x7c4>
+   10858:	11367653          	fmul.s	fa2,fa2,fs3
+   1085c:	020a9c63          	bnez	s5,10894 <_ZL6kernelRK10KernelArgs.constprop.0+0x7c4>
+   10860:	a0f496d3          	flt.s	a3,fs1,fa5
+   10864:	60e1f1c3          	fmadd.s	ft3,ft3,fa4,fa2
+   10868:	02069663          	bnez	a3,10894 <_ZL6kernelRK10KernelArgs.constprop.0+0x7c4>
+   1086c:	19527243          	fmadd.s	ft4,ft4,fs5,ft3
+   10870:	00012787          	flw	fa5,0(sp)
+   10874:	1046f6d3          	fmul.s	fa3,fa3,ft4
+   10878:	a1b696d3          	flt.s	a3,fa3,fs11
+   1087c:	a0d79a53          	flt.s	s4,fa5,fa3
+   10880:	00069a63          	bnez	a3,10894 <_ZL6kernelRK10KernelArgs.constprop.0+0x7c4>
+   10884:	000a1863          	bnez	s4,10894 <_ZL6kernelRK10KernelArgs.constprop.0+0x7c4>
+   10888:	00d12027          	fsw	fa3,0(sp)
+   1088c:	00070893          	mv	a7,a4
+   10890:	00100c93          	li	s9,1
+   10894:	0017071b          	addw	a4,a4,1
+   10898:	ecfb1ae3          	bne	s6,a5,1076c <_ZL6kernelRK10KernelArgs.constprop.0+0x69c>
+   1089c:	00412007          	flw	ft0,4(sp)
+   108a0:	ba0610e3          	bnez	a2,10440 <_ZL6kernelRK10KernelArgs.constprop.0+0x370>
+   108a4:	20000853          	fmv.s	fa6,ft0
+   108a8:	00012987          	flw	fs3,0(sp)
+   108ac:	1c0c80e3          	beqz	s9,1126c <_ZL6kernelRK10KernelArgs.constprop.0+0x119c>
+   108b0:	02089793          	sll	a5,a7,0x20
+   108b4:	0207d793          	srl	a5,a5,0x20
+   108b8:	00379713          	sll	a4,a5,0x3
+   108bc:	00f70733          	add	a4,a4,a5
+   108c0:	13803783          	ld	a5,312(zero) # 138 <main-0xff78>
+   108c4:	00271713          	sll	a4,a4,0x2
+   108c8:	00e787b3          	add	a5,a5,a4
+   108cc:	0207a787          	flw	fa5,32(a5)
+   108d0:	0187a607          	flw	fa2,24(a5)
+   108d4:	0147a707          	flw	fa4,20(a5)
+   108d8:	0007a507          	flw	fa0,0(a5)
+   108dc:	01c7a007          	flw	ft0,28(a5)
+   108e0:	08f776d3          	fsub.s	fa3,fa4,fa5
+   108e4:	08c57553          	fsub.s	fa0,fa0,fa2
+   108e8:	00c7a587          	flw	fa1,12(a5)
+   108ec:	0107a087          	flw	ft1,16(a5)
+   108f0:	0087a707          	flw	fa4,8(a5)
+   108f4:	08c5f653          	fsub.s	fa2,fa1,fa2
+   108f8:	10d57153          	fmul.s	ft2,fa0,fa3
+   108fc:	08f77753          	fsub.s	fa4,fa4,fa5
+   10900:	0800f5d3          	fsub.s	fa1,ft1,ft0
+   10904:	0047a787          	flw	fa5,4(a5)
+   10908:	0807f7d3          	fsub.s	fa5,fa5,ft0
+   1090c:	10b770d3          	fmul.s	ft1,fa4,fa1
+   10910:	10c77747          	fmsub.s	fa4,fa4,fa2,ft2
+   10914:	08d7f6c7          	fmsub.s	fa3,fa5,fa3,ft1
+   10918:	10c7f7d3          	fmul.s	fa5,fa5,fa2
+   1091c:	10e77653          	fmul.s	fa2,fa4,fa4
+   10920:	78b57547          	fmsub.s	fa0,fa0,fa1,fa5
+   10924:	60d6f7c3          	fmadd.s	fa5,fa3,fa3,fa2
+   10928:	78a577c3          	fmadd.s	fa5,fa0,fa0,fa5
+   1092c:	5807f7d3          	fsqrt.s	fa5,fa5
+   10930:	18f77653          	fdiv.s	fa2,fa4,fa5
+   10934:	00012737          	lui	a4,0x12
+   10938:	4a872587          	flw	fa1,1192(a4) # 124a8 <__DATA_BEGIN__+0x1c>
+   1093c:	12402007          	flw	ft0,292(zero) # 124 <main-0xff8c>
+   10940:	12002f87          	flw	ft11,288(zero) # 120 <main-0xff90>
+   10944:	10b874d3          	fmul.s	fs1,fa6,fa1
+   10948:	00012027          	fsw	ft0,0(sp)
+   1094c:	12802087          	flw	ft1,296(zero) # 128 <main-0xff88>
+   10950:	f0000753          	fmv.w.x	fa4,zero
+   10954:	00112227          	fsw	ft1,4(sp)
+   10958:	18f6f5d3          	fdiv.s	fa1,fa3,fa5
+   1095c:	10c076d3          	fmul.s	fa3,ft0,fa2
+   10960:	18f57053          	fdiv.s	ft0,fa0,fa5
+   10964:	68bff7c3          	fmadd.s	fa5,ft11,fa1,fa3
+   10968:	7800f7c3          	fmadd.s	fa5,ft1,ft0,fa5
+   1096c:	28e792d3          	fmax.s	ft5,fa5,fa4
+   10970:	a05717d3          	flt.s	a5,fa4,ft5
+   10974:	1a079063          	bnez	a5,10b14 <_ZL6kernelRK10KernelArgs.constprop.0+0xa44>
+   10978:	1092f7d3          	fmul.s	fa5,ft5,fs1
+   1097c:	01812707          	flw	fa4,24(sp)
+   10980:	000127b7          	lui	a5,0x12
+   10984:	01412687          	flw	fa3,20(sp)
+   10988:	00f77753          	fadd.s	fa4,fa4,fa5
+   1098c:	00e12c27          	fsw	fa4,24(sp)
+   10990:	4b07a707          	flw	fa4,1200(a5) # 124b0 <__DATA_BEGIN__+0x24>
+   10994:	68e7f743          	fmadd.s	fa4,fa5,fa4,fa3
+   10998:	01012687          	flw	fa3,16(sp)
+   1099c:	00e12a27          	fsw	fa4,20(sp)
+   109a0:	4a872707          	flw	fa4,1192(a4)
+   109a4:	68e7f7c3          	fmadd.s	fa5,fa5,fa4,fa3
+   109a8:	00f12827          	fsw	fa5,16(sp)
+   109ac:	001f0f1b          	addw	t5,t5,1 # 3f800001 <__global_pointer$+0x3f7ed375>
+   109b0:	6c5f0863          	beq	t5,t0,11080 <_ZL6kernelRK10KernelArgs.constprop.0+0xfb0>
+   109b4:	00812787          	flw	fa5,8(sp)
+   109b8:	e199fe43          	fmadd.s	ft8,fs3,fs9,ft8
+   109bc:	000127b7          	lui	a5,0x12
+   109c0:	7889f7c3          	fmadd.s	fa5,fs3,fs0,fa5
+   109c4:	48cea507          	flw	fa0,1164(t4)
+   109c8:	4a07a087          	flw	ft1,1184(a5) # 124a0 <__DATA_BEGIN__+0x14>
+   109cc:	00196a37          	lui	s4,0x196
+   109d0:	3c6ef637          	lui	a2,0x3c6ef
+   109d4:	00f12427          	fsw	fa5,8(sp)
+   109d8:	00c12787          	flw	fa5,12(sp)
+   109dc:	008006b7          	lui	a3,0x800
+   109e0:	60da0a1b          	addw	s4,s4,1549 # 19660d <__global_pointer$+0x183981>
+   109e4:	7949f7c3          	fmadd.s	fa5,fs3,fs4,fa5
+   109e8:	35f6061b          	addw	a2,a2,863 # 3c6ef35f <__global_pointer$+0x3c6dc6d3>
+   109ec:	fff68693          	add	a3,a3,-1 # 7fffff <__global_pointer$+0x7ed373>
+   109f0:	3f800ab7          	lui	s5,0x3f800
+   109f4:	00f12627          	fsw	fa5,12(sp)
+   109f8:	034507bb          	mulw	a5,a0,s4
+   109fc:	00d57533          	and	a0,a0,a3
+   10a00:	01556533          	or	a0,a0,s5
+   10a04:	f00507d3          	fmv.w.x	fa5,a0
+   10a08:	08a7f7d3          	fsub.s	fa5,fa5,fa0
+   10a0c:	00c787bb          	addw	a5,a5,a2
+   10a10:	00f6f733          	and	a4,a3,a5
+   10a14:	01576733          	or	a4,a4,s5
+   10a18:	f0070753          	fmv.w.x	fa4,a4
+   10a1c:	034787bb          	mulw	a5,a5,s4
+   10a20:	09a7f7c3          	fmadd.s	fa5,fa5,fs10,ft1
+   10a24:	08a77753          	fsub.s	fa4,fa4,fa0
+   10a28:	09a77743          	fmadd.s	fa4,fa4,fs10,ft1
+   10a2c:	00c7853b          	addw	a0,a5,a2
+   10a30:	10e776d3          	fmul.s	fa3,fa4,fa4
+   10a34:	68f7f6c3          	fmadd.s	fa3,fa5,fa5,fa3
+   10a38:	a0d517d3          	flt.s	a5,fa0,fa3
+   10a3c:	fa079ee3          	bnez	a5,109f8 <_ZL6kernelRK10KernelArgs.constprop.0+0x928>
+   10a40:	08d576d3          	fsub.s	fa3,fa0,fa3
+   10a44:	5806f6d3          	fsqrt.s	fa3,fa3
+   10a48:	10c670d3          	fmul.s	ft1,fa2,fa2
+   10a4c:	08b5f0c3          	fmadd.s	ft1,fa1,fa1,ft1
+   10a50:	080070c3          	fmadd.s	ft1,ft0,ft0,ft1
+   10a54:	5800f0d3          	fsqrt.s	ft1,ft1
+   10a58:	1815f1d3          	fdiv.s	ft3,fa1,ft1
+   10a5c:	000127b7          	lui	a5,0x12
+   10a60:	4a47a107          	flw	ft2,1188(a5) # 124a4 <__DATA_BEGIN__+0x18>
+   10a64:	2031a2d3          	fabs.s	ft5,ft3
+   10a68:	18167253          	fdiv.s	ft4,fa2,ft1
+   10a6c:	a02297d3          	flt.s	a5,ft5,ft2
+   10a70:	181070d3          	fdiv.s	ft1,ft0,ft1
+   10a74:	7c078263          	beqz	a5,11238 <_ZL6kernelRK10KernelArgs.constprop.0+0x1168>
+   10a78:	1011f0d3          	fmul.s	ft1,ft3,ft1
+   10a7c:	1041f253          	fmul.s	ft4,ft3,ft4
+   10a80:	5031f1cb          	fnmsub.s	ft3,ft3,ft3,fa0
+   10a84:	1010f553          	fmul.s	fa0,ft1,ft1
+   10a88:	50427543          	fmadd.s	fa0,ft4,ft4,fa0
+   10a8c:	5031f543          	fmadd.s	fa0,ft3,ft3,fa0
+   10a90:	58057553          	fsqrt.s	fa0,fa0
+   10a94:	20421253          	fneg.s	ft4,ft4
+   10a98:	201090d3          	fneg.s	ft1,ft1
+   10a9c:	18a1f1d3          	fdiv.s	ft3,ft3,fa0
+   10aa0:	18a27253          	fdiv.s	ft4,ft4,fa0
+   10aa4:	18a0f153          	fdiv.s	ft2,ft1,fa0
+   10aa8:	10c6f353          	fmul.s	ft6,fa3,fa2
+   10aac:	10b17553          	fmul.s	fa0,ft2,fa1
+   10ab0:	10b6f8d3          	fmul.s	fa7,fa3,fa1
+   10ab4:	104070d3          	fmul.s	ft1,ft0,ft4
+   10ab8:	103672d3          	fmul.s	ft5,fa2,ft3
+   10abc:	3047f343          	fmadd.s	ft6,fa5,ft4,ft6
+   10ac0:	50307547          	fmsub.s	fa0,ft0,ft3,fa0
+   10ac4:	1006f6d3          	fmul.s	fa3,fa3,ft0
+   10ac8:	8837f1c3          	fmadd.s	ft3,fa5,ft3,fa7
+   10acc:	08c170c7          	fmsub.s	ft1,ft2,fa2,ft1
+   10ad0:	2845f2c7          	fmsub.s	ft5,fa1,ft4,ft5
+   10ad4:	30e57543          	fmadd.s	fa0,fa0,fa4,ft6
+   10ad8:	6827fa43          	fmadd.s	fs4,fa5,ft2,fa3
+   10adc:	18e0f0c3          	fmadd.s	ft1,ft1,fa4,ft3
+   10ae0:	10a576d3          	fmul.s	fa3,fa0,fa0
+   10ae4:	a0e2fa43          	fmadd.s	fs4,ft5,fa4,fs4
+   10ae8:	6810f7c3          	fmadd.s	fa5,ft1,ft1,fa3
+   10aec:	794a77c3          	fmadd.s	fa5,fs4,fs4,fa5
+   10af0:	5807f7d3          	fsqrt.s	fa5,fa5
+   10af4:	4a8fa707          	flw	fa4,1192(t6) # 124a8 <__DATA_BEGIN__+0x1c>
+   10af8:	18f0f453          	fdiv.s	fs0,ft1,fa5
+   10afc:	10e87853          	fmul.s	fa6,fa6,fa4
+   10b00:	18f57cd3          	fdiv.s	fs9,fa0,fa5
+   10b04:	18fa7a53          	fdiv.s	fs4,fs4,fa5
+   10b08:	835ff06f          	j	1033c <_ZL6kernelRK10KernelArgs.constprop.0+0x26c>
+   10b0c:	20108753          	fmv.s	fa4,ft1
+   10b10:	8d1ff06f          	j	103e0 <_ZL6kernelRK10KernelArgs.constprop.0+0x310>
+   10b14:	48cea087          	flw	ft1,1164(t4)
+   10b18:	00812787          	flw	fa5,8(sp)
+   10b1c:	01c12507          	flw	fa0,28(sp)
+   10b20:	19f0ff53          	fdiv.s	ft10,ft1,ft11
+   10b24:	7889f7c3          	fmadd.s	fa5,fs3,fs0,fa5
+   10b28:	e199f743          	fmadd.s	fa4,fs3,fs9,ft8
+   10b2c:	00012387          	flw	ft7,0(sp)
+   10b30:	00c12687          	flw	fa3,12(sp)
+   10b34:	02c12187          	flw	ft3,44(sp)
+   10b38:	08f57253          	fsub.s	ft4,fa0,fa5
+   10b3c:	02012507          	flw	fa0,32(sp)
+   10b40:	6949f6c3          	fmadd.s	fa3,fs3,fs4,fa3
+   10b44:	08e1f8d3          	fsub.s	fa7,ft3,fa4
+   10b48:	08e57153          	fsub.s	ft2,fa0,fa4
+   10b4c:	02812507          	flw	fa0,40(sp)
+   10b50:	02412187          	flw	ft3,36(sp)
+   10b54:	4ace2907          	flw	fs2,1196(t3)
+   10b58:	08f57553          	fsub.s	fa0,fa0,fa5
+   10b5c:	08d1f353          	fsub.s	ft6,ft3,fa3
+   10b60:	03012187          	flw	ft3,48(sp)
+   10b64:	49032a87          	flw	fs5,1168(t1)
+   10b68:	08d1f1d3          	fsub.s	ft3,ft3,fa3
+   10b6c:	11e57553          	fmul.s	fa0,fa0,ft10
+   10b70:	11e27253          	fmul.s	ft4,ft4,ft10
+   10b74:	1870fed3          	fdiv.s	ft9,ft1,ft7
+   10b78:	28a203d3          	fmin.s	ft7,ft4,fa0
+   10b7c:	28a21253          	fmax.s	ft4,ft4,fa0
+   10b80:	00412507          	flw	fa0,4(sp)
+   10b84:	18a0f0d3          	fdiv.s	ft1,ft1,fa0
+   10b88:	11d17153          	fmul.s	ft2,ft2,ft9
+   10b8c:	11d8f8d3          	fmul.s	fa7,fa7,ft9
+   10b90:	29110553          	fmin.s	fa0,ft2,fa7
+   10b94:	29111153          	fmax.s	ft2,ft2,fa7
+   10b98:	28a39553          	fmax.s	fa0,ft7,fa0
+   10b9c:	28220153          	fmin.s	ft2,ft4,ft2
+   10ba0:	29251553          	fmax.s	fa0,fa0,fs2
+   10ba4:	29510153          	fmin.s	ft2,ft2,fs5
+   10ba8:	10137353          	fmul.s	ft6,ft6,ft1
+   10bac:	1011f1d3          	fmul.s	ft3,ft3,ft1
+   10bb0:	28330253          	fmin.s	ft4,ft6,ft3
+   10bb4:	283311d3          	fmax.s	ft3,ft6,ft3
+   10bb8:	28451553          	fmax.s	fa0,fa0,ft4
+   10bbc:	28310153          	fmin.s	ft2,ft2,ft3
+   10bc0:	a0a117d3          	flt.s	a5,ft2,fa0
+   10bc4:	66079663          	bnez	a5,11230 <_ZL6kernelRK10KernelArgs.constprop.0+0x1160>
+   10bc8:	a12117d3          	flt.s	a5,ft2,fs2
+   10bcc:	66079263          	bnez	a5,11230 <_ZL6kernelRK10KernelArgs.constprop.0+0x1160>
+   10bd0:	018c2783          	lw	a5,24(s8)
+   10bd4:	49032a87          	flw	fs5,1168(t1)
+   10bd8:	4ace2907          	flw	fs2,1196(t3)
+   10bdc:	219c88d3          	fmv.s	fa7,fs9
+   10be0:	214a03d3          	fmv.s	ft7,fs4
+   10be4:	20948153          	fmv.s	ft2,fs1
+   10be8:	21398353          	fmv.s	ft6,fs3
+   10bec:	0aa12027          	fsw	fa0,160(sp)
+   10bf0:	00412987          	flw	fs3,4(sp)
+   10bf4:	0af12223          	sw	a5,164(sp)
+   10bf8:	00000613          	li	a2,0
+   10bfc:	03c12c27          	fsw	ft8,56(sp)
+   10c00:	03012e27          	fsw	fa6,60(sp)
+   10c04:	03f12a27          	fsw	ft11,52(sp)
+   10c08:	00112227          	fsw	ft1,4(sp)
+   10c0c:	02061713          	sll	a4,a2,0x20
+   10c10:	01d75793          	srl	a5,a4,0x1d
+   10c14:	11078713          	add	a4,a5,272
+   10c18:	09010693          	add	a3,sp,144
+   10c1c:	00d706b3          	add	a3,a4,a3
+   10c20:	0a010713          	add	a4,sp,160
+   10c24:	00f707b3          	add	a5,a4,a5
+   10c28:	0047a703          	lw	a4,4(a5)
+   10c2c:	f006b683          	ld	a3,-256(a3)
+   10c30:	a0aa87d3          	fle.s	a5,fs5,fa0
+   10c34:	00175a1b          	srlw	s4,a4,0x1
+   10c38:	08d13c23          	sd	a3,152(sp)
+   10c3c:	007a7a13          	and	s4,s4,7
+   10c40:	0047569b          	srlw	a3,a4,0x4
+   10c44:	0047571b          	srlw	a4,a4,0x4
+   10c48:	02078463          	beqz	a5,10c70 <_ZL6kernelRK10KernelArgs.constprop.0+0xba0>
+   10c4c:	58060e63          	beqz	a2,111e8 <_ZL6kernelRK10KernelArgs.constprop.0+0x1118>
+   10c50:	fff6061b          	addw	a2,a2,-1
+   10c54:	02061713          	sll	a4,a2,0x20
+   10c58:	01d75793          	srl	a5,a4,0x1d
+   10c5c:	11078793          	add	a5,a5,272
+   10c60:	09010713          	add	a4,sp,144
+   10c64:	00e787b3          	add	a5,a5,a4
+   10c68:	f007a507          	flw	fa0,-256(a5)
+   10c6c:	fa1ff06f          	j	10c0c <_ZL6kernelRK10KernelArgs.constprop.0+0xb3c>
+   10c70:	09c12783          	lw	a5,156(sp)
+   10c74:	001a1a93          	sll	s5,s4,0x1
+   10c78:	0046969b          	sllw	a3,a3,0x4
+   10c7c:	0017f793          	and	a5,a5,1
+   10c80:	0157e7b3          	or	a5,a5,s5
+   10c84:	00d7e7b3          	or	a5,a5,a3
+   10c88:	08f12e23          	sw	a5,156(sp)
+   10c8c:	0017f793          	and	a5,a5,1
+   10c90:	24079263          	bnez	a5,10ed4 <_ZL6kernelRK10KernelArgs.constprop.0+0xe04>
+   10c94:	00412a07          	flw	fs4,4(sp)
+   10c98:	0780006f          	j	10d10 <_ZL6kernelRK10KernelArgs.constprop.0+0xc40>
+   10c9c:	a1251753          	flt.s	a4,fa0,fs2
+   10ca0:	18071663          	bnez	a4,10e2c <_ZL6kernelRK10KernelArgs.constprop.0+0xd5c>
+   10ca4:	a1509753          	flt.s	a4,ft1,fs5
+   10ca8:	68071263          	bnez	a4,1132c <_ZL6kernelRK10KernelArgs.constprop.0+0x125c>
+   10cac:	a1519753          	flt.s	a4,ft3,fs5
+   10cb0:	f8070ee3          	beqz	a4,10c4c <_ZL6kernelRK10KernelArgs.constprop.0+0xb7c>
+   10cb4:	a0309753          	flt.s	a4,ft1,ft3
+   10cb8:	1e071463          	bnez	a4,10ea0 <_ZL6kernelRK10KernelArgs.constprop.0+0xdd0>
+   10cbc:	0187a703          	lw	a4,24(a5)
+   10cc0:	00175a1b          	srlw	s4,a4,0x1
+   10cc4:	007a7693          	and	a3,s4,7
+   10cc8:	00169a9b          	sllw	s5,a3,0x1
+   10ccc:	ff177793          	and	a5,a4,-15
+   10cd0:	0157e7b3          	or	a5,a5,s5
+   10cd4:	00f7f793          	and	a5,a5,15
+   10cd8:	ff077a93          	and	s5,a4,-16
+   10cdc:	0157e7b3          	or	a5,a5,s5
+   10ce0:	00068a13          	mv	s4,a3
+   10ce4:	0047571b          	srlw	a4,a4,0x4
+   10ce8:	08f12e23          	sw	a5,156(sp)
+   10cec:	09c12783          	lw	a5,156(sp)
+   10cf0:	00169a93          	sll	s5,a3,0x1
+   10cf4:	0047169b          	sllw	a3,a4,0x4
+   10cf8:	0017f793          	and	a5,a5,1
+   10cfc:	0157e7b3          	or	a5,a5,s5
+   10d00:	00d7e7b3          	or	a5,a5,a3
+   10d04:	08f12e23          	sw	a5,156(sp)
+   10d08:	0017f793          	and	a5,a5,1
+   10d0c:	1c079463          	bnez	a5,10ed4 <_ZL6kernelRK10KernelArgs.constprop.0+0xe04>
+   10d10:	00571693          	sll	a3,a4,0x5
+   10d14:	00dc06b3          	add	a3,s8,a3
+   10d18:	0006a207          	flw	ft4,0(a3)
+   10d1c:	0046ae07          	flw	ft8,4(a3)
+   10d20:	00c6af87          	flw	ft11,12(a3)
+   10d24:	0106a507          	flw	fa0,16(a3)
+   10d28:	08f27253          	fsub.s	ft4,ft4,fa5
+   10d2c:	08ee7e53          	fsub.s	ft8,ft8,fa4
+   10d30:	08ffffd3          	fsub.s	ft11,ft11,fa5
+   10d34:	08e57553          	fsub.s	fa0,fa0,fa4
+   10d38:	0086a187          	flw	ft3,8(a3)
+   10d3c:	0146a807          	flw	fa6,20(a3)
+   10d40:	11e27253          	fmul.s	ft4,ft4,ft10
+   10d44:	11de7e53          	fmul.s	ft8,ft8,ft9
+   10d48:	11efffd3          	fmul.s	ft11,ft11,ft10
+   10d4c:	11d57553          	fmul.s	fa0,fa0,ft9
+   10d50:	08d1f1d3          	fsub.s	ft3,ft3,fa3
+   10d54:	08d87853          	fsub.s	fa6,fa6,fa3
+   10d58:	29f204d3          	fmin.s	fs1,ft4,ft11
+   10d5c:	28ae00d3          	fmin.s	ft1,ft8,fa0
+   10d60:	29f21253          	fmax.s	ft4,ft4,ft11
+   10d64:	28ae1553          	fmax.s	fa0,ft8,fa0
+   10d68:	1141f1d3          	fmul.s	ft3,ft3,fs4
+   10d6c:	11487853          	fmul.s	fa6,fa6,fs4
+   10d70:	28a20553          	fmin.s	fa0,ft4,fa0
+   10d74:	281490d3          	fmax.s	ft1,fs1,ft1
+   10d78:	29750553          	fmin.s	fa0,fa0,fs7
+   10d7c:	29018253          	fmin.s	ft4,ft3,fa6
+   10d80:	292090d3          	fmax.s	ft1,ft1,fs2
+   10d84:	290191d3          	fmax.s	ft3,ft3,fa6
+   10d88:	284090d3          	fmax.s	ft1,ft1,ft4
+   10d8c:	28350553          	fmin.s	fa0,fa0,ft3
+   10d90:	a01517d3          	flt.s	a5,fa0,ft1
+   10d94:	10079263          	bnez	a5,10e98 <_ZL6kernelRK10KernelArgs.constprop.0+0xdc8>
+   10d98:	a12517d3          	flt.s	a5,fa0,fs2
+   10d9c:	0e079e63          	bnez	a5,10e98 <_ZL6kernelRK10KernelArgs.constprop.0+0xdc8>
+   10da0:	00170793          	add	a5,a4,1
+   10da4:	00579793          	sll	a5,a5,0x5
+   10da8:	00fc07b3          	add	a5,s8,a5
+   10dac:	0007a807          	flw	fa6,0(a5)
+   10db0:	0047af87          	flw	ft11,4(a5)
+   10db4:	00c7a487          	flw	fs1,12(a5)
+   10db8:	0107a507          	flw	fa0,16(a5)
+   10dbc:	08f87853          	fsub.s	fa6,fa6,fa5
+   10dc0:	08efffd3          	fsub.s	ft11,ft11,fa4
+   10dc4:	08f4f4d3          	fsub.s	fs1,fs1,fa5
+   10dc8:	08e57553          	fsub.s	fa0,fa0,fa4
+   10dcc:	0087a207          	flw	ft4,8(a5)
+   10dd0:	0147ae07          	flw	ft8,20(a5)
+   10dd4:	11e87853          	fmul.s	fa6,fa6,ft10
+   10dd8:	11dfffd3          	fmul.s	ft11,ft11,ft9
+   10ddc:	11e4f4d3          	fmul.s	fs1,fs1,ft10
+   10de0:	11d57553          	fmul.s	fa0,fa0,ft9
+   10de4:	08d27253          	fsub.s	ft4,ft4,fa3
+   10de8:	08de7e53          	fsub.s	ft8,ft8,fa3
+   10dec:	28980cd3          	fmin.s	fs9,fa6,fs1
+   10df0:	28af81d3          	fmin.s	ft3,ft11,fa0
+   10df4:	28981853          	fmax.s	fa6,fa6,fs1
+   10df8:	28af9553          	fmax.s	fa0,ft11,fa0
+   10dfc:	11427253          	fmul.s	ft4,ft4,fs4
+   10e00:	114e7e53          	fmul.s	ft8,ft8,fs4
+   10e04:	28a80553          	fmin.s	fa0,fa6,fa0
+   10e08:	283c91d3          	fmax.s	ft3,fs9,ft3
+   10e0c:	29550553          	fmin.s	fa0,fa0,fs5
+   10e10:	29c20853          	fmin.s	fa6,ft4,ft8
+   10e14:	292191d3          	fmax.s	ft3,ft3,fs2
+   10e18:	29c21253          	fmax.s	ft4,ft4,ft8
+   10e1c:	290191d3          	fmax.s	ft3,ft3,fa6
+   10e20:	28450553          	fmin.s	fa0,fa0,ft4
+   10e24:	a0351753          	flt.s	a4,fa0,ft3
+   10e28:	e6070ae3          	beqz	a4,10c9c <_ZL6kernelRK10KernelArgs.constprop.0+0xbcc>
+   10e2c:	a1809753          	flt.s	a4,ft1,fs8
+   10e30:	e0070ee3          	beqz	a4,10c4c <_ZL6kernelRK10KernelArgs.constprop.0+0xb7c>
+   10e34:	218c01d3          	fmv.s	ft3,fs8
+   10e38:	0186aa83          	lw	s5,24(a3)
+   10e3c:	a1519b53          	flt.s	s6,ft3,fs5
+   10e40:	001ada1b          	srlw	s4,s5,0x1
+   10e44:	007a7693          	and	a3,s4,7
+   10e48:	00169b9b          	sllw	s7,a3,0x1
+   10e4c:	ff1af713          	and	a4,s5,-15
+   10e50:	01776733          	or	a4,a4,s7
+   10e54:	00f77713          	and	a4,a4,15
+   10e58:	ff0afb93          	and	s7,s5,-16
+   10e5c:	01776733          	or	a4,a4,s7
+   10e60:	08e12e23          	sw	a4,156(sp)
+   10e64:	00068a13          	mv	s4,a3
+   10e68:	004ad71b          	srlw	a4,s5,0x4
+   10e6c:	e80b00e3          	beqz	s6,10cec <_ZL6kernelRK10KernelArgs.constprop.0+0xc1c>
+   10e70:	02061b13          	sll	s6,a2,0x20
+   10e74:	0187aa83          	lw	s5,24(a5)
+   10e78:	01db5793          	srl	a5,s6,0x1d
+   10e7c:	11078793          	add	a5,a5,272
+   10e80:	09010b13          	add	s6,sp,144
+   10e84:	016787b3          	add	a5,a5,s6
+   10e88:	f037a027          	fsw	ft3,-256(a5)
+   10e8c:	f157a223          	sw	s5,-252(a5)
+   10e90:	0016061b          	addw	a2,a2,1
+   10e94:	e59ff06f          	j	10cec <_ZL6kernelRK10KernelArgs.constprop.0+0xc1c>
+   10e98:	217b80d3          	fmv.s	ft1,fs7
+   10e9c:	f05ff06f          	j	10da0 <_ZL6kernelRK10KernelArgs.constprop.0+0xcd0>
+   10ea0:	0186a703          	lw	a4,24(a3)
+   10ea4:	00175a1b          	srlw	s4,a4,0x1
+   10ea8:	007a7693          	and	a3,s4,7
+   10eac:	00169b1b          	sllw	s6,a3,0x1
+   10eb0:	ff177a93          	and	s5,a4,-15
+   10eb4:	016aeab3          	or	s5,s5,s6
+   10eb8:	00fafa93          	and	s5,s5,15
+   10ebc:	ff077b13          	and	s6,a4,-16
+   10ec0:	016aeab3          	or	s5,s5,s6
+   10ec4:	00068a13          	mv	s4,a3
+   10ec8:	0047571b          	srlw	a4,a4,0x4
+   10ecc:	09512e23          	sw	s5,156(sp)
+   10ed0:	fa1ff06f          	j	10e70 <_ZL6kernelRK10KernelArgs.constprop.0+0xda0>
+   10ed4:	13803783          	ld	a5,312(zero) # 138 <main-0xff78>
+   10ed8:	00ea0a33          	add	s4,s4,a4
+   10edc:	003a1693          	sll	a3,s4,0x3
+   10ee0:	00371a93          	sll	s5,a4,0x3
+   10ee4:	00ea8ab3          	add	s5,s5,a4
+   10ee8:	48ceaa07          	flw	fs4,1164(t4)
+   10eec:	01468733          	add	a4,a3,s4
+   10ef0:	f0000cd3          	fmv.w.x	fs9,zero
+   10ef4:	03412f87          	flw	ft11,52(sp)
+   10ef8:	00012487          	flw	fs1,0(sp)
+   10efc:	02478a13          	add	s4,a5,36
+   10f00:	002a9693          	sll	a3,s5,0x2
+   10f04:	00271713          	sll	a4,a4,0x2
+   10f08:	00d787b3          	add	a5,a5,a3
+   10f0c:	01470733          	add	a4,a4,s4
+   10f10:	04512e27          	fsw	ft5,92(sp)
+   10f14:	04812027          	fsw	fs0,64(sp)
+   10f18:	05112227          	fsw	fa7,68(sp)
+   10f1c:	04712427          	fsw	ft7,72(sp)
+   10f20:	04612627          	fsw	ft6,76(sp)
+   10f24:	04b12827          	fsw	fa1,80(sp)
+   10f28:	04c12a27          	fsw	fa2,84(sp)
+   10f2c:	04012c27          	fsw	ft0,88(sp)
+   10f30:	07e12027          	fsw	ft10,96(sp)
+   10f34:	0187a187          	flw	ft3,24(a5)
+   10f38:	0207a087          	flw	ft1,32(a5)
+   10f3c:	0007a607          	flw	fa2,0(a5)
+   10f40:	0147a287          	flw	ft5,20(a5)
+   10f44:	01c7a007          	flw	ft0,28(a5)
+   10f48:	08367e53          	fsub.s	ft8,fa2,ft3
+   10f4c:	0812f2d3          	fsub.s	ft5,ft5,ft1
+   10f50:	0107a607          	flw	fa2,16(a5)
+   10f54:	0087a587          	flw	fa1,8(a5)
+   10f58:	00c7a207          	flw	ft4,12(a5)
+   10f5c:	08067853          	fsub.s	fa6,fa2,ft0
+   10f60:	0815f8d3          	fsub.s	fa7,fa1,ft1
+   10f64:	08327253          	fsub.s	ft4,ft4,ft3
+   10f68:	11c2f353          	fmul.s	ft6,ft5,ft8
+   10f6c:	0047a607          	flw	fa2,4(a5)
+   10f70:	11187553          	fmul.s	fa0,fa6,fa7
+   10f74:	08067653          	fsub.s	fa2,fa2,ft0
+   10f78:	31127347          	fmsub.s	ft6,ft4,fa7,ft6
+   10f7c:	50c2f547          	fmsub.s	fa0,ft5,fa2,fa0
+   10f80:	10c275d3          	fmul.s	fa1,ft4,fa2
+   10f84:	10637353          	fmul.s	ft6,ft6,ft6
+   10f88:	59c875c7          	fmsub.s	fa1,fa6,ft8,fa1
+   10f8c:	30a57543          	fmadd.s	fa0,fa0,fa0,ft6
+   10f90:	50b5f5c3          	fmadd.s	fa1,fa1,fa1,fa0
+   10f94:	5805f5d3          	fsqrt.s	fa1,fa1
+   10f98:	105ff3d3          	fmul.s	ft7,ft11,ft5
+   10f9c:	1109f353          	fmul.s	ft6,fs3,fa6
+   10fa0:	1044f5d3          	fmul.s	fa1,fs1,ft4
+   10fa4:	08077053          	fsub.s	ft0,fa4,ft0
+   10fa8:	0837f1d3          	fsub.s	ft3,fa5,ft3
+   10fac:	3849f3c7          	fmsub.s	ft7,fs3,ft4,ft7
+   10fb0:	3054f347          	fmsub.s	ft6,fs1,ft5,ft6
+   10fb4:	590ff5c7          	fmsub.s	fa1,ft11,fa6,fa1
+   10fb8:	0816f0d3          	fsub.s	ft1,fa3,ft1
+   10fbc:	100e7453          	fmul.s	fs0,ft8,ft0
+   10fc0:	10767553          	fmul.s	fa0,fa2,ft7
+   10fc4:	1038ff53          	fmul.s	ft10,fa7,ft3
+   10fc8:	1003f3d3          	fmul.s	ft7,ft7,ft0
+   10fcc:	02478793          	add	a5,a5,36
+   10fd0:	40367447          	fmsub.s	fs0,fa2,ft3,fs0
+   10fd4:	506e7543          	fmadd.s	fa0,ft8,ft6,fa0
+   10fd8:	10167653          	fmul.s	fa2,fa2,ft1
+   10fdc:	38337343          	fmadd.s	ft6,ft6,ft3,ft7
+   10fe0:	f01e7f47          	fmsub.s	ft10,ft8,ft1,ft10
+   10fe4:	50b8f543          	fmadd.s	fa0,fa7,fa1,fa0
+   10fe8:	6008f647          	fmsub.s	fa2,fa7,ft0,fa2
+   10fec:	3015f5c3          	fmadd.s	fa1,fa1,ft1,ft6
+   10ff0:	11e4f0d3          	fmul.s	ft1,fs1,ft10
+   10ff4:	18aa7553          	fdiv.s	fa0,fs4,fa0
+   10ff8:	08cff043          	fmadd.s	ft0,ft11,fa2,ft1
+   10ffc:	0089f043          	fmadd.s	ft0,fs3,fs0,ft0
+   11000:	10b575d3          	fmul.s	fa1,fa0,fa1
+   11004:	10057053          	fmul.s	ft0,fa0,ft0
+   11008:	a19596d3          	flt.s	a3,fa1,fs9
+   1100c:	a0ba1a53          	flt.s	s4,fs4,fa1
+   11010:	a1901ad3          	flt.s	s5,ft0,fs9
+   11014:	1a069463          	bnez	a3,111bc <_ZL6kernelRK10KernelArgs.constprop.0+0x10ec>
+   11018:	0005f5d3          	fadd.s	fa1,fa1,ft0
+   1101c:	1a0a1063          	bnez	s4,111bc <_ZL6kernelRK10KernelArgs.constprop.0+0x10ec>
+   11020:	11e87853          	fmul.s	fa6,fa6,ft10
+   11024:	180a9c63          	bnez	s5,111bc <_ZL6kernelRK10KernelArgs.constprop.0+0x10ec>
+   11028:	a0ba16d3          	flt.s	a3,fs4,fa1
+   1102c:	80c27243          	fmadd.s	ft4,ft4,fa2,fa6
+   11030:	18069663          	bnez	a3,111bc <_ZL6kernelRK10KernelArgs.constprop.0+0x10ec>
+   11034:	2082f2c3          	fmadd.s	ft5,ft5,fs0,ft4
+   11038:	4ace2607          	flw	fa2,1196(t3)
+   1103c:	10557553          	fmul.s	fa0,fa0,ft5
+   11040:	a0c516d3          	flt.s	a3,fa0,fa2
+   11044:	16069c63          	bnez	a3,111bc <_ZL6kernelRK10KernelArgs.constprop.0+0x10ec>
+   11048:	49032607          	flw	fa2,1168(t1)
+   1104c:	a0a616d3          	flt.s	a3,fa2,fa0
+   11050:	16069663          	bnez	a3,111bc <_ZL6kernelRK10KernelArgs.constprop.0+0x10ec>
+   11054:	001f0f1b          	addw	t5,t5,1
+   11058:	03812e07          	flw	ft8,56(sp)
+   1105c:	03c12807          	flw	fa6,60(sp)
+   11060:	04012407          	flw	fs0,64(sp)
+   11064:	04412c87          	flw	fs9,68(sp)
+   11068:	04812a07          	flw	fs4,72(sp)
+   1106c:	04c12987          	flw	fs3,76(sp)
+   11070:	05012587          	flw	fa1,80(sp)
+   11074:	05412607          	flw	fa2,84(sp)
+   11078:	05812007          	flw	ft0,88(sp)
+   1107c:	925f1ce3          	bne	t5,t0,109b4 <_ZL6kernelRK10KernelArgs.constprop.0+0x8e4>
+   11080:	06412707          	flw	fa4,100(sp)
+   11084:	06812787          	flw	fa5,104(sp)
+   11088:	06c12207          	flw	ft4,108(sp)
+   1108c:	07012287          	flw	ft5,112(sp)
+   11090:	07412187          	flw	ft3,116(sp)
+   11094:	07812087          	flw	ft1,120(sp)
+   11098:	07c12507          	flw	fa0,124(sp)
+   1109c:	08012f07          	flw	ft10,128(sp)
+   110a0:	08412887          	flw	fa7,132(sp)
+   110a4:	08812f87          	flw	ft11,136(sp)
+   110a8:	08c12407          	flw	fs0,140(sp)
+   110ac:	0014849b          	addw	s1,s1,1
+   110b0:	97249263          	bne	s1,s2,10214 <_ZL6kernelRK10KernelArgs.constprop.0+0x144>
+   110b4:	48cea607          	flw	fa2,1164(t4)
+   110b8:	d014f7d3          	fcvt.s.wu	fa5,s1
+   110bc:	01012707          	flw	fa4,16(sp)
+   110c0:	01812087          	flw	ft1,24(sp)
+   110c4:	18f677d3          	fdiv.s	fa5,fa2,fa5
+   110c8:	f0000053          	fmv.w.x	ft0,zero
+   110cc:	000127b7          	lui	a5,0x12
+   110d0:	4b87a507          	flw	fa0,1208(a5) # 124b8 <__DATA_BEGIN__+0x2c>
+   110d4:	49842587          	flw	fa1,1176(s0)
+   110d8:	10f776d3          	fmul.s	fa3,fa4,fa5
+   110dc:	01412707          	flw	fa4,20(sp)
+   110e0:	10f77753          	fmul.s	fa4,fa4,fa5
+   110e4:	10f0f7d3          	fmul.s	fa5,ft1,fa5
+   110e8:	280696d3          	fmax.s	fa3,fa3,ft0
+   110ec:	28071753          	fmax.s	fa4,fa4,ft0
+   110f0:	280797d3          	fmax.s	fa5,fa5,ft0
+   110f4:	28c686d3          	fmin.s	fa3,fa3,fa2
+   110f8:	28c70753          	fmin.s	fa4,fa4,fa2
+   110fc:	28c787d3          	fmin.s	fa5,fa5,fa2
+   11100:	58a6f6c3          	fmadd.s	fa3,fa3,fa0,fa1
+   11104:	58a77743          	fmadd.s	fa4,fa4,fa0,fa1
+   11108:	58a7f7c3          	fmadd.s	fa5,fa5,fa0,fa1
+   1110c:	c0169753          	fcvt.wu.s	a4,fa3,rtz
+   11110:	c01717d3          	fcvt.wu.s	a5,fa4,rtz
+   11114:	c01796d3          	fcvt.wu.s	a3,fa5,rtz
+   11118:	0107171b          	sllw	a4,a4,0x10
+   1111c:	0087979b          	sllw	a5,a5,0x8
+   11120:	00e7e7b3          	or	a5,a5,a4
+   11124:	0007879b          	sext.w	a5,a5
+   11128:	00d7e7b3          	or	a5,a5,a3
+   1112c:	ff000737          	lui	a4,0xff000
+   11130:	00e7e7b3          	or	a5,a5,a4
+   11134:	0007879b          	sext.w	a5,a5
+   11138:	02059693          	sll	a3,a1,0x20
+   1113c:	01e6d713          	srl	a4,a3,0x1e
+   11140:	00e80733          	add	a4,a6,a4
+   11144:	00f72023          	sw	a5,0(a4) # ffffffffff000000 <__global_pointer$+0xfffffffffefed374>
+   11148:	0000058b          	fchthrd	a1
+   1114c:	10802783          	lw	a5,264(zero) # 108 <main-0xffa8>
+   11150:	0005859b          	sext.w	a1,a1
+   11154:	80f5ec63          	bltu	a1,a5,1016c <_ZL6kernelRK10KernelArgs.constprop.0+0x9c>
+   11158:	22813403          	ld	s0,552(sp)
+   1115c:	22013483          	ld	s1,544(sp)
+   11160:	21813903          	ld	s2,536(sp)
+   11164:	21013983          	ld	s3,528(sp)
+   11168:	20813a03          	ld	s4,520(sp)
+   1116c:	20013a83          	ld	s5,512(sp)
+   11170:	1f813b03          	ld	s6,504(sp)
+   11174:	1f013b83          	ld	s7,496(sp)
+   11178:	1e813c03          	ld	s8,488(sp)
+   1117c:	1e013c83          	ld	s9,480(sp)
+   11180:	1d813d03          	ld	s10,472(sp)
+   11184:	1cc12407          	flw	fs0,460(sp)
+   11188:	1c812487          	flw	fs1,456(sp)
+   1118c:	1c412907          	flw	fs2,452(sp)
+   11190:	1c012987          	flw	fs3,448(sp)
+   11194:	1bc12a07          	flw	fs4,444(sp)
+   11198:	1b812a87          	flw	fs5,440(sp)
+   1119c:	1b412b07          	flw	fs6,436(sp)
+   111a0:	1b012b87          	flw	fs7,432(sp)
+   111a4:	1ac12c07          	flw	fs8,428(sp)
+   111a8:	1a812c87          	flw	fs9,424(sp)
+   111ac:	1a412d07          	flw	fs10,420(sp)
+   111b0:	1a012d87          	flw	fs11,416(sp)
+   111b4:	23010113          	add	sp,sp,560
+   111b8:	00008067          	ret
+   111bc:	d6f71ce3          	bne	a4,a5,10f34 <_ZL6kernelRK10KernelArgs.constprop.0+0xe64>
+   111c0:	05c12287          	flw	ft5,92(sp)
+   111c4:	04012407          	flw	fs0,64(sp)
+   111c8:	04412887          	flw	fa7,68(sp)
+   111cc:	04812387          	flw	ft7,72(sp)
+   111d0:	04c12307          	flw	ft6,76(sp)
+   111d4:	05012587          	flw	fa1,80(sp)
+   111d8:	05412607          	flw	fa2,84(sp)
+   111dc:	05812007          	flw	ft0,88(sp)
+   111e0:	06012f07          	flw	ft10,96(sp)
+   111e4:	a60616e3          	bnez	a2,10c50 <_ZL6kernelRK10KernelArgs.constprop.0+0xb80>
+   111e8:	1022f2d3          	fmul.s	ft5,ft5,ft2
+   111ec:	01812687          	flw	fa3,24(sp)
+   111f0:	4b03a707          	flw	fa4,1200(t2) # 124b0 <__DATA_BEGIN__+0x24>
+   111f4:	4a8fa787          	flw	fa5,1192(t6)
+   111f8:	03812e07          	flw	ft8,56(sp)
+   111fc:	0056f6d3          	fadd.s	fa3,fa3,ft5
+   11200:	03c12807          	flw	fa6,60(sp)
+   11204:	21188cd3          	fmv.s	fs9,fa7
+   11208:	20738a53          	fmv.s	fs4,ft7
+   1120c:	206309d3          	fmv.s	fs3,ft6
+   11210:	00d12c27          	fsw	fa3,24(sp)
+   11214:	01412687          	flw	fa3,20(sp)
+   11218:	68e2f743          	fmadd.s	fa4,ft5,fa4,fa3
+   1121c:	00e12a27          	fsw	fa4,20(sp)
+   11220:	01012707          	flw	fa4,16(sp)
+   11224:	70f2f7c3          	fmadd.s	fa5,ft5,fa5,fa4
+   11228:	00f12827          	fsw	fa5,16(sp)
+   1122c:	f80ff06f          	j	109ac <_ZL6kernelRK10KernelArgs.constprop.0+0x8dc>
+   11230:	215a8553          	fmv.s	fa0,fs5
+   11234:	99dff06f          	j	10bd0 <_ZL6kernelRK10KernelArgs.constprop.0+0xb00>
+   11238:	101270d3          	fmul.s	ft1,ft4,ft1
+   1123c:	1041f1d3          	fmul.s	ft3,ft3,ft4
+   11240:	5042724b          	fnmsub.s	ft4,ft4,ft4,fa0
+   11244:	1010f553          	fmul.s	fa0,ft1,ft1
+   11248:	5031f543          	fmadd.s	fa0,ft3,ft3,fa0
+   1124c:	50427543          	fmadd.s	fa0,ft4,ft4,fa0
+   11250:	58057553          	fsqrt.s	fa0,fa0
+   11254:	203191d3          	fneg.s	ft3,ft3
+   11258:	201090d3          	fneg.s	ft1,ft1
+   1125c:	18a27253          	fdiv.s	ft4,ft4,fa0
+   11260:	18a1f1d3          	fdiv.s	ft3,ft3,fa0
+   11264:	18a0f153          	fdiv.s	ft2,ft1,fa0
+   11268:	841ff06f          	j	10aa8 <_ZL6kernelRK10KernelArgs.constprop.0+0x9d8>
+   1126c:	01812587          	flw	fa1,24(sp)
+   11270:	49842607          	flw	fa2,1176(s0)
+   11274:	000127b7          	lui	a5,0x12
+   11278:	4b03a687          	flw	fa3,1200(t2)
+   1127c:	58c07643          	fmadd.s	fa2,ft0,fa2,fa1
+   11280:	01412587          	flw	fa1,20(sp)
+   11284:	0014849b          	addw	s1,s1,1
+   11288:	06412707          	flw	fa4,100(sp)
+   1128c:	06812787          	flw	fa5,104(sp)
+   11290:	00c12c27          	fsw	fa2,24(sp)
+   11294:	4b47a607          	flw	fa2,1204(a5) # 124b4 <__DATA_BEGIN__+0x28>
+   11298:	06c12207          	flw	ft4,108(sp)
+   1129c:	07012287          	flw	ft5,112(sp)
+   112a0:	58c07643          	fmadd.s	fa2,ft0,fa2,fa1
+   112a4:	07412187          	flw	ft3,116(sp)
+   112a8:	07812087          	flw	ft1,120(sp)
+   112ac:	07c12507          	flw	fa0,124(sp)
+   112b0:	08012f07          	flw	ft10,128(sp)
+   112b4:	00c12a27          	fsw	fa2,20(sp)
+   112b8:	01012607          	flw	fa2,16(sp)
+   112bc:	08412887          	flw	fa7,132(sp)
+   112c0:	08812f87          	flw	ft11,136(sp)
+   112c4:	60d076c3          	fmadd.s	fa3,ft0,fa3,fa2
+   112c8:	08c12407          	flw	fs0,140(sp)
+   112cc:	00d12827          	fsw	fa3,16(sp)
+   112d0:	01248463          	beq	s1,s2,112d8 <_ZL6kernelRK10KernelArgs.constprop.0+0x1208>
+   112d4:	f41fe06f          	j	10214 <_ZL6kernelRK10KernelArgs.constprop.0+0x144>
+   112d8:	dddff06f          	j	110b4 <_ZL6kernelRK10KernelArgs.constprop.0+0xfe4>
+   112dc:	000127b7          	lui	a5,0x12
+   112e0:	4987a687          	flw	fa3,1176(a5) # 12498 <__DATA_BEGIN__+0xc>
+   112e4:	4949a107          	flw	ft2,1172(s3)
+   112e8:	00d7f6d3          	fadd.s	fa3,fa5,fa3
+   112ec:	10cff643          	fmadd.s	fa2,ft11,fa2,ft2
+   112f0:	1066f6c3          	fmadd.s	fa3,fa3,ft6,ft2
+   112f4:	1036f353          	fmul.s	ft6,fa3,ft3
+   112f8:	1016f153          	fmul.s	ft2,fa3,ft1
+   112fc:	1056f6d3          	fmul.s	fa3,fa3,ft5
+   11300:	30b675c3          	fmadd.s	fa1,fa2,fa1,ft6
+   11304:	10467143          	fmadd.s	ft2,fa2,ft4,ft2
+   11308:	68067643          	fmadd.s	fa2,fa2,ft0,fa3
+   1130c:	09e5fcd3          	fsub.s	fs9,fa1,ft10
+   11310:	09117a53          	fsub.s	fs4,ft2,fa7
+   11314:	08a676d3          	fsub.s	fa3,fa2,fa0
+   11318:	20d68053          	fmv.s	ft0,fa3
+   1131c:	f9dfe06f          	j	102b8 <_ZL6kernelRK10KernelArgs.constprop.0+0x1e8>
+   11320:	ff0007b7          	lui	a5,0xff000
+   11324:	e15ff06f          	j	11138 <_ZL6kernelRK10KernelArgs.constprop.0+0x1068>
+   11328:	00008067          	ret
+   1132c:	a0309753          	flt.s	a4,ft1,ft3
+   11330:	b00714e3          	bnez	a4,10e38 <_ZL6kernelRK10KernelArgs.constprop.0+0xd68>
+   11334:	0187a703          	lw	a4,24(a5) # ffffffffff000018 <__global_pointer$+0xfffffffffefed38c>
+   11338:	0186ab03          	lw	s6,24(a3)
+   1133c:	02061793          	sll	a5,a2,0x20
+   11340:	00175a1b          	srlw	s4,a4,0x1
+   11344:	007a7693          	and	a3,s4,7
+   11348:	01d7da93          	srl	s5,a5,0x1d
+   1134c:	00169b9b          	sllw	s7,a3,0x1
+   11350:	ff177793          	and	a5,a4,-15
+   11354:	0177e7b3          	or	a5,a5,s7
+   11358:	00f7f793          	and	a5,a5,15
+   1135c:	ff077b93          	and	s7,a4,-16
+   11360:	110a8a93          	add	s5,s5,272 # 3f800110 <__global_pointer$+0x3f7ed484>
+   11364:	09010c93          	add	s9,sp,144
+   11368:	019a8ab3          	add	s5,s5,s9
+   1136c:	0177e7b3          	or	a5,a5,s7
+   11370:	00068a13          	mv	s4,a3
+   11374:	0047571b          	srlw	a4,a4,0x4
+   11378:	08f12e23          	sw	a5,156(sp)
+   1137c:	f01aa027          	fsw	ft1,-256(s5)
+   11380:	f16aa223          	sw	s6,-252(s5)
+   11384:	0016061b          	addw	a2,a2,1
+   11388:	965ff06f          	j	10cec <_ZL6kernelRK10KernelArgs.constprop.0+0xc1c>

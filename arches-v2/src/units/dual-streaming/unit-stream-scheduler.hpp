@@ -2,8 +2,7 @@
 #include "../../stdafx.hpp"
 
 #include "../unit-base.hpp"
-#include "../unit-memory-base.hpp"
-#include "../unit-main-memory-base.hpp"
+#include "../unit-dram.hpp"
 #include "../unit-buffer.hpp"
 
 #include "../../../../dual-streaming-benchmark/src/include.hpp"
@@ -15,16 +14,26 @@ namespace Arches { namespace Units { namespace DualStreaming {
 #define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(Treelet))
 
 #define RAY_BUCKET_SIZE 2048
-#define MAX_RAYS_PER_BUCKET (sizeof(BucketRay) / 2036)
+#define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 12) / sizeof(BucketRay))
 
 struct RayBucket
 {
-	paddr_t next_bucket;
+	paddr_t next_bucket{0};
 	uint num_rays{0};
 	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
+
+	bool is_full()
+	{
+		return num_rays == MAX_RAYS_PER_BUCKET;
+	}
+
+	void write_ray(const BucketRay& bray)
+	{
+		bucket_rays[num_rays++] = bray;
+	}
 };
 
-class UnitStreamScheduler : UnitBase
+class UnitStreamScheduler : public UnitBase
 {
 public:
 	struct Configuration
@@ -40,176 +49,130 @@ public:
 	};
 
 private:
-
-	class StreamSchedulerCrossBar : public CasscadedCrossBar<StreamSchedulerRequest>
+	class StreamSchedulerRequestCrossbar : public CasscadedCrossBar<StreamSchedulerRequest>
 	{
-	private:
-		uint64_t mask;
-
 	public:
-		StreamSchedulerCrossBar(uint ports, uint banks, uint64_t bank_select_mask) : mask(bank_select_mask), CasscadedCrossBar<StreamSchedulerRequest>(ports, banks, banks) {}
+		StreamSchedulerRequestCrossbar(uint ports, uint banks) : CasscadedCrossBar<StreamSchedulerRequest>(ports, banks, banks) {}
 
 		uint get_sink(const StreamSchedulerRequest& request) override
 		{
-			if(request.type == StreamSchedulerRequest::Type::LOAD_BUCKET)
+			if(request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
 			{
-				return 0;
+				//if this is a workitem write then distrbute across banks
+				return request.work_item.segment % num_sinks();
 			}
-			else if(request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
+			else
 			{
-				uint bank = pext(request.work_item.segment, mask);
+				//if this is a bcuket request then cascade
+				request.port * num_sinks() / num_sources();
 			}
 		}
 	};
 
-	class Stream
+	struct SegmentState
 	{
-	public:
-		paddr_t base_addr{0};
-		uint num_lines{0};
+		paddr_t   tail_bucket_address{0x0};
+		RayBucket write_buffer{};
 
-		uint num_returned{0};
-		uint num_requested{0};
-
-		Stream()
-		{
-
-		}
-
-		Stream(paddr_t base_addr, uint bytes, uint interface_width, uint dst)
-		{
-			this->base_addr = base_addr;
-			this->num_lines = bytes / CACHE_BLOCK_SIZE;
-		}
-
-		bool fully_requested()
-		{
-			return num_requested == num_lines;
-		}
-
-		bool fully_returned()
-		{
-			return num_returned == num_lines;
-		}
-
-		void count_return()
-		{
-			num_returned++;
-		}
-
-		MemoryRequest get_next_request()
-		{
-			MemoryRequest req;
-			req.type = MemoryRequest::Type::LOAD;
-			req.size = CACHE_BLOCK_SIZE;
-			req.paddr = base_addr + num_requested;
-			num_requested++;
-
-			return req;
-		}
+		//Once the parent is finished we are able to dispatch the last bucket for the segment
+		bool      parent_finished{false};
 	};
 
-	struct Bank
+	struct Channel
 	{
-		Stream open_stream;
-		std::queue<Stream> buck_stream_queue; std::queue<WorkItem> ray_write_queue;
+		enum StreamState
+		{
+			NA,
+			READ_BUCKET,
+			WRITE_BUCKET,
+		};
+
+		std::map<uint, SegmentState> segment_state_map;
+		std::queue<uint> segment_dispatch_queue;
+
+		std::queue<uint> bucket_write_queue;
+		std::queue<uint> bucket_read_queue;
+
+		StreamState stream_state{NA};
+
+		struct
+		{
+			uint segment_index{0};
+			uint lines_requested{0};
+			uint dst_tm{0};
+		}
+		current_bucket;
+
+		MemoryReturn forward_return;
+
+		paddr_t next_bucket_addr;
+		std::stack<paddr_t> free_buckets; //todo this should be a linked list in memory
+
+		//allocates space for a new bucket
+		paddr_t alloc_bucket()
+		{
+			if(!free_buckets.empty())
+			{
+				paddr_t bucket_address = free_buckets.top();
+				free_buckets.pop();
+				return bucket_address;
+			}
+
+			uint bucket_address = next_bucket_addr++;
+			if((next_bucket_addr % ROW_BUFFER_SIZE) == 0)
+				next_bucket_addr += (DRAM_CHANNELS - 1) * ROW_BUFFER_SIZE;
+
+			return bucket_address;
+		}
+
+		//allocates space for a new bucket
+		void free_bucket(paddr_t bucket_address)
+		{
+			free_buckets.push(bucket_address);
+		}
+
+		Channel(uint channel_index, paddr_t heap_address)
+		{
+			next_bucket_addr = align_to(ROW_BUFFER_SIZE, heap_address);
+			while((next_bucket_addr / ROW_BUFFER_SIZE) % DRAM_CHANNELS != channel_index)
+				next_bucket_addr += ROW_BUFFER_SIZE;
+		}
 	};
-
-	struct RayReadQueueEntry
-	{
-		uint port_index;
-		uint last_segment;
-	};
-
-	struct BucketList
-	{
-		paddr_t head_bucket_address;
-
-		paddr_t tail_bucket_address;
-		uint tail_fill;
-		uint tail_channel;
-	};
-
-
 
 private:
 	UnitMainMemoryBase* _main_mem;
 	uint                _main_mem_port_offset;
 	uint                _main_mem_port_stride;
 
-	uint _num_tms;
-	std::vector<Bank> _banks;
+	std::vector<Channel> _channels;
+	StreamSchedulerRequestCrossbar _request_network;
+	UnitMemoryBase::ReturnCrossBar _return_network;
 
-	StreamSchedulerCrossBar _request_network;
-	FIFOArray<MemoryReturn> _return_network;
-
-	std::queue<uint> _ray_bucket_read_queue;
-
-	paddr_t _scene_start, _bucket_start, _bucket_end;
-
-	std::stack<paddr_t>        free_buckets; //todo this should be a linked list in memory
-	std::map<uint, BucketList> bucket_lists;
-
-	std::queue<uint> eligable_segments;
-	uint active_segment_arb_index;
-	uint num_active_segments;
+	std::queue<uint> _tm_bucket_queue;
+	uint             _root_rays_in_flight{0};
 
 private:
-	void proccess_request(uint bank_index)
-	{
-		if(!_request_network.is_read_valid(bank_index)) return;
-		const StreamSchedulerRequest& req = _request_network.peek(bank_index);
-		Bank& bank = _banks[bank_index];
-
-		if(req.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
-		{
-			bank.ray_write_queue.push(req.work_item);
-			_request_network.read(bank_index);
-		}
-		else if(req.type == StreamSchedulerRequest::Type::LOAD_BUCKET)
-		{
-			//Insert the tm in the read queue
-			_ray_bucket_read_queue.emplace(req.port, req.last_segment);
-			_request_network.read(bank_index);
-		}
-	}
-
-	void proccess_return(uint bank_index)
-	{
-
-	}
-
-	void issue_request(uint bank_index)
-	{
-
-	}
-
-	void issue_return(uint bank_index)
-	{
-
-	}
+	void proccess_request(uint channel_index);
+	void proccess_return(uint channel_index);
+	void issue_request(uint channel_index);
+	void issue_return(uint channel_index);
 
 public:
-	UnitStreamScheduler(Configuration config) : _request_network(config.num_tms, 1, 0b111), _return_network(config.num_tms)
+	UnitStreamScheduler(Configuration config) : _request_network(config.num_tms, DRAM_CHANNELS), _return_network(config.num_tms, DRAM_CHANNELS)
 	{
-		_scene_start = config.scene_start;
-		_bucket_start = config.bucket_start;
-		_bucket_end = _bucket_start;
-
-		_num_tms = config.num_tms;
-
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;
 
-		_banks.resize(8);//TODO match num dram channels
+		for(uint i = 0; i < DRAM_CHANNELS; ++i)
+			_channels.push_back({i, config.bucket_start});
 	}
 
 	void clock_rise() override
 	{
 		_request_network.clock();
 
-		for(uint i = 0; i < _banks.size(); ++i)
+		for(uint i = 0; i < _channels.size(); ++i)
 		{
 			proccess_request(i);
 			proccess_return(i);
@@ -218,7 +181,7 @@ public:
 
 	void clock_fall() override
 	{
-		for(uint i = 0; i < _banks.size(); ++i)
+		for(uint i = 0; i < _channels.size(); ++i)
 		{
 			issue_request(i);
 			issue_return(i);

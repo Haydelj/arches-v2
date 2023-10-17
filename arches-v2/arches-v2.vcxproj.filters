@@ -187,6 +187,9 @@
     <ClCompile Include="src\units\unit-blocking-cache.cpp">
       <Filter>units</Filter>
     </ClCompile>
+    <ClCompile Include="src\units\dual-streaming\unit-stream-scheduler.cpp">
+      <Filter>units\dual-streaming</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\units\usimm\config-files\1channel.cfg">
@@ -222,13 +225,13 @@
     <None Include="src\units\usimm\config-files\4Gb_x8.vi">
       <Filter>units\usimm\config-files</Filter>
     </None>
-    <None Include="src\units\usimm\config-files\gddr5.cfg">
-      <Filter>units\usimm\config-files</Filter>
-    </None>
-    <None Include="src\units\usimm\config-files\gddr5_2ch.cfg">
-      <Filter>units\usimm\config-files</Filter>
-    </None>
     <None Include="src\units\usimm\config-files\gddr5_8ch.cfg">
+      <Filter>units\usimm\config-files</Filter>
+    </None>
+    <None Include="src\units\usimm\config-files\gddr5_4ch.cfg">
+      <Filter>units\usimm\config-files</Filter>
+    </None>
+    <None Include="src\units\usimm\config-files\gddr5_16ch.cfg">
       <Filter>units\usimm\config-files</Filter>
     </None>
     <None Include="src\units\usimm\config-files\gddr5_amd_map1_128col.cfg">

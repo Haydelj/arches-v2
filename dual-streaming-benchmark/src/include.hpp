@@ -1,15 +1,7 @@
 #pragma once
+#include "stdafx.hpp"
 
-#include "../../include/rtm/rtm.hpp"
-#include "treelet-bvh.hpp"
 #include "intersect.hpp"
-
-struct RayWriteBuffer
-{
-	uint treelet;
-	uint ray_id;
-	rtm::Ray ray;
-};
 
 #define KERNEL_ARGS_ADDRESS 256ull
 

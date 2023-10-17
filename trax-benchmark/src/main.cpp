@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.samples_per_pixel = 64;
+	args.samples_per_pixel = 16;
 	args.max_depth = 16;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
@@ -101,13 +101,12 @@ int main(int argc, char* argv[])
 	
 	rtm::Mesh mesh(argv[1]);
 	rtm::BVH mesh_blas;
+	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;
 	for(uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
 	mesh_blas.build(build_objects);
 	mesh.reorder(build_objects);
-
-	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 
 	args.mesh.blas = mesh_blas.nodes.data();
@@ -115,12 +114,11 @@ int main(int argc, char* argv[])
 
 	auto start = std::chrono::high_resolution_clock::now();
 
-	uint thread_count = std::max(std::thread::hardware_concurrency() - 1u, 1u);
 	std::vector<std::thread> threads;
-	for(uint i = 0; i < thread_count; ++i)
-		threads.emplace_back(kernel, args);
-	for(uint i = 0; i < thread_count; ++i)
-		threads[i].join();
+	uint thread_count = std::max(std::thread::hardware_concurrency() - 2u, 0u);
+	for(uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
+	kernel(args);
+	for(uint i = 0; i < thread_count; ++i) threads[i].join();
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

@@ -17,6 +17,12 @@ struct alignas(32) TreeletNode
 	};
 };
 
+struct alignas(32) TreeletHeader
+{
+	uint first_child;
+	uint num_children;
+};
+
 struct TreeletTriangle
 {
 	rtm::Triangle tri;
@@ -39,7 +45,7 @@ public:
 	TreeletBVH(const rtm::BVH& bvh, const rtm::Mesh& mesh)
 	{
 		printf("Treelet BVH Building\n");
-		build_treelet_breadth_first(bvh, mesh);
+		build_treelet(bvh, mesh);
 		printf("Treelet BVH Built\n");
 	}
 
@@ -52,43 +58,146 @@ public:
 		return node_size;
 	}
 
-	void build_treelet_breadth_first(const rtm::BVH& bvh, const rtm::Mesh& mesh)
+	void build_treelet(const rtm::BVH& bvh, const rtm::Mesh& mesh)
 	{
-		std::vector<std::vector<uint>> treelet_assignments;
-
-		std::queue<uint> root_node_queue;
-		root_node_queue.push(bvh.nodes[0].data.fst_chld_ind);
-		
-		size_t bytes = 0;
-
-		while(!root_node_queue.empty())
+		//Phase 0 setup
+		uint total_footprint = 0;
+		std::vector<uint> footprint;
+		std::vector<float> area;
+		std::vector<float> best_cost;
+		for(uint i = 0; i < bvh.nodes.size(); ++i)
 		{
-			treelet_assignments.push_back({});
-
-			std::queue<uint> node_queue;
-			node_queue.push(root_node_queue.front()); root_node_queue.pop();
-
-			uint bytes_left = sizeof(Treelet);
-			while(!node_queue.empty())
-			{
-				uint node = node_queue.front(); node_queue.pop();
-				uint node_size = get_node_size(node + 0, bvh, mesh) + get_node_size(node + 1, bvh, mesh);
-
-				if(node_size < bytes_left)
-				{
-					bytes_left -= node_size;
-
-					treelet_assignments.back().push_back(node + 0);
-					treelet_assignments.back().push_back(node + 1);
-
-					if(!bvh.nodes[node + 0].data.is_leaf) node_queue.push(bvh.nodes[node + 0].data.fst_chld_ind);
-					if(!bvh.nodes[node + 1].data.is_leaf) node_queue.push(bvh.nodes[node + 1].data.fst_chld_ind);
-				}
-				else root_node_queue.push(node);
-			}
-			bytes += sizeof(Treelet) - bytes_left;
+			footprint.push_back(get_node_size(i, bvh, mesh));
+			total_footprint += footprint.back();
+			area.push_back(bvh.nodes[i].aabb.surface_area());
+			best_cost.push_back(INFINITY);
 		}
 
+		float epsilon = bvh.nodes[0].aabb.surface_area() * sizeof(Treelet) / (10 * total_footprint);
+
+		std::stack<uint> post_stack;
+		std::stack<uint> pre_stack; pre_stack.push(0);
+		while(!pre_stack.empty())
+		{
+			uint node = pre_stack.top();
+			pre_stack.pop();
+
+			if(!bvh.nodes[node].data.is_leaf)
+				for(uint i = 0; i <= bvh.nodes[node].data.lst_chld_ofst; ++i)
+					pre_stack.push(bvh.nodes[node].data.fst_chld_ind + i);
+
+			post_stack.push(node);
+		}
+
+
+
+		//Phase 1 reverse depth first search using dynamic programing to determine treelet costs
+		std::vector<uint> subtree_footprint;
+		subtree_footprint.resize(bvh.nodes.size(), 0);
+		while(!post_stack.empty())
+		{
+			uint root_node = post_stack.top(); 
+			post_stack.pop();
+
+			subtree_footprint[root_node] = footprint[root_node];
+			if(!bvh.nodes[root_node].data.is_leaf)
+				for(uint i = 0; i <= bvh.nodes[root_node].data.lst_chld_ofst; ++i)
+					subtree_footprint[root_node] += subtree_footprint[bvh.nodes[root_node].data.fst_chld_ind + i];
+
+			std::set<uint> cut{root_node};
+			uint bytes_remaining = sizeof(Treelet);
+			best_cost[root_node] = INFINITY;
+			while(true)
+			{
+				uint best_node = ~0u;
+				float best_score = -INFINITY;
+				for(auto& n : cut)
+				{
+					if(footprint[n] <= bytes_remaining)
+					{
+						float gain = area[n] + epsilon;
+						float price = rtm::min(subtree_footprint[n], sizeof(Treelet));
+						float score = gain / price;
+						if(score > best_score)
+						{
+							best_node = n;
+							best_score = score;
+						}
+					}
+				}
+				if(best_node == ~0u) break;
+
+				cut.erase(best_node);
+				if(!bvh.nodes[best_node].data.is_leaf)
+					for(uint i = 0; i <= bvh.nodes[best_node].data.lst_chld_ofst; ++i)
+						cut.insert(bvh.nodes[best_node].data.fst_chld_ind + i);
+
+				bytes_remaining -= footprint[best_node];
+
+				float cost = area[root_node] + epsilon;
+				for(auto& n : cut)
+					cost += best_cost[n];
+
+				best_cost[root_node] = rtm::min(best_cost[root_node], cost);
+			}
+		}
+
+
+
+		//Phase 2 treelet assignment
+		pre_stack.push(0);
+		std::vector<std::vector<uint>> treelet_assignments;
+		while(!pre_stack.empty())
+		{
+			treelet_assignments.push_back({});
+			uint root_node = pre_stack.top();
+			pre_stack.pop();
+
+			std::set<uint> cut{root_node};
+			uint bytes_remaining = sizeof(Treelet);
+			while(true)
+			{
+				uint best_node = ~0u;
+				float best_score = -INFINITY;
+				for(auto& n : cut)
+				{
+					if(footprint[n] <= bytes_remaining)
+					{
+						float gain = area[n] + epsilon;
+						float price = rtm::min(subtree_footprint[n], sizeof(Treelet));
+						float score = gain / price;
+						if(score > best_score)
+						{
+							best_node = n;
+							best_score = score;
+						}
+					}
+				}
+				if(best_node == ~0u) break;
+
+				treelet_assignments.back().push_back(best_node);
+
+				cut.erase(best_node);
+				if(!bvh.nodes[best_node].data.is_leaf)
+					for(uint i = 0; i <= bvh.nodes[best_node].data.lst_chld_ofst; ++i)
+						cut.insert(bvh.nodes[best_node].data.fst_chld_ind + i);
+
+				bytes_remaining -= footprint[best_node];
+
+				float cost = area[root_node] + epsilon;
+				for(auto& n : cut)
+					cost += best_cost[n];
+
+				if(cost == best_cost[root_node]) break;
+			}
+
+			for(auto& n : cut)
+				pre_stack.push(n);
+		}
+
+
+
+		//Phase 3 construct treelets in memeory
 		treelets.resize(treelet_assignments.size());
 
 		std::unordered_map<uint, std::pair<uint, uint>> node_map;
@@ -110,7 +219,7 @@ public:
 			}
 
 			uint current_word = num_nodes * (sizeof(TreeletNode) / 4);
-			
+
 			for(uint j = 0; j < num_nodes; ++j)
 			{
 				uint node_id = treelet_assignments[i][j];
@@ -149,8 +258,7 @@ public:
 		printf("Nodes Assigned: %u/%zu\n", num_nodes_assigned, bvh.nodes.size());
 		printf("Tris Assigned: %u/%zu\n", num_tris_assigned, mesh.vertex_indices.size());
 		printf("Treelets: %zu\n", treelets.size());
-		printf("Bytes/Treelet: %zu\n", bytes / treelets.size());
+		printf("Bytes/Treelet: %zu\n", total_footprint / treelets.size());
 	}
-
 };
 #endif

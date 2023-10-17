@@ -15,6 +15,8 @@
 
 extern int arches_verbosity;
 
+static UsimmListener* usimm_listener = nullptr;
+
 // ROB Structure, used to release stall on instructions
 // when the read request completes
 struct robstructure * ROB;
@@ -125,6 +127,10 @@ long long int stats_num_powerup         [MAX_NUM_CHANNELS][MAX_NUM_RANKS];
 // moving window that captures each activate issued in the past
 bool activation_record[MAX_NUM_CHANNELS][MAX_NUM_RANKS][BIG_ACTIVATION_WINDOW];
 
+void registerUsimmListener(UsimmListener* listener)
+{
+    usimm_listener = listener;
+}
 
 // record an activate in the activation record
 void record_activate(const int channel,
@@ -554,7 +560,7 @@ request_t init_new_node(const dram_address_t &dram_address,
 
 // Once the completion time of a read is known, this function informs
 // the TRaX thread and caches and corrects the "infinite" latency that was assumed
-void updateTraxRequest(arches_request_t &request,
+void updateTraxRequest(arches_request_t& request,
                         Arches::cycles_t completion_time)
 {
     // printf("\t%u: thread id: %d, which_reg: %d, result: %u, addr: %d\n", i, thread->thread_id, 
@@ -575,10 +581,10 @@ void updateTraxRequest(arches_request_t &request,
 //    request.L1->UpdateBus  (request.arches_addr, completion_time);
 //    request.L2->UpdateCache(request.arches_addr, completion_time);
 
-    if (request.listener)
+    if (usimm_listener)
     {
-        assert(request.listener != NULL);
-        request.listener->UsimmNotifyEvent(request.arches_addr, completion_time, request.id);
+        assert(usimm_listener != NULL);
+        usimm_listener->UsimmNotifyEvent(completion_time, request);
     }
 }
 

@@ -9,58 +9,32 @@
 
 namespace Arches { namespace Units {
 
+#define DRAM_CHANNELS (16)
+
 class UnitDRAM : public UnitMainMemoryBase, public UsimmListener
 {
 private:
-
-	class DRAMRequestCrossBar : public CasscadedCrossBar<MemoryRequest>
+	struct USIMMReturn
 	{
-	public:
-		DRAMRequestCrossBar(uint ports, uint channels) : CasscadedCrossBar<MemoryRequest>(ports, channels, channels) {}
-
-		uint get_sink(const MemoryRequest& request) override
-		{
-			return calcDramAddr(request.paddr).channel;
-		}
-	};
-
-	class DRAMReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
-	{
-	public:
-		DRAMReturnCrossBar(uint ports, uint channels) : CasscadedCrossBar<MemoryReturn>(channels, ports, channels) {}
-
-		uint get_sink(const MemoryReturn& ret) override
-		{
-			return ret.port;
-		}
-	};
-
-	struct ReturnItem
-	{
-		paddr_t	 paddr;
-		uint	 port;
 		cycles_t return_cycle;
+		arches_request_t req;
 
-		ReturnItem(paddr_t paddr, uint port, cycles_t return_cycle) : port(port), paddr(paddr), return_cycle(return_cycle) {}
-	
-		friend bool operator<(const ReturnItem& l, const ReturnItem& r)
+		friend bool operator<(const USIMMReturn& l, const USIMMReturn& r)
 		{
 			return l.return_cycle > r.return_cycle;
 		}
 	};
 
-	bool _busy{false};
-
 	struct Channel
 	{
-		std::priority_queue<ReturnItem> return_queue;
+		std::priority_queue<USIMMReturn> return_queue;
 	};
 
+	bool _busy{false};
+
 	std::vector<Channel> _channels;
-
-	DRAMRequestCrossBar _request_network;
-	DRAMReturnCrossBar _return_network;
-
+	Casscade<MemoryRequest> _request_network;
+	FIFOArray<MemoryReturn> _return_network;
 	cycles_t _current_cycle{ 0 };
 
 public:
@@ -81,11 +55,11 @@ public:
 	void print_usimm_stats(uint32_t const L2_line_size, uint32_t const word_size, cycles_t cycle_count);
 	float total_power_in_watts();
 
-	virtual void UsimmNotifyEvent(paddr_t const address, cycles_t write_cycle, uint32_t request_id);
+	virtual void UsimmNotifyEvent(cycles_t write_cycle, const arches_request_t& req);
 
 private:
-	bool _load(const MemoryRequest& request_item);
-	bool _store(const MemoryRequest& request_item);
+	bool _load(const MemoryRequest& request_item, uint channel_index);
+	bool _store(const MemoryRequest& request_item, uint channel_index);
 };
 
 }}

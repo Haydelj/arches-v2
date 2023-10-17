@@ -331,6 +331,42 @@ public:
 };
 
 template<typename T>
+class Decasscade : public InterconnectionNetwork<T>
+{
+private:
+	FIFOArray<T> _source_fifos;
+	FIFOArray<T> _sink_fifos;
+
+public:
+	Decasscade(uint sources, uint sinks) : _source_fifos(sources), _sink_fifos(sinks) {}
+
+	virtual uint get_sink(const T& transaction) = 0;
+
+	void clock()
+	{
+		for(uint source_index = 0; source_index < _source_fifos.num_sinks(); ++source_index)
+		{
+			if(!_source_fifos.is_read_valid(source_index)) continue;
+
+			uint sink_index = get_sink(_source_fifos.peek(source_index), source_index);
+			if(!_sink_fifos.is_write_valid(sink_index)) continue;
+
+			_sink_fifos.write(_source_fifos.read(source_index), sink_index);
+		}
+	}
+
+	uint num_sources() override { return _source_fifos.num_sources(); }
+	uint num_sinks() override { return _sink_fifos.num_sinks(); }
+
+	bool is_read_valid(uint sink_index) override { return _sink_fifos.is_read_valid(sink_index); }
+	const T& peek(uint sink_index) override { return _sink_fifos.peek(sink_index); }
+	const T read(uint sink_index) override { return _sink_fifos.read(sink_index); }
+
+	bool is_write_valid(uint source_index) override { return _source_fifos.is_write_valid(source_index); }
+	void write(const T& transaction, uint source_index) override { _source_fifos.write(transaction, source_index); }
+};
+
+template<typename T>
 class CrossBar : public InterconnectionNetwork<T>
 {
 private:
@@ -341,7 +377,7 @@ private:
 public:
 	CrossBar(uint sources, uint sinks) : _source_fifos(sources), _arbiters(sinks, sources), _sink_fifos(sinks) {}
 	
-	virtual uint get_sink(const T& transaction, uint source_index) = 0;
+	virtual uint get_sink(const T& transaction) = 0;
 
 	void clock()
 	{

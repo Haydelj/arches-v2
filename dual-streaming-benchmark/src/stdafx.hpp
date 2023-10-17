@@ -8,7 +8,9 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <sstream>
+#include <stack>
 #include <string>
 #include <thread>
 #include <unordered_map>

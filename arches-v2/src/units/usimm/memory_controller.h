@@ -12,8 +12,6 @@
 #include <vector>
 #include <list>
 #include <stdlib.h>
-#include "../../isa/riscv.hpp"
-#include "../../isa/registers.hpp"
 #include "../../stdafx.hpp"
 
 #define MAX_QUEUE_LENGTH 80
@@ -64,10 +62,20 @@ struct UsimmUsageStats_t
 //      Memory Controller Data Structures       //
 //////////////////////////////////////////////////
 
+
+// Single request structure self-explanatory
+typedef struct arches_request_t
+{
+    uint8_t size;
+    uint16_t dst;
+    uint16_t port;
+    Arches::paddr_t paddr;
+} arches_request_t;
+
 // Call-back for TRaX from USIMM
 struct UsimmListener
 {
-    virtual void UsimmNotifyEvent(Arches::paddr_t const address, Arches::cycles_t write_cycle, uint32_t request_id) = 0;
+    virtual void UsimmNotifyEvent(Arches::cycles_t write_cycle, const arches_request_t& req) = 0;
 };
 
 // DRAM Address Structure
@@ -102,44 +110,21 @@ typedef enum
     WRITE
 } optype_t;
 
-// Single request structure self-explanatory
-typedef struct arches_request_t
-{
-    //Arches::Units::RISCV::Register64 result;
-    //uint8_t                          which_reg;
-    //uint32_t op;
-    //not sure how to represent the thread state for Arches
-    //ThreadState        *thread;
-    Arches::paddr_t arches_addr;
-    UsimmListener            *listener;
-    uint32_t                 id;
-    arches_request_t() :
-        //which_reg(0),
-        //op(0b000/*NOP = ADDI x0 x0 0*/),
-        //thread(NULL),
-        arches_addr(0),
-        listener(NULL),
-        id(0)
-    {
-        //result.u64 = 0;
-    }
-} arches_request_t;
-
 
 //DK: update this struct to hold the PC of issuing instruction
 typedef struct req
 {
     unsigned long long int  physical_address;
-    dram_address_t          dram_addr;
-    int64_t           arrival_time;
-    int64_t             dispatch_time;      // when COL_RD or COL_WR is issued for this request
-    int64_t           completion_time;    // final completion time
-    int64_t             latency;            // dispatch_time-arrival_time
+    dram_address_t   dram_addr;
+    int64_t          arrival_time;
+    int64_t          dispatch_time;      // when COL_RD or COL_WR is issued for this request
+    int64_t          completion_time;    // final completion time
+    int64_t          latency;            // dispatch_time-arrival_time
 //    int                     thread_id;          // core that issued this request
-    command_t               next_command;       // what command needs to be issued to make forward progress with this request
-    optype_t                operation_type;     // Read/Write
-    bool                    command_issuable;   // can this request be issued in the current cycle
-    bool                    request_served;     // if request has it's final command issued or not
+    command_t        next_command;       // what command needs to be issued to make forward progress with this request
+    optype_t         operation_type;     // Read/Write
+    bool             command_issuable;   // can this request be issued in the current cycle
+    bool             request_served;     // if request has it's final command issued or not
 //    int                     instruction_id;     // 0 to ROBSIZE-1
 //    long long int           instruction_pc;     // phy address of instruction that generated this request (valid only for reads)
 
@@ -405,6 +390,7 @@ reqInsertRet_t insert_write(const dram_address_t &dram_address,
 
 int numDramChannels();
 dram_address_t calcDramAddr(Arches::paddr_t physical_address);
+void registerUsimmListener(UsimmListener* listener);
 
 // convert the TRaX address to byte-addressed, cache-line-aligned
 inline long long int traxAddrToUsimm(const int address, const int lineSize)

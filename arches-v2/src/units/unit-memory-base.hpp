@@ -10,14 +10,14 @@ namespace Arches { namespace Units {
 
 class UnitMemoryBase : public UnitBase
 {
-protected:
-	class MemoryRequestCrossBar : public CasscadedCrossBar<MemoryRequest>
+public:
+	class RequestCrossBar : public CasscadedCrossBar<MemoryRequest>
 	{
 	private:
 		uint64_t mask;
 
 	public:
-		MemoryRequestCrossBar(uint ports, uint banks, uint64_t bank_select_mask) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest>(ports, banks, banks) {}
+		RequestCrossBar(uint ports, uint banks, uint64_t bank_select_mask) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest>(ports, banks, banks) {}
 
 		uint get_sink(const MemoryRequest& request) override
 		{
@@ -27,10 +27,10 @@ protected:
 		}
 	};
 
-	class MemoryReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
+	class ReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
 	{
 	public:
-		MemoryReturnCrossBar(uint ports, uint banks) : CasscadedCrossBar<MemoryReturn>(banks, ports, banks) {}
+		ReturnCrossBar(uint ports, uint banks) : CasscadedCrossBar<MemoryReturn>(banks, ports, banks) {}
 
 		uint get_sink(const MemoryReturn& ret) override
 		{

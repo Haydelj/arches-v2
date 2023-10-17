@@ -2,6 +2,7 @@
 
 #include "../stdafx.hpp"
 
+#include "../../../dual-streaming-benchmark/src/work-item.hpp"
 
 namespace Arches {
 
@@ -29,15 +30,12 @@ public:
 	};
 
 	//meta data 
-	Type      type;
-	uint8_t   size;
-	uint16_t  port;
+	Type     type;
+	uint8_t  size;
+	uint16_t dst;
+	uint16_t port;
 
-	union
-	{
-		uint64_t dst;
-		uint64_t write_mask;
-	};
+	uint64_t write_mask;
 
 	union
 	{
@@ -57,7 +55,7 @@ public:
 public:
 	MemoryRequest() = default;
 
-	MemoryRequest(const MemoryRequest& other) : type(other.type), size(other.size), port(other.port), dst(other.dst), paddr(other.paddr)
+	MemoryRequest(const MemoryRequest& other) : type(other.type), size(other.size), dst(other.dst), port(other.port), write_mask(other.write_mask), paddr(other.paddr)
 	{
 		std::memcpy(data, other.data, size);
 	}
@@ -66,8 +64,9 @@ public:
 	{
 		type = other.type;
 		size = other.size;
-		port = other.port;
 		dst = other.dst;
+		port = other.port;
+		write_mask = other.write_mask;
 		paddr = other.paddr;
 		std::memcpy(data, other.data, size);
 		return *this;
@@ -86,9 +85,8 @@ public:
 	//meta data 
 	Type     type;
 	uint8_t  size;
-	uint16_t  port;
-
-	uint64_t dst;
+	uint16_t dst;
+	uint16_t port;
 
 	union
 	{
@@ -113,7 +111,7 @@ public:
 		std::memcpy(data, other.data, size);
 	}
 
-	MemoryReturn(const MemoryRequest& other) : size(other.size), port(other.port), dst(other.dst), paddr(other.paddr)
+	MemoryReturn(const MemoryRequest& request) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
 	{
 		type = Type::LOAD_RETURN;
 	}
@@ -122,8 +120,8 @@ public:
 	{
 		type = other.type;
 		size = other.size;
-		port = other.port;
 		dst = other.dst;
+		port = other.port;
 		paddr = other.paddr;
 		std::memcpy(data, other.data, size);
 		return *this;
@@ -132,7 +130,6 @@ public:
 
 struct StreamSchedulerRequest
 {
-public:
 	enum class Type : uint8_t
 	{
 		NA,
@@ -140,17 +137,20 @@ public:
 		STORE_WORKITEM,
 	};
 
-	Type     type;
+	Type type;
+	uint     port;
 
 	union
 	{
-		struct
-		{
-			uint     port;
-			uint     last_segment;
-		};
+
+		uint     last_segment;
 		WorkItem work_item;
 	};
+
+	StreamSchedulerRequest()
+	{
+
+	}
 };
 
 struct SFURequest

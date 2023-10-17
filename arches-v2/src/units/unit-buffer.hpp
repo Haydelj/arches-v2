@@ -30,8 +30,8 @@ private:
 	uint64_t _buffer_address_mask;
 
 	std::vector<Bank> _banks;
-	MemoryRequestCrossBar _request_cross_bar;
-	MemoryReturnCrossBar _return_cross_bar;
+	RequestCrossBar _request_cross_bar;
+	ReturnCrossBar _return_cross_bar;
 
 public:
 	UnitBuffer(Configuration config) : UnitMemoryBase(),

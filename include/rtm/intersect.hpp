@@ -8,7 +8,7 @@
 namespace rtm
 {
 
-inline float intersect_aabb(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
+inline float intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
 	rtm::vec3 t0 = (aabb.min - ray.o) * inv_d;
 	rtm::vec3 t1 = (aabb.max - ray.o) * inv_d;
@@ -19,11 +19,11 @@ inline float intersect_aabb(const rtm::AABB& aabb, const rtm::Ray& ray, const rt
 	float tmin = max(max(tminv.x, tminv.y), max(tminv.z, ray.t_min));
 	float tmax = min(min(tmaxv.x, tmaxv.y), min(tmaxv.z, ray.t_max));
 
-	if (tmin > tmax || tmax < ray.t_max) return ray.t_max;//no hit || behind
+	if (tmin > tmax || tmax < ray.t_min) return ray.t_max;//no hit || behind
 	return tmin;
 }
 
-inline bool intersect_tri(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)
+inline bool intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)
 {
 #if 0
 	rtm::vec3 bc;

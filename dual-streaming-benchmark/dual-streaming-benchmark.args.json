@@ -4,7 +4,7 @@
   "Items": [
     {
       "Id": "dc60a7e7-1b42-4e94-9ab7-b8da62ad545c",
-      "Command": "./res/sponza.obj"
+      "Command": "../datasets/sponza.obj"
     }
   ]
 }

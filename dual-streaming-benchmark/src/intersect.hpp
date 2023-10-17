@@ -1,19 +1,8 @@
 #pragma once
 #include "stdafx.hpp"
 
+#include "work-item.hpp"
 #include "treelet-bvh.hpp"
-
-struct BucketRay
-{
-	rtm::Ray ray;
-	uint32_t id{~0u};
-};
-
-struct WorkItem
-{
-	BucketRay bray;
-	uint32_t  segment;
-};
 
 inline WorkItem _lwi()
 {
@@ -120,7 +109,7 @@ inline float intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::ve
 
 	return t;
 #else
-	return rtm::intersect_aabb(aabb, ray, inv_d);
+	return rtm::intersect(aabb, ray, inv_d);
 #endif
 }
 
@@ -181,7 +170,7 @@ inline bool intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& h
 
 	return is_hit;
 #else
-	return rtm::intersect_tri(tri, ray, hit);
+	return rtm::intersect(tri, ray, hit);
 #endif
 }
 
@@ -231,8 +220,8 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 				nodes_local[1] = ((TreeletNode*)&treelet.data[current_entry.child_index * 4])[1];
 
 				float hit_ts[2];
-				hit_ts[0] = intersect(nodes_local[0].aabb, ray, inv_d);
-				hit_ts[1] = intersect(nodes_local[1].aabb, ray, inv_d);
+				hit_ts[0] = ::intersect(nodes_local[0].aabb, ray, inv_d);
+				hit_ts[1] = ::intersect(nodes_local[1].aabb, ray, inv_d);
 
 				if(hit_ts[0] < hit_ts[1])
 				{
@@ -261,7 +250,7 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 			for(uint i = 0; i <= current_entry.last_tri_offset; ++i)
 			{
 				TreeletTriangle tri = tris[i];
-				if(intersect(tri.tri, ray, hit))
+				if(::intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;
 					is_hit |= true;
@@ -273,23 +262,7 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	return is_hit;
 }
 
-bool inline intersect(const Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
-{
-	uint treelet_stack_size = 1u;  uint treelet_stack[64];
-	treelet_stack[0] = 0;
-
-	bool is_hit = false;
-	while(treelet_stack_size != 0u)
-	{
-		//TODO in dual streaming this comes from the current scene segment we are traversing
-		uint treelet_index = treelet_stack[--treelet_stack_size];
-		is_hit |= intersect_treelet(treelets[treelet_index], ray, hit, treelet_stack, treelet_stack_size);
-	}
-
-	return is_hit;
-}
-
-bool inline intersect_buckets(void* ray_staging_buffer, const Treelet* scene_buffer, rtm::Hit* hit_records)
+bool inline intersect_buckets(const Treelet* scene_buffer, rtm::Hit* hit_records)
 {
 	bool is_hit = false;
 	while(1)
@@ -316,3 +289,17 @@ bool inline intersect_buckets(void* ray_staging_buffer, const Treelet* scene_buf
 	return is_hit;
 }
 
+bool inline intersect(const Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
+{
+	uint treelet_stack_size = 1u;  uint treelet_stack[64];
+	treelet_stack[0] = 0;
+
+	bool is_hit = false;
+	while(treelet_stack_size != 0u)
+	{
+		uint treelet_index = treelet_stack[--treelet_stack_size];
+		is_hit |= intersect_treelet(treelets[treelet_index], ray, hit, treelet_stack, treelet_stack_size);
+	}
+
+	return is_hit;
+}

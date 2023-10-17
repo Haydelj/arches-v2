@@ -7,6 +7,7 @@
     <ClInclude Include="src\sampling.hpp" />
     <ClInclude Include="src\stdafx.hpp" />
     <ClInclude Include="src\treelet-bvh.hpp" />
+    <ClInclude Include="src\work-item.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />

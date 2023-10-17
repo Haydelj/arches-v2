@@ -74,6 +74,7 @@
     <ClCompile Include="src\isa\riscv.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\simulator\simulator.cpp" />
+    <ClCompile Include="src\units\dual-streaming\unit-stream-scheduler.cpp" />
     <ClCompile Include="src\units\unit-blocking-cache.cpp" />
     <ClCompile Include="src\units\unit-cache-base.cpp" />
     <ClCompile Include="src\units\unit-dram.cpp" />
@@ -99,9 +100,9 @@
     <None Include="src\units\usimm\config-files\4channel.cfg" />
     <None Include="src\units\usimm\config-files\4Gb_x4.vi" />
     <None Include="src\units\usimm\config-files\4Gb_x8.vi" />
-    <None Include="src\units\usimm\config-files\gddr5.cfg" />
-    <None Include="src\units\usimm\config-files\gddr5_2ch.cfg" />
     <None Include="src\units\usimm\config-files\gddr5_8ch.cfg" />
+    <None Include="src\units\usimm\config-files\gddr5_4ch.cfg" />
+    <None Include="src\units\usimm\config-files\gddr5_16ch.cfg" />
     <None Include="src\units\usimm\config-files\gddr5_amd_map1_128col.cfg" />
     <None Include="src\units\usimm\config-files\gddr5_amd_map1_128col_8ch.cfg" />
   </ItemGroup>

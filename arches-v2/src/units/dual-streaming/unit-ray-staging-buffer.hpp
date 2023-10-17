@@ -78,11 +78,10 @@ public:
 
 		if(!back_buffer->requested && _stream_scheduler->request_port_write_valid(tm_index))
 		{
-			MemoryRequest req;
-			req.type = MemoryRequest::Type::LOAD;
-			req.size = 0;
-			req.paddr = 0x0;
+			StreamSchedulerRequest req;
+			req.type = StreamSchedulerRequest::Type::LOAD_BUCKET;
 			req.port = tm_index;
+			req.last_segment = 0;
 			_stream_scheduler->write_request(req, req.port);
 			back_buffer->requested = true;
 			return;
@@ -106,8 +105,11 @@ public:
 			//forward to stream scheduler
 			if(_stream_scheduler->request_port_write_valid(tm_index))
 			{
-				request.port = tm_index;
-				_stream_scheduler->write_request(request, request.port);
+				StreamSchedulerRequest req;
+				req.type = StreamSchedulerRequest::Type::STORE_WORKITEM;
+				req.port = tm_index;
+				std::memcpy(&req.work_item, request.data, sizeof(WorkItem));
+				_stream_scheduler->write_request(req, req.port);
 				request_valid = false;
 			}
 		}

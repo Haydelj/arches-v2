@@ -1,10 +1,11 @@
 #pragma once
+#include "stdafx.hpp"
 
 #include "simulator/simulator.hpp"
 
 #include "units/unit-dram.hpp"
-#include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-blocking-cache.hpp"
+#include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-atomic-reg-file.hpp"
 #include "units/unit-tile-scheduler.hpp"
 #include "units/unit-sfu.hpp"
@@ -19,7 +20,7 @@ namespace Arches {
 namespace ISA { namespace RISCV { namespace TRaX {
 
 //TRAXAMOIN
-const static InstructionInfo traxamoin(0b00010, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegType::INT, MEM_REQ_DECL
+const static InstructionInfo traxamoin(ISA::RISCV::CUSTOM_OPCODE0, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegType::INT, MEM_REQ_DECL
 {
 	RegAddr reg_addr;
 	reg_addr.reg = instr.i.rd;
@@ -36,11 +37,6 @@ const static InstructionInfo traxamoin(0b00010, "fchthrd", InstrType::CUSTOM0, E
 });
 
 }}}
-
-static paddr_t align_to(size_t alignment, paddr_t paddr)
-{
-	return (paddr + alignment - 1) & ~(alignment - 1);
-}
 
 template <typename RET>
 static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, RET* data, size_t size, paddr_t& heap_address)
@@ -70,8 +66,8 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	mesh.get_triangles(tris);
 
 	KernelArgs args;
-	args.framebuffer_width = 64;
-	args.framebuffer_height = 64;
+	args.framebuffer_width = 1024;
+	args.framebuffer_height = 1024;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
@@ -126,7 +122,7 @@ static void run_sim_trax(int argc, char* argv[])
 	Units::UnitDRAM mm(num_l2 * 16, 1024ull * 1024ull * 1024ull, &simulator); mm.clear();
 	simulator.register_unit(&mm);
 	
-	ELF elf("../trax-benchmark/riscv/path-tracer");
+	ELF elf("../trax-benchmark/riscv/kernel");
 	vaddr_t global_pointer;
 	paddr_t heap_address = mm.write_elf(elf);
 	
@@ -143,9 +139,10 @@ static void run_sim_trax(int argc, char* argv[])
 		l2_config.data_array_latency = 3;
 		l2_config.num_ports = num_tms_per_l2 * 8;
 		l2_config.num_banks = 16;
-		l2_config.bank_select_mask = 0b1110'0000'0100'0000;
+		l2_config.bank_select_mask = 0b0001'1110'0000'0000'0000ull;
 		l2_config.mem_higher = &mm;
-		l2_config.mem_higher_port_offset = 16 * l2_index;
+		l2_config.mem_higher_port_offset = l2_index;
+		l2_config.mem_higher_port_stride = num_l2;
 
 		l2s.push_back(new Units::UnitBlockingCache(l2_config));
 
@@ -164,13 +161,14 @@ static void run_sim_trax(int argc, char* argv[])
 			l1_config.num_banks = 8;
 			l1_config.bank_select_mask = 0b0101'0100'0000;
 			l1_config.num_lfb = 8;
+			l1_config.check_retired_lfb = false;
 			l1_config.mem_higher = l2s.back();
 			l1_config.mem_higher_port_offset = 8 * tm_i;
 
 			l1s.push_back(new Units::UnitNonBlockingCache(l1_config));
 			simulator.register_unit(l1s.back());
 
-			thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height));
+			thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height, 8, 8));
 			simulator.register_unit(thread_schedulers.back());
 
 			std::vector<Units::UnitSFU*> sfu_list;
@@ -211,7 +209,6 @@ static void run_sim_trax(int argc, char* argv[])
 				tp_config.tm_index = tm_index;
 				tp_config.pc = elf.elf_header->e_entry.u64;
 				tp_config.sp = 0x0;
-				tp_config.gp = 0x0000000000012c34;
 				tp_config.stack_size = stack_size;
 				tp_config.cheat_memory = mm._data_u8;
 				tp_config.unit_table = &unit_tables.back();
@@ -253,8 +250,9 @@ static void run_sim_trax(int argc, char* argv[])
 		l2_log.accumulate(l2->log);
 	l2_log.print_log();
 
+	printf("\n");
 	mm.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
-	tp_log.print_profile(mm._data_u8);
+	//tp_log.print_profile(mm._data_u8);
 
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;

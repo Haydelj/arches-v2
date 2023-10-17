@@ -3,13 +3,12 @@
 #include "simulator/simulator.hpp"
 
 #include "units/unit-dram.hpp"
-#include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-blocking-cache.hpp"
+#include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-buffer.hpp"
 #include "units/unit-atomic-reg-file.hpp"
 #include "units/unit-tile-scheduler.hpp"
 #include "units/unit-sfu.hpp"
-
 #include "units/unit-tp.hpp"
 
 #include "units/dual-streaming/unit-stream-scheduler.hpp"
@@ -19,7 +18,7 @@
 #include "util/elf.hpp"
 #include "isa/riscv.hpp"
 
-#include "../../dual-streaming-benchmark/src/include.hpp"
+//#include "../../dual-streaming-benchmark/src/include.hpp"
 
 namespace Arches {
 
@@ -65,7 +64,7 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 		aabb.max.y = fr[10].f32;
 		aabb.max.z = fr[11].f32;
 
-		unit->float_regs->registers[instr.u.rd].f32 = rtm::intersect_aabb(aabb, ray, inv_d);
+		unit->float_regs->registers[instr.u.rd].f32 = rtm::intersect(aabb, ray, inv_d);
 	}),
 	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegType::FLOAT, EXEC_DECL
 	{
@@ -95,7 +94,7 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 		hit.bc[0] = fr[16].f32;
 		hit.bc[1] = fr[17].f32;
 
-		unit->int_regs->registers[instr.u.rd].u32 = rtm::intersect_tri(tri, ray, hit);
+		unit->int_regs->registers[instr.u.rd].u32 = rtm::intersect(tri, ray, hit);
 
 		fr[15].f32 = hit.t;
 		fr[16].f32 = hit.bc[0];
@@ -160,11 +159,6 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom
 
 }}
 
-static paddr_t align_to(size_t alignment, paddr_t paddr)
-{
-	return (paddr + alignment - 1) & ~(alignment - 1);
-}
-
 template <typename RET>
 static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, RET* data, size_t size, paddr_t& heap_address)
 {
@@ -195,8 +189,8 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	TreeletBVH treelet_bvh(blas, mesh);
 
 	KernelArgs args;
-	args.framebuffer_width = 64;
-	args.framebuffer_height = 64;
+	args.framebuffer_width = 1024;
+	args.framebuffer_height = 1024;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
 	args.samples_per_pixel = 1;
@@ -229,23 +223,16 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM5] = "CSHIT";
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::custom0;
 
-	uint64_t num_tps_per_tm = 1;
-	uint64_t num_tms = 1;
+	uint64_t num_tps_per_tm = 32;
+	uint64_t num_tms = 32;
 
 	uint64_t num_tps = num_tps_per_tm * num_tms;
 	uint64_t num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
 
 	//hardware spec
 	uint64_t mem_size = 4ull * 1024ull * 1024ull * 1024ull; //4GB
-	
-	//cached global data
 	uint64_t stack_size = 1024; //1KB
-	uint64_t global_data_size = 64 * 1024; //64KB for global data
-	uint64_t binary_size = 64 * 1024; //64KB for executable data
 
-	//mem mapped buffers
-	uint64_t ray_stageing_buffer_size = 2 * 1024; //2KB ray-staging buffers
-	uint64_t scene_buffer_size = 4 * 1024 * 1024; //4MB scene buffer
 
 	Simulator simulator;
 	std::vector<Units::UnitTP*> tps;
@@ -273,7 +260,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	stream_scheduler_config.num_tms = num_tms;
 	stream_scheduler_config.main_mem = &dram;
 	stream_scheduler_config.main_mem_port_offset = 1;
-	stream_scheduler_config.main_mem_port_stride = 8;
+	stream_scheduler_config.main_mem_port_stride = 4;
 
 	Units::DualStreaming::UnitStreamScheduler stream_scheduler(stream_scheduler_config);
 	simulator.register_unit(&stream_scheduler);
@@ -293,11 +280,11 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 
 	Units::UnitBlockingCache::Configuration l2_config;
 	l2_config.size = 4 * 1024 * 1024;
-	l2_config.associativity = 1;
+	l2_config.associativity = 4;
 	l2_config.num_ports = num_tms * 8;
 	l2_config.num_banks = 32;
-	l2_config.bank_select_mask = 0b0000'1110'1100'0000ull;
-	l2_config.data_array_latency = 3;
+	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull;
+	l2_config.data_array_latency = 4;
 	l2_config.mem_higher = &dram;
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = 2;
@@ -318,11 +305,11 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		std::vector<Units::UnitMemoryBase*> mem_list;
 
 		Units::UnitNonBlockingCache::Configuration l1_config;
-		l1_config.size = 16 * 1024;
-		l1_config.associativity = 1;
+		l1_config.size = 32 * 1024;
+		l1_config.associativity = 4;
 		l1_config.num_ports = num_tps_per_tm;
 		l1_config.num_banks = 8;
-		l1_config.bank_select_mask = 0b0101'0100'0000ull;
+		l1_config.bank_select_mask = 0b0000'0101'0100'0000ull;
 		l1_config.data_array_latency = 0;
 		l1_config.num_lfb = 8;
 		l1_config.mem_higher = &l2;

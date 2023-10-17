@@ -44,3 +44,4 @@ inline uint64_t pext(uint64_t data, uint64_t mask)
 {
 	return _pext_u64(data, mask);
 }
+

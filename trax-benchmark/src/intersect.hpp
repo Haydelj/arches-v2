@@ -1,4 +1,5 @@
 #pragma once
+
 #include "stdafx.hpp"
 
 #ifdef __riscv
@@ -11,7 +12,7 @@ struct MeshPointers
 	rtm::Triangle*  tris;
 };
 
-inline float intersect(const rtm::AABB aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
+inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
 #ifdef HARDWARE_INTERSECT
 	register float f3 asm("f3") = ray.o.x;
@@ -39,21 +40,11 @@ inline float intersect(const rtm::AABB aabb, const rtm::Ray& ray, const rtm::vec
 
 	return t;
 #else
-	rtm::vec3 t0 = (aabb.min - ray.o) * inv_d;
-	rtm::vec3 t1 = (aabb.max - ray.o) * inv_d;
-
-	rtm::vec3 tminv = rtm::min(t0, t1);
-	rtm::vec3 tmaxv = rtm::max(t0, t1);
-
-	float tmin = rtm::max(rtm::max(tminv.x, tminv.y), rtm::max(tminv.z, ray.t_min));
-	float tmax = rtm::min(rtm::min(tmaxv.x, tmaxv.y), rtm::min(tmaxv.z, ray.t_max));
-
-	if (tmin > tmax) return ray.t_max;//no hit || behind
-	return tmin;
+	return rtm::intersect(aabb, ray, inv_d);
 	#endif
 }
 
-inline bool intersect(const rtm::Triangle tri, const rtm::Ray& ray, rtm::Hit& hit)
+inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)
 {
 #ifdef HARDWARE_INTERSECT
 	register float f0 asm("f0") = hit.t;
@@ -90,50 +81,11 @@ inline bool intersect(const rtm::Triangle tri, const rtm::Ray& ray, rtm::Hit& hi
 	hit.bc.y = f2;
 
 	return is_hit;
-#elif 0
-	rtm::vec3 bc;
-	bc[0] = rtm::dot(rtm::cross(tri.vrts[2] - tri.vrts[1], tri.vrts[1] - ray.o), ray.d);
-	bc[1] = rtm::dot(rtm::cross(tri.vrts[0] - tri.vrts[2], tri.vrts[2] - ray.o), ray.d);
-	bc[2] = rtm::dot(rtm::cross(tri.vrts[1] - tri.vrts[0], tri.vrts[0] - ray.o), ray.d);
-		
-	rtm::vec3 gn = rtm::cross(tri.vrts[1] - tri.vrts[0], tri.vrts[2] - tri.vrts[0]);
-	float gn_dot_d = rtm::dot(gn, ray.d);
-
-	if(gn_dot_d > 0.0f) bc = -bc;
-	if(bc[0] < 0.0f || bc[1] < 0.0f || bc[2] < 0.0f) return false;
-
-	float t = rtm::dot(gn, tri.vrts[0] - ray.o) / gn_dot_d;
-	if(t < ray.t_min || t > hit.t) return false;
-
-	hit.bc = rtm::vec2(bc.x, bc.y) / (bc[0] + bc[1] + bc[2]);
-	hit.t = t ;
-	return true;
 #else
-    rtm::vec3 e0     = tri.vrts[1] - tri.vrts[2];
-    rtm::vec3 e1     = tri.vrts[0] - tri.vrts[2];
-    rtm::vec3 normal = rtm::normalize(rtm::cross(e1, e0));
-    rtm::vec3 r1     = rtm::cross(ray.d, e0);
-    float denom      = rtm::dot(e1, r1);
-    float rcp_denom  = 1.0f / denom;
-    rtm::vec3 s       = ray.o - tri.vrts[2];
-    float b1          = rtm::dot(s, r1) * rcp_denom;
-    if (b1 < 0.0f || b1 > 1.0f)
-        return false;
-
-    rtm::vec3 r2 = rtm::cross(s, e1);
-    float b2  = rtm::dot(ray.d, r2) * rcp_denom;
-    if (b2 < 0.0f || (b2 + b1) > 1.0f)
-       	return false;
-
-    float t = rtm::dot(e0, r2) * rcp_denom;
-	if(t < ray.t_min || t > hit.t) 
-		return false;
-
-	hit.bc = rtm::vec2(b1, b2);
-	hit.t = t;
-	return true;
+	return rtm::intersect(tri, ray, hit);
 #endif
 }
+
 inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
@@ -146,7 +98,7 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 
 	NodeStackEntry node_stack[32];
 	uint32_t node_stack_size = 1u;
-	node_stack[0].t = intersect(mesh.blas[0].aabb, ray, inv_d);
+	node_stack[0].t = _intersect(mesh.blas[0].aabb, ray, inv_d);
 	node_stack[0].data = mesh.blas[0].data;
 	
 	bool found_hit = false;
@@ -159,8 +111,8 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 		if(!current_entry.data.is_leaf)
 		{
 			uint child_index = current_entry.data.fst_chld_ind;
-			float t0 = intersect(mesh.blas[child_index + 0].aabb, ray, inv_d);
-			float t1 = intersect(mesh.blas[child_index + 1].aabb, ray, inv_d);
+			float t0 = _intersect(mesh.blas[child_index + 0].aabb, ray, inv_d);
+			float t1 = _intersect(mesh.blas[child_index + 1].aabb, ray, inv_d);
 			if(t0 < hit.t || t1 < hit.t)
 			{
 				if(t0 < t1)
@@ -181,7 +133,7 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 			for(uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; ++i)
 			{
 				uint32_t id = current_entry.data.fst_chld_ind + i;
-				if(intersect(mesh.tris[id], ray, hit))
+				if(_intersect(mesh.tris[id], ray, hit))
 				{
 					hit.id = id;
 					if(first_hit) return true;
