@@ -22,6 +22,7 @@ void inline barrier()
 
 inline static void kernel(const KernelArgs& args)
 {
+#ifdef __riscv
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint fb_index = index;
@@ -39,6 +40,28 @@ inline static void kernel(const KernelArgs& args)
 	}
 
 	intersect_buckets(args.treelets, args.hit_records);
+#else
+	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	{
+		uint fb_index = index;
+		uint x = index % args.framebuffer_width;
+		uint y = index / args.framebuffer_width;
+		rtm::RNG rng(fb_index);
+
+		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
+		rtm::Hit hit; hit.t = ray.t_max;
+
+		rtm::vec3 out = 0.0f;
+		if(intersect(args.treelets, ray, hit))
+		{
+			rtm::vec3 n = args.triangles[hit.id].normal();
+			out = n * 0.5f + 0.5f;
+		}
+
+		args.framebuffer[fb_index] = encode_pixel(out);
+	}
+#endif
+
 
 #if 0
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())

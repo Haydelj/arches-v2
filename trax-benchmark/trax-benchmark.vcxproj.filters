@@ -4,28 +4,61 @@
     <ClInclude Include="src\custom-instr.hpp" />
     <ClInclude Include="src\intersect.hpp" />
     <ClInclude Include="src\stdafx.hpp" />
-    <ClInclude Include="src\rtm\rtm.hpp">
+    <ClInclude Include="..\include\rtm\aabb.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
-    <ClInclude Include="src\rtm\rtm-float.hpp">
+    <ClInclude Include="..\include\rtm\bvh.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
-    <ClInclude Include="src\rtm\rtm-int.hpp">
+    <ClInclude Include="..\include\rtm\camera.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
-    <ClInclude Include="src\rtm\rtm-rng.hpp">
+    <ClInclude Include="..\include\rtm\float.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
-    <ClInclude Include="src\rtm\rtm-uvec3.hpp">
+    <ClInclude Include="..\include\rtm\int.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
-    <ClInclude Include="src\rtm\rtm-vec2.hpp">
+    <ClInclude Include="..\include\rtm\intersect.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
-    <ClInclude Include="src\rtm\rtm-vec3.hpp">
+    <ClInclude Include="..\include\rtm\macros.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
-    <ClInclude Include="src\rtm\rtm-vec4.hpp">
+    <ClInclude Include="..\include\rtm\mesh.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\ray.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\rng.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\rtm.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\sampling.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\triangle.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\uvec2.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\uvec3.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\uvec4.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\vec2.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\vec3.hpp">
+      <Filter>rtm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rtm\vec4.hpp">
       <Filter>rtm</Filter>
     </ClInclude>
   </ItemGroup>

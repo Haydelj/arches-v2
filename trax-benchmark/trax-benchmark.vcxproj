@@ -127,16 +127,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\rtm\aabb.hpp" />
+    <ClInclude Include="..\include\rtm\bvh.hpp" />
+    <ClInclude Include="..\include\rtm\camera.hpp" />
+    <ClInclude Include="..\include\rtm\float.hpp" />
+    <ClInclude Include="..\include\rtm\int.hpp" />
+    <ClInclude Include="..\include\rtm\intersect.hpp" />
+    <ClInclude Include="..\include\rtm\macros.hpp" />
+    <ClInclude Include="..\include\rtm\mesh.hpp" />
+    <ClInclude Include="..\include\rtm\ray.hpp" />
+    <ClInclude Include="..\include\rtm\rng.hpp" />
+    <ClInclude Include="..\include\rtm\rtm.hpp" />
+    <ClInclude Include="..\include\rtm\sampling.hpp" />
+    <ClInclude Include="..\include\rtm\triangle.hpp" />
+    <ClInclude Include="..\include\rtm\uvec2.hpp" />
+    <ClInclude Include="..\include\rtm\uvec3.hpp" />
+    <ClInclude Include="..\include\rtm\uvec4.hpp" />
+    <ClInclude Include="..\include\rtm\vec2.hpp" />
+    <ClInclude Include="..\include\rtm\vec3.hpp" />
+    <ClInclude Include="..\include\rtm\vec4.hpp" />
     <ClInclude Include="src\custom-instr.hpp" />
     <ClInclude Include="src\intersect.hpp" />
-    <ClInclude Include="src\rtm\rtm-float.hpp" />
-    <ClInclude Include="src\rtm\rtm-int.hpp" />
-    <ClInclude Include="src\rtm\rtm-rng.hpp" />
-    <ClInclude Include="src\rtm\rtm-uvec3.hpp" />
-    <ClInclude Include="src\rtm\rtm-vec2.hpp" />
-    <ClInclude Include="src\rtm\rtm-vec3.hpp" />
-    <ClInclude Include="src\rtm\rtm-vec4.hpp" />
-    <ClInclude Include="src\rtm\rtm.hpp" />
     <ClInclude Include="src\stdafx.hpp" />
   </ItemGroup>
   <ItemGroup>

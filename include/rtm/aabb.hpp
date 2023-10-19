@@ -22,6 +22,12 @@ public:
 		this->max = rtm::max(this->max, other.max);
 	}
 
+	void add(const rtm::vec3& point)
+	{
+		this->min = rtm::min(this->min, point);
+		this->max = rtm::max(this->max, point);
+	}
+
 	float surface_area() const
 	{
 		float x = max.x - min.x;

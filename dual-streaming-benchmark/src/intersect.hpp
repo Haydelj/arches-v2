@@ -181,75 +181,68 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	struct NodeStackEntry
 	{
 		float hit_t{T_MAX};
-		union
-		{
-			uint32_t data;
-			struct
-			{
-				uint32_t is_leaf : 1;
-				uint32_t is_treelet_leaf : 1;
-				uint32_t last_tri_offset : 3;
-				uint32_t child_index : 27;
-			};
-		};
+		Treelet::Node::Data data;
 	};
+	 NodeStackEntry node_stack[32]; uint node_stack_size = 1u;
 
-	uint node_stack_index = 0u; NodeStackEntry node_stack[32];
-	node_stack[0].hit_t = T_MIN;
-	node_stack[0].is_leaf = 0;
-	node_stack[0].is_treelet_leaf = 0;
-	node_stack[0].child_index = 0;
+	const Treelet::Node& root_node = treelet.nodes[0];
+	node_stack[0].hit_t = ::intersect(root_node.aabb, ray, inv_d);
+	if(node_stack[0].hit_t >= hit.t) return false;
+	node_stack[0].data = root_node.data;
 
 	bool is_hit = false;
-	while(node_stack_index != ~0u)
+	while(node_stack_size)
 	{
-		NodeStackEntry current_entry = node_stack[node_stack_index--];
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
 		if(current_entry.hit_t >= hit.t) continue;
 
 	TRAV:
-		if(!current_entry.is_leaf)
+		if(!current_entry.data.is_leaf)
 		{
-			if(current_entry.is_treelet_leaf)
+			const Treelet::Node& child0 = treelet.nodes[current_entry.data.child[0].index];
+			const Treelet::Node& child1 = treelet.nodes[current_entry.data.child[1].index];
+
+			float hit_ts[2];
+			if(current_entry.data.child[0].is_treelet)
 			{
-				treelet_stack[treelet_stack_size++] = current_entry.child_index;
+				treelet_stack[treelet_stack_size++] = current_entry.data.child[0].index;
+				hit_ts[0] = ray.t_max;
+			}
+			else hit_ts[0] = ::intersect(child0.aabb, ray, inv_d);
+
+			if(current_entry.data.child[1].is_treelet)
+			{
+				treelet_stack[treelet_stack_size++] = current_entry.data.child[1].index;
+				hit_ts[1] = ray.t_max;
+			}
+			else hit_ts[1] = ::intersect(child1.aabb, ray, inv_d);
+
+			if(hit_ts[0] < hit_ts[1])
+			{
+
+				if(hit_ts[1] < hit.t) node_stack[node_stack_size++] = {hit_ts[1], child1.data};
+				if(hit_ts[0] < hit.t)
+				{
+					current_entry = {hit_ts[0], child0.data};
+					goto TRAV;
+				}
 			}
 			else
 			{
-				TreeletNode nodes_local[2];
-				nodes_local[0] = ((TreeletNode*)&treelet.data[current_entry.child_index * 4])[0];
-				nodes_local[1] = ((TreeletNode*)&treelet.data[current_entry.child_index * 4])[1];
-
-				float hit_ts[2];
-				hit_ts[0] = ::intersect(nodes_local[0].aabb, ray, inv_d);
-				hit_ts[1] = ::intersect(nodes_local[1].aabb, ray, inv_d);
-
-				if(hit_ts[0] < hit_ts[1])
+				if(hit_ts[0] < hit.t) node_stack[node_stack_size++] = {hit_ts[0], child0.data};
+				if(hit_ts[1] < hit.t)
 				{
-
-					if(hit_ts[1] < hit.t) node_stack[++node_stack_index] = {hit_ts[1], nodes_local[1].data};
-					if(hit_ts[0] < hit.t)
-					{
-						current_entry = {hit_ts[0], nodes_local[0].data};
-						goto TRAV;
-					}
-				}
-				else
-				{
-					if(hit_ts[0] < hit.t) node_stack[++node_stack_index] = {hit_ts[0], nodes_local[0].data};
-					if(hit_ts[1] < hit.t)
-					{
-						current_entry = {hit_ts[1], nodes_local[1].data};
-						goto TRAV;
-					}
+					current_entry = {hit_ts[1], child1.data};
+					goto TRAV;
 				}
 			}
 		}
 		else
 		{
-			TreeletTriangle* tris = (TreeletTriangle*)(&treelet.data[current_entry.child_index * 4]);
-			for(uint i = 0; i <= current_entry.last_tri_offset; ++i)
+			Treelet::Triangle* tris = (Treelet::Triangle*)(&treelet.words[current_entry.data.tri0_word0]);
+			for(uint i = 0; i <= current_entry.data.num_tri; ++i)
 			{
-				TreeletTriangle tri = tris[i];
+				Treelet::Triangle tri = tris[i];
 				if(::intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;
@@ -295,7 +288,7 @@ bool inline intersect(const Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hi
 	treelet_stack[0] = 0;
 
 	bool is_hit = false;
-	while(treelet_stack_size != 0u)
+	while(treelet_stack_size)
 	{
 		uint treelet_index = treelet_stack[--treelet_stack_size];
 		is_hit |= intersect_treelet(treelets[treelet_index], ray, hit, treelet_stack, treelet_stack_size);
