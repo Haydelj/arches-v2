@@ -17,8 +17,18 @@ uint32_t inline fchthrd()
 }
 
 #ifndef __riscv
-void reset_fchthrd()
+inline void reset_fchthrd()
 {
  	_next_thread = 0;
 }
 #endif
+
+inline void ebreak()
+{
+	#ifdef __riscv
+	asm volatile
+	(
+		"ebreak\n\t"
+	);
+	#endif
+}

@@ -1,7 +1,7 @@
 #pragma once
 #include "stdafx.hpp"
 
-#define TREELET_SIZE (64 * 1024)
+#define TREELET_SIZE (7 * 8 * 1024)
 
 struct alignas(8 * 1024) Treelet
 {
@@ -125,7 +125,7 @@ public:
 			std::set<uint> cut{root_node};
 			uint bytes_remaining = sizeof(Treelet) - sizeof(Treelet::Header);
 			best_cost[root_node] = INFINITY;
-			while(true)
+			while(cut.size() < 16)
 			{
 				uint best_node = ~0u;
 				float best_score = -INFINITY;
@@ -179,7 +179,7 @@ public:
 
 			std::vector<uint> cut{root_node};
 			uint bytes_remaining = sizeof(Treelet);
-			while(true)
+			while(cut.size() < 16)
 			{
 				uint best_index = ~0u;
 				float best_score = -INFINITY;
@@ -218,7 +218,7 @@ public:
 				if(cost == best_cost[root_node]) break;
 			}
 
-			treelet_headers.push_back({(uint)treelet_assignments.size(), (uint)cut.size()});
+			treelet_headers.push_back({(uint)(root_node_queue.size() + treelet_assignments.size()), (uint)cut.size()});
 
 			//we use a queue so that treelets are breadth first in memory
 			for(auto& n : cut)

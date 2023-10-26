@@ -76,14 +76,7 @@ public:
 struct MemoryReturn
 {
 public:
-	enum class Type : uint8_t
-	{
-		NA,
-		LOAD_RETURN,
-	};
-
 	//meta data 
-	Type     type;
 	uint8_t  size;
 	uint16_t dst;
 	uint16_t port;
@@ -106,19 +99,17 @@ public:
 public:
 	MemoryReturn() = default;
 
-	MemoryReturn(const MemoryReturn& other) : type(other.type), size(other.size), port(other.port), dst(other.dst), paddr(other.paddr)
+	MemoryReturn(const MemoryReturn& other) : size(other.size), port(other.port), dst(other.dst), paddr(other.paddr)
 	{
 		std::memcpy(data, other.data, size);
 	}
 
 	MemoryReturn(const MemoryRequest& request) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
 	{
-		type = Type::LOAD_RETURN;
 	}
 
 	MemoryReturn& operator=(const MemoryReturn& other)
 	{
-		type = other.type;
 		size = other.size;
 		dst = other.dst;
 		port = other.port;
@@ -134,18 +125,15 @@ struct StreamSchedulerRequest
 	{
 		NA,
 		LOAD_BUCKET,
+		BUCKET_COMPLETE,
 		STORE_WORKITEM,
 	};
 
 	Type type;
 	uint     port;
 
-	union
-	{
-
-		uint     last_segment;
-		WorkItem work_item;
-	};
+	uint      segment;
+	BucketRay bray;
 
 	StreamSchedulerRequest()
 	{

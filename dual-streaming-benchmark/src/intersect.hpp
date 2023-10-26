@@ -3,6 +3,12 @@
 
 #include "work-item.hpp"
 #include "treelet-bvh.hpp"
+#include "custom-instr.hpp"
+
+#ifdef __riscv
+//#define BOX_PIPLINE
+//#define TRI_PIPLINE
+#endif
 
 inline WorkItem _lwi()
 {
@@ -27,7 +33,7 @@ inline WorkItem _lwi()
 	wi.bray.ray.d.x = f4;
 	wi.bray.ray.d.y = f5;
 	wi.bray.ray.d.z = f6;
-	wi.bray.ray.t_min = f7;
+	wi.bray.ray.t_max = f7;
 
 	float _f8 = f8;
 	wi.bray.id = *(uint*)&_f8;
@@ -54,24 +60,24 @@ inline void _swi(const WorkItem& wi)
 	register float f7 asm("f7") = wi.bray.ray.t_max;
 	register float f8 asm("f8") = *(float*)&wi.bray.id;
 	register float f9 asm("f9") = *(float*)&wi.segment;
-	asm volatile("swi f0, 0(x0)" : : "f" (f0),  "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9));
+	asm volatile("swi f0, 256(x0)" : : "f" (f0),  "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9));
 #endif
 }
 
 inline void _cshit(const rtm::Hit& hit, rtm::Hit* dst)
 {
 #ifdef __riscv
-	register float f17 asm("f17") = hit.t;
-	register float f18 asm("f18") = hit.bc.x;
-	register float f19 asm("f19") = hit.bc.y;
-	register float f20 asm("f20") = *(float*)&hit.id;
-	asm volatile("cshit f17, 0(x0)" : : "f" (f17),  "f" (f18), "f" (f19), "f" (f20));
+	register float f15 asm("f15") = hit.t;
+	register float f16 asm("f16") = hit.bc.x;
+	register float f17 asm("f17") = hit.bc.y;
+	register float f18 asm("f18") = *(float*)&hit.id;
+	asm volatile("cshit f15, 0(x0)" : : "f" (f15),  "f" (f16), "f" (f17), "f" (f18));
 #endif
 }
 
-inline float intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
+inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
-#ifdef __riscv
+#ifdef BOX_PIPLINE
 	register float f0 asm("f0") = ray.o.x;
 	register float f1 asm("f1") = ray.o.y;
 	register float f2 asm("f2") = ray.o.z;
@@ -113,9 +119,9 @@ inline float intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::ve
 #endif
 }
 
-inline bool intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)
+inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)
 {
-#ifdef __riscv
+#ifdef TRI_PIPLINE
 	register float f0 asm("f0") = ray.o.x;
 	register float f1 asm("f1") = ray.o.y;
 	register float f2 asm("f2") = ray.o.z;
@@ -180,13 +186,13 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 
 	struct NodeStackEntry
 	{
-		float hit_t{T_MAX};
+		float hit_t;
 		Treelet::Node::Data data;
 	};
-	 NodeStackEntry node_stack[32]; uint node_stack_size = 1u;
+	NodeStackEntry node_stack[64]; uint node_stack_size = 1u;
 
 	const Treelet::Node& root_node = treelet.nodes[0];
-	node_stack[0].hit_t = ::intersect(root_node.aabb, ray, inv_d);
+	node_stack[0].hit_t = _intersect(root_node.aabb, ray, inv_d);
 	if(node_stack[0].hit_t >= hit.t) return false;
 	node_stack[0].data = root_node.data;
 
@@ -208,18 +214,17 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 				treelet_stack[treelet_stack_size++] = current_entry.data.child[0].index;
 				hit_ts[0] = ray.t_max;
 			}
-			else hit_ts[0] = ::intersect(child0.aabb, ray, inv_d);
+			else hit_ts[0] = _intersect(child0.aabb, ray, inv_d);
 
 			if(current_entry.data.child[1].is_treelet)
 			{
 				treelet_stack[treelet_stack_size++] = current_entry.data.child[1].index;
 				hit_ts[1] = ray.t_max;
 			}
-			else hit_ts[1] = ::intersect(child1.aabb, ray, inv_d);
+			else hit_ts[1] = _intersect(child1.aabb, ray, inv_d);
 
 			if(hit_ts[0] < hit_ts[1])
 			{
-
 				if(hit_ts[1] < hit.t) node_stack[node_stack_size++] = {hit_ts[1], child1.data};
 				if(hit_ts[0] < hit.t)
 				{
@@ -243,7 +248,7 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 			for(uint i = 0; i <= current_entry.data.num_tri; ++i)
 			{
 				Treelet::Triangle tri = tris[i];
-				if(::intersect(tri.tri, ray, hit))
+				if(_intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;
 					is_hit |= true;
@@ -255,36 +260,35 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	return is_hit;
 }
 
-bool inline intersect_buckets(const Treelet* scene_buffer, rtm::Hit* hit_records)
+inline void intersect_buckets(const Treelet* treelets, rtm::Hit* hit_records)
 {
-	bool is_hit = false;
 	while(1)
 	{
-		WorkItem work_item = _lwi();
-		if(work_item.segment == ~0u) break;
+		WorkItem wi = _lwi();
+		if(wi.segment == ~0u) break;
 
-		rtm::Hit hit; hit.t = T_MAX;
-		uint treelet_stack[64]; uint treelet_stack_size = 0;
-		if(intersect_treelet(scene_buffer[work_item.segment], work_item.bray.ray, hit, treelet_stack, treelet_stack_size))
+		rtm::Hit hit; hit.t = wi.bray.ray.t_max;
+		uint treelet_stack[16]; uint treelet_stack_size = 0;
+		if(intersect_treelet(treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
 		{
 			//update hit record with hit using cshit
-			_cshit(hit, hit_records + work_item.bray.id);
+			_cshit(hit, hit_records + wi.bray.id);
+			wi.bray.ray.t_max = hit.t;
 		}
-		
+
 		//drain treelet stack
-		for(uint i = 0; i < treelet_stack_size; ++i)
+		while(treelet_stack_size)
 		{
-			work_item.segment = treelet_stack[i];
-			_swi(work_item);
+			uint treelet_index = treelet_stack[--treelet_stack_size];
+			wi.segment = treelet_index;
+			_swi(wi);
 		}
 	}
-
-	return is_hit;
 }
 
-bool inline intersect(const Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
+inline bool intersect(const Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
 {
-	uint treelet_stack_size = 1u;  uint treelet_stack[64];
+	uint treelet_stack[64]; uint treelet_stack_size = 1u; 
 	treelet_stack[0] = 0;
 
 	bool is_hit = false;

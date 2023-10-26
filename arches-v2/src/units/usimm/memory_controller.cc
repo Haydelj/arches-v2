@@ -731,7 +731,7 @@ reqInsertRet_t insert_read(const dram_address_t &dram_address,
     const int channel = dram_address.channel;
 
     // Read queue full?
-    if (read_queue_length[channel] > MAX_QUEUE_LENGTH)
+    if (read_queue_length[channel] >= MAX_QUEUE_LENGTH)
     {
         toReturn.retType = reqInsertRet_tt::RRT_READ_QUEUE_FULL;
         return toReturn;
@@ -818,7 +818,7 @@ reqInsertRet_t insert_write(const dram_address_t &dram_address,
     }
 
     // Not found in write queue, and queue is full
-    if (write_queue_length[channel] > MAX_QUEUE_LENGTH)
+    if (write_queue_length[channel] >= MAX_QUEUE_LENGTH)
     {
         toReturn.retType = reqInsertRet_tt::RRT_WRITE_QUEUE_FULL;
         return toReturn;

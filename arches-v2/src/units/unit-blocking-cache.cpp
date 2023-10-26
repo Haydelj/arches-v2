@@ -33,7 +33,6 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 			paddr_t block_addr = _get_block_addr(bank.current_request.paddr);
 			uint block_offset = _get_block_offset(bank.current_request.paddr);
 			BlockData* block_data = _get_block(block_addr);
-
 			log.log_tag_array_access();
 
 			if(block_data)
@@ -43,6 +42,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 				bank.data_array_pipline.write(ret);
 				bank.state = Bank::State::IDLE;
 				log.log_hit();
+				log.log_data_array_read();
 			}
 			else
 			{

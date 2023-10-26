@@ -154,7 +154,7 @@ typedef uint64_t addr_t;
 typedef uint64_t frame_number_t;
 typedef uint64_t page_number_t;
 
-typedef uint64_t cycles_t;
+typedef int64_t cycles_t;
 
 typedef uint32_t uint18_t;
 typedef  int32_t  int18_t;

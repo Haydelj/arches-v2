@@ -30,19 +30,19 @@ public:
 		uint  index;
 		uint64_t morton_code;
 	};
-	
-	struct NodeData
-	{
-		uint32_t is_leaf : 1;
-		uint32_t lst_chld_ofst : 3;
-		uint32_t fst_chld_ind : 28;
-	};
 
-	struct Node
+	struct alignas(32) Node
 	{
-		AABB     aabb;
-		NodeData data;
-		uint32_t _pad;
+		struct Data
+		{
+			uint32_t is_leaf : 1;
+			uint32_t lst_chld_ofst : 3;
+			uint32_t fst_chld_ind : 28;
+		};
+
+		AABB       aabb;
+		Node::Data data;
+		uint32_t   _pad;
 	};
 
 #ifndef __riscv

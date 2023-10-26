@@ -22,7 +22,7 @@ void inline barrier()
 
 inline static void kernel(const KernelArgs& args)
 {
-#ifdef __riscv
+#if __riscv
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint fb_index = index;
@@ -36,10 +36,31 @@ inline static void kernel(const KernelArgs& args)
 		wi.segment = 0;
 
 		//write root ray to ray bucket
+	#if 0
 		_swi(wi);
+	#else
+
+		rtm::Hit hit; hit.t = wi.bray.ray.t_max;
+		uint treelet_stack[32]; uint treelet_stack_size = 0;
+		if(intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
+		{
+			//update hit record with hit using cshit
+			_cshit(hit, args.hit_records + wi.bray.id);
+			wi.bray.ray.t_max = hit.t;
+		}
+
+		//drain treelet stack
+		while(treelet_stack_size)
+		{
+			uint treelet_index = treelet_stack[--treelet_stack_size];
+			wi.segment = treelet_index;
+			_swi(wi);
+		}
+	#endif
 	}
 
 	intersect_buckets(args.treelets, args.hit_records);
+
 #else
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{

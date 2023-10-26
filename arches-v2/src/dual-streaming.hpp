@@ -66,7 +66,7 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 
 		unit->float_regs->registers[instr.u.rd].f32 = rtm::intersect(aabb, ray, inv_d);
 	}),
-	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegType::FLOAT, EXEC_DECL
+	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegType::INT, RegType::FLOAT, EXEC_DECL
 	{
 		Register32 * fr = unit->float_regs->registers;
 
@@ -189,8 +189,8 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	TreeletBVH treelet_bvh(blas, mesh);
 
 	KernelArgs args;
-	args.framebuffer_width = 1024;
-	args.framebuffer_height = 1024;
+	args.framebuffer_width = 256;
+	args.framebuffer_height = 256;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
 	args.samples_per_pixel = 1;
@@ -205,7 +205,7 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	//args.hit_records = reinterpret_cast<rtm::Hit*>(heap_address); heap_address += args.framebuffer_size * sizeof(rtm::Hit);
 	std::vector<rtm::Hit> hits(args.framebuffer_size, {T_MAX, 0.0f, ~0u});
 	args.hit_records = write_vector(main_memory, ROW_BUFFER_SIZE, hits, heap_address);
-	args.treelets = write_vector(main_memory, sizeof(Treelet), treelet_bvh.treelets, heap_address);
+	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
 	args.triangles = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 
 	main_memory->direct_write(&args, sizeof(KernelArgs), KERNEL_ARGS_ADDRESS);
@@ -231,8 +231,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 
 	//hardware spec
 	uint64_t mem_size = 4ull * 1024ull * 1024ull * 1024ull; //4GB
-	uint64_t stack_size = 1024; //1KB
-
+	uint64_t stack_size = 4096; //1KB
 
 	Simulator simulator;
 	std::vector<Units::UnitTP*> tps;
@@ -255,9 +254,10 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	KernelArgs kernel_args = initilize_buffers(&dram, heap_address);
 
 	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
-	stream_scheduler_config.scene_start = *(paddr_t*)&kernel_args.treelets;
 	stream_scheduler_config.bucket_start = *(paddr_t*)&heap_address;
 	stream_scheduler_config.num_tms = num_tms;
+	stream_scheduler_config.num_banks = 16;
+	stream_scheduler_config.cheat_treelets = (Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
 	stream_scheduler_config.main_mem = &dram;
 	stream_scheduler_config.main_mem_port_offset = 1;
 	stream_scheduler_config.main_mem_port_stride = 4;
@@ -280,7 +280,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 
 	Units::UnitBlockingCache::Configuration l2_config;
 	l2_config.size = 4 * 1024 * 1024;
-	l2_config.associativity = 4;
+	l2_config.associativity = 8;
 	l2_config.num_ports = num_tms * 8;
 	l2_config.num_banks = 32;
 	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull;
@@ -299,8 +299,6 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	{
 		simulator.new_unit_group();
 		std::vector<Units::UnitBase*> unit_table((uint)ISA::RISCV::InstrType::NUM_TYPES, nullptr);
-
-
 
 		std::vector<Units::UnitMemoryBase*> mem_list;
 
@@ -336,7 +334,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM3] = rsbs.back(); //LWI
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM4] = rsbs.back(); //SWI
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM5] = rsbs.back(); //CSHIT
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM5] = l1s.back(); //CSHIT
 
 
 

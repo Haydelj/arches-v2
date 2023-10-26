@@ -9,7 +9,7 @@
 
 namespace Arches { namespace Units {
 
-#define DRAM_CHANNELS (16)
+#define NUM_DRAM_CHANNELS (16)
 
 class UnitDRAM : public UnitMainMemoryBase, public UsimmListener
 {
@@ -36,6 +36,9 @@ private:
 	Casscade<MemoryRequest> _request_network;
 	FIFOArray<MemoryReturn> _return_network;
 	cycles_t _current_cycle{ 0 };
+
+	std::vector<MemoryReturn> returns;
+	std::stack<uint> free_return_ids;
 
 public:
 	UnitDRAM(uint num_clients, uint64_t size, Simulator* simulator);

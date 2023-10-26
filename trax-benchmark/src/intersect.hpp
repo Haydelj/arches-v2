@@ -93,7 +93,7 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::BVH::NodeData data;
+		rtm::BVH::Node::Data data;
 	};
 
 	NodeStackEntry node_stack[32];

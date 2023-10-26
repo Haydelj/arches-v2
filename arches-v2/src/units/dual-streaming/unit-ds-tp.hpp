@@ -45,6 +45,11 @@ private:
 
 	void _set_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info) override
 	{
+		//if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM2) //TRI ISECT
+		//{
+		//	for(uint i = 15; i <= 17; ++i)
+		//		_float_regs_pending[i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM2;
+		//}
 		if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM3) //LWI
 		{
 			for(uint i = 0; i <= 9; ++i)

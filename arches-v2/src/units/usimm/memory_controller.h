@@ -66,10 +66,8 @@ struct UsimmUsageStats_t
 // Single request structure self-explanatory
 typedef struct arches_request_t
 {
-    uint8_t size;
-    uint16_t dst;
-    uint16_t port;
-    Arches::paddr_t paddr;
+    uint return_id;
+    uint channel;
 } arches_request_t;
 
 // Call-back for TRaX from USIMM
@@ -172,14 +170,14 @@ typedef enum
 typedef struct bnk
 {
     bankstate_t   state;
-    Arches::cycles_t active_row;
-    Arches::cycles_t next_pre;
-    Arches::cycles_t next_act;
-    Arches::cycles_t next_read;
-    Arches::cycles_t next_write;
-    Arches::cycles_t next_powerdown;
-    Arches::cycles_t next_powerup;
-    Arches::cycles_t next_refresh;
+    int64_t active_row;
+    int64_t next_pre;
+    int64_t next_act;
+    int64_t next_read;
+    int64_t next_write;
+    int64_t next_powerdown;
+    int64_t next_powerup;
+    int64_t next_refresh;
 } bank_t;
 
 extern struct robstructure * ROB;

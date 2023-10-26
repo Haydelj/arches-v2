@@ -13,12 +13,13 @@ namespace Arches { namespace Units { namespace DualStreaming {
 
 #define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(Treelet))
 
-#define RAY_BUCKET_SIZE 2048
-#define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 12) / sizeof(BucketRay))
+#define RAY_BUCKET_SIZE (2048)
+#define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 16) / sizeof(BucketRay))
 
-struct RayBucket
+struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
 	paddr_t next_bucket{0};
+	uint segment{0};
 	uint num_rays{0};
 	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
 
@@ -38,10 +39,11 @@ class UnitStreamScheduler : public UnitBase
 public:
 	struct Configuration
 	{
-		paddr_t scene_start;
-		paddr_t bucket_start;
+		paddr_t  bucket_start;
+		Treelet* cheat_treelets{nullptr};
 
 		uint num_tms;
+		uint num_banks;
 
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{0};
@@ -58,24 +60,108 @@ private:
 		{
 			if(request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
 			{
-				//if this is a workitem write then distrbute across banks
-				return request.work_item.segment % num_sinks();
+				//if this is a workitem write or bucket completed then distrbute across banks
+				return request.segment % num_sinks();
 			}
 			else
 			{
-				//if this is a bcuket request then cascade
-				request.port * num_sinks() / num_sources();
+				//otherwise cascade
+				return request.port * num_sinks() / num_sources();
 			}
+		}
+	};
+
+	struct Bank
+	{
+		std::queue<uint> bucket_flush_queue;
+		std::map<uint, RayBucket> ray_coalescer{};
+	};
+
+	class MemoryManager
+	{
+	private:
+		paddr_t next_bucket_addr;
+		std::stack<paddr_t> free_buckets;
+
+	public:
+		paddr_t alloc_bucket()
+		{
+			if(!free_buckets.empty())
+			{
+				paddr_t bucket_address = free_buckets.top();
+				free_buckets.pop();
+				return bucket_address;
+			}
+
+			uint bucket_address = next_bucket_addr;
+
+			next_bucket_addr += RAY_BUCKET_SIZE;
+			if((next_bucket_addr % ROW_BUFFER_SIZE) == 0)
+				next_bucket_addr += (NUM_DRAM_CHANNELS - 1) * ROW_BUFFER_SIZE;
+
+			return bucket_address;
+		}
+
+		void free_bucket(paddr_t bucket_address)
+		{
+			free_buckets.push(bucket_address);
+		}
+
+		MemoryManager(uint channel_index, paddr_t start_address)
+		{
+			next_bucket_addr = align_to(ROW_BUFFER_SIZE, start_address);
+			while((next_bucket_addr / ROW_BUFFER_SIZE) % NUM_DRAM_CHANNELS != channel_index)
+				next_bucket_addr += ROW_BUFFER_SIZE;
 		}
 	};
 
 	struct SegmentState
 	{
-		paddr_t   tail_bucket_address{0x0};
-		RayBucket write_buffer{};
+		std::queue<paddr_t> bucket_address_queue{};
+		uint                next_channel{0};
+		uint                total_buckets{0};
+		uint                active_buckets{0};
+		bool                parent_finished{false};
+	};
 
-		//Once the parent is finished we are able to dispatch the last bucket for the segment
-		bool      parent_finished{false};
+	struct Scheduler
+	{
+		std::queue<uint> bucket_allocated_queue;
+		std::queue<uint> bucket_request_queue;
+		std::queue<uint> bucket_complete_queue;
+		Casscade<RayBucket> bucket_write_cascade;
+
+
+
+		std::map<uint, SegmentState> segment_state_map;
+		Treelet* cheat_treelets;
+
+		std::vector<MemoryManager> memory_managers;
+
+		std::set<uint>   active_segments;
+		uint             current_segment{0};
+		std::priority_queue<uint, std::vector<uint>, std::greater<uint>> candidate_segments;
+
+		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1)
+		{
+			for(uint i = 0; i < NUM_DRAM_CHANNELS; ++i)
+				memory_managers.emplace_back(i, config.bucket_start);
+
+			SegmentState& segment_state = segment_state_map[0];
+			segment_state.active_buckets = config.num_tms;
+			segment_state.total_buckets = config.num_tms;
+			segment_state.parent_finished = true;
+
+			active_segments.insert(0);
+			current_segment = 0;
+
+			cheat_treelets = config.cheat_treelets;
+		}
+
+		bool is_complete()
+		{
+			return active_segments.size() == 0 && candidate_segments.size() == 0;
+		}
 	};
 
 	struct Channel
@@ -87,108 +173,50 @@ private:
 			WRITE_BUCKET,
 		};
 
-		std::map<uint, SegmentState> segment_state_map;
-		std::queue<uint> segment_dispatch_queue;
-
-		std::queue<uint> bucket_write_queue;
-		std::queue<uint> bucket_read_queue;
-
-		StreamState stream_state{NA};
-
-		struct
+		struct WorkItem
 		{
-			uint segment_index{0};
-			uint lines_requested{0};
-			uint dst_tm{0};
-		}
-		current_bucket;
-
-		MemoryReturn forward_return;
-
-		paddr_t next_bucket_addr;
-		std::stack<paddr_t> free_buckets; //todo this should be a linked list in memory
-
-		//allocates space for a new bucket
-		paddr_t alloc_bucket()
-		{
-			if(!free_buckets.empty())
+			bool is_read;
+			paddr_t address;
+			union
 			{
-				paddr_t bucket_address = free_buckets.top();
-				free_buckets.pop();
-				return bucket_address;
-			}
+				uint dst_tm;
+				RayBucket bucket{};
+			};
+		};
 
-			uint bucket_address = next_bucket_addr++;
-			if((next_bucket_addr % ROW_BUFFER_SIZE) == 0)
-				next_bucket_addr += (DRAM_CHANNELS - 1) * ROW_BUFFER_SIZE;
+		//work queue
+		std::queue<WorkItem> work_queue;
 
-			return bucket_address;
-		}
+		//stream state
+		StreamState stream_state{NA};
+		uint bytes_requested{0};
 
-		//allocates space for a new bucket
-		void free_bucket(paddr_t bucket_address)
-		{
-			free_buckets.push(bucket_address);
-		}
-
-		Channel(uint channel_index, paddr_t heap_address)
-		{
-			next_bucket_addr = align_to(ROW_BUFFER_SIZE, heap_address);
-			while((next_bucket_addr / ROW_BUFFER_SIZE) % DRAM_CHANNELS != channel_index)
-				next_bucket_addr += ROW_BUFFER_SIZE;
-		}
+		//forwarding
+		MemoryReturn forward_return{};
+		bool forward_return_valid{false};
 	};
 
-private:
 	UnitMainMemoryBase* _main_mem;
 	uint                _main_mem_port_offset;
 	uint                _main_mem_port_stride;
 
-	std::vector<Channel> _channels;
+	//request flow from _request_network -> bank -> scheduler -> channel
 	StreamSchedulerRequestCrossbar _request_network;
+	std::vector<Bank> _banks;
+	Scheduler _scheduler;
+	std::vector<Channel> _channels;
 	UnitMemoryBase::ReturnCrossBar _return_network;
 
-	std::queue<uint> _tm_bucket_queue;
-	uint             _root_rays_in_flight{0};
-
-private:
-	void proccess_request(uint channel_index);
-	void proccess_return(uint channel_index);
-	void issue_request(uint channel_index);
-	void issue_return(uint channel_index);
-
 public:
-	UnitStreamScheduler(Configuration config) : _request_network(config.num_tms, DRAM_CHANNELS), _return_network(config.num_tms, DRAM_CHANNELS)
+	UnitStreamScheduler(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, NUM_DRAM_CHANNELS)
 	{
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;
-
-		for(uint i = 0; i < DRAM_CHANNELS; ++i)
-			_channels.push_back({i, config.bucket_start});
 	}
 
-	void clock_rise() override
-	{
-		_request_network.clock();
-
-		for(uint i = 0; i < _channels.size(); ++i)
-		{
-			proccess_request(i);
-			proccess_return(i);
-		}
-	}
-
-	void clock_fall() override
-	{
-		for(uint i = 0; i < _channels.size(); ++i)
-		{
-			issue_request(i);
-			issue_return(i);
-		}
-
-		_return_network.clock();
-	}
+	void clock_rise() override;
+	void clock_fall() override;
 
 	bool request_port_write_valid(uint port_index)
 	{
@@ -214,6 +242,13 @@ public:
 	{
 		return _return_network.read(port_index);
 	}
+
+private:
+	void _proccess_request(uint bank_index);
+	void _proccess_return(uint channel_index);
+	void _update_scheduler();
+	void _issue_request(uint channel_index);
+	void _issue_return(uint channel_index);
 };
 
 }}}

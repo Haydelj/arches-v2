@@ -135,6 +135,7 @@
     <ClInclude Include="..\include\rtm\intersect.hpp" />
     <ClInclude Include="..\include\rtm\macros.hpp" />
     <ClInclude Include="..\include\rtm\mesh.hpp" />
+    <ClInclude Include="..\include\rtm\packed-bvh.hpp" />
     <ClInclude Include="..\include\rtm\ray.hpp" />
     <ClInclude Include="..\include\rtm\rng.hpp" />
     <ClInclude Include="..\include\rtm\rtm.hpp" />

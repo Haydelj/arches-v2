@@ -102,8 +102,23 @@ void UnitTP::_process_load_return(const MemoryReturn& ret)
 		if(ret.vaddr == 0x0ull)
 			_thread_id = ret.data_u32;
 	}
-	write_register(&_int_regs, &_float_regs, ret.dst, ret.size, ret.data);
-	_clear_register_pending(ret.dst);
+
+
+	ISA::RISCV::RegAddr reg_addr(ret.dst);
+	if(reg_addr.reg_type == ISA::RISCV::RegType::FLOAT)
+	{
+		for(uint i = 0; i < ret.size / sizeof(float); ++i)
+		{
+			write_register(&_int_regs, &_float_regs, reg_addr, 4, ret.data + i * 4);
+			_clear_register_pending(reg_addr);
+			reg_addr.reg++;
+		}
+	}
+	else
+	{
+		write_register(&_int_regs, &_float_regs, reg_addr, ret.size, ret.data);
+		_clear_register_pending(reg_addr);
+	}
 }
 
 void UnitTP::_log_instruction_issue(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info, const ISA::RISCV::ExecutionItem& exec_item)

@@ -7,13 +7,13 @@ namespace Arches { namespace Units {
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
 UnitDRAM::UnitDRAM(uint num_ports, uint64_t size, Simulator* simulator) : UnitMainMemoryBase(size),
-	_request_network(num_ports, DRAM_CHANNELS), _return_network(num_ports)
+	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(num_ports)
 {
 	char* usimm_config_file = (char*)REL_PATH_BIN_TO_SAMPLES"gddr5_16ch.cfg";
 	char* usimm_vi_file = (char*)REL_PATH_BIN_TO_SAMPLES"1Gb_x16_amd2GHz.vi";
 	if (usimm_setup(usimm_config_file, usimm_vi_file) < 0) assert(false); //usimm faild to initilize
 
-	assert(numDramChannels() == DRAM_CHANNELS);
+	assert(numDramChannels() == NUM_DRAM_CHANNELS);
 
 	_channels.resize(numDramChannels());
 
@@ -68,8 +68,7 @@ float UnitDRAM::total_power_in_watts()
 
 void UnitDRAM::UsimmNotifyEvent(cycles_t write_cycle, const arches_request_t& req)
 {
-	dram_address_t const dram_addr = calcDramAddr(req.paddr);
-	_channels[dram_addr.channel].return_queue.push({write_cycle, req});
+	_channels[req.channel].return_queue.push({write_cycle, req});
 }
 
 
@@ -85,16 +84,27 @@ bool UnitDRAM::_load(const MemoryRequest& request, uint channel_index)
 #endif
 
 	arches_request_t arches_request;
-	arches_request.size = request.size;
-	arches_request.dst = request.dst;
-	arches_request.port = request.port;
-	arches_request.paddr = request.paddr;
+	arches_request.channel = dram_addr.channel;
+	if(free_return_ids.empty())
+	{
+		arches_request.return_id = returns.size();
+		returns.emplace_back();
+	}
+	else
+	{
+		arches_request.return_id = free_return_ids.top();
+		free_return_ids.pop();
+	}
 
 	reqInsertRet_t reqRet = insert_read(dram_addr, arches_request, _current_cycle * DRAM_CLOCK_MULTIPLIER);
 	if(reqRet.retType == reqInsertRet_tt::RRT_READ_QUEUE_FULL)
 	{
 		return false;
 	}
+
+	MemoryReturn& ret = returns[arches_request.return_id];
+	ret = request;
+	std::memcpy(ret.data, &_data_u8[ret.paddr], ret.size);
 
 	assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE || reqRet.retType == reqInsertRet_tt::RRT_READ_QUEUE);
 
@@ -117,21 +127,19 @@ bool UnitDRAM::_store(const MemoryRequest& request, uint channel_index)
 #endif
 
 	arches_request_t arches_request;
-	arches_request.size = request.size;
-	arches_request.dst = request.dst;
-	arches_request.port = request.port;
-	arches_request.paddr = request.paddr;
-
-	//Masked write
-	for(uint i = 0; i < request.size; ++i)
-		if((request.write_mask >> i) & 0x1)
-			_data_u8[request.paddr + i] = request.data[i];
+	arches_request.channel = dram_addr.channel;
+	arches_request.return_id = ~0;
 
 	reqInsertRet_t reqRet = insert_write(dram_addr, arches_request, _current_cycle * DRAM_CLOCK_MULTIPLIER);
 	if(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE_FULL)
 	{
 		return false;
 	}
+
+	//Masked write
+	for(uint i = 0; i < request.size; ++i)
+		if((request.write_mask >> i) & 0x1)
+			_data_u8[request.paddr + i] = request.data[i];
 
 	assert(!reqRet.retLatencyKnown);
 	assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE);
@@ -183,23 +191,17 @@ void UnitDRAM::clock_fall()
 	for(uint channel_index = 0; channel_index < _channels.size(); ++channel_index)
 	{
 		Channel& channel = _channels[channel_index];
-		if(_return_network.is_write_valid(channel_index) && !channel.return_queue.empty())
+		if(!channel.return_queue.empty())
 		{
 			const USIMMReturn& usimm_return = channel.return_queue.top();
-			if(_current_cycle >= usimm_return.return_cycle)
+			const MemoryReturn& ret = returns[usimm_return.req.return_id];
+			if(_current_cycle >= usimm_return.return_cycle && _return_network.is_write_valid(ret.port))
 			{
-				MemoryReturn ret;
-				ret.type = MemoryReturn::Type::LOAD_RETURN;
-				ret.size = usimm_return.req.size;
-				ret.dst = usimm_return.req.paddr;
-				ret.port = usimm_return.req.port;
-				ret.paddr = usimm_return.req.paddr;
-				std::memcpy(ret.data, &_data_u8[ret.paddr], ret.size);
-
 #if ENABLE_DRAM_DEBUG_PRINTS
 				printf("Load Return(%d): 0x%llx\n", ret.port, ret.paddr);
 #endif
 				_return_network.write(ret, ret.port);
+				free_return_ids.push(usimm_return.req.return_id);
 				channel.return_queue.pop();
 			}
 		}
