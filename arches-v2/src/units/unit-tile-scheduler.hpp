@@ -79,12 +79,12 @@ public:
 					_stalled_for_atomic_reg = true;
 				}
 			}
-			else if(_return_network.is_write_valid(_tm_index))
+			else if(_return_network.is_write_valid(_current_request.port))
 			{
-				MemoryReturn ret = _current_request;
 				uint x = (_current_tile % (_width / _tile_width)) * _tile_width + (_current_offset % _tile_width);
 				uint y = (_current_tile / (_width / _tile_width)) * _tile_height + (_current_offset / _tile_width);
-				ret.data_u32 = y * _width + x;
+				uint32_t index = y * _width + x;
+				MemoryReturn ret(_current_request, &index);
 
 				_return_network.write(ret, ret.port);
 

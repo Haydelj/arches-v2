@@ -25,7 +25,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 
 	if(bank.state == Bank::State::IDLE)
 	{
-		if(!_request_cross_bar.is_read_valid(bank_index)) return;
+		if(!_request_cross_bar.is_read_valid(bank_index) || !bank.data_array_pipline.is_write_valid()) return;
 		bank.current_request = _request_cross_bar.read(bank_index);
 
 		if(bank.current_request.type == MemoryRequest::Type::LOAD)
@@ -37,8 +37,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 
 			if(block_data)
 			{
-				MemoryReturn ret = bank.current_request;
-				std::memcpy(ret.data, &block_data->bytes[block_offset], ret.size);
+				MemoryReturn ret(bank.current_request, block_data->bytes + block_offset);
 				bank.data_array_pipline.write(ret);
 				bank.state = Bank::State::IDLE;
 				log.log_hit();
@@ -86,9 +85,10 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 		{
 			if(bank.current_request.type == MemoryRequest::Type::LOAD)
 			{
-				MemoryRequest request = bank.current_request;
-				request.paddr = _get_block_addr(bank.current_request.paddr);
+				MemoryRequest request;
+				request.type = MemoryRequest::Type::LOAD;
 				request.size = CACHE_BLOCK_SIZE;
+				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
 				_mem_higher->write_request(request, request.port);
 				bank.state = Bank::State::ISSUED;
@@ -110,8 +110,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 		if(bank.data_array_pipline.empty() && _return_cross_bar.is_write_valid(bank_index))
 		{
 			//early restart
-			MemoryReturn ret = bank.current_request;
-			std::memcpy(ret.data, bank.current_request.data, ret.size);
+			MemoryReturn ret(bank.current_request, bank.current_request.data);
 			_return_cross_bar.write(ret, bank_index);
 			bank.state = Bank::State::IDLE;
 		}

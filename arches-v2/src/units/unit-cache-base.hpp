@@ -18,6 +18,11 @@ protected:
 		uint64_t tag     : 59;
 		uint64_t lru     : 4;
 		uint64_t valid   : 1;
+
+		BlockMetaData()
+		{
+			valid = 0;
+		}
 	};
 
 	struct alignas(CACHE_BLOCK_SIZE) BlockData

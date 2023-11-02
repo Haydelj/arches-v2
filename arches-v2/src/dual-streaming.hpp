@@ -223,8 +223,8 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM5] = "CSHIT";
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::custom0;
 
-	uint64_t num_tps_per_tm = 32;
-	uint64_t num_tms = 32;
+	uint64_t num_tps_per_tm = 64;
+	uint64_t num_tms = 64;
 
 	uint64_t num_tps = num_tps_per_tm * num_tms;
 	uint64_t num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
@@ -311,8 +311,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		l1_config.data_array_latency = 0;
 		l1_config.num_lfb = 8;
 		l1_config.mem_higher = &l2;
-		l1_config.mem_higher_port_offset = 8 * tm_index;
-		l1_config.mem_higher_port_offset = 8 * tm_index;
+		l1_config.mem_higher_port_offset = l1_config.num_banks * tm_index;
 
 		l1s.push_back(new Units::UnitNonBlockingCache(l1_config));
 		mem_list.push_back(l1s.back());
@@ -391,21 +390,14 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		}
 	}
 
-	{
-		auto start = std::chrono::high_resolution_clock::now();
-		simulator.execute();
-		auto stop = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::high_resolution_clock::now();
+	simulator.execute();
+	auto stop = std::chrono::high_resolution_clock::now();
 
-		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-		std::cout << "Runtime: " << duration.count() << " ms\n";
-		std::cout << "Cycles: " << simulator.current_cycle << "\n";
-	}
+	dram.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
 
-	printf("\nTP\n");
-	Units::UnitTP::Log tp_log(0x10000);
-	for(auto& tp : tps)
-		tp_log.accumulate(tp->log);
-	tp_log.print_log();
+	printf("\nL2\n");
+	l2.log.print_log();
 
 	printf("\nL1\n");
 	Units::UnitNonBlockingCache::Log l1_log;
@@ -413,10 +405,17 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		l1_log.accumulate(l1->log);
 	l1_log.print_log();
 
-	printf("\nL2\n");
-	l2.log.print_log();
+	printf("\nTP\n");
+	Units::UnitTP::Log tp_log(0x10000);
+	for(auto& tp : tps)
+		tp_log.accumulate(tp->log);
+	tp_log.print_log();
 
-	dram.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+	printf("\nSummary\n");
+	printf("Runtime: %lldms\n", duration.count());
+	printf("Cycles: %lld\n", simulator.current_cycle);
+	printf("MRays/s: %.2f\n", (float)kernel_args.framebuffer_size / (simulator.current_cycle / (2 * 1024)));
 
 	paddr_t paddr_frame_buffer = reinterpret_cast<paddr_t>(kernel_args.framebuffer);
 	dram.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "./out.png");

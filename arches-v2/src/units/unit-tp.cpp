@@ -246,7 +246,7 @@ FREE_INSTR:
 		req.port = _tp_index;
 		_pc += 4;
 
-		if(req.vaddr < (~0x0ull << 12))
+		if(req.vaddr < (~0x0ull << 20))
 		{
 			if(ENABLE_TP_DEBUG_PRINTS)
 			{

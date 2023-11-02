@@ -104,8 +104,9 @@ public:
 		std::memcpy(data, other.data, size);
 	}
 
-	MemoryReturn(const MemoryRequest& request) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
+	MemoryReturn(const MemoryRequest& request, void* data) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
 	{
+		std::memcpy(this->data, data, request.size);
 	}
 
 	MemoryReturn& operator=(const MemoryReturn& other)
@@ -129,8 +130,8 @@ struct StreamSchedulerRequest
 		STORE_WORKITEM,
 	};
 
-	Type type;
-	uint     port;
+	Type     type{Type::NA};
+	uint16_t port;
 
 	uint      segment;
 	BucketRay bray;

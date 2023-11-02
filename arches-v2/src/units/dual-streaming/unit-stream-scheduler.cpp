@@ -204,8 +204,6 @@ void UnitStreamScheduler::_update_scheduler()
 				channel.work_queue.push(channel_work_item);
 
 				state.active_buckets++;
-
-				printf("Bucket for segment %d scheduled on TM %d\n", _scheduler.current_segment, channel_work_item.dst_tm);
 			}
 
 			if(state.active_buckets == state.total_buckets && state.parent_finished)
@@ -247,6 +245,8 @@ void UnitStreamScheduler::_update_scheduler()
 
 				_scheduler.active_segments.insert(next_segment);
 				_scheduler.current_segment = next_segment;
+
+				printf("Segment %d scheduled\n", _scheduler.current_segment);
 			}
 		}
 	}

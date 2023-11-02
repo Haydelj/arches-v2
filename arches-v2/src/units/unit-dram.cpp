@@ -103,8 +103,7 @@ bool UnitDRAM::_load(const MemoryRequest& request, uint channel_index)
 	}
 
 	MemoryReturn& ret = returns[arches_request.return_id];
-	ret = request;
-	std::memcpy(ret.data, &_data_u8[ret.paddr], ret.size);
+	ret = MemoryReturn(request, _data_u8 + request.paddr);
 
 	assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE || reqRet.retType == reqInsertRet_tt::RRT_READ_QUEUE);
 

@@ -35,6 +35,7 @@ public:
 	};
 
 protected:
+
 	ISA::RISCV::IntegerRegisterFile       _int_regs{};
 	ISA::RISCV::FloatingPointRegisterFile _float_regs{};
 	vaddr_t                               _pc{};

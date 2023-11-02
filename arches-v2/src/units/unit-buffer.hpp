@@ -73,8 +73,7 @@ public:
 			{
 				if(!_request_cross_bar.is_write_valid(bank_index)) continue;
 
-				MemoryReturn ret = req;
-				std::memcpy(ret.data, &_data_u8[buffer_addr], ret.size);
+				MemoryReturn ret(req, &_data_u8[buffer_addr]);
 				_return_cross_bar.write(ret, bank_index);
 				bank.data_pipline.read();
 			}

@@ -306,8 +306,9 @@ void UnitNonBlockingCache::_try_return_lfb(uint bank_index)
 	LFB& lfb = bank.lfbs[bank.lfb_return_queue.front()];
 
 	//select the next subentry and copy return to interconnect
-	MemoryReturn ret = _pop_request(lfb);
-	std::memcpy(ret.data, &lfb.block_data.bytes[_get_block_offset(ret.paddr)], ret.size);
+
+	MemoryRequest req = _pop_request(lfb);
+	MemoryReturn ret(req, lfb.block_data.bytes + _get_block_offset(req.paddr));
 	_return_cross_bar.write(ret, bank_index);
 
 	if(lfb.sub_entries.empty())

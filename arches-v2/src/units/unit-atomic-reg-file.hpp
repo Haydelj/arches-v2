@@ -94,8 +94,7 @@ public:
 
 			if(_current_request.type != MemoryRequest::Type::STORE)
 			{
-				MemoryReturn ret = _current_request;
-				ret.data_u32 = ret_val;
+				MemoryReturn ret(_current_request, &ret_val);
 				_return_network.write(ret, ret.port);
 			}
 
