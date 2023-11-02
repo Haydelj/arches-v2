@@ -27,14 +27,18 @@ To run a sample, such as "sim-sample-mips", simply select it in the solution exp
 Testing programs on the framework requires the use of a RISC-V Cross-Compiler. Fortunately, many many people have devoted numerous hours to getting a decent RISC-V cross compiler implemented using GCC; this is available [here](https://github.com/riscv/riscv-gnu-toolchain). 
 For our own testing, these are the instructions we followed:
 ```bash
+$ sudo apt update
+$ sudo apt install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
 $ git clone https://github.com/riscv/riscv-gnu-toolchain
 $ cd riscv-gnu-toolchain
 $ git submodule update --init --recursive
-$ sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
-$ ./configure --prefix=/opt/riscv --with-arch=rv64imfa --with-abi=lp64f
-$ make -j$(nproc)
+
+$ sudo chmod 777 /opt/riscv
 $ echo -e "export PATH=\"/opt/riscv/bin:$PATH\"" >> ~/.bashrc
-$ . ~/.bashrc
+$ source ~/.bashrc
+
+$ ./configure --prefix=/opt/riscv --with-arch=rv64imfa --with-abi=lp64f
+$ make
 ```
 After these steps are completed, users are able to use `riscv64-uknown-elf-gcc` to compile C code and `riscv64-unknown-elf-g++` to compile C/C++ code. 
 
@@ -46,10 +50,10 @@ To add custom instructions, we followed the guide available [here](https://nitis
 - Similarly, use `riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c` instead of `riscv-gnu-toolchain/riscv-binutils-gdb/opcodes/riscv-opc.c`. 
 As the original guide notes, after the custom instruction has been added the toolchain will need to be rebuilt. This can be easily accomplished by running the following:
 ```
-$ cd {PATH/TO/RISCV_GNU_TOOLCHAIN}
+$ cd riscv-gnu-toolchain
 $ make clean
-$ ./configure --prefix=/opt/riscv --with-arch=rv64g --with-abi=lp64d
-$ make -j$(nproc)
+$ ./configure --prefix=/opt/riscv --with-arch=rv64imfa --with-abi=lp64f
+$ make
 ```
 After rebuilding, the user should be able to run the cross-compiled programs with their custom instructions on the Arches framework, assuming they have extended the implementation of the RISC-V ISA provided by Arches to contain their custom instruction.
 
