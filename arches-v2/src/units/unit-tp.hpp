@@ -32,6 +32,7 @@ public:
 		const std::vector<UnitBase*>* unit_table;
 		const std::vector<UnitSFU*>* unique_sfus;
 		const std::vector<UnitMemoryBase*>* unique_mems;
+		UnitMemoryBase* inst_cache{nullptr};
 	};
 
 protected:
@@ -41,6 +42,14 @@ protected:
 	vaddr_t                               _pc{};
 
 	uint8_t* _cheat_memory{nullptr};
+	struct IBuffer
+	{
+		uint8_t data[CACHE_BLOCK_SIZE];
+		paddr_t paddr{0};
+		bool reqData{false};
+		bool getData{false};
+	}_i_buffer;
+	UnitMemoryBase* inst_cache{nullptr};
 
 	uint8_t _float_regs_pending[32];
 	uint8_t _int_regs_pending[32];
