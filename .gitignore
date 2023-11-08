@@ -222,6 +222,10 @@ _pkginfo.txt
 *.appxbundle
 *.appxupload
 
+
+# CMake Build Files
+build
+
 # Visual Studio cache files
 # files ending in .cache can be ignored
 *.[Cc]ache

@@ -1,0 +1,11 @@
+make: riscv riscv-dissasm
+
+#-mno-relax 
+riscv: src/*
+	riscv64-unknown-elf-g++ -mno-relax -nostartfiles -emain -Wstack-usage=512 -mabi=lp64f -Ofast ./main.cpp -o ./riscv/kernel
+
+riscv-dissasm: riscv
+	riscv64-unknown-elf-objdump -d -x ./riscv/kernel > "./riscv/kernel.dump"
+
+clean:
+	rm -f riscv/*
