@@ -7,38 +7,29 @@ The name is a pun on being able to simulate various architectures and on Arches 
 City features).
 
 ## Setup (Simulator)
-
-Visual Studio Components needed:
-*  Windows Universal CRT SDK 
-    *  Install using VS Installer
-*  Windows 8.1 sdk 
-    *  Download from https://go.microsoft.com/fwlink/p/?LinkId=323507
-*  MSVC v142 - VS 2020 C++ x64/x86 build tools (v14.16) 
-    *  Install via VS Installer; use the correct build tools for your environment ie. x64/x86
-
-To build the simulator, simply open `arches.sln` in Visual Studio and batch build all.
-
-The simulator itself will be built at `.build/[platform]/[config]/arches-sim.lib`, and any included
-samples using it will be built as executables in the same directory.
-
-To run a sample, such as "sim-sample-mips", simply select it in the solution explorer and run it.
+To clone and build the project simply run the following commands:
+```bash
+git clone https://github.com/Haydelj/arches-v2.git
+cd arches-v2
+mkdir build
+cd build
+cmake ..
+```
 
 ## Setup (RISCV, Ubuntu Linux)
 Testing programs on the framework requires the use of a RISC-V Cross-Compiler. Fortunately, many many people have devoted numerous hours to getting a decent RISC-V cross compiler implemented using GCC; this is available [here](https://github.com/riscv/riscv-gnu-toolchain). 
 For our own testing, these are the instructions we followed:
 ```bash
-$ sudo apt update
-$ sudo apt install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
-$ git clone https://github.com/riscv/riscv-gnu-toolchain
-$ cd riscv-gnu-toolchain
-$ git submodule update --init --recursive
-
-$ sudo chmod 777 /opt/riscv
-$ echo -e "export PATH=\"/opt/riscv/bin:$PATH\"" >> ~/.bashrc
-$ source ~/.bashrc
-
-$ ./configure --prefix=/opt/riscv --with-arch=rv64imfa --with-abi=lp64f
-$ make
+sudo apt update
+sudo apt install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
+git clone https://github.com/riscv/riscv-gnu-toolchain
+cd riscv-gnu-toolchain
+git submodule update --init --recursive
+sudo mkdir -m 777 /opt/riscv
+echo -e "export PATH=\"/opt/riscv/bin:$PATH\"" >> ~/.bashrc
+source ~/.bashrc
+./configure --prefix=/opt/riscv --with-arch=rv64imfa --with-abi=lp64f
+make
 ```
 After these steps are completed, users are able to use `riscv64-uknown-elf-gcc` to compile C code and `riscv64-unknown-elf-g++` to compile C/C++ code. 
 
@@ -60,5 +51,4 @@ After rebuilding, the user should be able to run the cross-compiled programs wit
 More details about the RISC-V ISA are available [by reading the specification](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMFDQC-and-Priv-v1.11/riscv-privileged-20190608.pdf), but it's expected that users are at least familiar with RISC-V before they attempt to implement custom instructions. 
 
 ## Contributing
-
 Follow the coding style in the existing code.  Additionally, aim for cleanliness above all else.

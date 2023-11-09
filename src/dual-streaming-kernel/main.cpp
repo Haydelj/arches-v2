@@ -24,111 +24,66 @@ inline static void kernel(const KernelArgs& args)
 {
 #if __riscv
 	uint index;
-	for (index = fchthrd(); index < args.framebuffer_size; index = fchthrd()) 
+	for(index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
-		uint fb_index = index;
-		uint hit_index = fb_index % 8192;
-		rtm::RNG rng(fb_index);
-
-		// generate random hit
-		rtm::Hit hit;
-		hit.id = rng.randi();
-		hit.bc = { rng.randf(), rng.randf() };
-		hit.t = rng.randf();
-		_cshit(hit, args.hit_records + hit_index);
-		// hit = _lhit(args.hit_records + hit_index);
-		// hit = _lhit(args.hit_records + hit_index);
-		// hit.t = rng.randf();
-	}
-
-	//spin sleep
-	for (volatile uint i = 0; i < 3000; i++);
-
-	for (index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size) 
-	{
-		uint fb_index = index;
-		uint hit_index = fb_index % 8192;
-		rtm::Hit hit = _lhit(args.hit_records + hit_index);
-		// rtm::Hit hit = *(args.hit_records + hit_index);
-		args.framebuffer[fb_index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
-	}
-
-	//for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
-	//{
-	//	uint fb_index = index;
-	//	uint x = index % args.framebuffer_width;
-	//	uint y = index / args.framebuffer_width;	
-	//	rtm::RNG rng(fb_index);	
-
-	//	WorkItem wi;
-	//	wi.bray.ray = args.camera.generate_ray_through_pixel(x, y);
-	//	wi.bray.id = index;
-	//	wi.segment = 0;
-
-	//	//write root ray to ray bucket
-	//#if 0
-	//	_swi(wi);
-	//#else
-
-	//	rtm::Hit hit; hit.t = wi.bray.ray.t_max;
-	//	uint treelet_stack[32]; uint treelet_stack_size = 0;
-	//	if(intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
-	//	{
-	//		//update hit record with hit using cshit
-	//		_cshit(hit, args.hit_records + wi.bray.id);
-	//		wi.bray.ray.t_max = hit.t;
-	//	}
-
-	//	//drain treelet stack
-	//	while(treelet_stack_size)
-	//	{
-	//		uint treelet_index = treelet_stack[--treelet_stack_size];
-	//		wi.segment = treelet_index;
-	//		_swi(wi);
-	//	}
-	//#endif
-	//}
-
-	//intersect_buckets(args.treelets, args.hit_records);
-
-#else
-	for (uint index = 0; index < args.framebuffer_size; index++) {
-		uint fb_index = index;
 		uint x = index % args.framebuffer_width;
-		uint y = index / args.framebuffer_width;
-		uint hit_index = fb_index % 8192;
-		rtm::RNG rng(fb_index);
+		uint y = index / args.framebuffer_width;	
+		rtm::RNG rng(index);
 
-		// generate random hit
-		rtm::Hit hit;
-		hit.id = rng.randi();
-		hit.bc = { rng.randf(), rng.randf() };
-		hit.t = rng.randf();
+		WorkItem wi;
+		wi.bray.ray = args.camera.generate_ray_through_pixel(x, y);
+		wi.bray.id = index;
+		wi.segment = 0;
 
-		if ((args.hit_records + hit_index)->t > hit.t) {
-			*(args.hit_records + hit_index) = hit;
+		//write root ray to ray bucket
+	#if 0
+		_swi(wi);
+	#else
+
+		rtm::Hit hit; hit.t = wi.bray.ray.t_max;
+		uint treelet_stack[32]; uint treelet_stack_size = 0;
+		if(intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
+		{
+			//update hit record with hit using cshit
+			_cshit(hit, args.hit_records + index);
+			wi.bray.ray.t_max = hit.t;
 		}
 
-	}
-	for (uint index = 0; index < args.framebuffer_size; index++) {
-		uint fb_index = index;
-		uint x = index % args.framebuffer_width;
-		uint y = index / args.framebuffer_width;
-		uint hit_index = fb_index % 8192;
-		rtm::RNG rng(fb_index);
-
-		// generate random hit
-		rtm::Hit hit;
-		hit = *(args.hit_records + hit_index);
-		args.framebuffer[fb_index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
+		//drain treelet stack
+		while(treelet_stack_size)
+		{
+			uint treelet_index = treelet_stack[--treelet_stack_size];
+			wi.segment = treelet_index;
+			_swi(wi);
+		}
+	#endif
 	}
 
-	/*for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	intersect_buckets(args.treelets, args.hit_records);
+
+	//spin sleep
+	for(volatile uint i = 0; i < 1024; i++);
+
+	for(index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
 	{
-		uint fb_index = index;
+		rtm::Hit hit = _lhit(args.hit_records + index);
+		args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
+
+		rtm::vec3 out = 0.0f;
+		if(hit.t < T_MAX)
+		{
+			rtm::vec3 n = args.triangles[hit.id].normal();
+			out = n * 0.5f + 0.5f;
+		}
+
+		args.framebuffer[index] = encode_pixel(out);
+	}
+#else
+	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	{
 		uint x = index % args.framebuffer_width;
 		uint y = index / args.framebuffer_width;
-		rtm::RNG rng(fb_index);
+		rtm::RNG rng(index);
 
 		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
 		rtm::Hit hit; hit.t = ray.t_max;
@@ -140,29 +95,7 @@ inline static void kernel(const KernelArgs& args)
 			out = n * 0.5f + 0.5f;
 		}
 
-		args.framebuffer[fb_index] = encode_pixel(out);
-	}*/
-#endif
-
-
-#if 0
-	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
-	{
-		uint fb_index = index;
-		uint x = index % args.framebuffer_width;
-		uint y = index / args.framebuffer_width;
-		rtm::RNG rng(fb_index);
-
-		rtm::Hit hit = args.hit_records[index];
-
-		rtm::vec3 output(0.0f);
-		if (~hit.id)
-		{
-			float shading = rtm::min(hit.t, 1.0f);
-			output = rtm::vec3(0.8f * shading);
-		}
-
-		args.framebuffer[fb_index] = encode_pixel(output);
+		args.framebuffer[index] = encode_pixel(out);
 	}
 #endif
 }

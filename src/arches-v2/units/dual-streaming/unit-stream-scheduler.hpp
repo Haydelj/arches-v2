@@ -39,7 +39,8 @@ class UnitStreamScheduler : public UnitBase
 public:
 	struct Configuration
 	{
-		paddr_t  bucket_start;
+		paddr_t  treelet_addr;
+		paddr_t  heap_addr;
 		Treelet* cheat_treelets{nullptr};
 
 		uint num_tms;
@@ -131,31 +132,39 @@ private:
 		std::queue<uint> bucket_complete_queue;
 		Casscade<RayBucket> bucket_write_cascade;
 
-
-
+		std::vector<uint> last_segment_on_tm;
 		std::map<uint, SegmentState> segment_state_map;
 		Treelet* cheat_treelets;
+		paddr_t treelet_addr;
 
 		std::vector<MemoryManager> memory_managers;
 
-		std::set<uint>   active_segments;
-		uint             current_segment{0};
-		std::priority_queue<uint, std::vector<uint>, std::greater<uint>> candidate_segments;
+		//the list of segments in the scene buffer or schduled to be in the scene buffer
+		std::set<uint> active_segments;
 
-		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1)
+		//the set of segments that are ready to issue buckets
+		std::vector<uint> candidate_segments;
+
+		//the queue of segments to traverse
+		std::queue<uint> traversal_queue;
+
+		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1), last_segment_on_tm(config.num_tms, ~0u)
 		{
 			for(uint i = 0; i < NUM_DRAM_CHANNELS; ++i)
-				memory_managers.emplace_back(i, config.bucket_start);
+				memory_managers.emplace_back(i, config.heap_addr);
 
 			SegmentState& segment_state = segment_state_map[0];
 			segment_state.active_buckets = config.num_tms;
 			segment_state.total_buckets = config.num_tms;
 			segment_state.parent_finished = true;
+			
+			cheat_treelets = config.cheat_treelets;
+			treelet_addr = config.treelet_addr;
 
 			active_segments.insert(0);
-			current_segment = 0;
-
-			cheat_treelets = config.cheat_treelets;
+			Treelet::Header root_header = cheat_treelets[0].header;
+			for(uint i = 0; i < root_header.num_children; ++i)
+				traversal_queue.push(root_header.first_child + i);
 		}
 
 		bool is_complete()
@@ -166,29 +175,31 @@ private:
 
 	struct Channel
 	{
-		enum StreamState
-		{
-			NA,
-			READ_BUCKET,
-			WRITE_BUCKET,
-		};
-
 		struct WorkItem
 		{
-			bool is_read;
+			enum Type
+			{
+				READ_BUCKET,
+				WRITE_BUCKET,
+				READ_SEGMENT,
+			};
+
+			Type type{READ_BUCKET};
 			paddr_t address;
+
 			union
 			{
-				uint dst_tm;
-				RayBucket bucket{};
+				uint      dst_tm;
+				RayBucket bucket;
 			};
+
+			WorkItem() {};
 		};
 
 		//work queue
 		std::queue<WorkItem> work_queue;
 
 		//stream state
-		StreamState stream_state{NA};
 		uint bytes_requested{0};
 
 		//forwarding

@@ -62,6 +62,7 @@ public:
 	void dump_as_png_uint8(paddr_t from_paddr, size_t width, size_t height, std::string const& path)
 	{
 		uint8_t const* src = _data_u8 + from_paddr;
+		stbi_flip_vertically_on_write(true);
 		stbi_write_png(path.c_str(), static_cast<int>(width), static_cast<int>(height), 4, src, 0);
 	}
 

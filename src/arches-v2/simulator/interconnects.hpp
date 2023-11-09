@@ -293,7 +293,7 @@ private:
 	FIFOArray<T> _sink_fifos;
 
 public:
-	Casscade(uint sources, uint sinks) : _source_fifos(sources), _cascade_ratio(std::max(sources / sinks, 1u)), _arbiters(sinks, sources / sinks), _sink_fifos(sinks) {}
+	Casscade(uint sources, uint sinks, uint fifo_depth = 8) : _source_fifos(sources, fifo_depth), _cascade_ratio(std::max(sources / sinks, 1u)), _arbiters(sinks, sources / sinks), _sink_fifos(sinks, fifo_depth) {}
 
 	void clock()
 	{

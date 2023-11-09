@@ -219,11 +219,9 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address); heap_address += args.framebuffer_size * sizeof(uint32_t);
-	//args.hit_records = reinterpret_cast<rtm::Hit*>(heap_address); heap_address += args.framebuffer_size * sizeof(rtm::Hit);
+
 	std::vector<rtm::Hit> hits(args.framebuffer_size);
-	for (uint i = 0; i < hits.size(); i++) {
-		hits[i] = { 1.0f, 1.0f, 0 };
-	}
+	for(auto& hit : hits) hit.t = T_MAX;
 	args.hit_records = write_vector(main_memory, ROW_BUFFER_SIZE, hits, heap_address);
 	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
 	args.triangles = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
@@ -275,7 +273,8 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	KernelArgs kernel_args = initilize_buffers(&dram, heap_address);
 
 	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
-	stream_scheduler_config.bucket_start = *(paddr_t*)&heap_address;
+	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
+	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
 	stream_scheduler_config.num_tms = num_tms;
 	stream_scheduler_config.num_banks = 16;
 	stream_scheduler_config.cheat_treelets = (Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
@@ -315,7 +314,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	l2_config.associativity = 8;
 	l2_config.num_ports = num_tms * 8;
 	l2_config.num_banks = 32;
-	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull;
+	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull; //The high order bits need to match the channel assignment bits
 	l2_config.data_array_latency = 4;
 	l2_config.mem_higher = &dram;
 	l2_config.mem_higher_port_offset = 0;

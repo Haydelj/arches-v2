@@ -5,23 +5,29 @@ namespace Arches {
 namespace Units {
 namespace DualStreaming {
 
-void UnitHitRecordUpdater::clock_rise() {
+void UnitHitRecordUpdater::clock_rise() 
+{
 	request_network.clock();
-	for (int i = 0; i < channels.size(); i++) {
+	for (int i = 0; i < channels.size(); i++) 
+	{
 		process_requests(i);
 		process_returns(i);
-		if (!channels[i].read_queue.empty() || !channels[i].return_queue.empty() || !channels[i].write_queue.empty()) {
+		if (!channels[i].read_queue.empty() || !channels[i].return_queue.empty() || !channels[i].write_queue.empty()) 
+		{
 			if (busy == 0) simulator->units_executing++;
 			busy |= (1 << i);
 		}
 	}
 }
 
-void UnitHitRecordUpdater::clock_fall() {
-	for (int i = 0; i < channels.size(); i++) {
+void UnitHitRecordUpdater::clock_fall() 
+{
+	for (int i = 0; i < channels.size(); i++) 
+	{
 		issue_requests(i);
 		issue_returns(i);
-		if (channels[i].read_queue.empty() && channels[i].return_queue.empty() && channels[i].write_queue.empty()) {
+		if (channels[i].read_queue.empty() && channels[i].return_queue.empty() && channels[i].write_queue.empty()) 
+		{
 			if (busy == (1 << i)) simulator->units_executing--;
 			busy &= ~(1 << i);
 		}
@@ -29,7 +35,8 @@ void UnitHitRecordUpdater::clock_fall() {
 	return_network.clock();
 }
 
-void UnitHitRecordUpdater::process_requests(uint channel_index) {
+void UnitHitRecordUpdater::process_requests(uint channel_index) 
+{
 	if (!request_network.is_read_valid(channel_index)) return;
 	Channel& channel = channels[channel_index];
 	const HitRecordUpdaterRequest rsb_req = request_network.peek(channel_index);
@@ -38,9 +45,10 @@ void UnitHitRecordUpdater::process_requests(uint channel_index) {
 	HitRecordCache::State state = HitRecordCache::State::EMPTY;
 	if (cache_index != ~0) state = channel.hit_record_cache.get_state(cache_index);
 
-	if (rsb_req.type == HitRecordUpdaterRequest::TYPE::LOAD) {
-		assert(fabs(rsb_req.hit_info.hit.t - T_MAX) < 1e-6); // For read request, hit.t = T_MAX
-		if (state == HitRecordCache::State::CLOSEST_DRAM || state == HitRecordCache::State::CLOSEST_WRITE) {
+	if (rsb_req.type == HitRecordUpdaterRequest::TYPE::LOAD) 
+	{
+		if (state == HitRecordCache::State::CLOSEST_DRAM || state == HitRecordCache::State::CLOSEST_WRITE) 
+		{
 			// We do not need to visit DRAM because we already have the closest hit
 			HitInfo hit_info = channel.hit_record_cache.fetch_hit(cache_index);
 			MemoryReturn ret;
@@ -51,22 +59,26 @@ void UnitHitRecordUpdater::process_requests(uint channel_index) {
 			channel.return_queue.push(ret);
 			request_network.read(channel_index);
 		}
-		else {
-			if (cache_index != ~0) {
+		else 
+		{
+			if (cache_index != ~0) 
+			{
 				// There is already a load request for this hit
 				assert(rsb_req.port < 64);
 				channel.rsb_load_queue[rsb_req.hit_info.hit_address] |= (1ull << rsb_req.port);
 				channel.rsb_counter[{rsb_req.hit_info.hit_address, rsb_req.port}]++;
 				request_network.read(channel_index);
 			}
-			else {
+			else 
+			{
 				// We need to insert the request to the cache
 				uint replace_index = channel.hit_record_cache.try_insert(rsb_req.hit_info);
 				if (replace_index != ~0) {
 					HitInfo hit_info_replaced = channel.hit_record_cache.fetch_hit(replace_index);
 					HitRecordCache::State state_replaced = channel.hit_record_cache.get_state(replace_index);
 
-					if (state_replaced == HitRecordCache::State::CLOSEST_WRITE) {
+					if (state_replaced == HitRecordCache::State::CLOSEST_WRITE) 
+					{
 						// We need to write this data to DRAM
 						MemoryRequest write_req;
 						write_req.type = MemoryRequest::Type::STORE;
@@ -89,23 +101,27 @@ void UnitHitRecordUpdater::process_requests(uint channel_index) {
 					request_network.read(channel_index);
 				}
 			}
-
 		}
 	}
-	else if (rsb_req.type == HitRecordUpdaterRequest::TYPE::STORE) {
-		if (cache_index != ~0) {
+	else if (rsb_req.type == HitRecordUpdaterRequest::TYPE::STORE) 
+	{
+		if (cache_index != ~0) 
+		{
 			// There is a record in the cache
 			channel.hit_record_cache.compare_replace(rsb_req.hit_info);
 			request_network.read(channel_index);
 		}
-		else {
+		else 
+		{
 			// It is a new record
 			uint replace_index = channel.hit_record_cache.try_insert(rsb_req.hit_info);
-			if (replace_index != ~0) {
+			if (replace_index != ~0) 
+			{
 				HitInfo hit_info_replaced = channel.hit_record_cache.fetch_hit(replace_index);
 				HitRecordCache::State state_replaced = channel.hit_record_cache.get_state(replace_index);
 
-				if (state_replaced == HitRecordCache::State::CLOSEST_WRITE) {
+				if (state_replaced == HitRecordCache::State::CLOSEST_WRITE) 
+				{
 					// We need to write this data to DRAM
 					MemoryRequest write_req;
 					write_req.type = MemoryRequest::Type::STORE;

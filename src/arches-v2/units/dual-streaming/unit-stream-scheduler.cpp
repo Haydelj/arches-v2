@@ -125,6 +125,7 @@ void UnitStreamScheduler::_proccess_return(uint channel_index)
 
 void UnitStreamScheduler::_update_scheduler()
 {
+	//update the segment states to include new buckets
 	while(!_scheduler.bucket_allocated_queue.empty())
 	{
 		uint segment_index = _scheduler.bucket_allocated_queue.front();
@@ -139,7 +140,8 @@ void UnitStreamScheduler::_update_scheduler()
 		state.total_buckets++;
 	}
 
-	if(!_scheduler.bucket_complete_queue.empty())
+	//proccess completed buckets
+	while(!_scheduler.bucket_complete_queue.empty())
 	{
 		uint segment_index = _scheduler.bucket_complete_queue.front();
 		SegmentState& segment_state = _scheduler.segment_state_map[segment_index];
@@ -154,6 +156,7 @@ void UnitStreamScheduler::_update_scheduler()
 
 			//remove from the active segments
 			_scheduler.active_segments.erase(segment_index);
+			printf("Segment %d retired\n", segment_index);
 
 			//free the segment state
 			_scheduler.segment_state_map.erase(segment_index);
@@ -172,88 +175,128 @@ void UnitStreamScheduler::_update_scheduler()
 				Bank& child_bank = _banks[child_bank_index];
 				child_bank.bucket_flush_queue.push(child_segment_index);
 			}
+
+			break;
 		}
 
 		_scheduler.bucket_complete_queue.pop();
 	}
 
-	//schduel bucket read requests
+	//try to pick a new segment to prefetch
+	if((_scheduler.active_segments.size()) < MAX_ACTIVE_SEGMENTS && !_scheduler.traversal_queue.empty())
+	{
+		//we have room in the working set and a segment in the traversal queue try to expand working set
+		do
+		{
+			uint next_segment = _scheduler.traversal_queue.front();
+			_scheduler.traversal_queue.pop();
+			SegmentState& state = _scheduler.segment_state_map[next_segment];
+
+			//if this segment is active or the parent is still traversing
+			if(state.total_buckets > 0 || !state.parent_finished)
+			{
+				// prefecth the segment
+				//paddr_t address = _scheduler.treelet_addr + sizeof(Treelet) * next_segment;
+				//for(uint i = 0; i < sizeof(Treelet); i += ROW_BUFFER_SIZE)
+				//{
+				//	Channel::WorkItem channel_work_item;
+				//	channel_work_item.type = Channel::WorkItem::Type::READ_SEGMENT;
+				//	channel_work_item.address = address + i;
+				//
+				//	uint channel_index = calcDramAddr(address).channel;
+				//	Channel& channel = _channels[channel_index];
+				//	channel.work_queue.push(channel_work_item);
+				//}
+
+				//TODO: wait for prefetch to complete before adding to candidate set
+				_scheduler.candidate_segments.push_back(next_segment);
+
+				//Add the segment to the active set
+				_scheduler.active_segments.insert(next_segment);
+				printf("Segment %d scheduled\n", next_segment);
+				break;
+			}
+		} 
+		while(!_scheduler.traversal_queue.empty());
+	}
+
+	//schedule bucket read requests
 	if(!_scheduler.bucket_request_queue.empty())
 	{
-		//try to insert the tm into the read queue of one of the channels
-		if(_scheduler.current_segment != ~0u)
+		uint tm_index = _scheduler.bucket_request_queue.front();
+		uint last_segment = _scheduler.last_segment_on_tm[tm_index];
+
+		//find highest priority segment that has rays ready
+		uint current_segment = ~0u;
+		for(uint i = 0; i < _scheduler.candidate_segments.size(); ++i)
 		{
-			SegmentState& state = _scheduler.segment_state_map[_scheduler.current_segment];
-			if(state.active_buckets != state.total_buckets && !state.bucket_address_queue.empty())
+			uint candidate_segment = _scheduler.candidate_segments[i];
+			SegmentState& state = _scheduler.segment_state_map[candidate_segment];
+
+			if(state.active_buckets != state.total_buckets)
 			{
-				paddr_t bucket_adddress = state.bucket_address_queue.front();
-				state.bucket_address_queue.pop();
-
-				uint channel_index = calcDramAddr(bucket_adddress).channel;
-				MemoryManager& memory_manager = _scheduler.memory_managers[channel_index];
-
-				memory_manager.free_bucket(bucket_adddress);
-
-				Channel::WorkItem channel_work_item = {};
-				channel_work_item.is_read = true;
-				channel_work_item.address = bucket_adddress;
-				channel_work_item.dst_tm = _scheduler.bucket_request_queue.front();
-				_scheduler.bucket_request_queue.pop();
-
-				Channel& channel = _channels[channel_index];
-				channel.work_queue.push(channel_work_item);
-
-				state.active_buckets++;
+				//last segment match or first match
+				if(!state.bucket_address_queue.empty() && (current_segment == ~0u || candidate_segment == last_segment))
+				{
+					current_segment = candidate_segment;
+				}
 			}
-
-			if(state.active_buckets == state.total_buckets && state.parent_finished)
+			else if(state.parent_finished)
 			{
-				//all buckets are active for the current segment
+				//No more rays to traverse. Erase the segment from the candidate set
+				_scheduler.candidate_segments.erase(_scheduler.candidate_segments.begin() + i--);
 
-				//the segment has no buckets
 				if(state.total_buckets == 0)
 				{
-					_scheduler.active_segments.erase(_scheduler.current_segment);
+					//If no ray were launched erase the candidate from the active set as well 
+					_scheduler.active_segments.erase(candidate_segment);
 				}
 				else
 				{
+					//Otherwise queue up the children segments. The segment will be removed from active set when all rays complete
+					
 					//for all children segments
-					Treelet::Header header = _scheduler.cheat_treelets[_scheduler.current_segment].header;
+					Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
 					for(uint i = 0; i < header.num_children; ++i)
 					{
-						//add child to the candidate set
+						//add child to the traversal qeueue
 						uint child_segment_index = header.first_child + i;
 						SegmentState& child_segment_state = _scheduler.segment_state_map[child_segment_index];
-						_scheduler.candidate_segments.emplace(child_segment_index);
+						_scheduler.traversal_queue.emplace(child_segment_index);
 					}
 				}
-
-				//clear current segment
-				_scheduler.current_segment = ~0u;
 			}
 		}
 
-		// no current segment
-		if(_scheduler.current_segment == ~0u)
+		//try to insert the tm into the read queue of one of the channels
+		if(current_segment != ~0u)
 		{
-			//try to pick a new segment to start traversing
-			if(_scheduler.active_segments.size() < MAX_ACTIVE_SEGMENTS && !_scheduler.candidate_segments.empty())
-			{
-				//we have room in the working set and a candidate segment so queue it up
-				uint next_segment = _scheduler.candidate_segments.top();
-				_scheduler.candidate_segments.pop();
+			printf("Segment %d launched\n", current_segment);
+			_scheduler.bucket_request_queue.pop();
+			_scheduler.last_segment_on_tm[tm_index] = current_segment;
 
-				_scheduler.active_segments.insert(next_segment);
-				_scheduler.current_segment = next_segment;
+			SegmentState& state = _scheduler.segment_state_map[current_segment];
+			paddr_t bucket_adddress = state.bucket_address_queue.front();
+			state.bucket_address_queue.pop();
 
-				printf("Segment %d scheduled\n", _scheduler.current_segment);
-			}
+			uint channel_index = calcDramAddr(bucket_adddress).channel;
+			MemoryManager& memory_manager = _scheduler.memory_managers[channel_index];
+			memory_manager.free_bucket(bucket_adddress);
+
+			Channel::WorkItem channel_work_item;
+			channel_work_item.type = Channel::WorkItem::Type::READ_BUCKET;
+			channel_work_item.address = bucket_adddress;
+			channel_work_item.dst_tm = tm_index;
+
+			Channel& channel = _channels[channel_index];
+			channel.work_queue.push(channel_work_item);
+
+			state.active_buckets++;
 		}
 	}
 
-	_scheduler.bucket_write_cascade.clock();
-
 	//schduel bucket write requests
+	_scheduler.bucket_write_cascade.clock();
 	if(_scheduler.bucket_write_cascade.is_read_valid(0))
 	{
 		const RayBucket& bucket = _scheduler.bucket_write_cascade.peek(0);
@@ -265,8 +308,8 @@ void UnitStreamScheduler::_update_scheduler()
 		paddr_t bucket_adddress = memory_manager.alloc_bucket();
 		state.bucket_address_queue.push(bucket_adddress);
 
-		Channel::WorkItem channel_work_item = {};
-		channel_work_item.is_read = false;
+		Channel::WorkItem channel_work_item;
+		channel_work_item.type = Channel::WorkItem::Type::WRITE_BUCKET;
 		channel_work_item.address = bucket_adddress;
 		channel_work_item.bucket = bucket;
 		_scheduler.bucket_write_cascade.read(0);
@@ -285,24 +328,29 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 	uint mem_higher_port_index = channel_index * _main_mem_port_stride + _main_mem_port_offset;
 	if(!_main_mem->request_port_write_valid(mem_higher_port_index)) return;
 
-	if(channel.stream_state == Channel::StreamState::NA && !channel.work_queue.empty())
+	if(channel.work_queue.empty()) return;
+
+
+	if(channel.work_queue.front().type == Channel::WorkItem::Type::READ_BUCKET)
 	{
-		bool open_read_stream = false;
-		if(channel.work_queue.front().is_read)
+		uint dst_tm = channel.work_queue.front().dst_tm;
+
+		MemoryRequest req;
+		req.type = MemoryRequest::Type::LOAD;
+		req.size = CACHE_BLOCK_SIZE;
+		req.port = mem_higher_port_index;
+		req.dst = dst_tm;
+		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
+		_main_mem->write_request(req, req.port);
+
+		channel.bytes_requested += CACHE_BLOCK_SIZE;
+		if(channel.bytes_requested == sizeof(RayBucket))
 		{
-			//initilize bucket read stream
-			channel.stream_state = Channel::StreamState::READ_BUCKET;
 			channel.bytes_requested = 0;
-		}
-		else 
-		{ 
-			//initilize bucket write stream
-			channel.stream_state = Channel::StreamState::WRITE_BUCKET;
-			channel.bytes_requested = 0;
+			channel.work_queue.pop();
 		}
 	}
-
-	if(channel.stream_state == Channel::StreamState::WRITE_BUCKET)
+	else if(channel.work_queue.front().type == Channel::WorkItem::Type::WRITE_BUCKET)
 	{
 		RayBucket& bucket = channel.work_queue.front().bucket;
 
@@ -318,26 +366,24 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		channel.bytes_requested += CACHE_BLOCK_SIZE;
 		if(channel.bytes_requested == sizeof(RayBucket))
 		{
-			channel.stream_state = Channel::StreamState::NA;
+			channel.bytes_requested = 0;
 			channel.work_queue.pop();
 		}
 	}
-	else if(channel.stream_state == Channel::StreamState::READ_BUCKET)
+	else if(channel.work_queue.front().type == Channel::WorkItem::Type::READ_SEGMENT)
 	{
-		uint dst_tm = channel.work_queue.front().dst_tm;
-
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
 		req.size = CACHE_BLOCK_SIZE;
 		req.port = mem_higher_port_index;
-		req.dst = dst_tm;
+		req.dst = _return_network.num_sinks();
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
 		_main_mem->write_request(req, req.port);
 
 		channel.bytes_requested += CACHE_BLOCK_SIZE;
-		if(channel.bytes_requested == sizeof(RayBucket))
+		if(channel.bytes_requested == ROW_BUFFER_SIZE)
 		{
-			channel.stream_state = Channel::StreamState::NA;
+			channel.bytes_requested = 0;
 			channel.work_queue.pop();
 		}
 	}
@@ -350,9 +396,18 @@ void UnitStreamScheduler::_issue_return(uint channel_index)
 
 	if(channel.forward_return_valid)
 	{
-		channel.forward_return.port = channel.forward_return.dst;
-		_return_network.write(channel.forward_return, channel_index);
-		channel.forward_return_valid = false;
+		if(channel.forward_return.dst < _return_network.num_sinks())
+		{
+			//forward to ray buffer
+			channel.forward_return.port = channel.forward_return.dst;
+			_return_network.write(channel.forward_return, channel_index);
+			channel.forward_return_valid = false;
+		}
+		else
+		{
+			//forward to scene buffer
+			channel.forward_return_valid = false;
+		}
 	}
 }
 
