@@ -176,7 +176,7 @@ FREE_INSTR:
 	{
 		if(_i_buffer.reqData) return;
 		uint addr_offset = _pc - _i_buffer.paddr;
-		if((addr_offset + 3 <= CACHE_BLOCK_SIZE) && _i_buffer.getData)
+		if((addr_offset < CACHE_BLOCK_SIZE) && _i_buffer.getData)
 		{
 			i_data = reinterpret_cast<uint32_t*>(_i_buffer.data)[addr_offset / 4];
 		}
@@ -184,7 +184,7 @@ FREE_INSTR:
 		{
 			MemoryRequest i_req;
 			i_req.port = _tp_index;
-			i_req.paddr = _pc;
+			i_req.paddr = _pc & ~0x3full;
 			i_req.type = MemoryRequest::Type::LOAD;
 			inst_cache->write_request(i_req, i_req.port);
 			_i_buffer.reqData = true;

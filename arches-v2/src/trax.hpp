@@ -113,6 +113,7 @@ static void run_sim_trax(int argc, char* argv[])
 	std::vector<Units::UnitTP*> tps;
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitNonBlockingCache*> l1s;
+	std::vector<Units::UnitNonBlockingCache*> i_l1s;
 	std::vector<Units::UnitBlockingCache*> l2s;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
@@ -137,7 +138,7 @@ static void run_sim_trax(int argc, char* argv[])
 		l2_config.size = 512 * 1024;
 		l2_config.associativity = 1;
 		l2_config.data_array_latency = 3;
-		l2_config.num_ports = num_tms_per_l2 * 8;
+		l2_config.num_ports = num_tms_per_l2 * 8 * 2;
 		l2_config.num_banks = 16;
 		l2_config.bank_select_mask = 0b0001'1110'0000'0000'0000ull;
 		l2_config.mem_higher = &mm;
@@ -163,10 +164,28 @@ static void run_sim_trax(int argc, char* argv[])
 			l1_config.num_lfb = 8;
 			l1_config.check_retired_lfb = false;
 			l1_config.mem_higher = l2s.back();
-			l1_config.mem_higher_port_offset = 8 * tm_i;
+			l1_config.mem_higher_port_offset = 8 * tm_i * 2;
+			l1_config.mem_higher_port_stride = 2;
 
 			l1s.push_back(new Units::UnitNonBlockingCache(l1_config));
 			simulator.register_unit(l1s.back());
+
+			// L1 instruction cache
+			Units::UnitNonBlockingCache::Configuration i_l1_config;
+			i_l1_config.size = 32 * 1024;
+			i_l1_config.associativity = 1;
+			i_l1_config.data_array_latency = 0;
+			i_l1_config.num_ports = num_tps_per_tm;
+			i_l1_config.num_banks = 8;
+			i_l1_config.bank_select_mask = 0b0101'0100'0000;
+			i_l1_config.num_lfb = 8;
+			i_l1_config.check_retired_lfb = false;
+			i_l1_config.mem_higher = l2s.back();
+			i_l1_config.mem_higher_port_offset = 8 * tm_i * 2 + 1;
+			i_l1_config.mem_higher_port_stride = 2;
+			Units::UnitNonBlockingCache* i_l1 = new Units::UnitNonBlockingCache(i_l1_config);
+			i_l1s.push_back(i_l1);
+			simulator.register_unit(i_l1s.back());
 
 			thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height, 8, 8));
 			simulator.register_unit(thread_schedulers.back());
@@ -210,7 +229,8 @@ static void run_sim_trax(int argc, char* argv[])
 				tp_config.pc = elf.elf_header->e_entry.u64;
 				tp_config.sp = 0x0;
 				tp_config.stack_size = stack_size;
-				tp_config.cheat_memory = mm._data_u8;
+				//tp_config.cheat_memory = mm._data_u8;
+				tp_config.inst_cache = i_l1;
 				tp_config.unit_table = &unit_tables.back();
 				tp_config.unique_mems = &mem_lists.back();
 				tp_config.unique_sfus = &sfu_lists.back();
