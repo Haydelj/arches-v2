@@ -186,6 +186,7 @@ FREE_INSTR:
 			i_req.port = _tp_index;
 			i_req.paddr = _pc & ~0x3full;
 			i_req.type = MemoryRequest::Type::LOAD;
+			i_req.size = CACHE_BLOCK_SIZE;
 			inst_cache->write_request(i_req, i_req.port);
 			_i_buffer.reqData = true;
 			_i_buffer.getData = false;
