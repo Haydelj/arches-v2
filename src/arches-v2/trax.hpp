@@ -13,7 +13,7 @@
 
 #include "util/elf.hpp"
 
-#include "../../trax-benchmark/src/include.hpp"
+#include "trax-kernel/include.hpp"
 
 namespace Arches {
 
@@ -55,7 +55,7 @@ static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignmen
 
 static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address)
 {
-	rtm::Mesh mesh("../datasets/sponza.obj");
+	rtm::Mesh mesh("../../datasets/sponza.obj");
 	rtm::BVH blas;
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;
@@ -123,7 +123,7 @@ static void run_sim_trax(int argc, char* argv[])
 	Units::UnitDRAM mm(num_l2 * 16, 1024ull * 1024ull * 1024ull, &simulator); mm.clear();
 	simulator.register_unit(&mm);
 	
-	ELF elf("../trax-benchmark/riscv/kernel");
+	ELF elf("../trax-kernel/riscv/kernel");
 	vaddr_t global_pointer;
 	paddr_t heap_address = mm.write_elf(elf);
 	

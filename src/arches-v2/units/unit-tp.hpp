@@ -1,14 +1,14 @@
 #pragma once
 
-#include "../stdafx.hpp"
+#include "stdafx.hpp"
 
 #include "unit-base.hpp"
 #include "unit-memory-base.hpp"
 #include "unit-sfu.hpp"
 
-#include "../isa/riscv.hpp"
+#include "isa/riscv.hpp"
 
-#include "../util/bit-manipulation.hpp"
+#include "util/bit-manipulation.hpp"
 
 
 namespace Arches { namespace Units {
