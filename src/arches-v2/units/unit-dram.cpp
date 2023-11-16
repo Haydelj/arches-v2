@@ -9,7 +9,7 @@ namespace Arches { namespace Units {
 UnitDRAM::UnitDRAM(uint num_ports, uint64_t size, Simulator* simulator) : UnitMainMemoryBase(size),
 	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(num_ports)
 {
-	char* usimm_config_file = (char*)REL_PATH_BIN_TO_SAMPLES"gddr5_16ch.cfg";
+	char* usimm_config_file = (char*)REL_PATH_BIN_TO_SAMPLES"gddr5_8ch.cfg";
 	char* usimm_vi_file = (char*)REL_PATH_BIN_TO_SAMPLES"1Gb_x16_amd2GHz.vi";
 	if (usimm_setup(usimm_config_file, usimm_vi_file) < 0) assert(false); //usimm faild to initilize
 

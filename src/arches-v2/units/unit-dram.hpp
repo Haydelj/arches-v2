@@ -9,7 +9,7 @@
 
 namespace Arches { namespace Units {
 
-#define NUM_DRAM_CHANNELS (16)
+#define NUM_DRAM_CHANNELS (8)
 
 class UnitDRAM : public UnitMainMemoryBase, public UsimmListener
 {

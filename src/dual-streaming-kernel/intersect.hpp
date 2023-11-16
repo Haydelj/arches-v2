@@ -96,6 +96,43 @@ inline rtm::Hit _lhit(rtm::Hit* src)
 #endif
 }
 
+inline Treelet::Node _ltnode(const Treelet::Node* src)
+{
+#if __riscv
+	register float f0 asm("f0");
+	register float f1 asm("f1");
+	register float f2 asm("f2");
+	register float f3 asm("f3");
+	register float f4 asm("f4");
+	register float f5 asm("f5");
+	register float f6 asm("f6");
+	register float f7 asm("f7");
+	asm volatile(
+		"lsd f0, 0(%8)\t\n"
+		"lsd f2, 8(%8)\t\n" 
+		"lsd f4, 16(%8)\t\n" 
+		"lsd f6, 24(%8)\t\n" 
+	: "=f" (f0), "=f" (f1), "=f" (f2), "=f" (f3), "=f" (f4), "=f" (f5), "=f" (f6), "=f" (f7)
+	: "r" (src));
+
+	Treelet::Node node;
+	node.aabb.min.x = f0;
+	node.aabb.min.y = f1;
+	node.aabb.min.z = f2;
+	node.aabb.max.x = f3;
+	node.aabb.max.y = f4;
+	node.aabb.max.z = f5;
+
+	float _f6 = f6;
+	float _f7 = f7;
+	((uint*)&node.data)[0] = *(uint*)&_f6;
+	((uint*)&node.data)[1] = *(uint*)&_f7;
+
+	return node;
+#else
+	return *src;
+#endif
+}
 
 inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
@@ -161,6 +198,8 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 	register float f13 asm("f13") = tri.vrts[2].y;
 	register float f14 asm("f14") = tri.vrts[2].z;
 
+	register float f17 asm("f17") = is_hit;
+
 	register float f15 asm("f15") = hit.t;
 	register float f16 asm("f16") = hit.bc.x;
 	register float f17 asm("f17") = hit.bc.y;
@@ -170,7 +209,7 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 	(
 		"triisect %0\n\t"
 		: 
-		"=r" (is_hit),
+		"+f" (is_hit),
 		"+f" (f15),
 		"+f" (f16),
 		"+f" (f17)
@@ -213,7 +252,7 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	};
 	NodeStackEntry node_stack[64]; uint node_stack_size = 1u;
 
-	const Treelet::Node& root_node = treelet.nodes[0];
+	const Treelet::Node& root_node = _ltnode(&treelet.nodes[0]);
 	node_stack[0].hit_t = _intersect(root_node.aabb, ray, inv_d);
 	if(node_stack[0].hit_t >= hit.t) return false;
 	node_stack[0].data = root_node.data;
@@ -227,8 +266,8 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	TRAV:
 		if(!current_entry.data.is_leaf)
 		{
-			const Treelet::Node& child0 = treelet.nodes[current_entry.data.child[0].index];
-			const Treelet::Node& child1 = treelet.nodes[current_entry.data.child[1].index];
+			const Treelet::Node& child0 = _ltnode(&treelet.nodes[current_entry.data.child[0].index]);
+			const Treelet::Node& child1 = _ltnode(&treelet.nodes[current_entry.data.child[1].index]);
 
 			float hit_ts[2];
 			if(current_entry.data.child[0].is_treelet)

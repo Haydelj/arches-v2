@@ -186,38 +186,33 @@ void UnitStreamScheduler::_update_scheduler()
 	if((_scheduler.active_segments.size()) < MAX_ACTIVE_SEGMENTS && !_scheduler.traversal_queue.empty())
 	{
 		//we have room in the working set and a segment in the traversal queue try to expand working set
-		do
+		uint next_segment = _scheduler.traversal_queue.front();
+		_scheduler.traversal_queue.pop();
+		SegmentState& state = _scheduler.segment_state_map[next_segment];
+
+		//if this segment is active or the parent is still traversing
+		if(state.total_buckets > 0 || !state.parent_finished)
 		{
-			uint next_segment = _scheduler.traversal_queue.front();
-			_scheduler.traversal_queue.pop();
-			SegmentState& state = _scheduler.segment_state_map[next_segment];
-
-			//if this segment is active or the parent is still traversing
-			if(state.total_buckets > 0 || !state.parent_finished)
+			// prefecth the segment
+			paddr_t address = _scheduler.treelet_addr + sizeof(Treelet) * next_segment;
+			for(uint i = 0; i < sizeof(Treelet); i += ROW_BUFFER_SIZE)
 			{
-				// prefecth the segment
-				//paddr_t address = _scheduler.treelet_addr + sizeof(Treelet) * next_segment;
-				//for(uint i = 0; i < sizeof(Treelet); i += ROW_BUFFER_SIZE)
-				//{
-				//	Channel::WorkItem channel_work_item;
-				//	channel_work_item.type = Channel::WorkItem::Type::READ_SEGMENT;
-				//	channel_work_item.address = address + i;
-				//
-				//	uint channel_index = calcDramAddr(address).channel;
-				//	Channel& channel = _channels[channel_index];
-				//	channel.work_queue.push(channel_work_item);
-				//}
-
-				//TODO: wait for prefetch to complete before adding to candidate set
-				_scheduler.candidate_segments.push_back(next_segment);
-
-				//Add the segment to the active set
-				_scheduler.active_segments.insert(next_segment);
-				printf("Segment %d scheduled\n", next_segment);
-				break;
+				Channel::WorkItem channel_work_item;
+				channel_work_item.type = Channel::WorkItem::Type::READ_SEGMENT;
+				channel_work_item.address = address + i;
+			
+				uint channel_index = calcDramAddr(address).channel;
+				Channel& channel = _channels[channel_index];
+				channel.work_queue.push(channel_work_item);
 			}
-		} 
-		while(!_scheduler.traversal_queue.empty());
+
+			//TODO: wait for prefetch to complete before adding to candidate set
+			_scheduler.candidate_segments.push_back(next_segment);
+
+			//Add the segment to the active set
+			_scheduler.active_segments.insert(next_segment);
+			printf("Segment %d scheduled\n", next_segment);
+		}
 	}
 
 	//schedule bucket read requests
@@ -236,7 +231,8 @@ void UnitStreamScheduler::_update_scheduler()
 			if(state.active_buckets != state.total_buckets)
 			{
 				//last segment match or first match
-				if(!state.bucket_address_queue.empty() && (current_segment == ~0u || candidate_segment == last_segment))
+				//if(!state.bucket_address_queue.empty() && (current_segment == ~0u || candidate_segment == last_segment))
+				if(!state.bucket_address_queue.empty() && current_segment == ~0u)
 				{
 					current_segment = candidate_segment;
 				}
@@ -266,12 +262,14 @@ void UnitStreamScheduler::_update_scheduler()
 					}
 				}
 			}
+
+			break;
 		}
 
 		//try to insert the tm into the read queue of one of the channels
 		if(current_segment != ~0u)
 		{
-			printf("Segment %d launched\n", current_segment);
+			//printf("Segment %d launched\n", current_segment);
 			_scheduler.bucket_request_queue.pop();
 			_scheduler.last_segment_on_tm[tm_index] = current_segment;
 
@@ -392,12 +390,12 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 void UnitStreamScheduler::_issue_return(uint channel_index)
 {
 	Channel& channel = _channels[channel_index];
-	if(!_return_network.is_write_valid(channel_index)) return;
-
 	if(channel.forward_return_valid)
 	{
 		if(channel.forward_return.dst < _return_network.num_sinks())
 		{
+			if(!_return_network.is_write_valid(channel_index)) return;
+
 			//forward to ray buffer
 			channel.forward_return.port = channel.forward_return.dst;
 			_return_network.write(channel.forward_return, channel_index);
@@ -406,6 +404,17 @@ void UnitStreamScheduler::_issue_return(uint channel_index)
 		else
 		{
 			//forward to scene buffer
+			if(!_scene_buffer->request_port_write_valid(channel_index)) return;
+
+			MemoryRequest req;
+			req.type = MemoryRequest::Type::STORE;
+			req.size = CACHE_BLOCK_SIZE;
+			req.port = channel_index;
+			req.paddr = channel.forward_return.paddr;
+			req.write_mask = ~0x0ull;
+			std::memcpy(req.data, channel.forward_return.data, CACHE_BLOCK_SIZE);
+
+			_scene_buffer->write_request(req, req.port);
 			channel.forward_return_valid = false;
 		}
 	}

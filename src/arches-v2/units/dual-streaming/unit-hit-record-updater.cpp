@@ -1,9 +1,7 @@
 #pragma once 
 #include "unit-hit-record-updater.hpp"
 
-namespace Arches {
-namespace Units {
-namespace DualStreaming {
+namespace Arches { namespace Units { namespace DualStreaming {
 
 void UnitHitRecordUpdater::clock_rise() 
 {
@@ -73,7 +71,8 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 			{
 				// We need to insert the request to the cache
 				uint replace_index = channel.hit_record_cache.try_insert(rsb_req.hit_info);
-				if (replace_index != ~0) {
+				if (replace_index != ~0) 
+				{
 					HitInfo hit_info_replaced = channel.hit_record_cache.fetch_hit(replace_index);
 					HitRecordCache::State state_replaced = channel.hit_record_cache.get_state(replace_index);
 
@@ -146,7 +145,8 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 	else assert(false);
 }
 
-void UnitHitRecordUpdater::process_returns(uint channel_index) {
+void UnitHitRecordUpdater::process_returns(uint channel_index) 
+{
 	uint port_in_main_memory = channel_index * main_mem_port_stride + main_mem_port_offset;
 	if (!main_memory->return_port_read_valid(port_in_main_memory)) return;
 
@@ -158,12 +158,15 @@ void UnitHitRecordUpdater::process_returns(uint channel_index) {
 	HitInfo hit_info = { hit_in_dram, hit_address };
 
 	uint cache_index = channel.hit_record_cache.process_dram_hit(hit_info);
-	if (cache_index != ~0) {
+	if (cache_index != ~0) 
+	{
 		HitInfo cloest_hit_info = channel.hit_record_cache.fetch_hit(cache_index);
 		// If there are load requests from TP
-		if (channel.rsb_load_queue.count(hit_address)) {
+		if (channel.rsb_load_queue.count(hit_address)) 
+		{
 			uint64_t rsb_set = channel.rsb_load_queue[hit_address];
-			for (uint64_t set = rsb_set, rsb_index; set != 0; set ^= (1ull << rsb_index)) {
+			for (uint64_t set = rsb_set, rsb_index; set != 0; set ^= (1ull << rsb_index)) 
+			{
 				rsb_index = ctz(set);
 				assert(channel.rsb_counter.count({ hit_address, rsb_index }));
 				MemoryReturn ret_to_rsb;
@@ -181,7 +184,8 @@ void UnitHitRecordUpdater::process_returns(uint channel_index) {
 	else assert(false); // there must be a record in the cache
 }
 
-void UnitHitRecordUpdater::issue_requests(uint channel_index) {
+void UnitHitRecordUpdater::issue_requests(uint channel_index) 
+{
 	uint port_in_main_memory = channel_index * main_mem_port_stride + main_mem_port_offset;
 	if (!main_memory->request_port_write_valid(port_in_main_memory)) return;
 	Channel& channel = channels[channel_index];
@@ -189,7 +193,8 @@ void UnitHitRecordUpdater::issue_requests(uint channel_index) {
 	bool requested = false;
 
 	// Write first
-	if (!channel.write_queue.empty()) {
+	if (!channel.write_queue.empty()) 
+	{
 		MemoryRequest req = channel.write_queue.front();
 		channel.write_queue.pop();
 		req.port = port_in_main_memory;
@@ -197,24 +202,26 @@ void UnitHitRecordUpdater::issue_requests(uint channel_index) {
 		requested = true;
 	}
 	// Read
-	if (!requested && !channel.read_queue.empty()) {
+	if (!requested && !channel.read_queue.empty()) 
+	{
 		MemoryRequest req = channel.read_queue.front();
 		channel.read_queue.pop();
 		req.port = port_in_main_memory;
 		main_memory->write_request(req, port_in_main_memory);
 		requested = true;
 	}
-
-	
 }
 
-void UnitHitRecordUpdater::issue_returns(uint channel_index) {
+void UnitHitRecordUpdater::issue_returns(uint channel_index) 
+{
 	Channel& channel = channels[channel_index];
 	auto& queue = channel.return_queue;
 
-	if (!queue.empty()) {
+	if (!queue.empty()) 
+	{
 		MemoryReturn ret = queue.front();
-		if (return_network.is_write_valid(ret.port)) {
+		if (return_network.is_write_valid(ret.port)) 
+		{
 			return_network.write(ret, ret.port);
 			assert(ret.size == sizeof(rtm::Hit));
 			queue.pop();
@@ -223,6 +230,4 @@ void UnitHitRecordUpdater::issue_returns(uint channel_index) {
 }
 
 
-}
-}
-}
+}}}

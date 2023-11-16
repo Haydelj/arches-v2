@@ -170,6 +170,22 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 		return mem_req;
 	}),
+	InstructionInfo(0x5, "lsd", InstrType::CUSTOM7, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	{
+		RegAddr reg_addr;
+		reg_addr.reg = instr.i.rd;
+		reg_addr.reg_type = RegType::FLOAT;
+		reg_addr.sign_ext = false;
+
+		//load hit record into registers [rd - (rd + N)]
+		MemoryRequest mem_req;
+		mem_req.type = MemoryRequest::Type::LOAD;
+		mem_req.size = 8;
+		mem_req.dst = reg_addr.u8;
+		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
+
+		return mem_req;
+	}),
 };
 
 const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3]; });
@@ -240,17 +256,23 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM4] = "SWI";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM5] = "CSHIT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM6] = "LHIT";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM7] = "LSD";
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::custom0;
 
 	uint64_t num_tps_per_tm = 64;
 	uint64_t num_tms = 64;
 
+	uint64_t num_l1_banks = 8;
+	uint64_t num_l2_banks = 32;
+	uint64_t num_ray_coalescer_banks = 16;
+	uint64_t num_mc_ports = 64;
+
 	uint64_t num_tps = num_tps_per_tm * num_tms;
 	uint64_t num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
 
 	//hardware spec
-	uint64_t mem_size = 4ull * 1024ull * 1024ull * 1024ull; //4GB
-	uint64_t stack_size = 4096; //1KB
+	uint64_t mem_size = 1ull * 1024ull * 1024ull * 1024ull; //1GB
+	uint64_t stack_size = 2048; //1KB
 
 	Simulator simulator;
 	std::vector<Units::UnitTP*> tps;
@@ -262,9 +284,8 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
 
-	Units::UnitDRAM dram(64, mem_size, &simulator); dram.clear();
+	Units::UnitDRAM dram(num_mc_ports, mem_size, &simulator); dram.clear();
 	simulator.register_unit(&dram);
-
 	simulator.new_unit_group();
 
 	ELF elf("../dual-streaming-kernel/riscv/kernel");
@@ -272,63 +293,63 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 
 	KernelArgs kernel_args = initilize_buffers(&dram, heap_address);
 
-	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
-	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
-	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
-	stream_scheduler_config.num_tms = num_tms;
-	stream_scheduler_config.num_banks = 16;
-	stream_scheduler_config.cheat_treelets = (Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
-	stream_scheduler_config.main_mem = &dram;
-	stream_scheduler_config.main_mem_port_offset = 1;
-	stream_scheduler_config.main_mem_port_stride = 4;
-
-	Units::DualStreaming::UnitStreamScheduler stream_scheduler(stream_scheduler_config);
-	simulator.register_unit(&stream_scheduler);
-
 	Units::DualStreaming::UnitHitRecordUpdater::Configuration hit_record_updater_config;
 	hit_record_updater_config.num_tms = num_tms;
 	hit_record_updater_config.main_mem = &dram;
 	hit_record_updater_config.main_mem_port_offset = 3;
-	hit_record_updater_config.main_mem_port_stride = 4;
+	hit_record_updater_config.main_mem_port_stride = num_mc_ports / NUM_DRAM_CHANNELS;
 	hit_record_updater_config.hit_record_start = *(paddr_t*)&kernel_args.hit_records;
-	hit_record_updater_config.cache_size = 128; // 128 * 16 = 2048B = 2KB
+	hit_record_updater_config.cache_size = 256; // 128 * 16 = 2048B = 2KB
 	hit_record_updater_config.associativity = 4;
+
 	Units::DualStreaming::UnitHitRecordUpdater hit_record_updater(hit_record_updater_config);
 	simulator.register_unit(&hit_record_updater);
 
-	/*
 	Units::UnitBuffer::Configuration scene_buffer_config;
-	scene_buffer_config.size = scene_buffer_size;
+	scene_buffer_config.size = 4 * 1024 * 1024;
 	scene_buffer_config.num_banks = 32;
-	scene_buffer_config.num_ports = num_tms + 1;
+	scene_buffer_config.bank_select_mask = 0b0000'1110'0001'0100'0000ull;
+	scene_buffer_config.num_ports = NUM_DRAM_CHANNELS;
 	scene_buffer_config.latency = 3;
 
 	Units::UnitBuffer scene_buffer(scene_buffer_config);
 	simulator.register_unit(&scene_buffer);
-	*/
-
-	simulator.new_unit_group();
 
 	Units::UnitBlockingCache::Configuration l2_config;
 	l2_config.size = 4 * 1024 * 1024;
 	l2_config.associativity = 8;
-	l2_config.num_ports = num_tms * 8;
-	l2_config.num_banks = 32;
-	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull; //The high order bits need to match the channel assignment bits
+	l2_config.num_ports = num_tms * num_l1_banks;
+	l2_config.num_banks = num_l2_banks;
+	l2_config.bank_select_mask = 0b0000'1110'0001'0100'0000ull; //The high order bits need to match the channel assignment bits
 	l2_config.data_array_latency = 4;
 	l2_config.mem_higher = &dram;
 	l2_config.mem_higher_port_offset = 0;
-	l2_config.mem_higher_port_stride = 2;
+	l2_config.mem_higher_port_stride = num_mc_ports / num_l2_banks;
 
 	Units::UnitBlockingCache l2(l2_config);
 	simulator.register_unit(&l2);
 
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
 	simulator.register_unit(&atomic_regs);
+	simulator.new_unit_group();
+
+	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
+	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
+	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
+	stream_scheduler_config.num_tms = num_tms;
+	stream_scheduler_config.num_banks = num_ray_coalescer_banks;
+	stream_scheduler_config.cheat_treelets = (Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
+	stream_scheduler_config.scene_buffer = &scene_buffer;
+	stream_scheduler_config.main_mem = &dram;
+	stream_scheduler_config.main_mem_port_offset = 1;
+	stream_scheduler_config.main_mem_port_stride = num_mc_ports / NUM_DRAM_CHANNELS;
+
+	Units::DualStreaming::UnitStreamScheduler stream_scheduler(stream_scheduler_config);
+	simulator.register_unit(&stream_scheduler);
+	simulator.new_unit_group();
 
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
 	{
-		simulator.new_unit_group();
 		std::vector<Units::UnitBase*> unit_table((uint)ISA::RISCV::InstrType::NUM_TYPES, nullptr);
 
 		std::vector<Units::UnitMemoryBase*> mem_list;
@@ -337,7 +358,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		l1_config.size = 32 * 1024;
 		l1_config.associativity = 4;
 		l1_config.num_ports = num_tps_per_tm;
-		l1_config.num_banks = 8;
+		l1_config.num_banks = num_l1_banks;
 		l1_config.bank_select_mask = 0b0000'0101'0100'0000ull;
 		l1_config.data_array_latency = 0;
 		l1_config.num_lfb = 8;
@@ -350,6 +371,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1s.back();
 		unit_table[(uint)ISA::RISCV::InstrType::STORE] = l1s.back();
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = l1s.back(); //LSD
 
 		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height));
 		mem_list.push_back(thread_schedulers.back());
@@ -420,6 +442,8 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 			simulator.register_unit(tps.back());
 			simulator.units_executing++;
 		}
+
+		simulator.new_unit_group();
 	}
 
 	auto start = std::chrono::high_resolution_clock::now();

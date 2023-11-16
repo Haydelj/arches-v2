@@ -14,43 +14,53 @@ public:
 private:
 	uint8_t _check_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info) override
 	{
-		if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM1) //BOX ISECT
+		switch(instr_info.instr_type)
 		{
+		case ISA::RISCV::InstrType::CUSTOM1: //BOX ISECT
 			for(uint i = 0; i <= 11; ++i)
-				if(_float_regs_pending[i]) 
+				if(_float_regs_pending[i])
 					return _float_regs_pending[i];
-		}
-		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM2) //TRI ISECT
-		{
+			break;
+
+		case ISA::RISCV::InstrType::CUSTOM2: //TRI ISECT
 			for(uint i = 0; i <= 17; ++i)
-				if(_float_regs_pending[i]) 
+				if(_float_regs_pending[i])
 					return _float_regs_pending[i];
-		}
-		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM3) //LWI
-		{
+			break;
+
+		case ISA::RISCV::InstrType::CUSTOM3: //LWI
 			for(uint i = 0; i < sizeof(WorkItem) / sizeof(float); ++i)
 				if(_float_regs_pending[instr.rd + i])
 					return _float_regs_pending[instr.rd + i];
-		}
-		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM4) //SWI
-		{
+			break;
+
+		case ISA::RISCV::InstrType::CUSTOM4: //SWI
 			for(uint i = 0; i < sizeof(WorkItem) / sizeof(float); ++i)
 				if(_float_regs_pending[instr.rs2 + i])
 					return _float_regs_pending[instr.rs2 + i];
-		}
-		else if (instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM5) { // CSHIT
-			for (uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); i++) {
-				if (_float_regs_pending[instr.rs2 + i])
+			break;
+
+		case ISA::RISCV::InstrType::CUSTOM5: //CSHIT
+			for(uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); i++)
+				if(_float_regs_pending[instr.rs2 + i])
 					return _float_regs_pending[instr.rs2 + i];
-			}
-		}
-		else if (instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM6) { // LHIT
-			for (uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); i++) {
-				if (_float_regs_pending[instr.rd + i])
+			break;
+
+		case ISA::RISCV::InstrType::CUSTOM6: //LHIT
+			for(uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); i++)
+				if(_float_regs_pending[instr.rd + i])
 					return _float_regs_pending[instr.rd + i];
-			}
+			break;
+
+		case ISA::RISCV::InstrType::CUSTOM7: //LSD
+			for(uint i = 0; i < 2; i++)
+				if(_float_regs_pending[instr.rd + i])
+					return _float_regs_pending[instr.rd + i];
+			break;
+
+		default:
+			return Units::UnitTP::_check_dependancies(instr, instr_info);
 		}
-		else return Units::UnitTP::_check_dependancies(instr, instr_info);
 
 		return 0;
 	}
@@ -71,6 +81,11 @@ private:
 		{
 			for (uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); ++i)
 				_float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM6;
+		}
+		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM7) //LSD
+		{
+			for(uint i = 0; i < 2; ++i)
+				_float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM7;
 		}
 		else Units::UnitTP::_set_dependancies(instr, instr_info);
 	}

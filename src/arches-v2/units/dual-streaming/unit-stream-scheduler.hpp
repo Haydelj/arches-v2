@@ -46,6 +46,8 @@ public:
 		uint num_tms;
 		uint num_banks;
 
+		UnitMemoryBase* scene_buffer;
+
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{0};
 		uint                main_mem_port_stride{1};
@@ -207,6 +209,8 @@ private:
 		bool forward_return_valid{false};
 	};
 
+	UnitMemoryBase* _scene_buffer;
+
 	UnitMainMemoryBase* _main_mem;
 	uint                _main_mem_port_offset;
 	uint                _main_mem_port_stride;
@@ -221,6 +225,7 @@ private:
 public:
 	UnitStreamScheduler(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, NUM_DRAM_CHANNELS)
 	{
+		_scene_buffer = config.scene_buffer;
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;

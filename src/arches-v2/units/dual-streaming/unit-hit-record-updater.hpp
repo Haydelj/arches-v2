@@ -9,7 +9,8 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
-struct HitInfo {
+struct HitInfo 
+{
 	rtm::Hit hit;
 	paddr_t hit_address;
 };
@@ -17,7 +18,8 @@ struct HitInfo {
 
 struct HitRecordUpdaterRequest
 {
-	enum TYPE{
+	enum TYPE
+	{
 		STORE = 0,
 		LOAD
 	};
@@ -33,7 +35,8 @@ struct HitRecordUpdaterRequest
 * Each channel maintains a local hit record cache. When a new hit record is requesting data from DRAM, we use the cache to store the record. When the cache is full, the TPs are blocked.
 * Each channel processes one request from TPs in one cycle. Channels issue write request first (if available), then read request.
 */
-class UnitHitRecordUpdater : public UnitBase {
+class UnitHitRecordUpdater : public UnitBase 
+{
 public:
 	struct Configuration
 	{
@@ -53,7 +56,8 @@ public:
 	/*
 	* Hit record cache in the updater. It is a set-associative cache used for storing requesting updates.
 	*/
-	class HitRecordCache {
+	class HitRecordCache 
+	{
 	public:
 		enum class State : uint8_t
 		{
@@ -63,7 +67,8 @@ public:
 			EMPTY,
 		};
 	private:
-		struct CacheElement {
+		struct CacheElement 
+		{
 			State state;
 			HitInfo hit_info;
 			uint lru = 0;
@@ -73,41 +78,50 @@ public:
 		uint associativity;
 		uint num_set;
 	public:
-		HitRecordCache(uint _cache_size, uint _associativity): cache_size(_cache_size), associativity(_associativity), num_set(_cache_size / _associativity){
+		HitRecordCache(uint _cache_size, uint _associativity): cache_size(_cache_size), associativity(_associativity), num_set(_cache_size / _associativity)
+		{
 			cache.resize(cache_size, { State::EMPTY });
 		}
 		
-		uint look_up(HitInfo hit_info) {
+		uint look_up(HitInfo hit_info) 
+		{
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			assert(end_index <= cache_size);
 			uint found_index = ~0;
 			uint counter = 0;
-			for (int i = start_index; i < end_index; i++) {
-				if (cache[i].state != State::EMPTY && cache[i].hit_info.hit_address == hit_info.hit_address) {
+			for (int i = start_index; i < end_index; i++) 
+			{
+				if (cache[i].state != State::EMPTY && cache[i].hit_info.hit_address == hit_info.hit_address) 
+				{
 					found_index = i;
 					counter += 1;
 				}
 			}
 			assert(counter < 2);
 			if (!counter) return ~0;
-			for (int i = start_index; i < end_index; i++) {
+			for (int i = start_index; i < end_index; i++) 
+			{
 				if (cache[i].lru < cache[found_index].lru) cache[i].lru++;
 			}
 			cache[found_index].lru = 0;
 			return found_index;
 		}
 
-		void compare_replace(HitInfo hit_info) {
+		void compare_replace(HitInfo hit_info) 
+		{
 			// This must come from a write request
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			assert(end_index <= cache_size);
 			uint found_index = ~0;
-			for (int i = start_index; i < end_index; i++) {
-				if (cache[i].state != State::EMPTY && cache[i].hit_info.hit_address == hit_info.hit_address) {
+			for (int i = start_index; i < end_index; i++) 
+			{
+				if (cache[i].state != State::EMPTY && cache[i].hit_info.hit_address == hit_info.hit_address) 
+				{
 					found_index = i;
-					if (hit_info.hit.t < cache[i].hit_info.hit.t) {
+					if (hit_info.hit.t < cache[i].hit_info.hit.t) 
+					{
 						if(cache[i].state == State::CLOSEST_DRAM) cache[i].state = State::CLOSEST_WRITE;
 						cache[i].hit_info = hit_info;
 					}
@@ -116,8 +130,10 @@ public:
 			assert(found_index != ~0);
 		}
 
-		void direct_replace(HitInfo hit_info, uint cache_index) {
-			if (cache_index != ~0) {
+		void direct_replace(HitInfo hit_info, uint cache_index) 
+		{
+			if (cache_index != ~0) 
+			{
 				cache[cache_index].state = State::LOAD_FROM_DRAM;
 				cache[cache_index].lru = 0;
 				cache[cache_index].hit_info = hit_info;
@@ -127,18 +143,24 @@ public:
 		/*!
 		* \brief Hit record from DRAM.
 		*/
-		uint process_dram_hit(HitInfo hit_info) {
+		uint process_dram_hit(HitInfo hit_info) 
+		{
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			assert(end_index <= cache_size);
 			uint found_index = ~0;
-			for (int i = start_index; i < end_index; i++) {
-				if (cache[i].state == State::LOAD_FROM_DRAM && cache[i].hit_info.hit_address == hit_info.hit_address) {
+			for (int i = start_index; i < end_index; i++) 
+			{
+				if (cache[i].state == State::LOAD_FROM_DRAM && cache[i].hit_info.hit_address == hit_info.hit_address) 
+				{
 					found_index = i;
-					if (cache[i].hit_info.hit.t < hit_info.hit.t) { // The record in cache is closer
+					if (cache[i].hit_info.hit.t < hit_info.hit.t) 
+					{ 
+						// The record in cache is closer
 						cache[i].state = State::CLOSEST_WRITE;
 					}
-					else {
+					else 
+					{
 						cache[i].hit_info = hit_info;
 						cache[i].state = State::CLOSEST_DRAM;
 					}
@@ -148,21 +170,27 @@ public:
 			return found_index;
 		}
 
-		uint try_insert(HitInfo hit_info) {
+		uint try_insert(HitInfo hit_info) 
+		{
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			assert(end_index <= cache_size);
 			uint found_index = ~0;
-			for (int i = start_index; i < end_index; i++) {
-				if (cache[i].state == State::EMPTY) {
+			for (int i = start_index; i < end_index; i++) 
+			{
+				if (cache[i].state == State::EMPTY) 
+				{
 					found_index = i;
 					break;
 				}
 			}
-			if (found_index == ~0) {
+			if (found_index == ~0) 
+			{
 				uint lru = 0;
-				for (int i = start_index; i < end_index; i++) {
-					if ((cache[i].state == State::CLOSEST_DRAM || cache[i].state == State::CLOSEST_WRITE) && cache[i].lru >= lru) {
+				for (int i = start_index; i < end_index; i++) 
+				{
+					if ((cache[i].state == State::CLOSEST_DRAM || cache[i].state == State::CLOSEST_WRITE) && cache[i].lru >= lru) 
+					{
 						found_index = i;
 						lru = cache[i].lru;
 					}
@@ -171,7 +199,8 @@ public:
 			return found_index;
 		}
 
-		HitInfo fetch_hit(uint cache_index) {
+		HitInfo fetch_hit(uint cache_index) 
+		{
 			return cache[cache_index].hit_info;
 		}
 
@@ -179,13 +208,16 @@ public:
 			return cache[cache_index].state;
 		}
 
-		void update_state(uint cache_index, State state) {
+		void update_state(uint cache_index, State state) 
+		{
 			cache[cache_index].state = state;
 		}
 
-		void check_cache() {
+		void check_cache() 
+		{
 			std::map<int, int> counter;
-			for (int i = 0; i < cache_size; i++) {
+			for (int i = 0; i < cache_size; i++) 
+			{
 				if(cache[i].state != State::EMPTY) counter[cache[i].hit_info.hit_address] += 1;
 			}
 			for (auto [key, value] : counter) assert(value == 1);
@@ -193,10 +225,12 @@ public:
 
 	};
 
-	class HitRecordUpdaterRequestCrossBar : public CasscadedCrossBar<HitRecordUpdaterRequest> {
+	class HitRecordUpdaterRequestCrossBar : public CasscadedCrossBar<HitRecordUpdaterRequest> 
+	{
 	public:
 		HitRecordUpdaterRequestCrossBar(uint ports, uint channels, paddr_t hit_record_start_address) : CasscadedCrossBar<HitRecordUpdaterRequest>(ports, channels, channels), hit_record_start_address(hit_record_start_address){}
-		uint get_sink(const HitRecordUpdaterRequest& request) override {
+		uint get_sink(const HitRecordUpdaterRequest& request) override 
+		{
 			paddr_t hit_record_address = request.hit_info.hit_address;
 			int channel_id = calcDramAddr(hit_record_address).channel;
 			return calcDramAddr(hit_record_address).channel;
@@ -215,7 +249,8 @@ public:
 		}
 	};
 
-	struct Channel {
+	struct Channel 
+	{
 		HitRecordCache hit_record_cache; //128 records
 		std::queue<MemoryRequest> read_queue; //128 * 7 = 1024 bit
 		std::queue<MemoryRequest> write_queue;
@@ -248,9 +283,9 @@ private:
 
 public:
 	UnitHitRecordUpdater(Configuration config) : request_network(config.num_tms, NUM_DRAM_CHANNELS, config.hit_record_start), main_memory(config.main_mem), return_network(config.num_tms), main_mem_port_offset(config.main_mem_port_offset), main_mem_port_stride(config.main_mem_port_stride), hit_record_start_address(config.hit_record_start){
-		for (int i = 0; i < NUM_DRAM_CHANNELS; i++) {
+		for (int i = 0; i < NUM_DRAM_CHANNELS; i++) 
+		{
 			channels.push_back({ HitRecordCache(config.cache_size, config.associativity) });
-
 		}
 		busy = 0;
 	}
