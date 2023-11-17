@@ -66,15 +66,15 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	mesh.get_triangles(tris);
 
 	KernelArgs args;
-	args.framebuffer_width = 1024;
-	args.framebuffer_height = 1024;
+	args.framebuffer_width = 256;
+	args.framebuffer_height = 256;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address); heap_address += args.framebuffer_size * sizeof(uint32_t);
 
 	args.samples_per_pixel = 1;
-	args.max_depth = 1;
+	args.max_depth = 2;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));

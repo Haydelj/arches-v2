@@ -176,7 +176,7 @@ void UnitStreamScheduler::_update_scheduler()
 				child_bank.bucket_flush_queue.push(child_segment_index);
 			}
 
-			break;
+			break; // Why break here?
 		}
 
 		_scheduler.bucket_complete_queue.pop();
@@ -214,7 +214,7 @@ void UnitStreamScheduler::_update_scheduler()
 				//Add the segment to the active set
 				_scheduler.active_segments.insert(next_segment);
 				printf("Segment %d scheduled\n", next_segment);
-				break;
+				break; // Why do you need to break here?
 			}
 		} 
 		while(!_scheduler.traversal_queue.empty());
@@ -249,7 +249,7 @@ void UnitStreamScheduler::_update_scheduler()
 				if(state.total_buckets == 0)
 				{
 					//If no ray were launched erase the candidate from the active set as well 
-					_scheduler.active_segments.erase(candidate_segment);
+					_scheduler.active_segments.erase(candidate_segment); 
 				}
 				else
 				{
