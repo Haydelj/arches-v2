@@ -18,6 +18,7 @@ UnitTP::UnitTP(const Configuration& config) :unit_table(*config.unit_table), uni
 	_pc = config.pc;
 
 	_cheat_memory = config.cheat_memory;
+	_num_tps_per_i_cache = config.num_tps_per_i_cache;
 
 	_tp_index = config.tp_index;
 	_tm_index = config.tm_index;
@@ -152,8 +153,10 @@ void UnitTP::clock_rise()
 	}
 
 	if(inst_cache == nullptr) return;
-	if(!inst_cache->return_port_read_valid(_tp_index)) return;
-	MemoryReturn ret = inst_cache->read_return(_tp_index);
+
+	uint port = _tp_index % _num_tps_per_i_cache;
+	if(!inst_cache->return_port_read_valid(port)) return;
+	MemoryReturn ret = inst_cache->read_return(port);
 	std::memcpy(_i_buffer.data, ret.data, CACHE_BLOCK_SIZE);
 	_i_buffer.paddr = ret.paddr;
 	_i_buffer.getData = true;
@@ -174,22 +177,31 @@ FREE_INSTR:
 	}
 	else
 	{
-		if(_i_buffer.reqData) return;
-		uint addr_offset = _pc - _i_buffer.paddr;
+		if (_i_buffer.reqData)
+		{
+			ibuffer_log.log_flush();
+			return;
+		}
+		paddr_t addr_offset = _pc - _i_buffer.paddr;
 		if((addr_offset < CACHE_BLOCK_SIZE) && _i_buffer.getData)
 		{
+			ibuffer_log.log_hit();
 			i_data = reinterpret_cast<uint32_t*>(_i_buffer.data)[addr_offset / 4];
 		}
 		else
 		{
-			MemoryRequest i_req;
-			i_req.port = _tp_index;
-			i_req.paddr = _pc & ~0x3full;
-			i_req.type = MemoryRequest::Type::LOAD;
-			i_req.size = CACHE_BLOCK_SIZE;
-			inst_cache->write_request(i_req, i_req.port);
-			_i_buffer.reqData = true;
-			_i_buffer.getData = false;
+			ibuffer_log.log_miss();
+			if (inst_cache->request_port_write_valid(_tp_index % _num_tps_per_i_cache)) 
+			{
+				MemoryRequest i_req;
+				i_req.port = _tp_index % _num_tps_per_i_cache;
+				i_req.paddr = _pc & ~0x3full;
+				i_req.type = MemoryRequest::Type::LOAD;
+				i_req.size = CACHE_BLOCK_SIZE;
+				inst_cache->write_request(i_req, i_req.port);
+				_i_buffer.reqData = true;
+				_i_buffer.getData = false;
+			}
 			return;
 		}
 	}
