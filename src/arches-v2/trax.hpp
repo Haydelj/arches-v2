@@ -94,6 +94,7 @@ static void run_sim_trax(int argc, char* argv[])
 	uint num_tps_per_tm = 32;
 	uint num_tms_per_l2 = 8;
 	uint num_l2 = 4;
+	uint num_tps_per_i_cache = 8;
 
 	uint num_tps = num_l2 * num_tms_per_l2 * num_tps_per_tm;
 	uint num_tms = num_tms_per_l2 * num_l2;
@@ -113,7 +114,7 @@ static void run_sim_trax(int argc, char* argv[])
 	std::vector<Units::UnitTP*> tps;
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitNonBlockingCache*> l1s;
-	std::vector<Units::UnitNonBlockingCache*> i_l1s;
+	std::vector<Units::UnitBlockingCache*> i_l1s;
 	std::vector<Units::UnitBlockingCache*> l2s;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
@@ -171,21 +172,23 @@ static void run_sim_trax(int argc, char* argv[])
 			simulator.register_unit(l1s.back());
 
 			// L1 instruction cache
-			Units::UnitNonBlockingCache::Configuration i_l1_config;
-			i_l1_config.size = 32 * 1024;
-			i_l1_config.associativity = 1;
-			i_l1_config.data_array_latency = 0;
-			i_l1_config.num_ports = num_tps_per_tm;
-			i_l1_config.num_banks = 8;
-			i_l1_config.bank_select_mask = 0b0101'0100'0000;
-			i_l1_config.num_lfb = 8;
-			i_l1_config.check_retired_lfb = false;
-			i_l1_config.mem_higher = l2s.back();
-			i_l1_config.mem_higher_port_offset = 8 * tm_i * 2 + 1;
-			i_l1_config.mem_higher_port_stride = 2;
-			Units::UnitNonBlockingCache* i_l1 = new Units::UnitNonBlockingCache(i_l1_config);
-			i_l1s.push_back(i_l1);
-			simulator.register_unit(i_l1s.back());
+			for (uint i_cache_index = 0; i_cache_index < num_tps_per_tm / num_tps_per_i_cache; ++i_cache_index)
+			{
+				Units::UnitBlockingCache::Configuration i_l1_config;
+				i_l1_config.size = 32 * 1024 / num_tps_per_i_cache;
+				i_l1_config.associativity = 1;
+				i_l1_config.data_array_latency = 0;
+				i_l1_config.num_ports = num_tps_per_i_cache;
+				i_l1_config.num_banks = 1;
+				i_l1_config.bank_select_mask = 0;
+				//i_l1_config.num_lfb = 1;
+				//i_l1_config.check_retired_lfb = false;
+				i_l1_config.mem_higher = l2s.back();
+				i_l1_config.mem_higher_port_offset = (8 * tm_i + i_cache_index) * 2 + 1;
+				Units::UnitBlockingCache* i_l1 = new Units::UnitBlockingCache(i_l1_config);
+				i_l1s.push_back(i_l1);
+				simulator.register_unit(i_l1s.back());
+			}
 
 			thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height, 8, 8));
 			simulator.register_unit(thread_schedulers.back());
@@ -229,8 +232,9 @@ static void run_sim_trax(int argc, char* argv[])
 				tp_config.pc = elf.elf_header->e_entry.u64;
 				tp_config.sp = 0x0;
 				tp_config.stack_size = stack_size;
-				//tp_config.cheat_memory = mm._data_u8;
-				tp_config.inst_cache = i_l1;
+				tp_config.cheat_memory = mm._data_u8;
+				tp_config.inst_cache = i_l1s[uint(tm_index * num_tps_per_tm / num_tps_per_i_cache + tp_index / num_tps_per_i_cache)];
+				tp_config.num_tps_per_i_cache = num_tps_per_i_cache;
 				tp_config.unit_table = &unit_tables.back();
 				tp_config.unique_mems = &mem_lists.back();
 				tp_config.unique_sfus = &sfu_lists.back();
@@ -257,12 +261,27 @@ static void run_sim_trax(int argc, char* argv[])
 	for(auto& tp : tps)
 		tp_log.accumulate(tp->log);
 	tp_log.print_log();
-
+	
 	printf("\nL1\n");
 	Units::UnitNonBlockingCache::Log l1_log;
 	for(auto& l1 : l1s)
 		l1_log.accumulate(l1->log);
 	l1_log.print_log();
+
+	if (!l1s.empty())
+	{
+		printf("\nInstruction L1\n");
+		Units::UnitBlockingCache::Log i_l1_log;
+		for (auto& i_l1 : i_l1s)
+			i_l1_log.accumulate(i_l1->log);
+		i_l1_log.print_log();
+
+		printf("\nInstruction L1 buffer\n");
+		Units::UnitTP::Ibuffer_Log ibuffer_log;
+		for (auto& tp : tps)
+			ibuffer_log.accumulate(tp->ibuffer_log);
+		ibuffer_log.print_log();
+	}
 
 	printf("\nL2\n");
 	Units::UnitBlockingCache::Log l2_log;
@@ -277,6 +296,7 @@ static void run_sim_trax(int argc, char* argv[])
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;
 	for(auto& l1 : l1s) delete l1;
+	for(auto& i_l1 : i_l1s) delete i_l1;
 	for(auto& l2 : l2s) delete l2;
 	for(auto& ts : thread_schedulers) delete ts;
 

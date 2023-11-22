@@ -35,6 +35,7 @@ public:
 		const std::vector<UnitSFU*>* unique_sfus;
 		const std::vector<UnitMemoryBase*>* unique_mems;
 		UnitMemoryBase* inst_cache{nullptr};
+		uint num_tps_per_i_cache;
 	};
 
 protected:
@@ -46,14 +47,16 @@ protected:
 		vaddr_t                               _pc{};
 
 		uint8_t* _cheat_memory{nullptr};
+		// instruction cache
 		struct IBuffer
-		{
-			uint8_t data[CACHE_BLOCK_SIZE];
-			paddr_t paddr{0};
-			bool reqData{false};
-			bool getData{false};
-		}_i_buffer;
-		UnitMemoryBase* inst_cache{nullptr};
+			{
+				uint8_t data[CACHE_BLOCK_SIZE];
+				paddr_t paddr{0};
+				bool reqData{false};
+				bool getData{false};
+			}_i_buffer;
+			UnitMemoryBase* inst_cache{nullptr};
+		uint _num_tps_per_i_cache;
 
 		uint8_t _float_regs_pending[32];
 		uint8_t _int_regs_pending[32];
@@ -241,6 +244,46 @@ public:
 			}
 		}
 	}log;
+	class Ibuffer_Log
+	{
+	public:
+		uint64_t _hits;
+		uint64_t _misses;
+		uint64_t _flushes;
+
+		Ibuffer_Log() { reset(); }
+
+		void reset()
+		{
+			_hits = 0;
+			_misses = 0;
+			_flushes = 0;
+		}
+
+		void accumulate(const Ibuffer_Log& other)
+		{
+			_hits += other._hits;
+			_misses += other._misses;
+			_flushes += other._flushes;
+		}
+
+		void log_hit(uint n = 1) { _hits += n; } //TODO hit under miss logging
+		void log_miss(uint n = 1) { _misses += n; }
+		void log_flush(uint n = 1) { _flushes += n; }
+
+		uint64_t get_total() { return _hits + _misses + _flushes; }
+
+		void print_log(FILE* stream = stdout, uint units = 1)
+		{
+			uint64_t total = get_total();
+			float ft = total / 100.0f;
+
+			fprintf(stream, "Total: %lld\n", total / units);
+			fprintf(stream, "Hits: %lld(%.2f%%)\n", _hits / units, _hits / ft);
+			fprintf(stream, "Misses: %lld(%.2f%%)\n", _misses / units, _misses / ft);
+			fprintf(stream, "Flushes: %lld(%.2f%%)\n", _flushes / units, _flushes / ft);
+		}
+	}ibuffer_log;
 };
 
 }
