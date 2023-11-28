@@ -238,6 +238,7 @@ static void run_sim_trax(int argc, char* argv[])
 				tp_config.unit_table = &unit_tables.back();
 				tp_config.unique_mems = &mem_lists.back();
 				tp_config.unique_sfus = &sfu_lists.back();
+				//tp_config.num_threads = 1;
 
 				tps.push_back(new Units::UnitTP(tp_config));
 				simulator.register_unit(tps.back());

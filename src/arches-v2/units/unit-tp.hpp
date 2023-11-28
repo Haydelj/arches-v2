@@ -49,14 +49,12 @@ protected:
 		uint8_t* _cheat_memory{nullptr};
 		// instruction cache
 		struct IBuffer
-			{
-				uint8_t data[CACHE_BLOCK_SIZE];
-				paddr_t paddr{0};
-				bool reqData{false};
-				bool getData{false};
-			}_i_buffer;
-			UnitMemoryBase* inst_cache{nullptr};
-		uint _num_tps_per_i_cache;
+		{
+			uint8_t data[CACHE_BLOCK_SIZE];
+			paddr_t paddr{0};
+			bool reqData{false};
+			bool getData{false};
+		}_i_buffer;
 
 		uint8_t _float_regs_pending[32];
 		uint8_t _int_regs_pending[32];
@@ -66,6 +64,8 @@ protected:
 
 	};
 	std::vector<ThreadData> thread_data;
+	uint _num_tps_per_i_cache;
+	UnitMemoryBase* inst_cache{nullptr};
 
 	uint _tp_index;
 	uint _tm_index;

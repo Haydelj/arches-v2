@@ -10,7 +10,7 @@ namespace Units {
 #define ENABLE_TP_DEBUG_PRINTS (false)
 #endif
 
-UnitTP::UnitTP(const Configuration& config) :unit_table(*config.unit_table), unique_mems(*config.unique_mems), unique_sfus(*config.unique_sfus), inst_cache(config.inst_cache), inst_cache(config.inst_cache), log(0x10000), num_threads(config.num_threads)
+UnitTP::UnitTP(const Configuration& config) :unit_table(*config.unit_table), unique_mems(*config.unique_mems), unique_sfus(*config.unique_sfus), inst_cache(config.inst_cache), log(0x10000), num_threads(config.num_threads)
 {
 
 	for (int i = 0; i < config.num_threads; i++) {
@@ -178,23 +178,14 @@ void UnitTP::clock_rise()
 
 	if(inst_cache == nullptr) return;
 
+	ThreadData& thread = thread_data[current_thread_id];
 	uint port = _tp_index % _num_tps_per_i_cache;
 	if(!inst_cache->return_port_read_valid(port)) return;
 	MemoryReturn ret = inst_cache->read_return(port);
-	std::memcpy(_i_buffer.data, ret.data, CACHE_BLOCK_SIZE);
-	_i_buffer.paddr = ret.paddr;
-	_i_buffer.getData = true;
-	_i_buffer.reqData = false;
-
-	if(inst_cache == nullptr) return;
-
-	uint port = _tp_index % _num_tps_per_i_cache;
-	if(!inst_cache->return_port_read_valid(port)) return;
-	MemoryReturn ret = inst_cache->read_return(port);
-	std::memcpy(_i_buffer.data, ret.data, CACHE_BLOCK_SIZE);
-	_i_buffer.paddr = ret.paddr;
-	_i_buffer.getData = true;
-	_i_buffer.reqData = false;
+	std::memcpy(thread._i_buffer.data, ret.data, CACHE_BLOCK_SIZE);
+	thread._i_buffer.paddr = ret.paddr;
+	thread._i_buffer.getData = true;
+	thread._i_buffer.reqData = false;
 }
 
 void UnitTP::clock_fall()
@@ -212,16 +203,16 @@ FREE_INSTR:
 	}
 	else
 	{
-		if (_i_buffer.reqData)
+		if (thread._i_buffer.reqData)
 		{
 			ibuffer_log.log_flush();
 			return;
 		}
-		paddr_t addr_offset = thread._pc - _i_buffer.paddr;
-		if((addr_offset < CACHE_BLOCK_SIZE) && _i_buffer.getData)
+		paddr_t addr_offset = thread._pc - thread._i_buffer.paddr;
+		if((addr_offset < CACHE_BLOCK_SIZE) && thread._i_buffer.getData)
 		{
 			ibuffer_log.log_hit();
-			i_data = reinterpret_cast<uint32_t*>(_i_buffer.data)[addr_offset / 4];
+			i_data = reinterpret_cast<uint32_t*>(thread._i_buffer.data)[addr_offset / 4];
 		}
 		else
 		{
@@ -234,8 +225,8 @@ FREE_INSTR:
 				i_req.type = MemoryRequest::Type::LOAD;
 				i_req.size = CACHE_BLOCK_SIZE;
 				inst_cache->write_request(i_req, i_req.port);
-				_i_buffer.reqData = true;
-				_i_buffer.getData = false;
+				thread._i_buffer.reqData = true;
+				thread._i_buffer.getData = false;
 			}
 			return;
 		}
