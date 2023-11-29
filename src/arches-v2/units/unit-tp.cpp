@@ -205,18 +205,18 @@ FREE_INSTR:
 	{
 		if (thread._i_buffer.reqData)
 		{
-			ibuffer_log.log_flush();
+			log.log_ibuffer_flush();
 			return;
 		}
 		paddr_t addr_offset = thread._pc - thread._i_buffer.paddr;
 		if((addr_offset < CACHE_BLOCK_SIZE) && thread._i_buffer.getData)
 		{
-			ibuffer_log.log_hit();
+			log.log_ibuffer_hit();
 			i_data = reinterpret_cast<uint32_t*>(thread._i_buffer.data)[addr_offset / 4];
 		}
 		else
 		{
-			ibuffer_log.log_miss();
+			log.log_ibuffer_miss();
 			if (inst_cache->request_port_write_valid(_tp_index % _num_tps_per_i_cache)) 
 			{
 				MemoryRequest i_req;

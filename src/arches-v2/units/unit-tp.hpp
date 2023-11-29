@@ -107,6 +107,10 @@ public:
 		uint64_t _resource_stall_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
 		uint64_t _data_stall_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
 
+		uint64_t _ibuffer_hits;
+		uint64_t _ibuffer_misses;
+		uint64_t _ibuffer_flushes;
+
 	public:
 		Log(uint64_t elf_start_addr) : _elf_start_addr(elf_start_addr) { reset(); }
 
@@ -119,6 +123,9 @@ public:
 				_data_stall_counters[i] = 0;
 				_profile_counters.clear();
 			}
+			_ibuffer_hits = 0;
+			_ibuffer_misses = 0;
+			_ibuffer_flushes = 0;
 		}
 
 		void accumulate(const Log& other)
@@ -135,6 +142,9 @@ public:
 			{
 				_profile_counters[i] += other._profile_counters[i];
 			}
+			_ibuffer_hits += other._ibuffer_hits;
+			_ibuffer_misses += other._ibuffer_misses;
+			_ibuffer_flushes += other._ibuffer_flushes;
 		}
 
 		void profile_instruction(vaddr_t pc)
@@ -165,6 +175,11 @@ public:
 			_data_stall_counters[type]++;
 			profile_instruction(pc);
 		}
+
+		void log_ibuffer_hit(uint n = 1) { _ibuffer_hits += n; }
+		void log_ibuffer_miss(uint n = 1) { _ibuffer_misses += n; }
+		void log_ibuffer_flush(uint n = 1) { _ibuffer_flushes += n; }
+		uint64_t get_ibuffer_total() { return _ibuffer_hits + _ibuffer_misses + _ibuffer_flushes; }
 
 		void print_log(FILE* stream = stdout, uint num_units = 1)
 		{
@@ -215,6 +230,15 @@ public:
 			fprintf(stream, "\tTotal: %lld\n", total / num_units);
 			for (uint i = 0; i < _data_stall_counter_pairs.size(); ++i)
 				if (_data_stall_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, static_cast<float>(_data_stall_counter_pairs[i].second) / total * 100.0f);
+
+			// instruction buffer log print
+			fprintf(stream, "Instruction L1 buffer\n");
+			total = get_ibuffer_total();
+			float ft = total / 100.0f;
+			fprintf(stream, "\tTotal: %lld\n", total / num_units);
+			fprintf(stream, "\tHits: %lld(%.2f%%)\n", _ibuffer_hits / num_units, _ibuffer_hits / ft);
+			fprintf(stream, "\tMisses: %lld(%.2f%%)\n", _ibuffer_misses / num_units, _ibuffer_misses / ft);
+			fprintf(stream, "\tFlushes: %lld(%.2f%%)\n", _ibuffer_flushes / num_units, _ibuffer_flushes / ft);
 		}
 
 		void print_profile(uint8_t* backing_memory, FILE* stream = stdout)
@@ -244,46 +268,6 @@ public:
 			}
 		}
 	}log;
-	class Ibuffer_Log
-	{
-	public:
-		uint64_t _hits;
-		uint64_t _misses;
-		uint64_t _flushes;
-
-		Ibuffer_Log() { reset(); }
-
-		void reset()
-		{
-			_hits = 0;
-			_misses = 0;
-			_flushes = 0;
-		}
-
-		void accumulate(const Ibuffer_Log& other)
-		{
-			_hits += other._hits;
-			_misses += other._misses;
-			_flushes += other._flushes;
-		}
-
-		void log_hit(uint n = 1) { _hits += n; } //TODO hit under miss logging
-		void log_miss(uint n = 1) { _misses += n; }
-		void log_flush(uint n = 1) { _flushes += n; }
-
-		uint64_t get_total() { return _hits + _misses + _flushes; }
-
-		void print_log(FILE* stream = stdout, uint units = 1)
-		{
-			uint64_t total = get_total();
-			float ft = total / 100.0f;
-
-			fprintf(stream, "Total: %lld\n", total / units);
-			fprintf(stream, "Hits: %lld(%.2f%%)\n", _hits / units, _hits / ft);
-			fprintf(stream, "Misses: %lld(%.2f%%)\n", _misses / units, _misses / ft);
-			fprintf(stream, "Flushes: %lld(%.2f%%)\n", _flushes / units, _flushes / ft);
-		}
-	}ibuffer_log;
 };
 
 }

@@ -276,12 +276,6 @@ static void run_sim_trax(int argc, char* argv[])
 		for (auto& i_l1 : i_l1s)
 			i_l1_log.accumulate(i_l1->log);
 		i_l1_log.print_log();
-
-		printf("\nInstruction L1 buffer\n");
-		Units::UnitTP::Ibuffer_Log ibuffer_log;
-		for (auto& tp : tps)
-			ibuffer_log.accumulate(tp->ibuffer_log);
-		ibuffer_log.print_log();
 	}
 
 	printf("\nL2\n");
