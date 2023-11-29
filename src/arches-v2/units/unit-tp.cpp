@@ -10,7 +10,7 @@ namespace Units {
 #define ENABLE_TP_DEBUG_PRINTS (false)
 #endif
 
-UnitTP::UnitTP(const Configuration& config) :unit_table(*config.unit_table), unique_mems(*config.unique_mems), unique_sfus(*config.unique_sfus), log(0x10000), num_threads(config.num_threads)
+UnitTP::UnitTP(const Configuration& config) :unit_table(*config.unit_table), unique_mems(*config.unique_mems), unique_sfus(*config.unique_sfus), inst_cache(config.inst_cache), log(0x10000), num_threads(config.num_threads)
 {
 
 	for (int i = 0; i < config.num_threads; i++) {
@@ -35,6 +35,7 @@ UnitTP::UnitTP(const Configuration& config) :unit_table(*config.unit_table), uni
 		thread_arbiter.add(i);
 	}
 
+	_num_tps_per_i_cache = config.num_tps_per_i_cache;
 	_tp_index = config.tp_index;
 	_tm_index = config.tm_index;
 
@@ -174,6 +175,17 @@ void UnitTP::clock_rise()
 		const SFURequest& ret = unit->read_return(_tp_index);
 		_clear_register_pending(ret.dst >> 8, (uint8_t)ret.dst);
 	}
+
+	if(inst_cache == nullptr) return;
+
+	ThreadData& thread = thread_data[current_thread_id];
+	uint port = _tp_index % _num_tps_per_i_cache;
+	if(!inst_cache->return_port_read_valid(port)) return;
+	MemoryReturn ret = inst_cache->read_return(port);
+	std::memcpy(thread._i_buffer.data, ret.data, CACHE_BLOCK_SIZE);
+	thread._i_buffer.paddr = ret.paddr;
+	thread._i_buffer.getData = true;
+	thread._i_buffer.reqData = false;
 }
 
 void UnitTP::clock_fall()
@@ -183,7 +195,44 @@ FREE_INSTR:
 	if (thread._pc == 0x0ull) return;
 
 	//Fetch
-	const ISA::RISCV::Instruction instr(reinterpret_cast<uint32_t*>(thread._cheat_memory)[thread._pc / 4]);
+	uint32_t i_data;
+	if(inst_cache == nullptr)
+	{
+		assert(_cheat_memory != nullptr);
+		i_data = reinterpret_cast<uint32_t*>(thread._cheat_memory)[thread._pc / 4];
+	}
+	else
+	{
+		if (thread._i_buffer.reqData)
+		{
+			log.log_ibuffer_flush();
+			return;
+		}
+		paddr_t addr_offset = thread._pc - thread._i_buffer.paddr;
+		if((addr_offset < CACHE_BLOCK_SIZE) && thread._i_buffer.getData)
+		{
+			log.log_ibuffer_hit();
+			i_data = reinterpret_cast<uint32_t*>(thread._i_buffer.data)[addr_offset / 4];
+		}
+		else
+		{
+			log.log_ibuffer_miss();
+			if (inst_cache->request_port_write_valid(_tp_index % _num_tps_per_i_cache)) 
+			{
+				MemoryRequest i_req;
+				i_req.port = _tp_index % _num_tps_per_i_cache;
+				i_req.paddr = thread._pc & ~0x3full;
+				i_req.type = MemoryRequest::Type::LOAD;
+				i_req.size = CACHE_BLOCK_SIZE;
+				inst_cache->write_request(i_req, i_req.port);
+				thread._i_buffer.reqData = true;
+				thread._i_buffer.getData = false;
+			}
+			return;
+		}
+	}
+	
+	const ISA::RISCV::Instruction instr(i_data);
 
 	//Decode
 	const ISA::RISCV::InstructionInfo instr_info = instr.get_info();
