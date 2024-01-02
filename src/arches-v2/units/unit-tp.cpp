@@ -2,7 +2,7 @@
 
 namespace Arches { namespace Units {
 
-//#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0)
+//#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 63)
 //#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x0000000000000383)
 
 #ifndef ENABLE_TP_DEBUG_PRINTS 
@@ -234,10 +234,6 @@ FREE_INSTR:
 	{
 		UnitMemoryBase* mem = (UnitMemoryBase*)unit_table[(uint)instr_info.instr_type];
 
-		if (ENABLE_TP_DEBUG_PRINTS) {
-			std::cout << "1231231\n" << '\n';
-		}
-
 		if(!mem->request_port_write_valid(_tp_index))
 		{
 			log.log_resource_stall(instr_info, exec_item.pc);
@@ -250,7 +246,7 @@ FREE_INSTR:
 		req.port = _tp_index;
 		_pc += 4;
 
-		if(req.vaddr < (~0x0ull << 20))
+		if(req.vaddr < (~0x0ull << 22))
 		{
 			if(ENABLE_TP_DEBUG_PRINTS)
 			{
@@ -264,6 +260,7 @@ FREE_INSTR:
 
 			assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
 
+			req.flags = _get_mem_flags(req);
 			_set_dependancies(instr, instr_info);
 			mem->write_request(req, req.port);
 		}
@@ -273,7 +270,7 @@ FREE_INSTR:
 
 			if((req.vaddr | _stack_mask) != ~0ull)
 			{
-				printf("STACK OVERFLOW!!!\n");
+				printf("STACK OVERFLOW!!! (%lld)\n", (int64_t)req.vaddr);
 				assert(false);
 			}
 

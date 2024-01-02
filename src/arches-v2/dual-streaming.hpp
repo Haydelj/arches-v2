@@ -170,6 +170,7 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 		return mem_req;
 	}),
+		/*
 	InstructionInfo(0x5, "lsd", InstrType::CUSTOM7, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
 	{
 		RegAddr reg_addr;
@@ -181,11 +182,13 @@ const static InstructionInfo isa_custom0_funct3[8] =
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::LOAD;
 		mem_req.size = 8;
+		//mem_req.flags |= 0x1;
 		mem_req.dst = reg_addr.u8;
 		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
 
 		return mem_req;
 	}),
+	*/
 };
 
 const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3]; });
@@ -222,8 +225,8 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	TreeletBVH treelet_bvh(blas, mesh);
 
 	KernelArgs args;
-	args.framebuffer_width = 256;
-	args.framebuffer_height = 256;
+	args.framebuffer_width = 128;
+	args.framebuffer_height = 128;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
 	args.samples_per_pixel = 1;
@@ -236,6 +239,9 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address); heap_address += args.framebuffer_size * sizeof(uint32_t);
 
+	heap_address = align_to(SCENE_BUFFER_SIZE, heap_address);
+	args.scene_buffer = reinterpret_cast<Treelet*>(heap_address); heap_address += SCENE_BUFFER_SIZE;
+
 	std::vector<rtm::Hit> hits(args.framebuffer_size);
 	for(auto& hit : hits) hit.t = T_MAX;
 	args.hit_records = write_vector(main_memory, ROW_BUFFER_SIZE, hits, heap_address);
@@ -246,6 +252,21 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 
 	return args;
 }
+
+namespace Units { namespace DualStreaming {
+
+class L1Cache : public UnitNonBlockingCache
+{
+public:
+	L1Cache(UnitNonBlockingCache::Configuration config) : UnitNonBlockingCache(config) {}
+
+	UnitMemoryBase* get_mem_higher(uint16_t flags) override
+	{
+		return _mem_highers[flags & 0x1];
+	}
+};
+
+}}
 
 static void run_sim_dual_streaming(int argc, char* argv[])
 {
@@ -306,23 +327,23 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	simulator.register_unit(&hit_record_updater);
 
 	Units::UnitBuffer::Configuration scene_buffer_config;
-	scene_buffer_config.size = 4 * 1024 * 1024;
+	scene_buffer_config.size = SCENE_BUFFER_SIZE;
 	scene_buffer_config.num_banks = 32;
 	scene_buffer_config.bank_select_mask = 0b0000'1110'0001'0100'0000ull;
-	scene_buffer_config.num_ports = NUM_DRAM_CHANNELS;
+	scene_buffer_config.num_ports = num_tms * num_l1_banks * 2;
 	scene_buffer_config.latency = 3;
 
 	Units::UnitBuffer scene_buffer(scene_buffer_config);
 	simulator.register_unit(&scene_buffer);
 
 	Units::UnitBlockingCache::Configuration l2_config;
-	l2_config.size = 4 * 1024 * 1024;
+	l2_config.size = 512 * 1024;
 	l2_config.associativity = 8;
-	l2_config.num_ports = num_tms * num_l1_banks;
+	l2_config.num_ports = num_tms * num_l1_banks * 2;
 	l2_config.num_banks = num_l2_banks;
 	l2_config.bank_select_mask = 0b0000'1110'0001'0100'0000ull; //The high order bits need to match the channel assignment bits
 	l2_config.data_array_latency = 4;
-	l2_config.mem_higher = &dram;
+	l2_config.mem_highers = {&dram};
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = num_mc_ports / num_l2_banks;
 
@@ -334,7 +355,8 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	simulator.new_unit_group();
 
 	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
-	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
+	stream_scheduler_config.treelets_addr = *(paddr_t*)&kernel_args.treelets;
+	stream_scheduler_config.scene_buffer_addr = *(paddr_t*)&kernel_args.scene_buffer;
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
 	stream_scheduler_config.num_tms = num_tms;
 	stream_scheduler_config.num_banks = num_ray_coalescer_banks;
@@ -362,10 +384,11 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		l1_config.bank_select_mask = 0b0000'0101'0100'0000ull;
 		l1_config.data_array_latency = 0;
 		l1_config.num_lfb = 8;
-		l1_config.mem_higher = &l2;
-		l1_config.mem_higher_port_offset = l1_config.num_banks * tm_index;
+		l1_config.mem_highers = {&l2, &scene_buffer};
+		l1_config.mem_higher_port_offset = num_l1_banks * tm_index * 2;
+		l1_config.mem_higher_port_stride = 2;
 
-		l1s.push_back(new Units::UnitNonBlockingCache(l1_config));
+		l1s.push_back(new Units::DualStreaming::L1Cache(l1_config));
 		mem_list.push_back(l1s.back());
 		simulator.register_unit(l1s.back());
 
@@ -438,7 +461,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 			tp_config.unique_mems = &mem_lists.back();
 			tp_config.unique_sfus = &sfu_lists.back();
 
-			tps.push_back(new Units::DualStreaming::UnitTP(tp_config));
+			tps.push_back(new Units::DualStreaming::UnitTP(tp_config, (paddr_t)kernel_args.scene_buffer, (paddr_t)kernel_args.scene_buffer + SCENE_BUFFER_SIZE));
 			simulator.register_unit(tps.back());
 			simulator.units_executing++;
 		}
@@ -451,6 +474,9 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	auto stop = std::chrono::high_resolution_clock::now();
 
 	dram.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
+
+	printf("\nScene Buffer\n");
+	scene_buffer.log.print_log();
 
 	printf("\nL2\n");
 	l2.log.print_log();

@@ -271,16 +271,18 @@ private:
 
 			WorkItem wi;
 			wi.bray = front_buffer->ray_bucket.bucket_rays[front_buffer->next_ray];
+			//wi.segment = front_buffer->ray_bucket.slot; //spoof the segment index for the slot index
 			wi.segment = front_buffer->ray_bucket.segment;
 			std::memcpy(ret.data, &wi, ret.size);
 			_return_network.write(ret, ret.port);
 
+			uint segment_index = front_buffer->ray_bucket.segment;
 			if (front_buffer->next_ray == 0)
 			{
-				segment_state_map[wi.segment].active_buckets++;
-				segment_state_map[wi.segment].active_rays += front_buffer->ray_bucket.num_rays;
+				segment_state_map[segment_index].active_buckets++;
+				segment_state_map[segment_index].active_rays += front_buffer->ray_bucket.num_rays;
 			}
-			segment_executing_on_tp[ret.port] = wi.segment;
+			segment_executing_on_tp[ret.port] = segment_index;
 
 			workitem_request_queue.pop();
 			front_buffer->next_ray++;

@@ -48,6 +48,9 @@ protected:
 	uint _tp_index;
 	uint _tm_index;
 
+	paddr_t _scene_buffer_start;
+	paddr_t _scene_buffer_end;
+
 	const std::vector<UnitBase*>& unit_table;
 	const std::vector<UnitSFU*>& unique_sfus;
 	const std::vector<UnitMemoryBase*>& unique_mems;
@@ -68,6 +71,7 @@ protected:
 	virtual uint8_t _check_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
 	virtual void _set_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
 	void _clear_register_pending(const ISA::RISCV::RegAddr& dst);
+	virtual uint16_t _get_mem_flags(const MemoryRequest& req) { return 0; }
 	void _log_instruction_issue(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info, const ISA::RISCV::ExecutionItem& exec_item);
 
 public:

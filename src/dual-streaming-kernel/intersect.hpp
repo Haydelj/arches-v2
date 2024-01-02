@@ -96,43 +96,94 @@ inline rtm::Hit _lhit(rtm::Hit* src)
 #endif
 }
 
-inline Treelet::Node _ltnode(const Treelet::Node* src)
+inline Treelet::Node _ltnode(const Treelet::Node* src, bool use_scene_buffer = true)
 {
 #if __riscv
-	register float f0 asm("f0");
-	register float f1 asm("f1");
-	register float f2 asm("f2");
-	register float f3 asm("f3");
-	register float f4 asm("f4");
-	register float f5 asm("f5");
-	register float f6 asm("f6");
-	register float f7 asm("f7");
-	asm volatile(
-		"lsd f0, 0(%8)\t\n"
-		"lsd f2, 8(%8)\t\n" 
-		"lsd f4, 16(%8)\t\n" 
-		"lsd f6, 24(%8)\t\n" 
-	: "=f" (f0), "=f" (f1), "=f" (f2), "=f" (f3), "=f" (f4), "=f" (f5), "=f" (f6), "=f" (f7)
-	: "r" (src));
+	if(use_scene_buffer)
+	{
+		register float f0 asm("f0");
+		register float f1 asm("f1");
+		register float f2 asm("f2");
+		register float f3 asm("f3");
+		register float f4 asm("f4");
+		register float f5 asm("f5");
+		register float f6 asm("f6");
+		register float f7 asm("f7");
+		asm volatile(
+			"lsd f0, 0(%8)\t\n"
+			"lsd f2, 8(%8)\t\n" 
+			"lsd f4, 16(%8)\t\n" 
+			"lsd f6, 24(%8)\t\n" 
+		: "=f" (f0), "=f" (f1), "=f" (f2), "=f" (f3), "=f" (f4), "=f" (f5), "=f" (f6), "=f" (f7)
+		: "r" (src));
 
-	Treelet::Node node;
-	node.aabb.min.x = f0;
-	node.aabb.min.y = f1;
-	node.aabb.min.z = f2;
-	node.aabb.max.x = f3;
-	node.aabb.max.y = f4;
-	node.aabb.max.z = f5;
+		Treelet::Node node;
+		node.aabb.min.x = f0;
+		node.aabb.min.y = f1;
+		node.aabb.min.z = f2;
+		node.aabb.max.x = f3;
+		node.aabb.max.y = f4;
+		node.aabb.max.z = f5;
 
-	float _f6 = f6;
-	float _f7 = f7;
-	((uint*)&node.data)[0] = *(uint*)&_f6;
-	((uint*)&node.data)[1] = *(uint*)&_f7;
+		float _f6 = f6;
+		float _f7 = f7;
+		((uint*)&node.data)[0] = *(uint*)&_f6;
+		((uint*)&node.data)[1] = *(uint*)&_f7;
 
-	return node;
+		return node;
+	}
+	else return *src;
 #else
 	return *src;
 #endif
 }
+
+inline Treelet::Triangle _lttri(const Treelet::Triangle* src, bool use_scene_buffer = true)
+{
+#if __riscv
+	if(use_scene_buffer)
+	{
+		register float f0 asm("f0");
+		register float f1 asm("f1");
+		register float f2 asm("f2");
+		register float f3 asm("f3");
+		register float f4 asm("f4");
+		register float f5 asm("f5");
+		register float f6 asm("f6");
+		register float f7 asm("f7");
+		register float f8 asm("f8");
+		register float f9 asm("f9");
+		asm volatile(
+			"lsd f0, 0(%10)\t\n"
+			"lsd f2, 8(%10)\t\n" 
+			"lsd f4, 16(%10)\t\n" 
+			"lsd f6, 24(%10)\t\n" 
+			"lsd f8, 28(%10)\t\n" 
+		: "=f" (f0), "=f" (f1), "=f" (f2), "=f" (f3), "=f" (f4), "=f" (f5), "=f" (f6), "=f" (f7),  "=f" (f8),  "=f" (f9)
+		: "r" (src));
+
+		Treelet::Triangle ttri;
+		ttri.tri.vrts[0].x = f0;
+		ttri.tri.vrts[0].y = f1;
+		ttri.tri.vrts[0].z = f2;
+		ttri.tri.vrts[1].x = f3;
+		ttri.tri.vrts[1].y = f4;
+		ttri.tri.vrts[1].z = f5;
+		ttri.tri.vrts[2].x = f6;
+		ttri.tri.vrts[2].y = f7;
+		ttri.tri.vrts[2].z = f8;
+
+		float _f9 = f9;
+		ttri.id = *(uint*)&_f9;
+
+		return ttri;
+	}
+	else return *src;
+#else
+	return *src;
+#endif
+}
+
 
 inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
@@ -250,9 +301,9 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 		float hit_t;
 		Treelet::Node::Data data;
 	};
-	NodeStackEntry node_stack[64]; uint node_stack_size = 1u;
+	NodeStackEntry node_stack[16]; uint node_stack_size = 1u;
 
-	const Treelet::Node& root_node = _ltnode(&treelet.nodes[0]);
+	const Treelet::Node& root_node = treelet.nodes[0];
 	node_stack[0].hit_t = _intersect(root_node.aabb, ray, inv_d);
 	if(node_stack[0].hit_t >= hit.t) return false;
 	node_stack[0].data = root_node.data;
@@ -266,8 +317,8 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	TRAV:
 		if(!current_entry.data.is_leaf)
 		{
-			const Treelet::Node& child0 = _ltnode(&treelet.nodes[current_entry.data.child[0].index]);
-			const Treelet::Node& child1 = _ltnode(&treelet.nodes[current_entry.data.child[1].index]);
+			const Treelet::Node& child0 = treelet.nodes[current_entry.data.child[0].index];
+			const Treelet::Node& child1 = treelet.nodes[current_entry.data.child[1].index];
 
 			float hit_ts[2];
 			if(current_entry.data.child[0].is_treelet)
@@ -320,6 +371,27 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 
 	return is_hit;
 }
+
+
+void inline launch_ray(const Treelet& root_treelet, WorkItem& wi, rtm::Hit* hit_records)
+{
+	rtm::Hit hit; hit.t = wi.bray.ray.t_max;
+	uint treelet_stack[16]; uint treelet_stack_size = 0;
+	if(intersect_treelet(root_treelet, wi.bray.ray, hit, treelet_stack, treelet_stack_size))
+	{
+		//update hit record with hit using cshit
+		_cshit(hit, hit_records + wi.bray.id);
+	}
+
+	//drain treelet stack
+	while(treelet_stack_size)
+	{
+		uint treelet_index = treelet_stack[--treelet_stack_size];
+		wi.segment = treelet_index;
+		_swi(wi);
+	}
+}
+
 
 inline void intersect_buckets(const Treelet* treelets, rtm::Hit* hit_records)
 {

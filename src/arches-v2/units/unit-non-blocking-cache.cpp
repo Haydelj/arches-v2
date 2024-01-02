@@ -9,7 +9,7 @@ UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) :
 {
 	_check_retired_lfb = config.check_retired_lfb;
 
-	_mem_higher = config.mem_higher;
+	_mem_highers = config.mem_highers;
 	_mem_higher_port_offset = config.mem_higher_port_offset;
 	_mem_higher_port_stride = config.mem_higher_port_stride;
 
@@ -27,14 +27,22 @@ uint UnitNonBlockingCache::_fetch_lfb(uint bank_index, LFB& lfb)
 	std::vector<LFB>& lfbs = bank.lfbs;
 
 	for(uint32_t i = 0; i < lfbs.size(); ++i)
-		if(lfbs[i].state != LFB::State::INVALID && lfbs[i] == lfb) return i;
+	{
+		if(lfbs[i].state != LFB::State::INVALID && lfbs[i] == lfb)
+		{
+			assert(lfb.type == lfbs[i].type);
+			assert(lfb.flags == lfbs[i].flags);
+			return i;
+		}
+	}
 
 	return ~0u;
 }
 
 uint UnitNonBlockingCache::_allocate_lfb(uint bank_index, LFB& lfb)
 {
-	std::vector<LFB>& lfbs = _banks[bank_index].lfbs;
+	Bank& bank = _banks[bank_index];
+	std::vector<LFB>& lfbs = bank.lfbs;
 
 	uint replacement_index = ~0u;
 	uint replacement_lru = 0u;
@@ -54,7 +62,7 @@ uint UnitNonBlockingCache::_allocate_lfb(uint bank_index, LFB& lfb)
 	}
 
 	//can't allocate
-	if(replacement_index == ~0) return ~0;
+	if(replacement_index == ~0u) return ~0u;
 
 	for(uint i = 0; i < lfbs.size(); ++i) lfbs[i].lru++;
 	lfbs[replacement_index].lru = 0;
@@ -62,13 +70,12 @@ uint UnitNonBlockingCache::_allocate_lfb(uint bank_index, LFB& lfb)
 	return replacement_index;
 }
 
-uint UnitNonBlockingCache::_fetch_or_allocate_lfb(uint bank_index, uint64_t block_addr, LFB::Type type)
+uint UnitNonBlockingCache::_fetch_or_allocate_lfb(uint bank_index, uint64_t block_addr, LFB::Type type, uint16_t flags)
 {
-	std::vector<LFB>& lfbs = _banks[bank_index].lfbs;
-
 	LFB lfb;
 	lfb.block_addr = block_addr;
 	lfb.type = type;
+	lfb.flags = flags;
 	lfb.state = LFB::State::EMPTY;
 	
 	uint lfb_index = _fetch_lfb(bank_index, lfb);
@@ -119,35 +126,35 @@ void UnitNonBlockingCache::_clock_data_array(uint bank_index)
 bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 {
 	uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
-	if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return false;
 
-	const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
-	assert(ret.paddr == _get_block_addr(ret.paddr));
-
-	//Mark the associated lse as filled and put it in the return queue
-	Bank& bank = _banks[bank_index];
-	for(uint i = 0; i < bank.lfbs.size(); ++i)
+	for(auto& mem_higher : _mem_highers)
 	{
-		LFB& lfb = bank.lfbs[i];
-		if(lfb.block_addr == ret.paddr)
-		{
-			assert(lfb.state == LFB::State::MISSED);
-			std::memcpy(lfb.block_data.bytes, ret.data, CACHE_BLOCK_SIZE);
-			lfb.state = LFB::State::FILLED;
-			bank.lfb_return_queue.push(i);
-			break;
-		}
+		if(!mem_higher->return_port_read_valid(mem_higher_port_index)) continue;
+
+		const MemoryReturn ret = mem_higher->read_return(mem_higher_port_index);
+		assert(ret.paddr == _get_block_addr(ret.paddr));
+
+		//Mark the associated lse as filled and put it in the return queue
+		Bank& bank = _banks[bank_index];
+		LFB& lfb = bank.lfbs[ret.dst];
+		assert(lfb.block_addr == ret.paddr);
+		assert(lfb.state == LFB::State::MISSED);
+		std::memcpy(lfb.block_data.bytes, ret.data, CACHE_BLOCK_SIZE);
+		lfb.state = LFB::State::FILLED;
+		bank.lfb_return_queue.push(ret.dst);
+
+		//Insert block
+		log.log_tag_array_access();
+		log.log_data_array_write();
+		_insert_block(ret.paddr, ret.data);
+
+		if(bank.data_array_pipline.lantecy() != 0)
+			bank.data_array_pipline.write(~0u);
+	
+		return true;
 	}
 
-	//Insert block
-	log.log_tag_array_access();
-	log.log_data_array_write();
-	_insert_block(ret.paddr, ret.data);
-
-	if(bank.data_array_pipline.lantecy() != 0)
-		bank.data_array_pipline.write(~0u);
-	
-	return true;
+	return false;
 }
 
 bool UnitNonBlockingCache::_proccess_request(uint bank_index)
@@ -163,7 +170,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 	if(request.type == MemoryRequest::Type::LOAD)
 	{
 		//Try to fetch an lfb for the line or allocate a new lfb for the line
-		uint lfb_index = _fetch_or_allocate_lfb(bank_index, block_addr, LFB::Type::READ);
+		uint lfb_index = _fetch_or_allocate_lfb(bank_index, block_addr, LFB::Type::READ, request.flags);
 
 		//In parallel access the tag array to check for the line
 		BlockData* block_data = _get_block(block_addr);
@@ -235,7 +242,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 	else if(request.type == MemoryRequest::Type::STORE)
 	{
 		//try to allocate an lfb
-		uint lfb_index = _fetch_or_allocate_lfb(bank_index, block_addr, LFB::Type::WRITE_COMBINING);
+		uint lfb_index = _fetch_or_allocate_lfb(bank_index, block_addr, LFB::Type::WRITE_COMBINING, request.flags);
 		if(lfb_index != ~0)
 		{
 			LFB& lfb = bank.lfbs[lfb_index];
@@ -262,9 +269,13 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 	Bank& bank = _banks[bank_index];
 	uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
 
-	if(bank.lfb_request_queue.empty() || !_mem_higher->request_port_write_valid(mem_higher_port_index)) return;
+	if(bank.lfb_request_queue.empty()) return;
+	uint lfb_index = bank.lfb_request_queue.front();
+	LFB& lfb = bank.lfbs[lfb_index];
+
+	UnitMemoryBase* mem_higher = get_mem_higher(lfb.flags);
+	if(!mem_higher->request_port_write_valid(mem_higher_port_index)) return;
 	
-	LFB& lfb = bank.lfbs[bank.lfb_request_queue.front()];
 	if(lfb.type == LFB::Type::READ)
 	{
 		assert(lfb.state == LFB::State::MISSED);
@@ -272,9 +283,11 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::LOAD;
 		outgoing_request.size = CACHE_BLOCK_SIZE;
+		outgoing_request.dst = lfb_index;
+		outgoing_request.flags = lfb.flags;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = lfb.block_addr;
-		_mem_higher->write_request(outgoing_request, mem_higher_port_index);
+		mem_higher->write_request(outgoing_request, mem_higher_port_index);
 
 		bank.lfb_request_queue.pop();
 	}
@@ -285,11 +298,12 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::STORE;
 		outgoing_request.size = CACHE_BLOCK_SIZE;
+		outgoing_request.flags = lfb.flags;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.write_mask = lfb.write_mask;
 		outgoing_request.paddr = lfb.block_addr;
 		std::memcpy(outgoing_request.data, lfb.block_data.bytes, CACHE_BLOCK_SIZE);
-		_mem_higher->write_request(outgoing_request, mem_higher_port_index);
+		mem_higher->write_request(outgoing_request, mem_higher_port_index);
 
 		lfb.state = LFB::State::INVALID;
 		bank.lfb_request_queue.pop();

@@ -8,7 +8,7 @@ UnitBlockingCache::UnitBlockingCache(Configuration config) :
 	_return_cross_bar(config.num_ports, config.num_banks),
 	_banks(config.num_banks, config.data_array_latency)
 {
-	_mem_higher = config.mem_higher;
+	_mem_highers = config.mem_highers;
 	_mem_higher_port_offset = config.mem_higher_port_offset;
 	_mem_higher_port_stride = config.mem_higher_port_stride;
 }
@@ -59,19 +59,22 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 	else if(bank.state == Bank::State::ISSUED)
 	{
 		uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
-		if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return;
+		for(auto& mem_higher : _mem_highers)
+		{
+			if(!mem_higher->return_port_read_valid(mem_higher_port_index)) continue;
 
-		const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
-		assert(ret.paddr == _get_block_addr(ret.paddr));
+			const MemoryReturn ret = mem_higher->read_return(mem_higher_port_index);
+			assert(ret.paddr == _get_block_addr(ret.paddr));
 
-		_insert_block(ret.paddr, ret.data);
-		log.log_tag_array_access();
-		log.log_data_array_write();
+			_insert_block(ret.paddr, ret.data);
+			log.log_tag_array_access();
+			log.log_data_array_write();
 
-		uint block_offset = _get_block_offset(bank.current_request.paddr);
-		std::memcpy(bank.current_request.data, &ret.data[block_offset], bank.current_request.size);
+			uint block_offset = _get_block_offset(bank.current_request.paddr);
+			std::memcpy(bank.current_request.data, &ret.data[block_offset], bank.current_request.size);
 
-		bank.state = Bank::State::FILLED;	
+			bank.state = Bank::State::FILLED;	
+		}
 	}
 }
 
@@ -81,7 +84,8 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 	if(bank.state == Bank::State::MISSED)
 	{
 		uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
-		if(_mem_higher->request_port_write_valid(mem_higher_port_index))
+		UnitMemoryBase* mem_higher = get_mem_higher(bank.current_request.flags);
+		if(mem_higher->request_port_write_valid(mem_higher_port_index))
 		{
 			if(bank.current_request.type == MemoryRequest::Type::LOAD)
 			{
@@ -90,7 +94,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.size = CACHE_BLOCK_SIZE;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
-				_mem_higher->write_request(request, request.port);
+				mem_higher->write_request(request, request.port);
 				bank.state = Bank::State::ISSUED;
 			}
 			else if(bank.current_request.type == MemoryRequest::Type::STORE)
@@ -100,7 +104,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				//req.write_mask = req.write_mask << _get_block_offset(bank.current_request.paddr);
 				//req.size = CACHE_BLOCK_SIZE;
 				request.port = mem_higher_port_index;
-				_mem_higher->write_request(request, request.port);
+				mem_higher->write_request(request, request.port);
 				bank.state = Bank::State::IDLE;
 			}
 		}

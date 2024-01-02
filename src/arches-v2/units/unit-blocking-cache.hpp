@@ -19,9 +19,9 @@ public:
 		uint num_banks{1};
 		uint64_t bank_select_mask{0};
 
-		UnitMemoryBase* mem_higher{nullptr};
-		uint            mem_higher_port_offset{0};
-		uint            mem_higher_port_stride{1};
+		std::vector<UnitMemoryBase*> mem_highers{nullptr};
+		uint                         mem_higher_port_offset{0};
+		uint                         mem_higher_port_stride{1};
 	};
 
 	UnitBlockingCache(Configuration config);
@@ -36,6 +36,8 @@ public:
 	bool return_port_read_valid(uint port_index) override;
 	const MemoryReturn& peek_return(uint port_index) override;
 	const MemoryReturn read_return(uint port_index) override;
+
+	virtual UnitMemoryBase* get_mem_higher(uint16_t flags) { return _mem_highers[0]; }
 
 private:
 	struct Bank
@@ -57,7 +59,7 @@ private:
 	RequestCrossBar _request_cross_bar;
 	ReturnCrossBar _return_cross_bar;
 
-	UnitMemoryBase* _mem_higher;
+	std::vector<UnitMemoryBase*> _mem_highers;
 	uint _mem_higher_port_offset;
 	uint _mem_higher_port_stride;
 

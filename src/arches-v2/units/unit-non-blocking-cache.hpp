@@ -23,9 +23,9 @@ public:
 		uint num_lfb{1};
 		bool check_retired_lfb{true};
 
-		UnitMemoryBase* mem_higher{nullptr};
-		uint            mem_higher_port_offset{0};
-		uint            mem_higher_port_stride{1};
+		std::vector<UnitMemoryBase*> mem_highers{nullptr};
+		uint                         mem_higher_port_offset{0};
+		uint                         mem_higher_port_stride{1};
 	};
 
 	UnitNonBlockingCache(Configuration config);
@@ -41,7 +41,9 @@ public:
 	const MemoryReturn& peek_return(uint port_index) override;
 	const MemoryReturn read_return(uint port_index) override;
 
-private:
+	virtual UnitMemoryBase* get_mem_higher(uint16_t flags) { return _mem_highers[0]; }
+
+protected:
 	struct LFB //Line Fill Buffer
 	{
 		struct SubEntry
@@ -79,14 +81,14 @@ private:
 
 		uint8_t lru{0u};
 		Type type{Type::READ};
+		uint16_t flags{0};
 		State state{State::INVALID};
 
-
-		LFB() = default;
+		LFB() {}
 
 		bool operator==(const LFB& other) const
 		{
-			return block_addr == other.block_addr && type == other.type;
+			return block_addr == other.block_addr;
 		}
 	};
 
@@ -105,7 +107,7 @@ private:
 	RequestCrossBar _request_cross_bar;
 	ReturnCrossBar _return_cross_bar;
 
-	UnitMemoryBase* _mem_higher;
+	std::vector<UnitMemoryBase*> _mem_highers;
 	uint _mem_higher_port_offset;
 	uint _mem_higher_port_stride;
 
@@ -114,7 +116,7 @@ private:
 
 	uint _fetch_lfb(uint bank_index, LFB& lfb);
 	uint _allocate_lfb(uint bank_index, LFB& lfb);
-	uint _fetch_or_allocate_lfb(uint bank_index, uint64_t block_addr, LFB::Type type);
+	uint _fetch_or_allocate_lfb(uint bank_index, uint64_t block_addr, LFB::Type type, uint16_t flags);
 
 	void _clock_data_array(uint bank_index);
 

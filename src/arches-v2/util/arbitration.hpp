@@ -17,7 +17,7 @@ public:
 
 	uint num_pending()
 	{
-		return popcnt(_pending);
+		return (uint)popcnt(_pending);
 	}
 
 	void add(uint index)
@@ -37,12 +37,12 @@ public:
 
 	uint get_index()
 	{
-		if(!_pending) 
+		if(!_pending)
 			return ~0u;
 
 		uint64_t rot_mask = rotr(_pending, _priority_index); //rotate the mask so the last index flag is in the 0 bit
-		uint64_t offset = ctz(rot_mask); //count the number of 0s till the next 1
-		uint64_t grant_index = (_priority_index + offset) & 0x3full; //grant the next set bit
+		uint32_t offset = (uint32_t)ctz(rot_mask); //count the number of 0s till the next 1
+		uint32_t grant_index = (_priority_index + offset) & 0x3fu; //grant the next set bit
 		_priority_index = grant_index; //make the grant bit the highest priority bit so that it will continue to be granted until removed
 		return grant_index; 
 	}
@@ -102,7 +102,6 @@ public:
 
 		if(!pending)
 			return ~0u;
-
 
 
 		uint64_t rot_mask = rotr(_pending, _priority_index); //rotate the mask so the last index flag is in the 0 bit

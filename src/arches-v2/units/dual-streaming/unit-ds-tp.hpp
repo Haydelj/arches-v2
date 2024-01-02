@@ -8,8 +8,12 @@ namespace Arches { namespace Units { namespace DualStreaming
 
 class UnitTP : public Arches::Units::UnitTP
 {
+private:
+	paddr_t _scene_buffer_start;
+	paddr_t _scene_buffer_end;
+
 public:
-	UnitTP(Units::UnitTP::Configuration config) : Units::UnitTP(config) {}
+	UnitTP(Units::UnitTP::Configuration config, paddr_t scene_buffer_start, paddr_t scene_buffer_end) : _scene_buffer_start(scene_buffer_start), _scene_buffer_end(scene_buffer_end), Units::UnitTP(config) {}
 
 private:
 	uint8_t _check_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info) override
@@ -88,6 +92,13 @@ private:
 				_float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM7;
 		}
 		else Units::UnitTP::_set_dependancies(instr, instr_info);
+	}
+
+	uint16_t _get_mem_flags(const MemoryRequest& req) 
+	{ 
+		uint16_t flags = 0;
+		if(req.paddr >= _scene_buffer_start && req.paddr < _scene_buffer_end) flags |= 0x1;
+		return flags;
 	}
 };
 

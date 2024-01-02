@@ -32,11 +32,12 @@ public:
 
 	//meta data 
 	Type     type;
-	uint8_t  size;
-	uint16_t dst;
-	uint16_t port;
+	uint8_t  size{0};
+	uint16_t flags{0};
+	uint16_t dst{0};
+	uint16_t port{0};
 
-	uint64_t write_mask;
+	uint64_t write_mask{0};
 
 	union
 	{
@@ -56,7 +57,7 @@ public:
 public:
 	MemoryRequest() = default;
 
-	MemoryRequest(const MemoryRequest& other) : type(other.type), size(other.size), dst(other.dst), port(other.port), write_mask(other.write_mask), paddr(other.paddr)
+	MemoryRequest(const MemoryRequest& other) : type(other.type), size(other.size), flags(other.flags), dst(other.dst), port(other.port), write_mask(other.write_mask), paddr(other.paddr)
 	{
 		std::memcpy(data, other.data, size);
 	}
@@ -65,6 +66,7 @@ public:
 	{
 		type = other.type;
 		size = other.size;
+		flags = other.flags;
 		dst = other.dst;
 		port = other.port;
 		write_mask = other.write_mask;

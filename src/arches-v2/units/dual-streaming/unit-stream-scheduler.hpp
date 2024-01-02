@@ -10,17 +10,18 @@
 namespace Arches { namespace Units { namespace DualStreaming {
 
 #define SCENE_BUFFER_SIZE (4 * 1024 * 1024)
-
-#define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(Treelet))
+#define SEGMENT_SIZE (sizeof(Treelet))
+#define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / SEGMENT_SIZE)
 
 #define RAY_BUCKET_SIZE (2048)
 #define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 16) / sizeof(BucketRay))
 
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
+	uint32_t segment{0};
+	uint16_t slot{0};
+	uint16_t num_rays{0};
 	paddr_t next_bucket{0};
-	uint segment{0};
-	uint num_rays{0};
 	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
 
 	bool is_full()
@@ -39,7 +40,8 @@ class UnitStreamScheduler : public UnitBase
 public:
 	struct Configuration
 	{
-		paddr_t  treelet_addr;
+		paddr_t  treelets_addr;
+		paddr_t  scene_buffer_addr;
 		paddr_t  heap_addr;
 		Treelet* cheat_treelets{nullptr};
 
@@ -124,6 +126,8 @@ private:
 		uint                next_channel{0};
 		uint                total_buckets{0};
 		uint                active_buckets{0};
+		uint                rows_in_scene_buffer{0};
+		uint                scene_buffer_slot{~0u};
 		bool                parent_finished{false};
 	};
 
@@ -137,12 +141,15 @@ private:
 		std::vector<uint> last_segment_on_tm;
 		std::map<uint, SegmentState> segment_state_map;
 		Treelet* cheat_treelets;
-		paddr_t treelet_addr;
+		paddr_t treelets_addr;
+		paddr_t scene_buffer_addr;
 
 		std::vector<MemoryManager> memory_managers;
 
+		std::stack<uint> scene_buffer_free_list; //free scene buffer sslot
+
 		//the list of segments in the scene buffer or schduled to be in the scene buffer
-		std::set<uint> active_segments;
+		std::set<uint> active_segments; //segment index, scene buffer index
 
 		//the set of segments that are ready to issue buckets
 		std::vector<uint> candidate_segments;
@@ -159,9 +166,17 @@ private:
 			segment_state.active_buckets = config.num_tms;
 			segment_state.total_buckets = config.num_tms;
 			segment_state.parent_finished = true;
+
 			
 			cheat_treelets = config.cheat_treelets;
-			treelet_addr = config.treelet_addr;
+			treelets_addr = config.treelets_addr;
+			scene_buffer_addr = config.scene_buffer_addr;
+
+			for(uint i = 0; i < MAX_ACTIVE_SEGMENTS; ++i)
+				scene_buffer_free_list.push(i);
+
+			segment_state_map[0].scene_buffer_slot = scene_buffer_free_list.top();
+			scene_buffer_free_list.pop();
 
 			active_segments.insert(0);
 			Treelet::Header root_header = cheat_treelets[0].header;
@@ -171,7 +186,7 @@ private:
 
 		bool is_complete()
 		{
-			return active_segments.size() == 0 && candidate_segments.size() == 0;
+			return active_segments.size() == 0 && traversal_queue.size() == 0;
 		}
 	};
 
@@ -191,7 +206,7 @@ private:
 
 			union
 			{
-				uint      dst_tm;
+				uint      dst;
 				RayBucket bucket;
 			};
 

@@ -22,7 +22,7 @@ void inline barrier()
 
 inline static void kernel(const KernelArgs& args)
 {
-#if __riscv
+#if 1// __riscv
 	uint index;
 	for(index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
@@ -39,23 +39,7 @@ inline static void kernel(const KernelArgs& args)
 	#if 0
 		_swi(wi);
 	#else
-
-		rtm::Hit hit; hit.t = wi.bray.ray.t_max;
-		uint treelet_stack[32]; uint treelet_stack_size = 0;
-		if(intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
-		{
-			//update hit record with hit using cshit
-			_cshit(hit, args.hit_records + index);
-			wi.bray.ray.t_max = hit.t;
-		}
-
-		//drain treelet stack
-		while(treelet_stack_size)
-		{
-			uint treelet_index = treelet_stack[--treelet_stack_size];
-			wi.segment = treelet_index;
-			_swi(wi);
-		}
+		launch_ray(args.treelets[0], wi, args.hit_records);
 	#endif
 	}
 

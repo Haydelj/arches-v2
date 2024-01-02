@@ -20,6 +20,7 @@ struct KernelArgs
 
 	//heap data pointers
 	uint32_t* framebuffer;
+	Treelet* scene_buffer;
 	rtm::Hit* hit_records;
 	Treelet* treelets;
 	rtm::Triangle* triangles;

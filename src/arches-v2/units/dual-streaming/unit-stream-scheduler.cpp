@@ -21,7 +21,7 @@ void UnitStreamScheduler::clock_fall()
 {
 	for(uint i = 0; i < _channels.size(); ++i)
 	{
-		if(_scheduler.is_complete() && _return_network.is_write_valid(0))
+		if(_scheduler.is_complete() && _return_network.is_write_valid(0) && !_scheduler.bucket_request_queue.empty())
 		{
 			uint tm_index = _scheduler.bucket_request_queue.front();
 			_scheduler.bucket_request_queue.pop();
@@ -149,14 +149,18 @@ void UnitStreamScheduler::_update_scheduler()
 		segment_state.total_buckets--;
 		segment_state.active_buckets--;
 
-		//all remaining buckets are active
+		printf("Segment %d: bucket retired %d/%d\n", segment_index, segment_state.active_buckets, segment_state.total_buckets);
+
 		if(segment_state.parent_finished && segment_state.total_buckets == 0)
 		{
 			//segment is complete
 
-			//remove from the active segments
+			//remove the segment from the active set
 			_scheduler.active_segments.erase(segment_index);
-			printf("Segment %d retired\n", segment_index);
+
+			//add the scene buffer slot to the free list
+			uint slot = _scheduler.segment_state_map[segment_index].scene_buffer_slot;
+			_scheduler.scene_buffer_free_list.push(slot);
 
 			//free the segment state
 			_scheduler.segment_state_map.erase(segment_index);
@@ -176,14 +180,14 @@ void UnitStreamScheduler::_update_scheduler()
 				child_bank.bucket_flush_queue.push(child_segment_index);
 			}
 
-			break;
+			printf("Segment %d: retired\n", segment_index);
 		}
 
 		_scheduler.bucket_complete_queue.pop();
 	}
 
 	//try to pick a new segment to prefetch
-	if((_scheduler.active_segments.size()) < MAX_ACTIVE_SEGMENTS && !_scheduler.traversal_queue.empty())
+	if(_scheduler.active_segments.size() < MAX_ACTIVE_SEGMENTS && !_scheduler.traversal_queue.empty())
 	{
 		//we have room in the working set and a segment in the traversal queue try to expand working set
 		uint next_segment = _scheduler.traversal_queue.front();
@@ -193,25 +197,30 @@ void UnitStreamScheduler::_update_scheduler()
 		//if this segment is active or the parent is still traversing
 		if(state.total_buckets > 0 || !state.parent_finished)
 		{
+			//Map the segment to the a scene buffer slot
+			uint scene_buffer_slot = _scheduler.scene_buffer_free_list.top();
+			_scheduler.scene_buffer_free_list.pop();
+			state.scene_buffer_slot = scene_buffer_slot;
+
+			//add to active set
+			_scheduler.active_segments.insert(next_segment);
+
 			// prefecth the segment
-			paddr_t address = _scheduler.treelet_addr + sizeof(Treelet) * next_segment;
+			paddr_t address = _scheduler.treelets_addr + sizeof(Treelet) * next_segment;
 			for(uint i = 0; i < sizeof(Treelet); i += ROW_BUFFER_SIZE)
 			{
 				Channel::WorkItem channel_work_item;
 				channel_work_item.type = Channel::WorkItem::Type::READ_SEGMENT;
 				channel_work_item.address = address + i;
+				channel_work_item.dst = scene_buffer_slot;
 			
-				uint channel_index = calcDramAddr(address).channel;
+				uint channel_index = calcDramAddr(channel_work_item.address).channel;
 				Channel& channel = _channels[channel_index];
 				channel.work_queue.push(channel_work_item);
 			}
 
-			//TODO: wait for prefetch to complete before adding to candidate set
-			_scheduler.candidate_segments.push_back(next_segment);
-
 			//Add the segment to the active set
-			_scheduler.active_segments.insert(next_segment);
-			printf("Segment %d scheduled\n", next_segment);
+			printf("Segment %d: scheduled for scene buffer %d\n", next_segment, scene_buffer_slot);
 		}
 	}
 
@@ -245,12 +254,13 @@ void UnitStreamScheduler::_update_scheduler()
 				if(state.total_buckets == 0)
 				{
 					//If no ray were launched erase the candidate from the active set as well 
+					_scheduler.scene_buffer_free_list.push(state.scene_buffer_slot);
 					_scheduler.active_segments.erase(candidate_segment);
 				}
 				else
 				{
 					//Otherwise queue up the children segments. The segment will be removed from active set when all rays complete
-					
+
 					//for all children segments
 					Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
 					for(uint i = 0; i < header.num_children; ++i)
@@ -269,7 +279,6 @@ void UnitStreamScheduler::_update_scheduler()
 		//try to insert the tm into the read queue of one of the channels
 		if(current_segment != ~0u)
 		{
-			//printf("Segment %d launched\n", current_segment);
 			_scheduler.bucket_request_queue.pop();
 			_scheduler.last_segment_on_tm[tm_index] = current_segment;
 
@@ -284,12 +293,14 @@ void UnitStreamScheduler::_update_scheduler()
 			Channel::WorkItem channel_work_item;
 			channel_work_item.type = Channel::WorkItem::Type::READ_BUCKET;
 			channel_work_item.address = bucket_adddress;
-			channel_work_item.dst_tm = tm_index;
+			channel_work_item.dst = tm_index;
 
 			Channel& channel = _channels[channel_index];
 			channel.work_queue.push(channel_work_item);
 
 			state.active_buckets++;
+
+			printf("Segment %d: bucket launched %d/%d\n", current_segment, state.active_buckets, state.total_buckets);
 		}
 	}
 
@@ -331,7 +342,7 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 
 	if(channel.work_queue.front().type == Channel::WorkItem::Type::READ_BUCKET)
 	{
-		uint dst_tm = channel.work_queue.front().dst_tm;
+		uint dst_tm = channel.work_queue.front().dst;
 
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
@@ -370,11 +381,13 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 	}
 	else if(channel.work_queue.front().type == Channel::WorkItem::Type::READ_SEGMENT)
 	{
+		uint dst_slot = channel.work_queue.front().dst;
+
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
 		req.size = CACHE_BLOCK_SIZE;
 		req.port = mem_higher_port_index;
-		req.dst = _return_network.num_sinks();
+		req.dst = _return_network.num_sinks() + dst_slot;
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
 		_main_mem->write_request(req, req.port);
 
@@ -396,6 +409,10 @@ void UnitStreamScheduler::_issue_return(uint channel_index)
 		{
 			if(!_return_network.is_write_valid(channel_index)) return;
 
+			//replace segment index with the scene buffer slot
+			if(channel.forward_return.paddr % RAY_BUCKET_SIZE == 0)
+				((RayBucket*)channel.forward_return.data)->slot = _scheduler.segment_state_map[((RayBucket*)channel.forward_return.data)->segment].scene_buffer_slot;
+
 			//forward to ray buffer
 			channel.forward_return.port = channel.forward_return.dst;
 			_return_network.write(channel.forward_return, channel_index);
@@ -404,15 +421,30 @@ void UnitStreamScheduler::_issue_return(uint channel_index)
 		else
 		{
 			//forward to scene buffer
-			if(!_scene_buffer->request_port_write_valid(channel_index)) return;
+			if(!_scene_buffer->request_port_write_valid(channel_index * 128 + 1)) return;
+
+			uint dst_slot = channel.forward_return.dst - _return_network.num_sinks();
+			uint segment_index = (channel.forward_return.paddr - _scheduler.treelets_addr) / SEGMENT_SIZE;
+			uint offset = (channel.forward_return.paddr - _scheduler.treelets_addr) - (segment_index * SEGMENT_SIZE);
 
 			MemoryRequest req;
 			req.type = MemoryRequest::Type::STORE;
 			req.size = CACHE_BLOCK_SIZE;
-			req.port = channel_index;
-			req.paddr = channel.forward_return.paddr;
+			req.port = channel_index * 128 + 1;
+			req.paddr = _scheduler.scene_buffer_addr + dst_slot * SEGMENT_SIZE + offset;
 			req.write_mask = ~0x0ull;
 			std::memcpy(req.data, channel.forward_return.data, CACHE_BLOCK_SIZE);
+
+			uint next_block_addr = channel.forward_return.paddr + CACHE_BLOCK_SIZE;
+			if(next_block_addr % ROW_BUFFER_SIZE == 0)
+			{
+				_scheduler.segment_state_map[segment_index].rows_in_scene_buffer++;
+				if(_scheduler.segment_state_map[segment_index].rows_in_scene_buffer == SEGMENT_SIZE / ROW_BUFFER_SIZE)
+				{
+					_scheduler.candidate_segments.push_back(segment_index);
+					printf("Segment %d: scheduled for traveral\n", segment_index);
+				}
+			}
 
 			_scene_buffer->write_request(req, req.port);
 			channel.forward_return_valid = false;
