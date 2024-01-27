@@ -299,9 +299,9 @@ private:
 		return _request_network.is_write_valid(port_index);
 	}
 
-	void write_request(const MemoryRequest& request, uint port_index) override
+	void write_request(const MemoryRequest& request) override
 	{
-		_request_network.write(request, port_index);
+		_request_network.write(request, request.port);
 	}
 
 	bool return_port_read_valid(uint port_index) override

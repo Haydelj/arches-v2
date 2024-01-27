@@ -170,6 +170,22 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 		return mem_req;
 	}),
+	InstructionInfo(0x5, "traceray", InstrType::CUSTOM7, Encoding::I, RegType::FLOAT, MEM_REQ_DECL
+	{
+		RegAddr reg_addr;
+		reg_addr.reg = instr.i.rd;
+		reg_addr.reg_type = RegType::FLOAT;
+		reg_addr.sign_ext = false;
+
+		//load hit record into registers [rd - (rd + N)]
+		MemoryRequest mem_req;
+		mem_req.type = MemoryRequest::Type::LOAD;
+		mem_req.size = sizeof(rtm::Hit);
+		mem_req.dst = reg_addr.u8;
+		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
+
+		return mem_req;
+	}),
 };
 
 const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3]; });
@@ -310,12 +326,14 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	simulator.new_unit_group();
 
 	Units::UnitBlockingCache::Configuration l2_config;
-	l2_config.size = 4 * 1024 * 1024;
+	l2_config.size = 32 * 1024 * 1024;
 	l2_config.associativity = 8;
 	l2_config.num_ports = num_tms * 8;
 	l2_config.num_banks = 32;
+	l2_config.cross_bar_width = 32;
 	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull; //The high order bits need to match the channel assignment bits
-	l2_config.data_array_latency = 4;
+	l2_config.latency = 10;
+	l2_config.cycle_time = 1;
 	l2_config.mem_higher = &dram;
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = 2;
@@ -338,8 +356,9 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		l1_config.associativity = 4;
 		l1_config.num_ports = num_tps_per_tm;
 		l1_config.num_banks = 8;
+		l1_config.cross_bar_width = 8;
 		l1_config.bank_select_mask = 0b0000'0101'0100'0000ull;
-		l1_config.data_array_latency = 0;
+		l1_config.latency = 1;
 		l1_config.num_lfb = 8;
 		l1_config.mem_higher = &l2;
 		l1_config.mem_higher_port_offset = l1_config.num_banks * tm_index;
@@ -405,6 +424,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		for(uint tp_index = 0; tp_index < num_tps_per_tm; ++tp_index)
 		{
 			Units::UnitTP::Configuration tp_config;
+			tp_config.num_threads = 1;
 			tp_config.tp_index = tp_index;
 			tp_config.tm_index = tm_index;
 			tp_config.pc = elf.elf_header->e_entry.u64;

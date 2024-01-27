@@ -11,14 +11,14 @@ file(GLOB_RECURSE USIMM_CONFIG CONFIGURE_DEPENDS "*.vi" "*.cfg")
 # Exclude the Trax Unit Folder
 foreach(Source IN LISTS ALL_INCLUDE ALL_SOURCES USIMM_CONFIG)
   get_filename_component(SourceDir ${Source} DIRECTORY)
-  string(FIND ${SourceDir} "/units/trax" IsExcludedFolder)
+  string(FIND ${SourceDir} "/units/temp" IsExcludedFolder)
   if(${IsExcludedFolder} EQUAL -1)
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${Source})
   endif()
 endforeach()
 
 # Exclude the Trax Folder
-set(EXCLUDED_FOLDER "/units/trax")
+set(EXCLUDED_FOLDER "/units/temp")
 set(NEW_INCLUDE "")
 set(NEW_SOURCE "")
 foreach(Source IN LISTS ALL_INCLUDE)

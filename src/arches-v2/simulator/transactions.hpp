@@ -33,6 +33,7 @@ public:
 	//meta data 
 	Type     type;
 	uint8_t  size;
+	uint16_t flags;
 	uint16_t dst;
 	uint16_t port;
 
@@ -56,7 +57,7 @@ public:
 public:
 	MemoryRequest() = default;
 
-	MemoryRequest(const MemoryRequest& other) : type(other.type), size(other.size), dst(other.dst), port(other.port), write_mask(other.write_mask), paddr(other.paddr)
+	MemoryRequest(const MemoryRequest& other) : type(other.type), size(other.size), flags(other.flags), dst(other.dst), port(other.port), write_mask(other.write_mask), paddr(other.paddr)
 	{
 		std::memcpy(data, other.data, size);
 	}
@@ -65,6 +66,7 @@ public:
 	{
 		type = other.type;
 		size = other.size;
+		flags = other.flags;
 		dst = other.dst;
 		port = other.port;
 		write_mask = other.write_mask;
@@ -105,7 +107,7 @@ public:
 		std::memcpy(data, other.data, size);
 	}
 
-	MemoryReturn(const MemoryRequest& request, void* data) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
+	MemoryReturn(const MemoryRequest& request, const void* data) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
 	{
 		std::memcpy(this->data, data, request.size);
 	}

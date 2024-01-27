@@ -1,6 +1,42 @@
 #pragma once
 #include "stdafx.hpp"
 
+
+class uint128_t 
+{
+private:
+	uint64_t lo;
+	uint64_t hi;
+
+public:
+	uint128_t(uint64_t lo) 
+	{ 
+		lo = lo;
+		hi = 0x0ull;
+	}
+
+	uint128_t(uint64_t lo, uint64_t hi)
+	{
+		lo = lo;
+		hi = hi;
+	}
+
+	uint128_t(const uint128_t& other)
+	{
+		lo = other.lo;
+		hi = other.hi;
+	}
+
+	uint128_t& operator=(const uint128_t& other)
+	{
+		lo = other.lo;
+		hi = other.hi;
+		return *this;
+	}
+
+};
+
+
 inline uint log2i(uint64_t in)
 {
 	uint i = 0;
@@ -13,7 +49,6 @@ inline uint64_t generate_nbit_mask(uint n)
 	if(n >= 64) return ~0ull;
 	return ~(~0ull << n);
 }
-
 
 inline Arches::paddr_t align_to(size_t alignment, Arches::paddr_t paddr)
 {

@@ -12,10 +12,6 @@ InstructionTypeNameDatabase* InstructionTypeNameDatabase::_instance = nullptr;
 #define CALLBACK_GETSTR(STR) [](Instruction const& /*instr*/) { return STR; }
 #define CALLBACK_SUBISA(TO_INSTR_INF) [](Instruction const& instr) -> const char* { return TO_INSTR_INF.get_mnemonic(instr); }
 
-#define META_NOTI [](Instruction const& instr) -> InstructionInfo const& { throw ErrNotImplInstr(instr); }
-#define IMPL_NONE [](Instruction const& instr, ExecutionItem* /*unit*/) -> void { throw ErrNoSuchInstr (instr); }
-#define IMPL_NOTI [](Instruction const& instr, ExecutionItem* /*unit*/) -> void { throw ErrNotImplInstr(instr); }
-
 const InstructionInfo Instruction::get_info() const
 {
 	//ignore two low bits which are only used for the C extension

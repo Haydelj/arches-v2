@@ -30,9 +30,9 @@ bool UnitDRAM::request_port_write_valid(uint port_index)
 	return _request_network.is_write_valid(port_index);
 }
 
-void UnitDRAM::write_request(const MemoryRequest& request, uint port_index)
+void UnitDRAM::write_request(const MemoryRequest& request)
 {
-	_request_network.write(request, port_index);
+	_request_network.write(request, request.port);
 }
 
 bool UnitDRAM::return_port_read_valid(uint port_index)

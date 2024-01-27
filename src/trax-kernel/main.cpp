@@ -15,8 +15,13 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	return out;
 }
 
+#if __riscv
+#define USE_TRACERAY
+#endif
+
 inline static void kernel(const KernelArgs& args)
 {
+#if 0
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint32_t x = index % args.framebuffer_width;
@@ -31,7 +36,6 @@ inline static void kernel(const KernelArgs& args)
 
 			if(args.samples_per_pixel > 1)  ray = args.camera.generate_ray_through_pixel(x, y, &rng);
 			else                            ray = args.camera.generate_ray_through_pixel(x, y);
-			hit.t = ray.t_max;
 		
 			rtm::vec3 attenuation(1.0f);
 			for(uint j = 0; j < args.max_depth; ++j)
@@ -44,7 +48,13 @@ inline static void kernel(const KernelArgs& args)
 					attenuation *= 0.8f;
 				}
 
-				if(intersect(args.mesh, ray, hit)) 
+				hit.t = ray.t_max; hit.id = ~0u;
+			#ifdef USE_TRACERAY
+				_traceray<0x0u>(index, ray, hit);
+			#else
+				intersect(args.mesh, ray, hit);
+			#endif
+				if(hit.id != ~0u)
 				{
 					normal = args.mesh.tris[hit.id].normal();
 					float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
@@ -53,8 +63,14 @@ inline static void kernel(const KernelArgs& args)
 						rtm::Ray sray = ray;
 						sray.o = ray.o + ray.d * hit.t;
 						sray.d = args.light_dir;
-						rtm::Hit shit; shit.t = sray.t_max;
-						if(intersect(args.mesh, sray, shit, true))
+						rtm::Hit shit;
+						shit.t = sray.t_max; shit.id = ~0u;
+					#ifdef USE_TRACERAY
+						_traceray<0x1u>(index, sray, shit);
+					#else
+						intersect(args.mesh, sray, shit, true);
+					#endif
+						if(shit.id != ~0u)
 							ndotl = 0.0f;
 					}
 					output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
@@ -69,6 +85,32 @@ inline static void kernel(const KernelArgs& args)
 
 		args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
 	}
+
+#else
+	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	{
+		uint32_t x = index % args.framebuffer_width;
+		uint32_t y = index / args.framebuffer_width;
+		rtm::RNG rng(index);
+
+		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
+
+		rtm::Hit hit; hit.t = ray.t_max; hit.id = ~0u;
+#ifdef USE_TRACERAY
+		_traceray<0x0u>(index, ray, hit);
+#else
+		intersect(args.mesh, ray, hit);
+#endif
+		if(hit.id != ~0u)
+		{
+			args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
+		}
+		else
+		{
+			args.framebuffer[index] = 0xff000000;
+		}
+	}
+#endif
 }
 
 #ifdef __riscv 

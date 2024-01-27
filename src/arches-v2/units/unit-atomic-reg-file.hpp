@@ -60,8 +60,8 @@ public:
 
 			case MemoryRequest::Type::AMO_ADD:
 				_iregs[reg_index] += request_data;
-				if (ret_val % 64 == 0)
-					printf("Tiles Launched: %d\n", ret_val);
+				if (_iregs[reg_index] % 64 == 0)
+					printf("Tiles Launched: %d\n", _iregs[reg_index]);
 				break;
 
 			case MemoryRequest::Type::AMO_AND:
@@ -110,9 +110,9 @@ public:
 		return _request_network.is_write_valid(port_index);
 	}
 
-	void write_request(const MemoryRequest& request, uint port_index) override
+	void write_request(const MemoryRequest& request) override
 	{
-		_request_network.write(request, port_index);
+		_request_network.write(request, request.port);
 	}
 
 	bool return_port_read_valid(uint port_index) override

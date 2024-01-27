@@ -15,6 +15,8 @@ struct KernelArgs
 	uint32_t samples_per_pixel;
 	uint32_t max_depth;
 
+	bool use_trace_ray;
+
 	rtm::vec3 light_dir;
 	MeshPointers mesh;
 	rtm::Camera camera;

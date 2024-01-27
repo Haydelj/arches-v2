@@ -4,8 +4,8 @@ namespace Arches {namespace Units {
 
 UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) : 
 	UnitCacheBase(config.size, config.associativity),
-	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
-	_return_cross_bar(config.num_ports, config.num_banks)
+	_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask),
+	_return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width)
 {
 	_check_retired_lfb = config.check_retired_lfb;
 
@@ -13,7 +13,7 @@ UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) :
 	_mem_higher_port_offset = config.mem_higher_port_offset;
 	_mem_higher_port_stride = config.mem_higher_port_stride;
 
-	_banks.resize(config.num_banks, {config.num_lfb, config.data_array_latency});
+	_banks.resize(config.num_banks, {config.num_lfb, config.latency});
 }
 
 UnitNonBlockingCache::~UnitNonBlockingCache()
@@ -274,7 +274,7 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		outgoing_request.size = CACHE_BLOCK_SIZE;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = lfb.block_addr;
-		_mem_higher->write_request(outgoing_request, mem_higher_port_index);
+		_mem_higher->write_request(outgoing_request);
 
 		bank.lfb_request_queue.pop();
 	}
@@ -289,7 +289,7 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		outgoing_request.write_mask = lfb.write_mask;
 		outgoing_request.paddr = lfb.block_addr;
 		std::memcpy(outgoing_request.data, lfb.block_data.bytes, CACHE_BLOCK_SIZE);
-		_mem_higher->write_request(outgoing_request, mem_higher_port_index);
+		_mem_higher->write_request(outgoing_request);
 
 		lfb.state = LFB::State::INVALID;
 		bank.lfb_request_queue.pop();
@@ -351,9 +351,9 @@ bool UnitNonBlockingCache::request_port_write_valid(uint port_index)
 	return _request_cross_bar.is_write_valid(port_index);
 }
 
-void UnitNonBlockingCache::write_request(const MemoryRequest& request, uint port_index)
+void UnitNonBlockingCache::write_request(const MemoryRequest& request)
 {
-	_request_cross_bar.write(request, port_index);
+	_request_cross_bar.write(request, request.port);
 }
 
 bool UnitNonBlockingCache::return_port_read_valid(uint port_index)

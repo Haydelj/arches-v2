@@ -341,7 +341,7 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		req.port = mem_higher_port_index;
 		req.dst = dst_tm;
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
-		_main_mem->write_request(req, req.port);
+		_main_mem->write_request(req);
 
 		channel.bytes_requested += CACHE_BLOCK_SIZE;
 		if(channel.bytes_requested == sizeof(RayBucket))
@@ -361,7 +361,7 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		req.write_mask = generate_nbit_mask(CACHE_BLOCK_SIZE);
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
 		std::memcpy(req.data, ((uint8_t*)&bucket) + channel.bytes_requested, CACHE_BLOCK_SIZE);
-		_main_mem->write_request(req, req.port);
+		_main_mem->write_request(req);
 
 		channel.bytes_requested += CACHE_BLOCK_SIZE;
 		if(channel.bytes_requested == sizeof(RayBucket))
@@ -378,7 +378,7 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		req.port = mem_higher_port_index;
 		req.dst = _return_network.num_sinks();
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
-		_main_mem->write_request(req, req.port);
+		_main_mem->write_request(req);
 
 		channel.bytes_requested += CACHE_BLOCK_SIZE;
 		if(channel.bytes_requested == ROW_BUFFER_SIZE)

@@ -13,10 +13,12 @@ public:
 		uint size{1024};
 		uint associativity{1};
 
-		uint data_array_latency{0};
+		uint latency{1};
+		uint cycle_time{1};
 
 		uint num_ports{1};
 		uint num_banks{1};
+		uint cross_bar_width{1};
 		uint64_t bank_select_mask{0};
 
 		UnitMemoryBase* mem_higher{nullptr};
@@ -31,7 +33,7 @@ public:
 	void clock_fall() override;
 
 	bool request_port_write_valid(uint port_index) override;
-	void write_request(const MemoryRequest& request, uint port_index) override;
+	void write_request(const MemoryRequest& request) override;
 
 	bool return_port_read_valid(uint port_index) override;
 	const MemoryReturn& peek_return(uint port_index) override;
@@ -49,8 +51,9 @@ private:
 		}
 		state{State::IDLE};
 		MemoryRequest current_request{};
+		Pipline<MemoryRequest> tag_array_pipline;
 		Pipline<MemoryReturn> data_array_pipline;
-		Bank(uint data_array_latency) : data_array_pipline(data_array_latency) {}
+		Bank(uint latency, uint cycle_time) : tag_array_pipline(cycle_time, cycle_time), data_array_pipline(latency, cycle_time) {}
 	};
 
 	std::vector<Bank> _banks;

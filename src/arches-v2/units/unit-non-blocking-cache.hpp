@@ -14,10 +14,11 @@ public:
 		uint size{1024};
 		uint associativity{1};
 
-		uint data_array_latency{0};
+		uint latency{1};
 
 		uint num_ports{1};
 		uint num_banks{1};
+		uint cross_bar_width{1};
 		uint64_t bank_select_mask{0};
 
 		uint num_lfb{1};
@@ -35,7 +36,7 @@ public:
 	void clock_fall() override;
 
 	bool request_port_write_valid(uint port_index) override;
-	void write_request(const MemoryRequest& request, uint port_index) override;
+	void write_request(const MemoryRequest& request) override;
 
 	bool return_port_read_valid(uint port_index) override;
 	const MemoryReturn& peek_return(uint port_index) override;
@@ -97,7 +98,7 @@ private:
 		std::queue<uint> lfb_return_queue;
 		Pipline<uint> data_array_pipline;
 		uint64_t outgoing_write_mask;
-		Bank(uint num_lfb, uint data_array_latency) : lfbs(num_lfb), data_array_pipline(data_array_latency) {}
+		Bank(uint num_lfb, uint latency) : lfbs(num_lfb), data_array_pipline(latency - 1) {}
 	};
 
 	bool _check_retired_lfb;

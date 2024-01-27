@@ -17,7 +17,7 @@ public:
 		uint64_t mask;
 
 	public:
-		RequestCrossBar(uint ports, uint banks, uint64_t bank_select_mask) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest>(ports, banks, banks) {}
+		RequestCrossBar(uint ports, uint banks, uint cross_bar_width, uint64_t bank_select_mask) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest>(ports, banks, cross_bar_width) {}
 
 		uint get_sink(const MemoryRequest& request) override
 		{
@@ -30,7 +30,7 @@ public:
 	class ReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
 	{
 	public:
-		ReturnCrossBar(uint ports, uint banks) : CasscadedCrossBar<MemoryReturn>(banks, ports, banks) {}
+		ReturnCrossBar(uint ports, uint banks, uint cross_bar_width) : CasscadedCrossBar<MemoryReturn>(banks, ports, cross_bar_width) {}
 
 		uint get_sink(const MemoryReturn& ret) override
 		{
@@ -43,7 +43,7 @@ public:
 
 	//Should only be used on clock fall
 	virtual bool request_port_write_valid(uint port_index) = 0;
-	virtual void write_request(const MemoryRequest& request, uint port_index) = 0;
+	virtual void write_request(const MemoryRequest& request) = 0;
 
 	//Should only be used on clock rise
 	virtual bool return_port_read_valid(uint port_index) = 0;

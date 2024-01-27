@@ -42,44 +42,43 @@ protected:
 
 	struct ThreadData
 	{
-		ISA::RISCV::IntegerRegisterFile       _int_regs{};
-		ISA::RISCV::FloatingPointRegisterFile _float_regs{};
-		vaddr_t                               _pc{};
+		ISA::RISCV::IntegerRegisterFile       int_regs{};
+		ISA::RISCV::FloatingPointRegisterFile float_regs{};
+		vaddr_t                               pc{};
 
-		uint8_t* _cheat_memory{nullptr};
-		// instruction cache
+		uint8_t* cheat_memory{nullptr};
 		struct IBuffer
 		{
 			uint8_t data[CACHE_BLOCK_SIZE];
 			paddr_t paddr{0};
-			bool reqData{false};
-			bool getData{false};
-		}_i_buffer;
+		}i_buffer;
 
-		uint8_t _float_regs_pending[32];
-		uint8_t _int_regs_pending[32];
+		ISA::RISCV::Instruction instr{0x0ull};
+		ISA::RISCV::InstructionInfo instr_info;
 
-		std::vector<uint8_t> _stack_mem;
-		uint64_t _stack_mask;
+		uint8_t float_regs_pending[32];
+		uint8_t int_regs_pending[32];
 
+		std::vector<uint8_t> stack_mem;
+		uint64_t stack_mask;
 	};
-	std::vector<ThreadData> thread_data;
-	uint _num_tps_per_i_cache;
-	UnitMemoryBase* inst_cache{nullptr};
+
 
 	uint _tp_index;
 	uint _tm_index;
+	uint _num_tps_per_i_cache;
 
-	uint num_threads;
-	uint current_thread_id{ 0 };
-	bool last_cycle_stalling = false;
-	RoundRobinArbiter thread_arbiter;
+	uint _last_thread_id;
+	uint _num_threads;
+	uint _num_halted_threads;
+	RoundRobinArbiter _thread_exec_arbiter;
+	RoundRobinArbiter _thread_fetch_arbiter;
+	std::vector<ThreadData> _thread_data;
 
-	const std::vector<UnitBase*>& unit_table;
-	const std::vector<UnitSFU*>& unique_sfus;
-	const std::vector<UnitMemoryBase*>& unique_mems;
-
-
+	const std::vector<UnitBase*>& _unit_table;
+	const std::vector<UnitSFU*>& _unique_sfus;
+	const std::vector<UnitMemoryBase*>& _unique_mems;
+	UnitMemoryBase* _inst_cache{nullptr};
 
 public:
 	UnitTP(const Configuration& config);
@@ -88,12 +87,12 @@ public:
 	void clock_fall() override;
 
 protected:
-	void _switch_thread();
+	uint8_t _decode(uint thread_id);
+	virtual uint8_t _check_dependancies(uint thread_id);
+	virtual void _set_dependancies(uint thread_id);
 	void _process_load_return(const MemoryReturn& ret);
-	virtual uint8_t _check_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
-	virtual void _set_dependancies(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info);
 	void _clear_register_pending(uint thread_id, ISA::RISCV::RegAddr dst);
-	void _log_instruction_issue(const ISA::RISCV::Instruction& instr, const ISA::RISCV::InstructionInfo& instr_info, const ISA::RISCV::ExecutionItem& exec_item);
+	void _log_instruction_issue(uint thread_id);
 
 public:
 	class Log
@@ -103,19 +102,17 @@ public:
 		std::vector<uint64_t> _profile_counters;
 		uint _instr_index{ 0 };
 
+		uint64_t _cycles;
 		uint64_t _instruction_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
 		uint64_t _resource_stall_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
 		uint64_t _data_stall_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
-
-		uint64_t _ibuffer_hits;
-		uint64_t _ibuffer_misses;
-		uint64_t _ibuffer_flushes;
 
 	public:
 		Log(uint64_t elf_start_addr) : _elf_start_addr(elf_start_addr) { reset(); }
 
 		void reset()
 		{
+			_cycles = 0;
 			for (uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
 				_instruction_counters[i] = 0;
@@ -123,13 +120,11 @@ public:
 				_data_stall_counters[i] = 0;
 				_profile_counters.clear();
 			}
-			_ibuffer_hits = 0;
-			_ibuffer_misses = 0;
-			_ibuffer_flushes = 0;
 		}
 
 		void accumulate(const Log& other)
 		{
+			_cycles += other._cycles;
 			for (uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
 				_instruction_counters[i] += other._instruction_counters[i];
@@ -142,9 +137,6 @@ public:
 			{
 				_profile_counters[i] += other._profile_counters[i];
 			}
-			_ibuffer_hits += other._ibuffer_hits;
-			_ibuffer_misses += other._ibuffer_misses;
-			_ibuffer_flushes += other._ibuffer_flushes;
 		}
 
 		void profile_instruction(vaddr_t pc)
@@ -158,28 +150,26 @@ public:
 			_profile_counters[instr_index]++;
 		}
 
-		void log_instruction_issue(const ISA::RISCV::InstructionInfo& info, vaddr_t pc)
+		void log_instruction_issue(const ISA::RISCV::InstrType type, vaddr_t pc)
 		{
-			_instruction_counters[(uint)info.instr_type]++;
+			_cycles++;
+			_instruction_counters[(uint)type]++;
 			profile_instruction(pc);
 		}
 
-		void log_resource_stall(const ISA::RISCV::InstructionInfo& info, vaddr_t pc)
+		void log_resource_stall(const ISA::RISCV::InstrType type, vaddr_t pc)
 		{
-			_resource_stall_counters[(uint)info.instr_type]++;
+			_cycles++;
+			_resource_stall_counters[(uint)type]++;
 			profile_instruction(pc);
 		}
 
-		void log_data_stall(uint8_t type, vaddr_t pc)
+		void log_data_stall(const ISA::RISCV::InstrType type, vaddr_t pc)
 		{
-			_data_stall_counters[type]++;
+			_cycles++;
+			_data_stall_counters[(uint)type]++;
 			profile_instruction(pc);
 		}
-
-		void log_ibuffer_hit(uint n = 1) { _ibuffer_hits += n; }
-		void log_ibuffer_miss(uint n = 1) { _ibuffer_misses += n; }
-		void log_ibuffer_flush(uint n = 1) { _ibuffer_flushes += n; }
-		uint64_t get_ibuffer_total() { return _ibuffer_hits + _ibuffer_misses + _ibuffer_flushes; }
 
 		void print_log(FILE* stream = stdout, uint num_units = 1)
 		{
@@ -194,7 +184,7 @@ public:
 			std::sort(_instruction_counter_pairs.begin(), _instruction_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
 
-			fprintf(stream, "Instruction mix\n");
+			fprintf(stream, "Issue Cycles (%.2f%%)\n", 100.0f * total / _cycles);
 			fprintf(stream, "\tTotal: %lld\n", total / num_units);
 			for (uint i = 0; i < _instruction_counter_pairs.size(); ++i)
 				if (_instruction_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _instruction_counter_pairs[i].first, _instruction_counter_pairs[i].second / num_units, static_cast<float>(_instruction_counter_pairs[i].second) / total * 100.0f);
@@ -210,8 +200,8 @@ public:
 			std::sort(_resource_stall_counter_pairs.begin(), _resource_stall_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
 
-			fprintf(stream, "Resoruce Stalls\n");
-			fprintf(stream, "\tTotal: %lld\n", total / num_units);
+			fprintf(stream, "\nPipeline Stall Cycles (%.2f%%)\n", 100.0f * total / _cycles);
+			fprintf(stream, "\tTotal: %lld \n", total / num_units);
 			for (uint i = 0; i < _resource_stall_counter_pairs.size(); ++i)
 				if (_resource_stall_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _resource_stall_counter_pairs[i].first, _resource_stall_counter_pairs[i].second / num_units, static_cast<float>(_resource_stall_counter_pairs[i].second) / total * 100.0f);
 
@@ -226,19 +216,10 @@ public:
 			std::sort(_data_stall_counter_pairs.begin(), _data_stall_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
 
-			fprintf(stream, "Data Stalls\n");
+			fprintf(stream, "\nData Stall Cycles (%.2f%%)\n", 100.0f * total / _cycles);
 			fprintf(stream, "\tTotal: %lld\n", total / num_units);
 			for (uint i = 0; i < _data_stall_counter_pairs.size(); ++i)
 				if (_data_stall_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, static_cast<float>(_data_stall_counter_pairs[i].second) / total * 100.0f);
-
-			// instruction buffer log print
-			fprintf(stream, "Instruction L1 buffer\n");
-			total = get_ibuffer_total();
-			float ft = total / 100.0f;
-			fprintf(stream, "\tTotal: %lld\n", total / num_units);
-			fprintf(stream, "\tHits: %lld(%.2f%%)\n", _ibuffer_hits / num_units, _ibuffer_hits / ft);
-			fprintf(stream, "\tMisses: %lld(%.2f%%)\n", _ibuffer_misses / num_units, _ibuffer_misses / ft);
-			fprintf(stream, "\tFlushes: %lld(%.2f%%)\n", _ibuffer_flushes / num_units, _ibuffer_flushes / ft);
 		}
 
 		void print_profile(uint8_t* backing_memory, FILE* stream = stdout)

@@ -17,7 +17,7 @@ private:
 	FIFOArray<SFURequest> return_crossbar;
 
 public:
-	UnitSFU(uint num_piplines, uint cpi, uint latency, uint num_clients) :
+	UnitSFU(uint num_piplines, uint latency, uint cpi, uint num_clients) :
 		request_crossbar(num_clients, num_piplines), return_crossbar(num_clients), piplines(num_piplines, {latency, cpi})
 	{
 	}
@@ -28,9 +28,9 @@ public:
 		return request_crossbar.is_write_valid(port_index);
 	}
 
-	virtual void write_request(const SFURequest& request, uint port_index)
+	virtual void write_request(const SFURequest& request)
 	{
-		request_crossbar.write(request, port_index);
+		request_crossbar.write(request, request.port);
 	}
 
 	//Should only be used on clock rise
