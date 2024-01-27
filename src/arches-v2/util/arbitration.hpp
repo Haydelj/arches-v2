@@ -15,6 +15,11 @@ public:
 
 	uint32_t size() { return _size; }
 
+	uint64_t get_mask()
+	{
+		return _pending;
+	}
+
 	uint num_pending()
 	{
 		return popcnt(_pending);

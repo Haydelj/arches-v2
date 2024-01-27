@@ -14,7 +14,7 @@ class RNG
 {
 public:
 	//Robert Jenkins' one a time hash funcion for size 1 https://en.wikipedia.org/wiki/Jenkins_hash_function
-	uint32_t hash(uint32_t u)
+	static uint32_t hash(uint32_t u)
 	{
 		u += u << 10;
 		u ^= u >> 6;

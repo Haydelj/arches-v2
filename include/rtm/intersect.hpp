@@ -44,27 +44,27 @@ inline bool intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& h
 	hit.t = t ;
 	return true;
 #else
-    rtm::vec3 e0     = tri.vrts[1] - tri.vrts[2];
-    rtm::vec3 e1     = tri.vrts[0] - tri.vrts[2];
-    rtm::vec3 normal = rtm::normalize(rtm::cross(e1, e0));
-    rtm::vec3 r1     = rtm::cross(ray.d, e0);
-    float denom      = rtm::dot(e1, r1);
-    float rcp_denom  = 1.0f / denom;
-    rtm::vec3 s       = ray.o - tri.vrts[2];
-    float b1          = rtm::dot(s, r1) * rcp_denom;
-    if (b1 < 0.0f || b1 > 1.0f)
+    rtm::vec3 e0     = tri.vrts[1] - tri.vrts[2];//2,2
+    rtm::vec3 e1     = tri.vrts[0] - tri.vrts[2];//2
+  	//rtm::vec3 normal = rtm::normalize(rtm::cross(e1, e0));
+    rtm::vec3 r1     = rtm::cross(ray.d, e0);//4, 6
+    float denom      = rtm::dot(e1, r1);//6, 12
+    float rcp_denom  = 1.0f / denom; //2, 14
+    rtm::vec3 s       = ray.o - tri.vrts[2]; //2
+    float b1          = rtm::dot(s, r1) * rcp_denom;//2, 16
+    if (b1 < 0.0f || b1 > 1.0f) //1, 17
         return false;
 
-    rtm::vec3 r2 = rtm::cross(s, e1);
-    float b2  = rtm::dot(ray.d, r2) * rcp_denom;
-    if (b2 < 0.0f || (b2 + b1) > 1.0f)
+    rtm::vec3 r2 = rtm::cross(s, e1); //4
+    float b2  = rtm::dot(ray.d, r2) * rcp_denom;//2, 16
+    if (b2 < 0.0f || (b2 + b1) > 1.0f)//1, 18
        	return false;
 
-    float t = rtm::dot(e0, r2) * rcp_denom;
+    float t = rtm::dot(e0, r2) * rcp_denom;//2, 16
 	if(t < ray.t_min || t > hit.t) 
 		return false;
 
-	hit.bc = rtm::vec2(b1, b2);
+	hit.bc = rtm::vec2(b1, b2); //20
 	hit.t = t;
 	return true;
 #endif

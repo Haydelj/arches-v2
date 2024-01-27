@@ -76,14 +76,18 @@ public:
 					request.port = _tm_index;
 					request.paddr = 0x0ull;
 					request.data_u32 = 1;
-					_atomic_regs->write_request(request, request.port);
+					_atomic_regs->write_request(request);
 					_stalled_for_atomic_reg = true;
 				}
 			}
 			else if(_return_network.is_write_valid(_current_request.port))
 			{
-				uint x = (_current_tile % (_width / _tile_width)) * _tile_width + (_current_offset % _tile_width);
-				uint y = (_current_tile / (_width / _tile_width)) * _tile_height + (_current_offset / _tile_width);
+				//uint tile_x = pext(_current_offset, 0x5555);
+				//uint tile_y = pext(_current_offset, 0xaaaa);
+				uint tile_x = (_current_offset % _tile_width);
+				uint tile_y = (_current_offset / _tile_width);
+				uint x = (_current_tile % (_width / _tile_width)) * _tile_width + tile_x;
+				uint y = (_current_tile / (_width / _tile_width)) * _tile_height + tile_y;
 				uint32_t index = y * _width + x;
 				MemoryReturn ret(_current_request, &index);
 
@@ -102,9 +106,9 @@ public:
 		return _request_network.is_write_valid(port_index);
 	}
 
-	void write_request(const MemoryRequest& request, uint port_index) override
+	void write_request(const MemoryRequest& request) override
 	{
-		_request_network.write(request, port_index);
+		_request_network.write(request, request.port);
 	}
 
 	bool return_port_read_valid(uint port_index) override

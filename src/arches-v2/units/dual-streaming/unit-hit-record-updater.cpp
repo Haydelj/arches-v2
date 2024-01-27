@@ -193,7 +193,7 @@ void UnitHitRecordUpdater::issue_requests(uint channel_index) {
 		MemoryRequest req = channel.write_queue.front();
 		channel.write_queue.pop();
 		req.port = port_in_main_memory;
-		main_memory->write_request(req, port_in_main_memory);
+		main_memory->write_request(req);
 		requested = true;
 	}
 	// Read
@@ -201,7 +201,7 @@ void UnitHitRecordUpdater::issue_requests(uint channel_index) {
 		MemoryRequest req = channel.read_queue.front();
 		channel.read_queue.pop();
 		req.port = port_in_main_memory;
-		main_memory->write_request(req, port_in_main_memory);
+		main_memory->write_request(req);
 		requested = true;
 	}
 

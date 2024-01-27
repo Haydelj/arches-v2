@@ -58,6 +58,8 @@ enum class InstrType : uint8_t
 {
 	NA,
 
+	INSRT_FETCH,
+
 	LOAD,
 	STORE,
 	ATOMIC,
@@ -124,6 +126,8 @@ private:
 	std::string _instr_type_names[(uint)InstrType::NUM_TYPES]
 	{
 		"NA",
+
+		"INSRT_FETCH",
 
 		"LOAD",
 		"STORE",
@@ -479,6 +483,18 @@ public:
 	}
 };
 
+class ErrNoSuchInstr final : public std::runtime_error {
+public:
+	explicit ErrNoSuchInstr(std::string const& msg) : std::runtime_error(msg) {}
+	explicit ErrNoSuchInstr(RISCV::Instruction const& instr) : ErrNoSuchInstr("No such instruction: " + std::to_string(instr.data)) {}
+	virtual ~ErrNoSuchInstr() = default;
+};
+class ErrNotImplInstr final : public std::runtime_error {
+public:
+	explicit ErrNotImplInstr(std::string const& msg) : std::runtime_error(msg) {}
+	explicit ErrNotImplInstr(RISCV::Instruction const& instr) : ErrNotImplInstr("Instruction " + std::to_string(instr.data) + " not implemented!") {}
+	virtual ~ErrNotImplInstr() = default;
+};
 
 //RV64C
 //extern InstructionInfo const compressed_isa[4]; //TODO this
@@ -531,5 +547,9 @@ extern InstructionInfo const isa_OP_0x68_FP[4];
 #define EXEC_DECL [](Instruction const& instr, ExecutionItem* unit) -> void
 #define CTRL_FLOW_DECL [](Instruction const& instr, ExecutionItem* unit) -> bool
 #define MEM_REQ_DECL [](Instruction const& instr, ExecutionItem* unit) -> MemoryRequest
+
+#define META_NOTI [](Instruction const& instr) -> InstructionInfo const& { throw ErrNotImplInstr(instr); }
+#define IMPL_NONE [](Instruction const& instr, ExecutionItem* /*unit*/) -> void { throw ErrNoSuchInstr (instr); }
+#define IMPL_NOTI [](Instruction const& instr, ExecutionItem* /*unit*/) -> void { throw ErrNotImplInstr(instr); }
 
 }}}

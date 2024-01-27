@@ -4,9 +4,9 @@ namespace Arches {namespace Units {
 
 UnitBlockingCache::UnitBlockingCache(Configuration config) : 
 	UnitCacheBase(config.size, config.associativity),
-	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
-	_return_cross_bar(config.num_ports, config.num_banks),
-	_banks(config.num_banks, config.data_array_latency)
+	_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask),
+	_return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width),
+	_banks(config.num_banks, {config.latency, config.cycle_time})
 {
 	_mem_higher = config.mem_higher;
 	_mem_higher_port_offset = config.mem_higher_port_offset;
@@ -21,12 +21,14 @@ UnitBlockingCache::~UnitBlockingCache()
 void UnitBlockingCache::_clock_rise(uint bank_index)
 {
 	Bank& bank = _banks[bank_index];
-	bank.data_array_pipline.clock();
+
+	if(_request_cross_bar.is_read_valid(bank_index) && bank.tag_array_pipline.is_write_valid()) 
+		bank.tag_array_pipline.write(_request_cross_bar.read(bank_index));
 
 	if(bank.state == Bank::State::IDLE)
 	{
-		if(!_request_cross_bar.is_read_valid(bank_index) || !bank.data_array_pipline.is_write_valid()) return;
-		bank.current_request = _request_cross_bar.read(bank_index);
+		if(!bank.tag_array_pipline.is_read_valid() || !bank.data_array_pipline.is_write_valid()) return;
+		bank.current_request = bank.tag_array_pipline.read();
 
 		if(bank.current_request.type == MemoryRequest::Type::LOAD)
 		{
@@ -65,7 +67,6 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		assert(ret.paddr == _get_block_addr(ret.paddr));
 
 		_insert_block(ret.paddr, ret.data);
-		log.log_tag_array_access();
 		log.log_data_array_write();
 
 		uint block_offset = _get_block_offset(bank.current_request.paddr);
@@ -78,6 +79,9 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 void UnitBlockingCache::_clock_fall(uint bank_index)
 {
 	Bank& bank = _banks[bank_index];
+	bank.tag_array_pipline.clock();
+	bank.data_array_pipline.clock();
+
 	if(bank.state == Bank::State::MISSED)
 	{
 		uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
@@ -90,7 +94,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.size = CACHE_BLOCK_SIZE;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
-				_mem_higher->write_request(request, request.port);
+				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}
 			else if(bank.current_request.type == MemoryRequest::Type::STORE)
@@ -100,7 +104,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				//req.write_mask = req.write_mask << _get_block_offset(bank.current_request.paddr);
 				//req.size = CACHE_BLOCK_SIZE;
 				request.port = mem_higher_port_index;
-				_mem_higher->write_request(request, request.port);
+				_mem_higher->write_request(request);
 				bank.state = Bank::State::IDLE;
 			}
 		}
@@ -149,9 +153,9 @@ bool UnitBlockingCache::request_port_write_valid(uint port_index)
 	return _request_cross_bar.is_write_valid(port_index);
 }
 
-void UnitBlockingCache::write_request(const MemoryRequest& request, uint port_index)
+void UnitBlockingCache::write_request(const MemoryRequest& request)
 {
-	_request_cross_bar.write(request, port_index);
+	_request_cross_bar.write(request, request.port);
 }
 
 bool UnitBlockingCache::return_port_read_valid(uint port_index)

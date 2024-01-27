@@ -12,6 +12,41 @@ struct MeshPointers
 	rtm::Triangle*  tris;
 };
 
+template<uint32_t FLAGS>
+inline void _traceray(uint id, const rtm::Ray& ray, rtm::Hit& hit)
+{
+#ifdef __riscv
+	register float src0 asm("f0") = ray.o.x;
+	register float src1 asm("f1") = ray.o.y;
+	register float src2 asm("f2") = ray.o.z;
+	register float src3 asm("f3") = ray.t_min;
+	register float src4 asm("f4") = ray.d.x;
+	register float src5 asm("f5") = ray.d.y;
+	register float src6 asm("f6") = ray.d.z;
+	register float src7 asm("f7") = ray.t_max;
+
+	register float dst0 asm("f28");
+	register float dst1 asm("f29");
+	register float dst2 asm("f30");
+	register float dst3 asm("f31");
+
+	asm volatile
+	(
+		"traceray %0, %4, %12\t\n"
+		: "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3)
+		: "f" (src0), "f" (src1), "f" (src2), "f" (src3), "f" (src4), "f" (src5), "f" (src6), "f" (src7), "I" (FLAGS) 
+	);
+
+	float _dst3 = dst3;
+
+	hit.t = dst0;
+	hit.bc.x = dst1;
+	hit.bc.y = dst2;
+	hit.id = *(uint*)&_dst3;
+#else
+#endif
+}
+
 inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
 #ifdef HARDWARE_INTERSECT
@@ -41,7 +76,7 @@ inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::v
 	return t;
 #else
 	return rtm::intersect(aabb, ray, inv_d);
-	#endif
+#endif
 }
 
 inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)

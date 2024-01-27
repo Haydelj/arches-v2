@@ -25,10 +25,10 @@ class BVH
 public:
 	struct BuildObject
 	{
-		AABB  aabb;
-		float cost;
-		uint  index;
-		uint64_t morton_code;
+		AABB  aabb{};
+		float cost{0.0f};
+		uint  index{~0u};
+		uint64_t morton_code{~0u};
 	};
 
 	struct alignas(32) Node
@@ -40,9 +40,9 @@ public:
 			uint32_t fst_chld_ind : 28;
 		};
 
-		AABB       aabb;
-		Node::Data data;
-		uint32_t   _pad;
+		AABB       aabb{};
+		Node::Data data{};
+		uint32_t   _pad{0xcdcdcdcd};
 	};
 
 #ifndef __riscv
