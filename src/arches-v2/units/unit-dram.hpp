@@ -45,7 +45,7 @@ public:
 	virtual ~UnitDRAM() override;
 
 	bool request_port_write_valid(uint port_index) override;
-	void write_request(const MemoryRequest& request, uint port_index) override;
+	void write_request(const MemoryRequest& request) override;
 
 	bool return_port_read_valid(uint port_index) override;
 	const MemoryReturn& peek_return(uint port_index) override;

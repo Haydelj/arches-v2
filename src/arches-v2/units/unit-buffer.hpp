@@ -15,6 +15,7 @@ public:
 		uint64_t size{1024};
 		uint num_ports{1};
 		uint num_banks{1};
+		uint cross_bar_width{1};
 		uint64_t bank_select_mask{0};
 		uint latency{1};
 	};
@@ -35,7 +36,7 @@ private:
 
 public:
 	UnitBuffer(Configuration config) : UnitMemoryBase(),
-		_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask), _return_cross_bar(config.num_ports, config.num_banks), _banks(config.num_banks, config.latency)
+		_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask), _return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width), _banks(config.num_banks, config.latency)
 	{
 		_data_u8 = (uint8_t*)malloc(config.size);
 		_buffer_address_mask = generate_nbit_mask(log2i(config.size));
@@ -92,10 +93,9 @@ public:
 		return _request_cross_bar.is_write_valid(port_index);
 	}
 
-	void write_request(const MemoryRequest& request, uint port_index) override
+	void write_request(const MemoryRequest& request) override
 	{
-		assert(request.port == port_index);
-		_request_cross_bar.write(request, port_index);
+		_request_cross_bar.write(request, request.port);
 	}
 
 	bool return_port_read_valid(uint port_index) override

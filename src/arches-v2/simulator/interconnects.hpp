@@ -288,12 +288,19 @@ class Casscade : public InterconnectionNetwork<T>
 {
 private:
 	FIFOArray<T> _source_fifos;
-	std::vector<RoundRobinArbiter> _arbiters;
 	size_t                         _cascade_ratio;
+	std::vector<RoundRobinArbiter> _arbiters;
 	FIFOArray<T> _sink_fifos;
 
 public:
-	Casscade(uint sources, uint sinks, uint fifo_depth = 8) : _source_fifos(sources, fifo_depth), _cascade_ratio(std::max(sources / sinks, 1u)), _arbiters(sinks, sources / sinks), _sink_fifos(sinks, fifo_depth) {}
+	Casscade(uint sources, uint sinks, uint fifo_depth = 8) : 
+		_source_fifos(sources, fifo_depth), 
+		_cascade_ratio((sources + sinks - 1) / sinks),
+		_arbiters(sinks, _cascade_ratio),
+		_sink_fifos(sinks, fifo_depth) 
+	{ 
+		assert(sources >= sinks); 
+	}
 
 	void clock()
 	{
@@ -338,7 +345,10 @@ private:
 	FIFOArray<T> _sink_fifos;
 
 public:
-	Decasscade(uint sources, uint sinks) : _source_fifos(sources), _sink_fifos(sinks) {}
+	Decasscade(uint sources, uint sinks) : 
+		_source_fifos(sources), 
+		_sink_fifos(sinks) 
+	{ assert(source <= sinks); }
 
 	virtual uint get_sink(const T& transaction) = 0;
 
@@ -375,7 +385,10 @@ private:
 	FIFOArray<T> _sink_fifos;
 
 public:
-	CrossBar(uint sources, uint sinks) : _source_fifos(sources), _arbiters(sinks, sources), _sink_fifos(sinks) {}
+	CrossBar(uint sources, uint sinks, uint fifo_depth = 8) :
+		_source_fifos(sources, fifo_depth),
+		_arbiters(sinks, sources), 
+		_sink_fifos(sinks, fifo_depth) {}
 	
 	virtual uint get_sink(const T& transaction) = 0;
 
@@ -422,14 +435,17 @@ private:
 	FIFOArray<T> _sink_fifos;
 
 public:
-	CasscadedCrossBar(uint sources, uint sinks, uint crossbar_width) :
-		_source_fifos(sources), 
-		_input_cascade_ratio(std::max(sources / crossbar_width, 1u)),
+	CasscadedCrossBar(uint sources, uint sinks, uint crossbar_width, uint source_fifo_depth = 16, uint sink_fifo_depth = 32) :
+		_source_fifos(sources, source_fifo_depth),
+		_input_cascade_ratio((sources + crossbar_width - 1) / crossbar_width),
 		_cascade_arbiters(crossbar_width, _input_cascade_ratio),
 		_crossbar_arbiters(crossbar_width, crossbar_width),
-		_output_cascade_ratio(std::max(sinks / crossbar_width, 1u)),
-		_sink_fifos(sinks) 
-	{}
+		_output_cascade_ratio((sinks + crossbar_width - 1) / crossbar_width),
+		_sink_fifos(sinks, sink_fifo_depth)
+	{
+		assert(sources >= crossbar_width);
+		assert(sinks >= crossbar_width);
+	}
 
 	virtual uint get_sink(const T& transaction) = 0;
 
@@ -464,10 +480,9 @@ public:
 			uint cascade_index = _crossbar_arbiters[crossbar_index].get_index();
 			uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
 			uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
-
-			if(!_sink_fifos.is_write_valid(crossbar_index)) continue;
-
 			uint sink_index = get_sink(_source_fifos.peek(source_index));
+
+			if(!_sink_fifos.is_write_valid(sink_index)) continue;
 
 			_crossbar_arbiters[crossbar_index].remove(cascade_index);
 			_cascade_arbiters[cascade_index].remove(cascade_source_index);

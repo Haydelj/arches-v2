@@ -219,7 +219,7 @@ private:
 	UnitMemoryBase::ReturnCrossBar _return_network;
 
 public:
-	UnitStreamScheduler(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, NUM_DRAM_CHANNELS)
+	UnitStreamScheduler(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, NUM_DRAM_CHANNELS, NUM_DRAM_CHANNELS)
 	{
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
