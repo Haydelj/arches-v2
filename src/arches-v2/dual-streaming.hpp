@@ -371,7 +371,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 
 		std::vector<Units::UnitSFU*> sfu_list;
 
-		sfu_list.push_back(_new Units::UnitSFU(16, 1, 2, num_tps_per_tm));
+		sfu_list.push_back(_new Units::UnitSFU(16, 2, 1, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
@@ -387,11 +387,11 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(2, 1, 4, num_tps_per_tm));
+		sfu_list.push_back(_new Units::UnitSFU(2, 4, 1, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(1, 18, 31, num_tps_per_tm));
+		sfu_list.push_back(_new Units::UnitSFU(1, 31, 18, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
 
