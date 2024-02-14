@@ -180,3 +180,84 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 
 	return found_hit;
 }
+
+inline bool intersect(const MeshPointers& mesh, const rtm::Frustrum& frustrum, uint tile_width, rtm::Hit* hits, uint& steps)
+{
+	float early_t = frustrum.t_max;
+
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::BVH::Node::Data data;
+	};
+
+	NodeStackEntry node_stack[32];
+	uint32_t node_stack_size = 1u;
+	node_stack[0].t = rtm::intersect(mesh.blas[0].aabb, frustrum);
+	node_stack[0].data = mesh.blas[0].data;
+	
+	bool found_hit = false;
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if(current_entry.t >= early_t) continue;
+
+		steps++;
+
+	POP_SKIP:
+		if(!current_entry.data.is_leaf)
+		{
+			uint child_index = current_entry.data.fst_chld_ind;
+			float t0 = rtm::intersect(mesh.blas[child_index + 0].aabb, frustrum);
+			float t1 = rtm::intersect(mesh.blas[child_index + 1].aabb, frustrum);
+			if(t0 < early_t || t1 < early_t)
+			{
+				if(t0 < t1)
+				{
+					current_entry = {t0, mesh.blas[child_index + 0].data};
+					if(t1 < early_t)  node_stack[node_stack_size++] = {t1, mesh.blas[child_index + 1].data};
+				}
+				else
+				{
+					current_entry = {t1, mesh.blas[child_index + 1].data};
+					if(t0 <early_t)  node_stack[node_stack_size++] = {t0, mesh.blas[child_index + 0].data};
+				}
+				goto POP_SKIP;
+			}
+		}
+		else
+		{
+			for(uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; ++i)
+			{
+				uint32_t id = current_entry.data.fst_chld_ind + i;
+				rtm::vec3 dx = frustrum.dx / (float)(tile_width - 1);
+				rtm::vec3 dy = frustrum.dy / (float)(tile_width - 1);
+
+				uint num_hits = 0;
+				float max_t = frustrum.t_min;
+				for(uint j = 0; j < tile_width * tile_width; ++j)
+				{
+					uint x = j % tile_width;
+					uint y = j / tile_width;
+					rtm::Ray ray = {frustrum.o, frustrum.t_min, frustrum.d + x * dx + y * dy, frustrum.t_max};
+					if(rtm::intersect(mesh.tris[id], ray, hits[j]))
+					{
+						hits[j].id = id;
+						found_hit = true;
+					}
+
+					if(hits[j].id != ~0)
+					{
+						num_hits++;
+						max_t = rtm::max(max_t, hits[j].t);
+					}
+				}
+
+				//if(num_hits == tile_width * tile_width)
+				//	early_t = max_t;
+			}
+		}
+	} while(node_stack_size);
+
+	return found_hit;
+}

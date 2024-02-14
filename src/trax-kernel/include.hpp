@@ -12,6 +12,10 @@ struct KernelArgs
 	uint32_t framebuffer_size;
 	uint32_t* framebuffer;
 
+	uint32_t tile_width;
+	uint32_t tile_height;
+	uint32_t tile_size;
+
 	uint32_t samples_per_pixel;
 	uint32_t max_depth;
 

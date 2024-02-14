@@ -16,7 +16,7 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 }
 
 #if __riscv
-#define USE_TRACERAY
+//#define USE_TRACERAY
 #endif
 
 inline static void kernel(const KernelArgs& args)
@@ -86,15 +86,13 @@ inline static void kernel(const KernelArgs& args)
 		args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
 	}
 
-#else
+#elif 0
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint32_t x = index % args.framebuffer_width;
 		uint32_t y = index / args.framebuffer_width;
-		rtm::RNG rng(index);
 
 		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
-
 		rtm::Hit hit; hit.t = ray.t_max; hit.id = ~0u;
 #ifdef USE_TRACERAY
 		_traceray<0x0u>(index, ray, hit);
@@ -108,6 +106,56 @@ inline static void kernel(const KernelArgs& args)
 		else
 		{
 			args.framebuffer[index] = 0xff000000;
+		}
+	}
+
+#else
+	uint num_tiles_x = args.framebuffer_width / args.tile_width;
+	uint num_tiles_y = args.framebuffer_height / args.tile_height;
+	for(uint index = fchthrd(); index < args.framebuffer_size / args.tile_size; index = fchthrd())
+	{
+		uint32_t x = (index % num_tiles_x) * args.tile_width;
+		uint32_t y = (index / num_tiles_x) * args.tile_height;
+
+		rtm::Frustrum frustrum;
+		{
+			rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
+			rtm::vec3 rdx = args.camera.generate_ray_through_pixel(x + args.tile_width - 1, y).d;
+			rtm::vec3 rdy = args.camera.generate_ray_through_pixel(x, y + args.tile_height - 1).d;
+			frustrum.o = ray.o;
+			frustrum.t_min = ray.t_min;
+			frustrum.d = ray.d;
+			frustrum.t_max = ray.t_max;
+			frustrum.dx = rdx - ray.d;
+			frustrum.dy = rdy - ray.d; 
+		}
+
+		rtm::Hit hits[16];
+		for(uint i = 0; i < args.tile_size; ++i)
+		{
+			hits[i].t = frustrum.t_max; 
+			hits[i].id = ~0u;
+		}
+
+		uint steps = 0;
+		intersect(args.mesh, frustrum, args.tile_width, hits, steps);
+
+		bool hit = rtm::intersect(args.mesh.blas[0].aabb, frustrum) < frustrum.t_max;
+
+		for(uint i = 0; i < args.tile_size; ++i)
+		{
+			uint x2 = x + i % args.tile_width;
+			uint y2 = y + i / args.tile_width;
+			uint index2 = y2 * args.framebuffer_width + x2;
+			if(hits[i].id != ~0u)
+			{	
+				args.framebuffer[index2] = rtm::RNG::hash(hits[i].id) | 0xff000000;
+			}
+			else
+			{
+				args.framebuffer[index2] = 0xff000000;
+			}
+			args.framebuffer[index2] = encode_pixel(steps / 128.0f);
 		}
 	}
 #endif
@@ -132,6 +180,10 @@ int main(int argc, char* argv[])
 	args.framebuffer_height = 1024;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
+
+	args.tile_width = 4;
+	args.tile_height = 4;
+	args.tile_size = args.tile_width * args.tile_height;
 
 	args.samples_per_pixel = 16;
 	args.max_depth = 16;

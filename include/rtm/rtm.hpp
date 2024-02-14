@@ -11,6 +11,7 @@
 #include "vec4.hpp"
 
 #include "ray.hpp"
+#include "frustrum.hpp"
 #include "aabb.hpp"
 #include "triangle.hpp"
 
