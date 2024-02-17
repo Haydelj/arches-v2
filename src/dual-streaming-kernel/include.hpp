@@ -1,8 +1,7 @@
 #pragma once
 #include "stdafx.hpp"
 
-#include "intersect.hpp"
-
+#include "treelet-bvh.hpp"
 #define KERNEL_ARGS_ADDRESS 256ull
 
 struct KernelArgs
@@ -14,6 +13,9 @@ struct KernelArgs
 	uint32_t samples_per_pixel;
 	float inverse_samples_per_pixel;
 	uint32_t max_path_depth;
+
+	bool use_early;
+	bool hit_delay;
 
 	rtm::Camera camera;
 	rtm::vec3 light_dir;

@@ -11,7 +11,8 @@
 #include "units/unit-sfu.hpp"
 #include "units/unit-tp.hpp"
 
-#include "units/dual-streaming/unit-stream-scheduler.hpp"
+#include "units/dual-streaming/unit-stream-scheduler-dfs.hpp"
+//#include "units/dual-streaming/unit-stream-scheduler.hpp"
 #include "units/dual-streaming/unit-ray-staging-buffer.hpp"
 #include "units/dual-streaming/unit-ds-tp.hpp"
 #include "units/dual-streaming/unit-hit-record-updater.hpp"
@@ -20,6 +21,7 @@
 #include "isa/riscv.hpp"
 
 #include "dual-streaming-kernel/include.hpp"
+#include <Windows.h>
 
 namespace Arches {
 
@@ -207,31 +209,103 @@ static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignmen
 	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
 }
 
+enum SCENES
+{
+	SPONZA = 0,
+	SAN_MIGUEL,
+	HAIRBALL,
+	LIVING_ROOM,
+	NUMBER
+};
+std::vector<std::string> scene_names = { "sponza", "san-miguel", "hairball", "living_room"};
+struct SceneConfig
+{
+	rtm::Camera camera;
+}scene_configs[SCENES::NUMBER];
+struct GlobalConfig
+{
+	uint scene_id = 0;
+	uint framebuffer_width = 256;
+	uint framebuffer_height = 256;
+	uint traversal_scheme = 0; // 0 - BFS, 1 - DFS
+	uint hit_buffer_size = 128 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
+	bool use_early = 0;
+	bool hit_delay = 0; // hit delay sucks usually
+	SceneConfig scene_config;
+}global_config;
+bool readCmd = true;
+
 static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address)
 {
-	rtm::Mesh mesh("../../datasets/sponza.obj");
-	rtm::BVH blas;
+	//std::string s = "san-miguel";
+	//std::string s = "sponza";
+	std::string s = scene_names[global_config.scene_id];
+	//std::cout << s << '\n';
+	TCHAR exePath[MAX_PATH];
+	GetModuleFileName(NULL, exePath, MAX_PATH);
+	std::wstring fullPath(exePath);
+	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
+	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
+	std::string filename = current_folder_path + "../../datasets/" + s + ".obj";
+
+	std::ifstream inputTreelets(s + "_treelets.dat", std::ios::binary);
+	std::ifstream inputTriangles(s + "_triangles.dat", std::ios::binary);
+	TreeletBVH treelet_bvh;
 	std::vector<rtm::Triangle> tris;
-	std::vector<rtm::BVH::BuildObject> build_objects;
-	for(uint i = 0; i < mesh.size(); ++i)
-		build_objects.push_back(mesh.get_build_object(i));
-	blas.build(build_objects);
-	mesh.reorder(build_objects);
-	mesh.get_triangles(tris);
-
-	TreeletBVH treelet_bvh(blas, mesh);
-
+	if (inputTreelets.is_open() && inputTriangles.is_open())
+	{
+		// Do not need to rebuild treelets every time
+		std::cout << "Loading treelets from file...\n";
+		Treelet t;
+		rtm::Triangle tt;
+		while (inputTreelets.read(reinterpret_cast<char*>(&t), TREELET_SIZE))
+		{
+			treelet_bvh.treelets.push_back(t);
+		}
+		while (inputTriangles.read(reinterpret_cast<char*>(&tt), sizeof(rtm::Triangle)))
+		{
+			tris.push_back(tt);
+		}
+		std::cout << "Treelet size: " << treelet_bvh.treelets.size() << '\n';
+	}
+	else
+	{
+		rtm::Mesh mesh(filename);
+		rtm::BVH blas;
+		std::vector<rtm::BVH::BuildObject> build_objects;
+		for (uint i = 0; i < mesh.size(); ++i)
+			build_objects.push_back(mesh.get_build_object(i));
+		blas.build(build_objects);
+		mesh.reorder(build_objects);
+		mesh.get_triangles(tris);
+		treelet_bvh = TreeletBVH(blas, mesh);
+		std::ofstream outputTreelets(s + "_treelets.dat", std::ios::binary);
+		std::ofstream outputTriangles(s + "_triangles.dat", std::ios::binary);
+		std::cout << "Writing treelets to disk...\n";
+		std::cout << treelet_bvh.treelets.size() * TREELET_SIZE << '\n';
+		for (auto& t : treelet_bvh.treelets)
+		{
+			outputTreelets.write(reinterpret_cast<const char*>(&t), TREELET_SIZE);
+		}
+		for(auto& tt: tris)
+		{
+			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(rtm::Triangle));
+		}
+	}
 	KernelArgs args;
-	args.framebuffer_width = 256;
-	args.framebuffer_height = 256;
+	args.framebuffer_width = global_config.framebuffer_width;
+	args.framebuffer_height = global_config.framebuffer_height;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
 	args.samples_per_pixel = 1;
 	args.max_path_depth = 1;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	//global_data.camera = Camera(global_data.framebuffer_width, global_data.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
+	
+	args.camera = global_config.scene_config.camera;
+
+	args.use_early = global_config.use_early;
+	args.hit_delay = global_config.hit_delay;
 
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address); heap_address += args.framebuffer_size * sizeof(uint32_t);
@@ -240,6 +314,8 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	for(auto& hit : hits) hit.t = T_MAX;
 	args.hit_records = write_vector(main_memory, ROW_BUFFER_SIZE, hits, heap_address);
 	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
+
+	// Do not need to write tris ^_^
 	args.triangles = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 
 	main_memory->direct_write(&args, sizeof(KernelArgs), KERNEL_ARGS_ADDRESS);
@@ -249,6 +325,69 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 
 static void run_sim_dual_streaming(int argc, char* argv[])
 {
+	std::cout << argc << '\n';
+	auto ParseCommand = [&](char* argv)
+	{
+		std::string s(argv);
+		size_t pos = s.find("=");
+		if (pos == std::string::npos)
+		{
+			return;
+		}
+		// -Dxxx=yyy
+		auto key = s.substr(2, pos - 2);
+		auto value = s.substr(pos + 1, s.size() - (pos + 1));
+
+		if (key == "scene_name")
+		{
+			for (int i = 0; i < scene_names.size(); i++)
+			{
+				if (scene_names[i] == value)
+				{
+					global_config.scene_id = i;
+				}
+			}
+		}
+		if (key == "framebuffer_width")
+		{
+			global_config.framebuffer_width = std::stoi(value);
+		}
+		if (key == "framebuffer_height")
+		{
+			global_config.framebuffer_height = std::stoi(value);
+		}
+		if (key == "traversal_scheme")
+		{
+			global_config.traversal_scheme = std::stoi(value);
+		}
+		if (key == "hit_buuffer_size")
+		{
+			global_config.hit_buffer_size = std::stoi(value);
+		}
+		if (key == "use_early")
+		{
+			global_config.use_early = std::stoi(value);
+		}
+		if (key == "hit_delay")
+		{
+			global_config.hit_delay = std::stoi(value);
+		}
+		std::cout << key << ' ' << value << '\n';
+	};
+
+	// 0 is .exe
+	for (int i = 1; i < argc; i++)
+	{
+		if(readCmd) ParseCommand(argv[i]);
+	}
+
+	scene_configs[SCENES::SPONZA].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	scene_configs[SCENES::SAN_MIGUEL].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 24.0f, rtm::vec3(24.4, 16.4, 12.8), rtm::vec3(24.4 - 0.3, 16.4 - 0.6, 12.8 - 0.6));
+	scene_configs[SCENES::HAIRBALL].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 12.0, rtm::vec3(0, 0, 10), rtm::vec3(0, 0, -1));
+	scene_configs[SCENES::LIVING_ROOM].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 12.0, rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92));
+	global_config.scene_config = scene_configs[global_config.scene_id];
+
+
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
@@ -278,17 +417,23 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
 
+	TCHAR exePath[MAX_PATH];
+	GetModuleFileName(NULL, exePath, MAX_PATH);
+	std::wstring fullPath(exePath);
+	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
+	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
+
 	Units::UnitDRAM dram(64, mem_size, &simulator); dram.clear();
 	simulator.register_unit(&dram);
 
 	simulator.new_unit_group();
 
-	ELF elf("../dual-streaming-kernel/riscv/kernel");
+	ELF elf(current_folder_path + "../dual-streaming-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
 
 	KernelArgs kernel_args = initilize_buffers(&dram, heap_address);
 
-	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
+	Units::DualStreaming::UnitStreamSchedulerDFS::Configuration stream_scheduler_config;
 	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
 	stream_scheduler_config.num_tms = num_tms;
@@ -297,8 +442,10 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	stream_scheduler_config.main_mem = &dram;
 	stream_scheduler_config.main_mem_port_offset = 1;
 	stream_scheduler_config.main_mem_port_stride = 4;
+	stream_scheduler_config.traversal_scheme = global_config.traversal_scheme;
+	stream_scheduler_config.num_root_rays = kernel_args.framebuffer_size;
 
-	Units::DualStreaming::UnitStreamScheduler stream_scheduler(stream_scheduler_config);
+	Units::DualStreaming::UnitStreamSchedulerDFS stream_scheduler(stream_scheduler_config);
 	simulator.register_unit(&stream_scheduler);
 
 	Units::DualStreaming::UnitHitRecordUpdater::Configuration hit_record_updater_config;
@@ -307,7 +454,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	hit_record_updater_config.main_mem_port_offset = 3;
 	hit_record_updater_config.main_mem_port_stride = 4;
 	hit_record_updater_config.hit_record_start = *(paddr_t*)&kernel_args.hit_records;
-	hit_record_updater_config.cache_size = 128; // 128 * 16 = 2048B = 2KB
+	hit_record_updater_config.cache_size = global_config.hit_buffer_size; // 128 * 16 = 2048B = 2KB
 	hit_record_updater_config.associativity = 4;
 	Units::DualStreaming::UnitHitRecordUpdater hit_record_updater(hit_record_updater_config);
 	simulator.register_unit(&hit_record_updater);
@@ -391,25 +538,30 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		std::vector<Units::UnitSFU*> sfu_list;
 
 		sfu_list.push_back(_new Units::UnitSFU(16, 2, 1, num_tps_per_tm));
+		//sfu_list.push_back(_new Units::UnitSFU(50, 1, 2, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
 
 		sfu_list.push_back(_new Units::UnitSFU(2, 1, 1, num_tps_per_tm));
+		//sfu_list.push_back(_new Units::UnitSFU(20, 1, 1, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::IMUL] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::IDIV] = sfu_list.back();
 
+		//sfu_list.push_back(_new Units::UnitSFU(20, 1, 16, num_tps_per_tm));
 		sfu_list.push_back(_new Units::UnitSFU(1, 1, 16, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
 
+		//sfu_list.push_back(_new Units::UnitSFU(20, 1, 4, num_tps_per_tm));
 		sfu_list.push_back(_new Units::UnitSFU(2, 4, 1, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
 
+		//sfu_list.push_back(_new Units::UnitSFU(20, 18, 31, num_tps_per_tm));
 		sfu_list.push_back(_new Units::UnitSFU(1, 31, 18, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
@@ -463,6 +615,8 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 		tp_log.accumulate(tp->log);
 	tp_log.print_log();
 
+	stream_scheduler.log.print();
+
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 	printf("\nSummary\n");
 	printf("Runtime: %lldms\n", duration.count());
@@ -470,7 +624,9 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	printf("MRays/s: %.2f\n", (float)kernel_args.framebuffer_size / (simulator.current_cycle / (2 * 1024)));
 
 	paddr_t paddr_frame_buffer = reinterpret_cast<paddr_t>(kernel_args.framebuffer);
-	dram.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "./out.png");
+
+	std::string scene_name = scene_names[global_config.scene_id];
+	dram.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, scene_name + "_out.png");
 
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;

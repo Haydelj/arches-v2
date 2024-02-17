@@ -21,7 +21,7 @@ affected threads' ready cycles for the given register.
 #include "memory_controller.h"
 #include "scheduler.h"
 #include "params.h"
-
+#include <windows.h>
 
 #define MAXTRACELINESIZE 64
 
@@ -205,7 +205,15 @@ int usimm_setup(char* config_filename,
     long long int *addr;
     long long int *instrpc;
 
-    config_file = fopen(config_filename, "r");
+	TCHAR exePath[MAX_PATH];
+	GetModuleFileName(NULL, exePath, MAX_PATH);
+	std::wstring fullPath(exePath);
+	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
+	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
+
+	std::string abs_path = current_folder_path + config_filename;
+	std::cout << abs_path << '\n';
+    config_file = fopen(abs_path.c_str(), "r");
     if (!config_file)
     {
         printf("Usimm: Can't open configuration file %s.  Quitting.\n", config_filename);
@@ -347,9 +355,10 @@ int usimm_setup(char* config_filename,
     if (NUM_CHANNELS >= 4)
     {
         chips_per_rank = 16;
+		std::string abs_path = current_folder_path + usimm_vi_file;
         if (usimm_vi_file != NULL)
         {
-            vi_file = fopen(usimm_vi_file, "r");
+            vi_file = fopen(abs_path.c_str(), "r");
             printf("Reading vi file: %s\t\n%d Chips per Rank\n", usimm_vi_file, chips_per_rank);
         }
         else

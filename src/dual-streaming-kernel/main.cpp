@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "include.hpp"
+//#include "include.hpp"
 #include "intersect.hpp"
 #include "custom-instr.hpp"
 
@@ -36,7 +36,7 @@ inline static void kernel(const KernelArgs& args)
 		wi.segment = 0;
 
 		//write root ray to ray bucket
-	#if 0
+	#if 1
 		_swi(wi);
 	#else
 
@@ -59,7 +59,7 @@ inline static void kernel(const KernelArgs& args)
 	#endif
 	}
 
-	intersect_buckets(args.treelets, args.hit_records);
+	intersect_buckets(args);
 
 	//spin sleep
 	for(volatile uint i = 0; i < 1024; i++);
@@ -89,7 +89,7 @@ inline static void kernel(const KernelArgs& args)
 		rtm::Hit hit; hit.t = ray.t_max;
 
 		rtm::vec3 out = 0.0f;
-		if(intersect(args.treelets, ray, hit))
+		if (intersect(args.treelets, ray, hit))
 		{
 			rtm::vec3 n = args.triangles[hit.id].normal();
 			out = n * 0.5f + 0.5f;
@@ -124,11 +124,12 @@ int main(int argc, char* argv[])
 	args.inverse_samples_per_pixel = 1.0f / args.samples_per_pixel;
 	args.max_path_depth = 1;
 
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(6.78f, -5.87, 0.84), rtm::vec3(7.78f, -5.87, 0.84f));
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(24.4, 16.4, 12.8), rtm::vec3(24.4 - 0.3, 16.4 - 0.6, 12.8 - 0.6));
 	args.light_dir = rtm::normalize(rtm::vec3(4.5, 42.5, 5.0));
-
 	rtm::Mesh mesh("../../datasets/sponza.obj");
+	//rtm::Mesh mesh("../../datasets/san-miguel.obj");
 	rtm::BVH bvh;
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;
@@ -138,6 +139,7 @@ int main(int argc, char* argv[])
 	mesh.reorder(build_objects);
 	mesh.get_triangles(tris);
 
+	std::cout << tris.size() << '\n';
 	TreeletBVH treelet_bvh(bvh, mesh);
 	std::vector<rtm::Ray> ray_buffer(args.framebuffer_size);
 	std::vector<rtm::Hit> hit_buffer(args.framebuffer_size);

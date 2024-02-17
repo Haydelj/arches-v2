@@ -383,32 +383,32 @@ private:
 	FIFOArray<T> _source_fifos;
 	std::vector<RoundRobinArbiter> _arbiters;
 	FIFOArray<T> _sink_fifos;
+	std::vector<uint> already_arrange;
 
 public:
-	CrossBar(uint sources, uint sinks, uint fifo_depth = 8) :
-		_source_fifos(sources, fifo_depth),
-		_arbiters(sinks, sources), 
-		_sink_fifos(sinks, fifo_depth) {}
-	
+	CrossBar(uint sources, uint sinks) : _source_fifos(sources), _arbiters(sinks, sources), _sink_fifos(sinks), already_arrange(sources, ~0u) {}
+
 	virtual uint get_sink(const T& transaction) = 0;
 
 	void clock()
 	{
-		for(uint source_index = 0; source_index < _source_fifos.num_sinks(); ++source_index)
+		for (uint source_index = 0; source_index < _source_fifos.num_sinks(); ++source_index)
 		{
-			if(!_source_fifos.is_read_valid(source_index)) continue;
-
-			uint sink_index = get_sink(_source_fifos.peek(source_index), source_index);
+			if (!_source_fifos.is_read_valid(source_index) || already_arrange[source_index] == ~0u) continue;
+			uint sink_index = get_sink(_source_fifos.peek(source_index));
+			assert((_arbiters[sink_index]._pending & (1ull << source_index)) == 0);
+			already_arrange[source_index] = sink_index;
 			_arbiters[sink_index].add(source_index);
 		}
 
-		for(uint sink_index = 0; sink_index < _sink_fifos.num_sinks(); ++sink_index)
+		for (uint sink_index = 0; sink_index < _sink_fifos.num_sinks(); ++sink_index)
 		{
-			if(!_sink_fifos.is_write_valid(sink_index) || _arbiters[sink_index].num_pending() == 0) continue;
-
+			if (!_sink_fifos.is_write_valid(sink_index) || _arbiters[sink_index].num_pending() == 0) continue;
 			uint source_index = _arbiters[sink_index].get_index();
+			assert(already_arrange[source_index] == sink_index);
 			_sink_fifos.write(_source_fifos.read(source_index), sink_index);
-			_arbiters.remove(source_index);
+			already_arrange[source_index] = ~0u;
+			_arbiters[sink_index].remove(source_index);
 		}
 	}
 
@@ -432,6 +432,7 @@ private:
 	std::vector<RoundRobinArbiter> _cascade_arbiters;
 	std::vector<RoundRobinArbiter> _crossbar_arbiters;
 	size_t                         _output_cascade_ratio;
+	std::vector<uint>			   _source_to_sink;
 	FIFOArray<T> _sink_fifos;
 
 public:
@@ -441,19 +442,20 @@ public:
 		_cascade_arbiters(crossbar_width, _input_cascade_ratio),
 		_crossbar_arbiters(crossbar_width, crossbar_width),
 		_output_cascade_ratio((sinks + crossbar_width - 1) / crossbar_width),
-		_sink_fifos(sinks, sink_fifo_depth)
-	{
-		assert(sources >= crossbar_width);
-		assert(sinks >= crossbar_width);
-	}
+		_sink_fifos(sinks, sink_fifo_depth),
+		_source_to_sink(sources, ~0u)
+	{}
 
 	virtual uint get_sink(const T& transaction) = 0;
 
 	void clock()
 	{
-		for(uint source_index = 0; source_index < _source_fifos.num_sinks(); ++source_index)
+		for (uint source_index = 0; source_index < _source_fifos.num_sinks(); ++source_index)
 		{
-			if(!_source_fifos.is_read_valid(source_index)) continue;
+			if (!_source_fifos.is_read_valid(source_index) || _source_to_sink[source_index] != ~0u) continue;
+
+			uint sink_index = get_sink(_source_fifos.peek(source_index));
+			_source_to_sink[source_index] = sink_index;
 
 			uint cascade_index = source_index / _input_cascade_ratio;
 			uint cascade_source_index = source_index % _input_cascade_ratio;
@@ -461,28 +463,30 @@ public:
 			_cascade_arbiters[cascade_index].add(cascade_source_index);
 		}
 
-		for(uint cascade_index = 0; cascade_index < _cascade_arbiters.size(); ++cascade_index)
+		for (uint cascade_index = 0; cascade_index < _cascade_arbiters.size(); ++cascade_index)
 		{
-			if(!_cascade_arbiters[cascade_index].num_pending()) continue;
+			if (!_cascade_arbiters[cascade_index].num_pending()) continue;
 
 			uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
 			uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
-			uint sink_index = get_sink(_source_fifos.peek(source_index));
+			uint sink_index = _source_to_sink[source_index];
 			uint crossbar_index = sink_index / _output_cascade_ratio;
 
 			_crossbar_arbiters[crossbar_index].add(cascade_index);
 		}
 
-		for(uint crossbar_index = 0; crossbar_index < _crossbar_arbiters.size(); ++crossbar_index)
+		for (uint crossbar_index = 0; crossbar_index < _crossbar_arbiters.size(); ++crossbar_index)
 		{
-			if(!_crossbar_arbiters[crossbar_index].num_pending()) continue;
+			if (!_crossbar_arbiters[crossbar_index].num_pending()) continue;
 
 			uint cascade_index = _crossbar_arbiters[crossbar_index].get_index();
 			uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
 			uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
-			uint sink_index = get_sink(_source_fifos.peek(source_index));
 
-			if(!_sink_fifos.is_write_valid(sink_index)) continue;
+			if (!_sink_fifos.is_write_valid(crossbar_index)) continue;
+
+			uint sink_index = get_sink(_source_fifos.peek(source_index));
+			_source_to_sink[source_index] = ~0u;
 
 			_crossbar_arbiters[crossbar_index].remove(cascade_index);
 			_cascade_arbiters[cascade_index].remove(cascade_source_index);
