@@ -180,3 +180,102 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 
 	return found_hit;
 }
+
+
+inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray& ray, rtm::Hit& hit, uint* treelet_stack, uint& treelet_stack_size)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+	uint treelet_stack_start = treelet_stack_size;
+
+	struct NodeStackEntry
+	{
+		float hit_t;
+		rtm::PackedTreelet::Node::Data data;
+	};
+	NodeStackEntry node_stack[32]; uint node_stack_size = 1u;
+
+	node_stack[0].hit_t = ray.t_min;
+	node_stack[0].data.is_leaf = 0;
+	node_stack[0].data.is_treelet = 0;
+	node_stack[0].data.index = 0;
+
+	bool is_hit = false;
+	while(node_stack_size)
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if(current_entry.hit_t >= hit.t) continue;
+
+	TRAV:
+		if(!current_entry.data.is_leaf)
+		{
+			if(!current_entry.data.is_treelet)
+			{
+				const rtm::PackedTreelet::Node& node = treelet.nodes[current_entry.data.index];
+				float hit_ts[2] = {rtm::intersect(node.aabb[0], ray, inv_d), rtm::intersect(node.aabb[1], ray, inv_d)};
+				if(hit_ts[0] < hit_ts[1])
+				{
+					if(hit_ts[1] < hit.t) node_stack[node_stack_size++] = {hit_ts[1], node.data[1]};
+					if(hit_ts[0] < hit.t)
+					{
+						current_entry = {hit_ts[0], node.data[0]};
+						goto TRAV;
+					}
+				}
+				else
+				{
+					if(hit_ts[0] < hit.t) node_stack[node_stack_size++] = {hit_ts[0], node.data[0]};
+					if(hit_ts[1] < hit.t)
+					{
+						current_entry = {hit_ts[1], node.data[1]};
+						goto TRAV;
+					}
+				}
+			}
+			else treelet_stack[treelet_stack_size++] = current_entry.data.index;
+		}
+		else
+		{
+			rtm::Treelet::Triangle* tris = (rtm::Treelet::Triangle*)(&treelet.words[current_entry.data.tri0_word0]);
+			for(uint i = 0; i <= current_entry.data.num_tri; ++i)
+			{
+				rtm::Treelet::Triangle tri = tris[i];
+				if(rtm::intersect(tri.tri, ray, hit))
+				{
+					hit.id = tri.id;
+					is_hit |= true;
+				}
+			}
+		}
+	}
+
+	//treelets are pushed in nearest first order so we need to flip such that we pop nearest first
+	if(treelet_stack_size > 0)
+	{
+		uint treelet_stack_end = treelet_stack_size - 1;
+		while(treelet_stack_start < treelet_stack_end)
+		{
+			uint temp = treelet_stack[treelet_stack_start];
+			treelet_stack[treelet_stack_start] = treelet_stack[treelet_stack_end];
+			treelet_stack[treelet_stack_end] = temp;
+			treelet_stack_start++;
+			treelet_stack_end--;
+		}
+	}
+
+	return is_hit;
+}
+
+bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
+{
+	uint treelet_stack[256]; uint treelet_stack_size = 1u;
+	treelet_stack[0] = 0;
+
+	bool is_hit = false;
+	while(treelet_stack_size)
+	{
+		uint treelet_index = treelet_stack[--treelet_stack_size];
+		is_hit |= intersect_treelet(treelets[treelet_index], ray, hit, treelet_stack, treelet_stack_size);
+	}
+
+	return is_hit;
+}

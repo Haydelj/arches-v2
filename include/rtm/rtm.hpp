@@ -21,5 +21,7 @@
 #include "mesh.hpp"
 #include "bvh.hpp"
 #include "packed-bvh.hpp"
+#include "treelet-bvh.hpp"
+#include "packed-treelet-bvh.hpp"
 
 #include "intersect.hpp"

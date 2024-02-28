@@ -100,7 +100,7 @@
 
 //Useful error macros
 #ifdef BUILD_DEBUG
-	#define implerr assert(false); throw -1
+	#define implerr __assert(false); throw -1
 	#define nodefault default: implerr;
 #else
 	#define implerr unreachable
@@ -142,6 +142,18 @@
 
 #include <intrin.h>
 #include <xmmintrin.h>
+
+#ifndef _DEBUG
+inline void __assert(bool x)
+{
+	//if(!x) __debugbreak();
+}
+#else
+inline void __assert(bool x)
+{
+	assert(x);
+}
+#endif
 
 typedef unsigned int uint;
 

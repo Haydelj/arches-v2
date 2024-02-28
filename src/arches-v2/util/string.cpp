@@ -42,13 +42,13 @@ size_t normalize_newlines(char* source) {
 
 	source[index_write] = '\0';
 
-	assert(index_read>=index_write);
+	__assert(index_read>=index_write);
 	return index_read - index_write;
 }
 #endif
 
 std::deque<std::string> get_split(std::string const& main_string, std::string const& test_string) {
-	assert(!test_string.empty());
+	__assert(!test_string.empty());
 
 	std::deque<std::string> result;
 
@@ -56,7 +56,7 @@ std::deque<std::string> get_split(std::string const& main_string, std::string co
 	LOOP:
 		size_t loc = main_string.find(test_string,offset);
 		if (loc!=main_string.npos) {
-			assert(offset<=loc);
+			__assert(offset<=loc);
 			result.emplace_back(main_string.substr(offset,loc-offset));
 			offset = loc + test_string.size();
 
@@ -141,23 +141,23 @@ bool   endswith(std::string const& main_string, std::string const& test_string) 
 
 size_t find_last_of(std::string const& main_string, char const* search_chars, size_t min_i,size_t max_i) {
 	if (!main_string.empty()) {
-		assert(min_i<main_string.length()||min_i==std::string::npos);
+		__assert(min_i<main_string.length()||min_i==std::string::npos);
 		if (min_i!=std::string::npos);
 		else min_i=0;
 
-		assert(max_i<=main_string.length()||max_i==std::string::npos);
+		__assert(max_i<=main_string.length()||max_i==std::string::npos);
 		if (max_i!=std::string::npos);
 		else max_i=main_string.length();
 
-		assert(min_i<max_i);
+		__assert(min_i<max_i);
 
-		assert(
+		__assert(
 			min_i<main_string.length() && max_i<=main_string.length()
 		);
 
 		//TODO: edit algorithm so that we don't need to cast to `int`; which is done to prevent
 		//	unsigned wraparound.
-		assert(
+		__assert(
 			static_cast<size_t>(static_cast<int>(min_i))==min_i &&
 			static_cast<size_t>(static_cast<int>(max_i))==max_i
 		);

@@ -58,7 +58,7 @@ enum class InstrType : uint8_t
 {
 	NA,
 
-	INSRT_FETCH,
+	INSTR_FETCH,
 
 	LOAD,
 	STORE,
@@ -127,7 +127,7 @@ private:
 	{
 		"NA",
 
-		"INSRT_FETCH",
+		"INSTR_FETCH",
 
 		"LOAD",
 		"STORE",
@@ -384,19 +384,19 @@ public:
 
 	void execute(ExecutionItem& unit, const Instruction& instr) const
 	{ 
-		assert(exec_type == ExecType::EXECUTABLE);
+		__assert(exec_type == ExecType::EXECUTABLE);
 		_exec_fn(instr, &unit); 
 	}
 
 	bool execute_branch(ExecutionItem& unit, const Instruction& instr) const
 	{
-		assert(exec_type == ExecType::CONTROL_FLOW);
+		__assert(exec_type == ExecType::CONTROL_FLOW);
 		return _ctrl_fn(instr, &unit);
 	}
 
 	MemoryRequest generate_request(ExecutionItem& unit, const Instruction& instr) const
 	{
-		assert(exec_type == ExecType::MEMORY);
+		__assert(exec_type == ExecType::MEMORY);
 		return _req_fn(instr, &unit);
 	}
 

@@ -68,7 +68,7 @@ File::File(std::string const& dir,std::string const& name, MODE mode) :
 }
 File::File(std::string const& path, MODE mode) : File(_get_dir(path),_get_name(path), mode) {}
 File::~File(void) {
-	assert(backing!=nullptr);
+	__assert(backing!=nullptr);
 
 	if (_owns) {
 		fclose(backing);
@@ -78,7 +78,7 @@ File::~File(void) {
 void File::flush(void) {
 	//Although, some implementations allow it, with nonportable results.  See:
 	//	http://en.cppreference.com/w/cpp/io/c/fflush
-	assert(mode!=MODE::R);
+	__assert(mode!=MODE::R);
 
 	int result = fflush(backing);
 	if (result!=EOF); else throw File::_get_err_str(this,OP::FLUSH);

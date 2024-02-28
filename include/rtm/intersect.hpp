@@ -3,6 +3,8 @@
 #include "ray.hpp"
 #include "aabb.hpp"
 #include "triangle.hpp"
+#include "treelet-bvh.hpp"
+#include "packed-treelet-bvh.hpp"
 #include "vec2.hpp"
 
 namespace rtm

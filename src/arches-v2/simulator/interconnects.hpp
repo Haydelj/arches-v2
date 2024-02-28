@@ -64,7 +64,7 @@ public:
 
 	void write(const T& entry)
 	{
-		assert(is_write_valid());
+		__assert(is_write_valid());
 		_queue.push(entry);
 		_pipline_counters.front() = 0;
 	}
@@ -76,13 +76,13 @@ public:
 
 	T& peek()
 	{
-		assert(is_read_valid());
+		__assert(is_read_valid());
 		return _queue.front();
 	}
 
 	T read()
 	{
-		assert(is_read_valid());
+		__assert(is_read_valid());
 		T ret = _queue.front();
 		_queue.pop();
 		_pipline_counters.back() = ~0u;
@@ -255,7 +255,7 @@ public:
 
 	const T& peek(uint sink_index) override
 	{
-		assert(is_read_valid(sink_index));
+		__assert(is_read_valid(sink_index));
 		return _fifos[sink_index].front();
 	}
 
@@ -276,7 +276,7 @@ public:
 
 	void write(const T& transaction, uint source_index) override
 	{
-		assert(is_write_valid(source_index));
+		__assert(is_write_valid(source_index));
 		_sizes[source_index]++;
 		_fifos[source_index].push(transaction);
 	}
@@ -299,7 +299,7 @@ public:
 		_arbiters(sinks, _cascade_ratio),
 		_sink_fifos(sinks, fifo_depth) 
 	{ 
-		assert(sources >= sinks); 
+		__assert(sources >= sinks); 
 	}
 
 	void clock()
@@ -348,7 +348,7 @@ public:
 	Decasscade(uint sources, uint sinks) : 
 		_source_fifos(sources), 
 		_sink_fifos(sinks) 
-	{ assert(source <= sinks); }
+	{ __assert(source <= sinks); }
 
 	virtual uint get_sink(const T& transaction) = 0;
 
@@ -432,7 +432,6 @@ private:
 	std::vector<RoundRobinArbiter> _cascade_arbiters;
 	std::vector<RoundRobinArbiter> _crossbar_arbiters;
 	size_t                         _output_cascade_ratio;
-	std::vector<uint>			   _source_to_sink;
 	FIFOArray<T> _sink_fifos;
 
 public:
@@ -442,9 +441,11 @@ public:
 		_cascade_arbiters(crossbar_width, _input_cascade_ratio),
 		_crossbar_arbiters(crossbar_width, crossbar_width),
 		_output_cascade_ratio((sinks + crossbar_width - 1) / crossbar_width),
-		_sink_fifos(sinks, sink_fifo_depth),
-		_source_to_sink(sources, ~0u)
-	{}
+		_sink_fifos(sinks, sink_fifo_depth)
+	{
+		__assert(sources >= crossbar_width);
+		__assert(sinks >= crossbar_width);
+	}
 
 	virtual uint get_sink(const T& transaction) = 0;
 

@@ -601,13 +601,13 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	dram.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
 
 	printf("\nL2\n");
-	l2.log.print_log();
+	l2.log.print_log(simulator.current_cycle);
 
 	printf("\nL1\n");
 	Units::UnitNonBlockingCache::Log l1_log;
 	for(auto& l1 : l1s)
 		l1_log.accumulate(l1->log);
-	l1_log.print_log();
+	l1_log.print_log(simulator.current_cycle);
 
 	printf("\nTP\n");
 	Units::UnitTP::Log tp_log(0x10000);
@@ -621,7 +621,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	printf("\nSummary\n");
 	printf("Runtime: %lldms\n", duration.count());
 	printf("Cycles: %lld\n", simulator.current_cycle);
-	printf("MRays/s: %.2f\n", (float)kernel_args.framebuffer_size / (simulator.current_cycle / (2 * 1024)));
+	printf("MRays/s: %.2f\n", (float)kernel_args.framebuffer_size / (simulator.current_cycle / (2 * 1000)));
 
 	paddr_t paddr_frame_buffer = reinterpret_cast<paddr_t>(kernel_args.framebuffer);
 

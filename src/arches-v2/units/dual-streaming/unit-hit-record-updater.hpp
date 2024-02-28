@@ -80,7 +80,7 @@ public:
 		uint look_up(HitInfo hit_info) {
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
-			assert(end_index <= cache_size);
+			__assert(end_index <= cache_size);
 			uint found_index = ~0;
 			uint counter = 0;
 			for (int i = start_index; i < end_index; i++) {
@@ -89,7 +89,7 @@ public:
 					counter += 1;
 				}
 			}
-			assert(counter < 2);
+			__assert(counter < 2);
 			if (!counter) return ~0;
 			for (int i = start_index; i < end_index; i++) {
 				if (cache[i].lru < cache[found_index].lru) cache[i].lru++;
@@ -102,7 +102,7 @@ public:
 			// This must come from a write request
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
-			assert(end_index <= cache_size);
+			__assert(end_index <= cache_size);
 			uint found_index = ~0;
 			for (int i = start_index; i < end_index; i++) {
 				if (cache[i].state != State::EMPTY && cache[i].hit_info.hit_address == hit_info.hit_address) {
@@ -113,7 +113,7 @@ public:
 					}
 				}
 			}
-			assert(found_index != ~0);
+			__assert(found_index != ~0);
 		}
 
 		void direct_replace(HitInfo hit_info, uint cache_index) {
@@ -130,7 +130,7 @@ public:
 		uint process_dram_hit(HitInfo hit_info) {
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
-			assert(end_index <= cache_size);
+			__assert(end_index <= cache_size);
 			uint found_index = ~0;
 			for (int i = start_index; i < end_index; i++) {
 				if (cache[i].state == State::LOAD_FROM_DRAM && cache[i].hit_info.hit_address == hit_info.hit_address) {
@@ -144,14 +144,14 @@ public:
 					}
 				}
 			}
-			assert(found_index != ~0);
+			__assert(found_index != ~0);
 			return found_index;
 		}
 
 		uint try_insert(HitInfo hit_info) {
 			uint set_id = hit_info.hit_address % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
-			assert(end_index <= cache_size);
+			__assert(end_index <= cache_size);
 			uint found_index = ~0;
 			for (int i = start_index; i < end_index; i++) {
 				if (cache[i].state == State::EMPTY) {
@@ -188,7 +188,7 @@ public:
 			for (int i = 0; i < cache_size; i++) {
 				if(cache[i].state != State::EMPTY) counter[cache[i].hit_info.hit_address] += 1;
 			}
-			for (auto [key, value] : counter) assert(value == 1);
+			for (auto [key, value] : counter) __assert(value == 1);
 		}
 
 	};

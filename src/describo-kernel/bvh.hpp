@@ -251,7 +251,7 @@ public:
 			if(build_events.size() == 1)
 			{
 				uint size = current_build_event.end - current_build_event.start;
-				assert(size <= max_children && size >= 1);
+				__assert(size <= max_children && size >= 1);
 
 				nodes[current_build_event.node_index].aabb = aabb;
 				nodes[current_build_event.node_index].data.is_leaf = 1;

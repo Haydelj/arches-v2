@@ -6,25 +6,22 @@
 #include <vector>
 #endif
 
-namespace rtm
-{
+namespace rtm {
 
 class alignas(64) PackedBVH2
 {
 public:
-	struct Pack
+	struct Node
 	{
-		BVH::Node nodes[2];
+		rtm::AABB            aabb[2];
+		rtm::BVH::Node::Data data[2];
 	};
 
 #ifndef __riscv
-	std::vector<Pack> packs;
+	std::vector<Node> nodes;
 
-	PackedBVH2(std::vector<BVH::BuildObject>& build_objects)
+	PackedBVH2(const BVH& bvh)
 	{
-		BVH bvh;
-		bvh.build(build_objects, 1u);
-
 		size_t num_packed_nodes = 0;
 		struct NodeSet
 		{
@@ -38,8 +35,8 @@ public:
 		std::vector<NodeSet> stack; stack.reserve(96);
 		stack.emplace_back(bvh.nodes[0].data, 0);
 
-		packs.clear();
-		packs.emplace_back();
+		nodes.clear();
+		nodes.emplace_back();
 
 		while(!stack.empty())
 		{
@@ -48,23 +45,24 @@ public:
 
 			for(uint i = 0; i < 2; ++i)
 			{
-				Pack& current_packed_node = packs[current_set.index];
+				Node& current_packed_node = nodes[current_set.index];
 			}
 
 			for(uint i = 0; i <= current_set.data.lst_chld_ofst; ++i)
 			{
-				Pack& current_pack = packs[current_set.index];
+				Node& current_pack = nodes[current_set.index];
 
 				uint index = current_set.data.fst_chld_ind + i;
 				BVH::Node node = bvh.nodes[index];
 
-				current_pack.nodes[i] = node;
+				current_pack.aabb[i] = node.aabb;
+				current_pack.data[i] = node.data;
 
 				if(!node.data.is_leaf)
 				{
-					stack.emplace_back(node.data, packs.size());
-					current_pack.nodes[i].data.fst_chld_ind = packs.size();
-					packs.emplace_back();
+					stack.emplace_back(node.data, nodes.size());
+					current_pack.data[i].fst_chld_ind = nodes.size();
+					nodes.emplace_back();
 				}
 			}
 		}

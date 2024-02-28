@@ -91,6 +91,11 @@ public:
 				uint32_t index = y * _width + x;
 				MemoryReturn ret(_current_request, &index);
 
+				if(index == 60250)
+				{
+					//__debugbreak();
+				}
+
 				_return_network.write(ret, ret.port);
 
 				_current_offset++;

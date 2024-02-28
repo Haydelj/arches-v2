@@ -64,7 +64,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return;
 
 		const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
-		assert(ret.paddr == _get_block_addr(ret.paddr));
+		__assert(ret.paddr == _get_block_addr(ret.paddr));
 
 		_insert_block(ret.paddr, ret.data);
 		log.log_data_array_write();
@@ -116,6 +116,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 			//early restart
 			MemoryReturn ret(bank.current_request, bank.current_request.data);
 			_return_cross_bar.write(ret, bank_index);
+			log.log_bytes_read(ret.size);
 			bank.state = Bank::State::IDLE;
 		}
 	}
@@ -124,6 +125,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 	{
 		MemoryReturn ret = bank.data_array_pipline.read();
 		_return_cross_bar.write(ret, bank_index);
+		log.log_bytes_read(ret.size);
 	}
 }
 
