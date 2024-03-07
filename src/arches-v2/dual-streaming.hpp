@@ -247,16 +247,18 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 	std::string filename = current_folder_path + "../../datasets/" + s + ".obj";
+	std::string treelet_filename = current_folder_path + "../../datasets/" + s + "_treelets.dat";
+	std::string triangle_filename = current_folder_path + "../../datasets/" + s + "_triangles.dat";
 
-	std::ifstream inputTreelets(s + "_treelets.dat", std::ios::binary);
-	std::ifstream inputTriangles(s + "_triangles.dat", std::ios::binary);
-	TreeletBVH treelet_bvh;
+	std::ifstream inputTreelets(treelet_filename, std::ios::binary);
+	std::ifstream inputTriangles(triangle_filename, std::ios::binary);
+	rtm::TreeletBVH treelet_bvh;
 	std::vector<rtm::Triangle> tris;
 	if (inputTreelets.is_open() && inputTriangles.is_open())
 	{
 		// Do not need to rebuild treelets every time
-		std::cout << "Loading treelets from file...\n";
-		Treelet t;
+		std::cout << "Loading treelets from " << s + "_treelets.dat" << "...\n";
+		rtm::Treelet t;
 		rtm::Triangle tt;
 		while (inputTreelets.read(reinterpret_cast<char*>(&t), TREELET_SIZE))
 		{
@@ -278,9 +280,9 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 		blas.build(build_objects);
 		mesh.reorder(build_objects);
 		mesh.get_triangles(tris);
-		treelet_bvh = TreeletBVH(blas, mesh);
-		std::ofstream outputTreelets(s + "_treelets.dat", std::ios::binary);
-		std::ofstream outputTriangles(s + "_triangles.dat", std::ios::binary);
+		treelet_bvh = rtm::TreeletBVH(blas, mesh);
+		std::ofstream outputTreelets(treelet_filename, std::ios::binary);
+		std::ofstream outputTriangles(triangle_filename, std::ios::binary);
 		std::cout << "Writing treelets to disk...\n";
 		std::cout << treelet_bvh.treelets.size() * TREELET_SIZE << '\n';
 		for (auto& t : treelet_bvh.treelets)
@@ -438,7 +440,7 @@ static void run_sim_dual_streaming(int argc, char* argv[])
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
 	stream_scheduler_config.num_tms = num_tms;
 	stream_scheduler_config.num_banks = 16;
-	stream_scheduler_config.cheat_treelets = (Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
+	stream_scheduler_config.cheat_treelets = (rtm::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
 	stream_scheduler_config.main_mem = &dram;
 	stream_scheduler_config.main_mem_port_offset = 1;
 	stream_scheduler_config.main_mem_port_stride = 4;

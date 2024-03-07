@@ -110,7 +110,7 @@ ELF::ProgramHeader::ArrayElement::ArrayElement(Util::File* file, ELF_Header cons
 		p_flags      = static_cast<P_FLAGS>(elf_header->fix_endianness(file->read_bin<uint32_t>()));
 		p_align. u32 = elf_header->fix_endianness(file->read_bin<uint32_t>());
 	} else {
-		__assert(elf_header->e_ident.ei_class==ELF_Header::E_IDENT::EI_CLASS::ELFCLASS64);
+		_assert(elf_header->e_ident.ei_class==ELF_Header::E_IDENT::EI_CLASS::ELFCLASS64);
 		p_flags      = static_cast<P_FLAGS>(elf_header->fix_endianness(file->read_bin<uint32_t>()));
 		p_offset.u64 = elf_header->fix_endianness(file->read_bin<uint64_t>());
 		p_vaddr. u64 = elf_header->fix_endianness(file->read_bin<uint64_t>());
@@ -150,7 +150,7 @@ ELF::SectionHeader::ArrayElement::ArrayElement(Util::File* file, ELF_Header cons
 		sh_entsize.  u32 = elf_header->fix_endianness(file->read_bin<uint32_t>());
 	}
 	else {
-		__assert(elf_header->e_ident.ei_class == ELF_Header::E_IDENT::EI_CLASS::ELFCLASS64);
+		_assert(elf_header->e_ident.ei_class == ELF_Header::E_IDENT::EI_CLASS::ELFCLASS64);
 		sh_name          = elf_header->fix_endianness(file->read_bin<uint32_t>());
 		sh_type          = static_cast<SH_TYPE>(elf_header->fix_endianness(file->read_bin<uint32_t>()));
 		sh_flags.    u64 = elf_header->fix_endianness(file->read_bin<uint64_t>());
@@ -188,7 +188,7 @@ ELF::SymbolTable::ArrayElement::ArrayElement(Util::File* file, ELF_Header const*
 		st_shndx     = elf_header->fix_endianness(file->read_bin<uint16_t>());
 	}
 	else {
-		__assert(elf_header->e_ident.ei_class == ELF_Header::E_IDENT::EI_CLASS::ELFCLASS64);
+		_assert(elf_header->e_ident.ei_class == ELF_Header::E_IDENT::EI_CLASS::ELFCLASS64);
 		st_name      = elf_header->fix_endianness(file->read_bin<uint32_t>());
 		st_value.u64 = elf_header->fix_endianness(file->read_bin<uint64_t>());
 		st_size.u64  = elf_header->fix_endianness(file->read_bin<uint64_t>());

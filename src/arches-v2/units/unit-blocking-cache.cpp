@@ -35,27 +35,27 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 			paddr_t block_addr = _get_block_addr(bank.current_request.paddr);
 			uint block_offset = _get_block_offset(bank.current_request.paddr);
 			BlockData* block_data = _get_block(block_addr);
-			log.log_tag_array_access();
+			log.tag_array_access++;
 
 			if(block_data)
 			{
 				MemoryReturn ret(bank.current_request, block_data->bytes + block_offset);
 				bank.data_array_pipline.write(ret);
 				bank.state = Bank::State::IDLE;
-				log.log_hit();
-				log.log_data_array_read();
+				log.hits++;
+				log.data_array_reads++;
 			}
 			else
 			{
 				bank.state = Bank::State::MISSED;
-				log.log_miss();
+				log.misses++;
 			}
 		}
 		else if(bank.current_request.type == MemoryRequest::Type::STORE)
 		{
 			//stores go around
 			bank.state = Bank::State::MISSED;
-			log.log_uncached_write();
+			log.uncached_writes++;
 		}
 	}
 	else if(bank.state == Bank::State::ISSUED)
@@ -64,10 +64,10 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return;
 
 		const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
-		__assert(ret.paddr == _get_block_addr(ret.paddr));
+		_assert(ret.paddr == _get_block_addr(ret.paddr));
 
 		_insert_block(ret.paddr, ret.data);
-		log.log_data_array_write();
+		log.data_array_writes++;
 
 		uint block_offset = _get_block_offset(bank.current_request.paddr);
 		std::memcpy(bank.current_request.data, &ret.data[block_offset], bank.current_request.size);
@@ -116,7 +116,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 			//early restart
 			MemoryReturn ret(bank.current_request, bank.current_request.data);
 			_return_cross_bar.write(ret, bank_index);
-			log.log_bytes_read(ret.size);
+			log.bytes_read += ret.size;
 			bank.state = Bank::State::IDLE;
 		}
 	}
@@ -125,7 +125,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 	{
 		MemoryReturn ret = bank.data_array_pipline.read();
 		_return_cross_bar.write(ret, bank_index);
-		log.log_bytes_read(ret.size);
+		log.bytes_read += ret.size;
 	}
 }
 

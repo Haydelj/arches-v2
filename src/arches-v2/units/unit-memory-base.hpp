@@ -22,7 +22,7 @@ public:
 		uint get_sink(const MemoryRequest& request) override
 		{
 			uint bank = pext(request.paddr, mask);
-			__assert(bank < num_sinks());
+			_assert(bank < num_sinks());
 			return bank;
 		}
 	};

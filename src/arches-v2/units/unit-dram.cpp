@@ -11,9 +11,9 @@ UnitDRAM::UnitDRAM(uint num_ports, uint64_t size, Simulator* simulator) : UnitMa
 {
 	char* usimm_config_file = (char*)REL_PATH_BIN_TO_SAMPLES"gddr5_16ch.cfg";
 	char* usimm_vi_file = (char*)REL_PATH_BIN_TO_SAMPLES"1Gb_x16_amd2GHz.vi";
-	if (usimm_setup(usimm_config_file, usimm_vi_file) < 0) __assert(false); //usimm faild to initilize
+	if (usimm_setup(usimm_config_file, usimm_vi_file) < 0) _assert(false); //usimm faild to initilize
 
-	__assert(numDramChannels() == NUM_DRAM_CHANNELS);
+	_assert(numDramChannels() == NUM_DRAM_CHANNELS);
 
 	_channels.resize(numDramChannels());
 
@@ -76,7 +76,7 @@ bool UnitDRAM::_load(const MemoryRequest& request, uint channel_index)
 {
 	//iterface with usimm
 	dram_address_t const dram_addr = calcDramAddr(request.paddr);
-	__assert(dram_addr.channel == channel_index);
+	_assert(dram_addr.channel == channel_index);
 
 
 #if ENABLE_DRAM_DEBUG_PRINTS
@@ -105,7 +105,7 @@ bool UnitDRAM::_load(const MemoryRequest& request, uint channel_index)
 	MemoryReturn& ret = returns[arches_request.return_id];
 	ret = MemoryReturn(request, _data_u8 + request.paddr);
 
-	__assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE || reqRet.retType == reqInsertRet_tt::RRT_READ_QUEUE);
+	_assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE || reqRet.retType == reqInsertRet_tt::RRT_READ_QUEUE);
 
 	if (reqRet.retLatencyKnown)
 	{
@@ -119,7 +119,7 @@ bool UnitDRAM::_store(const MemoryRequest& request, uint channel_index)
 {
 	//interface with usimm
 	dram_address_t const dram_addr = calcDramAddr(request.paddr);
-	__assert(dram_addr.channel == channel_index);
+	_assert(dram_addr.channel == channel_index);
 
 #if ENABLE_DRAM_DEBUG_PRINTS
 	printf("Store(%d): 0x%llx(%d, %d, %d, %lld, %d)\n", request.port, request.paddr, dram_addr.channel, dram_addr.rank, dram_addr.bank, dram_addr.row, dram_addr.column);
@@ -140,8 +140,8 @@ bool UnitDRAM::_store(const MemoryRequest& request, uint channel_index)
 		if((request.write_mask >> i) & 0x1)
 			_data_u8[request.paddr + i] = request.data[i];
 
-	__assert(!reqRet.retLatencyKnown);
-	__assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE);
+	_assert(!reqRet.retLatencyKnown);
+	_assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE);
 
 	return true;
 }

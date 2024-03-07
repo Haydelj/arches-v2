@@ -31,9 +31,9 @@ SYMBOL TABLE:
 0000000000000000 l    d  .riscv.attributes	0000000000000000 .riscv.attributes
 0000000000000000 l    df *ABS*	0000000000000000 main.cpp
 0000000000012778 g       *ABS*	0000000000000000 __global_pointer$
-000000000001038c  w    F .text	0000000000000720 _Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj
 0000000000011f78 g       .sdata	0000000000000000 __SDATA_BEGIN__
 0000000000011f90 g       .sdata	0000000000000000 __BSS_END__
+000000000001038c  w    F .text	0000000000000720 _Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj
 0000000000011f90 g       .sdata	0000000000000000 __bss_start
 00000000000100b0 g     F .text	00000000000002dc main
 0000000000011f78 g       .sdata	0000000000000000 __DATA_BEGIN__
@@ -230,7 +230,7 @@ Disassembly of section .text:
    10384:	eaf466e3          	bltu	s0,a5,10230 <main+0x180>
    10388:	eedff06f          	j	10274 <main+0x1c4>
 
-000000000001038c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj>:
+000000000001038c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj>:
    1038c:	00012837          	lui	a6,0x12
    10390:	f7882207          	flw	ft4,-136(a6) # 11f78 <__DATA_BEGIN__>
    10394:	0105a107          	flw	ft2,16(a1) # ffffffffff000010 <__global_pointer$+0xfffffffffefed898>
@@ -276,8 +276,8 @@ Disassembly of section .text:
    10434:	03113023          	sd	a7,32(sp)
    10438:	02613423          	sd	t1,40(sp)
    1043c:	a0f18853          	fle.s	a6,ft3,fa5
-   10440:	04080063          	beqz	a6,10480 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0xf4>
-   10444:	fc0f96e3          	bnez	t6,10410 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x84>
+   10440:	04080063          	beqz	a6,10480 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0xf4>
+   10444:	fc0f96e3          	bnez	t6,10410 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x84>
    10448:	46813403          	ld	s0,1128(sp)
    1044c:	45c12407          	flw	fs0,1116(sp)
    10450:	45812487          	flw	fs1,1112(sp)
@@ -297,7 +297,7 @@ Disassembly of section .text:
    10488:	0045a607          	flw	fa2,4(a1)
    1048c:	001e7813          	and	a6,t3,1
    10490:	0085a587          	flw	fa1,8(a1)
-   10494:	1e081c63          	bnez	a6,1068c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x300>
+   10494:	1e081c63          	bnez	a6,1068c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x300>
    10498:	02c12883          	lw	a7,44(sp)
    1049c:	01c5a507          	flw	fa0,28(a1)
    104a0:	02089813          	sll	a6,a7,0x20
@@ -347,9 +347,9 @@ Disassembly of section .text:
    10550:	010f0833          	add	a6,t5,a6
    10554:	002e7e13          	and	t3,t3,2
    10558:	00247313          	and	t1,s0,2
-   1055c:	32039663          	bnez	t2,10888 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4fc>
+   1055c:	32039663          	bnez	t2,10888 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4fc>
    10560:	a07793d3          	flt.s	t2,fa5,ft7
-   10564:	32039263          	bnez	t2,10888 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4fc>
+   10564:	32039263          	bnez	t2,10888 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4fc>
    10568:	00082787          	flw	fa5,0(a6)
    1056c:	00482887          	flw	fa7,4(a6)
    10570:	00c82907          	flw	fs2,12(a6)
@@ -381,21 +381,21 @@ Disassembly of section .text:
    105d8:	29171753          	fmax.s	fa4,fa4,fa7
    105dc:	290787d3          	fmin.s	fa5,fa5,fa6
    105e0:	a0e79853          	flt.s	a6,fa5,fa4
-   105e4:	20081263          	bnez	a6,107e8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x45c>
+   105e4:	20081263          	bnez	a6,107e8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x45c>
    105e8:	a0779853          	flt.s	a6,fa5,ft7
-   105ec:	1e081e63          	bnez	a6,107e8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x45c>
-   105f0:	200e0063          	beqz	t3,107f0 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x464>
+   105ec:	1e081e63          	bnez	a6,107e8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x45c>
+   105f0:	200e0063          	beqz	t3,107f0 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x464>
    105f4:	a0e31853          	flt.s	a6,ft6,fa4
-   105f8:	30081c63          	bnez	a6,10910 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x584>
+   105f8:	30081c63          	bnez	a6,10910 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x584>
    105fc:	a0371853          	flt.s	a6,fa4,ft3
-   10600:	2e080663          	beqz	a6,108ec <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x560>
-   10604:	28031663          	bnez	t1,10890 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x504>
+   10600:	2e080663          	beqz	a6,108ec <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x560>
+   10604:	28031663          	bnez	t1,10890 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x504>
    10608:	a0331853          	flt.s	a6,ft6,ft3
-   1060c:	2a081a63          	bnez	a6,108c0 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x534>
+   1060c:	2a081a63          	bnez	a6,108c0 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x534>
    10610:	a0e51853          	flt.s	a6,fa0,fa4
-   10614:	36081263          	bnez	a6,10978 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x5ec>
+   10614:	36081263          	bnez	a6,10978 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x5ec>
    10618:	a0351853          	flt.s	a6,fa0,ft3
-   1061c:	04080263          	beqz	a6,10660 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x2d4>
+   1061c:	04080263          	beqz	a6,10660 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x2d4>
    10620:	20a50353          	fmv.s	ft6,fa0
    10624:	001e8813          	add	a6,t4,1
    10628:	00681813          	sll	a6,a6,0x6
@@ -422,7 +422,7 @@ Disassembly of section .text:
    1067c:	02612423          	sw	t1,40(sp)
    10680:	02412e03          	lw	t3,36(sp)
    10684:	001e7813          	and	a6,t3,1
-   10688:	e0080ce3          	beqz	a6,104a0 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x114>
+   10688:	e0080ce3          	beqz	a6,104a0 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x114>
    1068c:	02013803          	ld	a6,32(sp)
    10690:	0145a907          	flw	fs2,20(a1)
    10694:	0185a487          	flw	fs1,24(a1)
@@ -484,22 +484,22 @@ Disassembly of section .text:
    10774:	a05718d3          	flt.s	a7,fa4,ft5
    10778:	a0e21e53          	flt.s	t3,ft4,fa4
    1077c:	a0579ed3          	flt.s	t4,fa5,ft5
-   10780:	04089c63          	bnez	a7,107d8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x44c>
+   10780:	04089c63          	bnez	a7,107d8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x44c>
    10784:	00f77353          	fadd.s	ft6,fa4,fa5
-   10788:	040e1863          	bnez	t3,107d8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x44c>
+   10788:	040e1863          	bnez	t3,107d8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x44c>
    1078c:	1033f3d3          	fmul.s	ft7,ft7,ft3
-   10790:	040e9463          	bnez	t4,107d8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x44c>
+   10790:	040e9463          	bnez	t4,107d8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x44c>
    10794:	a06218d3          	flt.s	a7,ft4,ft6
    10798:	39387843          	fmadd.s	fa6,fa6,fs3,ft7
-   1079c:	02089e63          	bnez	a7,107d8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x44c>
+   1079c:	02089e63          	bnez	a7,107d8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x44c>
    107a0:	8178f8c3          	fmadd.s	fa7,fa7,fs7,fa6
    107a4:	00c5a187          	flw	ft3,12(a1)
    107a8:	11157553          	fmul.s	fa0,fa0,fa7
    107ac:	a03518d3          	flt.s	a7,fa0,ft3
-   107b0:	02089463          	bnez	a7,107d8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x44c>
+   107b0:	02089463          	bnez	a7,107d8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x44c>
    107b4:	00062187          	flw	ft3,0(a2)
    107b8:	a0a198d3          	flt.s	a7,ft3,fa0
-   107bc:	00089e63          	bnez	a7,107d8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x44c>
+   107bc:	00089e63          	bnez	a7,107d8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x44c>
    107c0:	02482883          	lw	a7,36(a6)
    107c4:	00100513          	li	a0,1
    107c8:	00e62227          	fsw	fa4,4(a2)
@@ -507,18 +507,18 @@ Disassembly of section .text:
    107d0:	00a62027          	fsw	fa0,0(a2)
    107d4:	01162623          	sw	a7,12(a2)
    107d8:	02880813          	add	a6,a6,40
-   107dc:	ee6818e3          	bne	a6,t1,106cc <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x340>
-   107e0:	c20f98e3          	bnez	t6,10410 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x84>
-   107e4:	c65ff06f          	j	10448 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0xbc>
+   107dc:	ee6818e3          	bne	a6,t1,106cc <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x340>
+   107e0:	c20f98e3          	bnez	t6,10410 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x84>
+   107e4:	c65ff06f          	j	10448 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0xbc>
    107e8:	20a50753          	fmv.s	fa4,fa0
-   107ec:	e00e14e3          	bnez	t3,105f4 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x268>
-   107f0:	04030663          	beqz	t1,1083c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4b0>
+   107ec:	e00e14e3          	bnez	t3,105f4 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x268>
+   107f0:	04030663          	beqz	t1,1083c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4b0>
    107f4:	a0e31853          	flt.s	a6,ft6,fa4
-   107f8:	1c080063          	beqz	a6,109b8 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x62c>
+   107f8:	1c080063          	beqz	a6,109b8 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x62c>
    107fc:	a0331853          	flt.s	a6,ft6,ft3
-   10800:	22080063          	beqz	a6,10a20 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x694>
+   10800:	22080063          	beqz	a6,10a20 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x694>
    10804:	a0371853          	flt.s	a6,fa4,ft3
-   10808:	02080863          	beqz	a6,10838 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4ac>
+   10808:	02080863          	beqz	a6,10838 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4ac>
    1080c:	0007a303          	lw	t1,0(a5)
    10810:	02031e13          	sll	t3,t1,0x20
    10814:	01ee5813          	srl	a6,t3,0x1e
@@ -532,11 +532,11 @@ Disassembly of section .text:
    10834:	01182023          	sw	a7,0(a6)
    10838:	20a50753          	fmv.s	fa4,fa0
    1083c:	a0e31853          	flt.s	a6,ft6,fa4
-   10840:	1c080c63          	beqz	a6,10a18 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x68c>
+   10840:	1c080c63          	beqz	a6,10a18 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x68c>
    10844:	a0371853          	flt.s	a6,fa4,ft3
-   10848:	12081263          	bnez	a6,1096c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x5e0>
+   10848:	12081263          	bnez	a6,1096c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x5e0>
    1084c:	a0331853          	flt.s	a6,ft6,ft3
-   10850:	be080ae3          	beqz	a6,10444 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0xb8>
+   10850:	be080ae3          	beqz	a6,10444 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0xb8>
    10854:	0005a687          	flw	fa3,0(a1)
    10858:	0045a607          	flw	fa2,4(a1)
    1085c:	0085a587          	flw	fa1,8(a1)
@@ -549,9 +549,9 @@ Disassembly of section .text:
    10878:	01013423          	sd	a6,8(sp)
    1087c:	03012223          	sw	a6,36(sp)
    10880:	02612423          	sw	t1,40(sp)
-   10884:	dfdff06f          	j	10680 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x2f4>
+   10884:	dfdff06f          	j	10680 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x2f4>
    10888:	20a50353          	fmv.s	ft6,fa0
-   1088c:	cddff06f          	j	10568 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x1dc>
+   1088c:	cddff06f          	j	10568 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x1dc>
    10890:	0007ae03          	lw	t3,0(a5)
    10894:	020e1393          	sll	t2,t3,0x20
    10898:	01e3d813          	srl	a6,t2,0x1e
@@ -563,7 +563,7 @@ Disassembly of section .text:
    108b0:	a0331e53          	flt.s	t3,ft6,ft3
    108b4:	01068833          	add	a6,a3,a6
    108b8:	01182023          	sw	a7,0(a6)
-   108bc:	1c0e0e63          	beqz	t3,10a98 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x70c>
+   108bc:	1c0e0e63          	beqz	t3,10a98 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x70c>
    108c0:	0007ae03          	lw	t3,0(a5)
    108c4:	020e1393          	sll	t2,t3,0x20
    108c8:	01e3d813          	srl	a6,t2,0x1e
@@ -576,16 +576,16 @@ Disassembly of section .text:
    108e4:	01c7a023          	sw	t3,0(a5)
    108e8:	01d82023          	sw	t4,0(a6)
    108ec:	20a50353          	fmv.s	ft6,fa0
-   108f0:	f40306e3          	beqz	t1,1083c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4b0>
+   108f0:	f40306e3          	beqz	t1,1083c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4b0>
    108f4:	20a50753          	fmv.s	fa4,fa0
    108f8:	a0351853          	flt.s	a6,fa0,ft3
-   108fc:	10080263          	beqz	a6,10a00 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x674>
+   108fc:	10080263          	beqz	a6,10a00 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x674>
    10900:	0005a687          	flw	fa3,0(a1)
    10904:	0045a607          	flw	fa2,4(a1)
    10908:	0085a587          	flw	fa1,8(a1)
-   1090c:	d19ff06f          	j	10624 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x298>
+   1090c:	d19ff06f          	j	10624 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x298>
    10910:	a0331853          	flt.s	a6,ft6,ft3
-   10914:	fc080ce3          	beqz	a6,108ec <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x560>
+   10914:	fc080ce3          	beqz	a6,108ec <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x560>
    10918:	0007ae03          	lw	t3,0(a5)
    1091c:	020e1393          	sll	t2,t3,0x20
    10920:	01e3d813          	srl	a6,t2,0x1e
@@ -597,16 +597,16 @@ Disassembly of section .text:
    10938:	a0371e53          	flt.s	t3,fa4,ft3
    1093c:	01068833          	add	a6,a3,a6
    10940:	01d82023          	sw	t4,0(a6)
-   10944:	000e1a63          	bnez	t3,10958 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x5cc>
+   10944:	000e1a63          	bnez	t3,10958 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x5cc>
    10948:	01c5a507          	flw	fa0,28(a1)
    1094c:	20a50353          	fmv.s	ft6,fa0
-   10950:	ee0306e3          	beqz	t1,1083c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4b0>
-   10954:	fa1ff06f          	j	108f4 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x568>
-   10958:	0e031063          	bnez	t1,10a38 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x6ac>
+   10950:	ee0306e3          	beqz	t1,1083c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4b0>
+   10954:	fa1ff06f          	j	108f4 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x568>
+   10958:	0e031063          	bnez	t1,10a38 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x6ac>
    1095c:	01c5a507          	flw	fa0,28(a1)
    10960:	a0e51853          	flt.s	a6,fa0,fa4
    10964:	20a50353          	fmv.s	ft6,fa0
-   10968:	12080e63          	beqz	a6,10aa4 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x718>
+   10968:	12080e63          	beqz	a6,10aa4 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x718>
    1096c:	0005a687          	flw	fa3,0(a1)
    10970:	0045a607          	flw	fa2,4(a1)
    10974:	0085a587          	flw	fa1,8(a1)
@@ -625,9 +625,9 @@ Disassembly of section .text:
    109a8:	c1c82423          	sw	t3,-1016(a6)
    109ac:	c1182623          	sw	a7,-1012(a6)
    109b0:	001f8f9b          	addw	t6,t6,1
-   109b4:	eadff06f          	j	10860 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4d4>
+   109b4:	eadff06f          	j	10860 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4d4>
    109b8:	a0371853          	flt.s	a6,fa4,ft3
-   109bc:	e6080ee3          	beqz	a6,10838 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4ac>
+   109bc:	e6080ee3          	beqz	a6,10838 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4ac>
    109c0:	0007a303          	lw	t1,0(a5)
    109c4:	02031e13          	sll	t3,t1,0x20
    109c8:	01ee5813          	srl	a6,t3,0x1e
@@ -642,22 +642,22 @@ Disassembly of section .text:
    109ec:	01182023          	sw	a7,0(a6)
    109f0:	20a50753          	fmv.s	fa4,fa0
    109f4:	a0a31853          	flt.s	a6,ft6,fa0
-   109f8:	06031e63          	bnez	t1,10a74 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x6e8>
-   109fc:	a40814e3          	bnez	a6,10444 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0xb8>
+   109f8:	06031e63          	bnez	t1,10a74 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x6e8>
+   109fc:	a40814e3          	bnez	a6,10444 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0xb8>
    10a00:	a0371853          	flt.s	a6,fa4,ft3
-   10a04:	a40800e3          	beqz	a6,10444 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0xb8>
+   10a04:	a40800e3          	beqz	a6,10444 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0xb8>
    10a08:	0005a687          	flw	fa3,0(a1)
    10a0c:	0045a607          	flw	fa2,4(a1)
    10a10:	0085a587          	flw	fa1,8(a1)
-   10a14:	c4dff06f          	j	10660 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x2d4>
+   10a14:	c4dff06f          	j	10660 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x2d4>
    10a18:	a0331853          	flt.s	a6,ft6,ft3
-   10a1c:	ee1ff06f          	j	108fc <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x570>
+   10a1c:	ee1ff06f          	j	108fc <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x570>
    10a20:	a0a31353          	flt.s	t1,ft6,fa0
-   10a24:	06030663          	beqz	t1,10a90 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x704>
+   10a24:	06030663          	beqz	t1,10a90 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x704>
    10a28:	a0351853          	flt.s	a6,fa0,ft3
-   10a2c:	a0080ce3          	beqz	a6,10444 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0xb8>
+   10a2c:	a0080ce3          	beqz	a6,10444 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0xb8>
    10a30:	20a50753          	fmv.s	fa4,fa0
-   10a34:	f45ff06f          	j	10978 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x5ec>
+   10a34:	f45ff06f          	j	10978 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x5ec>
    10a38:	0007a303          	lw	t1,0(a5)
    10a3c:	02031e13          	sll	t3,t1,0x20
    10a40:	01ee5813          	srl	a6,t3,0x1e
@@ -672,21 +672,21 @@ Disassembly of section .text:
    10a64:	20a50753          	fmv.s	fa4,fa0
    10a68:	a0351853          	flt.s	a6,fa0,ft3
    10a6c:	01132023          	sw	a7,0(t1)
-   10a70:	e8dff06f          	j	108fc <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x570>
-   10a74:	e80806e3          	beqz	a6,10900 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x574>
+   10a70:	e8dff06f          	j	108fc <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x570>
+   10a74:	e80806e3          	beqz	a6,10900 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x574>
    10a78:	a0351853          	flt.s	a6,fa0,ft3
-   10a7c:	dc080ce3          	beqz	a6,10854 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x4c8>
+   10a7c:	dc080ce3          	beqz	a6,10854 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x4c8>
    10a80:	0005a687          	flw	fa3,0(a1)
    10a84:	0045a607          	flw	fa2,4(a1)
    10a88:	0085a587          	flw	fa1,8(a1)
-   10a8c:	eedff06f          	j	10978 <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x5ec>
+   10a8c:	eedff06f          	j	10978 <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x5ec>
    10a90:	20a50753          	fmv.s	fa4,fa0
-   10a94:	e69ff06f          	j	108fc <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x570>
+   10a94:	e69ff06f          	j	108fc <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x570>
    10a98:	01c5a507          	flw	fa0,28(a1)
    10a9c:	20a50353          	fmv.s	ft6,fa0
    10aa0:	20a50753          	fmv.s	fa4,fa0
    10aa4:	a0351853          	flt.s	a6,fa0,ft3
-   10aa8:	e55ff06f          	j	108fc <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj+0x570>
+   10aa8:	e55ff06f          	j	108fc <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj+0x570>
 
 0000000000010aac <_Z17intersect_bucketsRK10KernelArgs>:
    10aac:	01854783          	lbu	a5,24(a0)
@@ -744,7 +744,7 @@ Disassembly of section .text:
    10b7c:	00a80533          	add	a0,a6,a0
    10b80:	00012223          	sw	zero,4(sp)
    10b84:	00000097          	auipc	ra,0x0
-   10b88:	808080e7          	jalr	-2040(ra) # 1038c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj>
+   10b88:	808080e7          	jalr	-2040(ra) # 1038c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj>
    10b8c:	04050263          	beqz	a0,10bd0 <_Z17intersect_bucketsRK10KernelArgs+0x124>
    10b90:	00812787          	flw	fa5,8(sp)
    10b94:	a0fe17d3          	flt.s	a5,ft8,fa5
@@ -826,7 +826,7 @@ Disassembly of section .text:
    10cc4:	01f12a27          	fsw	ft11,20(sp)
    10cc8:	00012223          	sw	zero,4(sp)
    10ccc:	fffff097          	auipc	ra,0xfffff
-   10cd0:	6c0080e7          	jalr	1728(ra) # 1038c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj>
+   10cd0:	6c0080e7          	jalr	1728(ra) # 1038c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj>
    10cd4:	ec0514e3          	bnez	a0,10b9c <_Z17intersect_bucketsRK10KernelArgs+0xf0>
    10cd8:	ef9ff06f          	j	10bd0 <_Z17intersect_bucketsRK10KernelArgs+0x124>
    10cdc:	fff00493          	li	s1,-1
@@ -864,7 +864,7 @@ Disassembly of section .text:
    10d5c:	00712427          	fsw	ft7,8(sp)
    10d60:	00012223          	sw	zero,4(sp)
    10d64:	fffff097          	auipc	ra,0xfffff
-   10d68:	628080e7          	jalr	1576(ra) # 1038c <_Z17intersect_treeletRK7TreeletRKN3rtm3RayERNS2_3HitEPjPfRj>
+   10d68:	628080e7          	jalr	1576(ra) # 1038c <_Z17intersect_treeletRKN3rtm7TreeletERKNS_3RayERNS_3HitEPjPfRj>
    10d6c:	02050c63          	beqz	a0,10da4 <_Z17intersect_bucketsRK10KernelArgs+0x2f8>
    10d70:	01412783          	lw	a5,20(sp)
    10d74:	02978863          	beq	a5,s1,10da4 <_Z17intersect_bucketsRK10KernelArgs+0x2f8>

@@ -75,14 +75,14 @@ public:
 		{
 			struct
 			{
-				uint64_t _total;
-				uint64_t _hits;
-				uint64_t _misses;
-				uint64_t _uncached_writes;
-				uint64_t _bytes_read;
-				uint64_t _tag_array_access;
-				uint64_t _data_array_reads;
-				uint64_t _data_array_writes;
+				uint64_t total;
+				uint64_t hits;
+				uint64_t misses;
+				uint64_t uncached_writes;
+				uint64_t bytes_read;
+				uint64_t tag_array_access;
+				uint64_t data_array_reads;
+				uint64_t data_array_writes;
 			};
 			uint64_t counters[8];
 		};
@@ -101,21 +101,8 @@ public:
 				counters[i] += other.counters[i];
 		}
 
-		void log_requests(uint n = 1) { _total += n; } //TODO hit under miss logging
-
-		void log_hit(uint n = 1) { _hits += n; } //TODO hit under miss logging
-		void log_miss(uint n = 1) { _misses += n; }
-
-		void log_uncached_write(uint n = 1) { _uncached_writes += n; }
-
-		void log_bytes_read(uint bytes) { _bytes_read += bytes; }
-
-		void log_tag_array_access() { _tag_array_access++; }
-		void log_data_array_read() { _data_array_reads++; }
-		void log_data_array_write() { _data_array_writes++; }
-
-		uint64_t get_total() { return _hits + _misses; }
-		uint64_t get_total_data_array_accesses() { return _data_array_reads + _data_array_writes; }
+		uint64_t get_total() { return hits + misses; }
+		uint64_t get_total_data_array_accesses() { return data_array_reads + data_array_writes; }
 
 		void print_log(cycles_t cycles, uint units = 1)
 		{
@@ -125,14 +112,14 @@ public:
 			uint64_t da_total = get_total_data_array_accesses();
 
 			printf("Total: %lld\n", total / units);
-			printf("Hits: %lld(%.2f%%)\n", _hits / units, _hits / ft);
-			printf("Misses: %lld(%.2f%%)\n", _misses / units, _misses / ft);
-			printf("Tag Array Total: %lld\n", _tag_array_access);
+			printf("Hits: %lld(%.2f%%)\n", hits / units, hits / ft);
+			printf("Misses: %lld(%.2f%%)\n", misses / units, misses / ft);
+			printf("Tag Array Total: %lld\n", tag_array_access);
 			printf("Data Array Total: %lld\n", da_total);
-			printf("Data Array Reads: %lld\n", _data_array_reads);
-			printf("Data Array Writes: %lld\n", _data_array_writes);
-			printf("Data Array Writes: %lld\n", _data_array_writes);
-			printf("Bandwidth: %.2f Bytes/Cycle\n", (double)_bytes_read / units / cycles);
+			printf("Data Array Reads: %lld\n", data_array_reads);
+			printf("Data Array Writes: %lld\n", data_array_writes);
+			printf("Data Array Writes: %lld\n", data_array_writes);
+			printf("Bandwidth: %.2f Bytes/Cycle\n", (double)bytes_read / units / cycles);
 		}
 	}log;
 };

@@ -2,7 +2,6 @@
 #include "include.hpp"
 #include "stdafx.hpp"
 #include "work-item.hpp"
-#include "treelet-bvh.hpp"
 #include "custom-instr.hpp"
 
 #ifdef __riscv
@@ -213,7 +212,7 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
-bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::Hit& hit, uint* treelet_stack, float* child_hit, uint& treelet_stack_size)
+bool inline intersect_treelet(const rtm::Treelet& treelet, const rtm::Ray& ray, rtm::Hit& hit, uint* treelet_stack, float* child_hit, uint& treelet_stack_size)
 {
 #ifdef __riscv
 	register float f28 asm("f28") __attribute__((unused));
@@ -231,7 +230,7 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	struct NodeStackEntry
 	{
 		float hit_t;
-		Treelet::Node::Data data;
+		rtm::Treelet::Node::Data data;
 		uint index;
 	};
 	NodeStackEntry node_stack[64]; uint node_stack_size = 1u;
@@ -253,8 +252,8 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 			const uint& child1_index = current_entry.data.child[1].index;
 			const rtm::AABB& child0_aabb = treelet.nodes[current_entry.index].child_aabb[0];
 			const rtm::AABB& child1_aabb = treelet.nodes[current_entry.index].child_aabb[1];
-			const Treelet::Node& child0 = treelet.nodes[child0_index];
-			const Treelet::Node& child1 = treelet.nodes[child1_index];
+			const rtm::Treelet::Node& child0 = treelet.nodes[child0_index];
+			const rtm::Treelet::Node& child1 = treelet.nodes[child1_index];
 			const bool& left_child_treelet = current_entry.data.child[0].is_treelet;
 			const bool& right_child_treelet = current_entry.data.child[1].is_treelet;
 			float hit_ts[2];
@@ -296,10 +295,10 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 		}
 		else
 		{
-			Treelet::Triangle* tris = (Treelet::Triangle*)(&treelet.words[current_entry.data.tri0_word0]);
+			rtm::Treelet::Triangle* tris = (rtm::Treelet::Triangle*)(&treelet.words[current_entry.data.tri0_word0]);
 			for (uint i = 0; i <= current_entry.data.num_tri; ++i)
 			{
-				Treelet::Triangle tri = tris[i];
+				rtm::Treelet::Triangle tri = tris[i];
 				if (_intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;
@@ -394,7 +393,7 @@ inline void intersect_buckets(const KernelArgs& args)
 	}
 }
 
-inline bool intersect(const Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
+inline bool intersect(const rtm::Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
 {
 	uint treelet_stack[64]; uint treelet_stack_size = 1u;
 	float child_hit[64];

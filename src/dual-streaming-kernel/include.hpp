@@ -1,7 +1,6 @@
 #pragma once
 #include "stdafx.hpp"
 
-#include "treelet-bvh.hpp"
 #define KERNEL_ARGS_ADDRESS 256ull
 
 struct KernelArgs
@@ -23,6 +22,6 @@ struct KernelArgs
 	//heap data pointers
 	uint32_t* framebuffer;
 	rtm::Hit* hit_records;
-	Treelet* treelets;
+	rtm::Treelet* treelets;
 	rtm::Triangle* triangles;
 };

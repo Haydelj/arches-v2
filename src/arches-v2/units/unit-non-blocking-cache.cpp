@@ -111,7 +111,7 @@ void UnitNonBlockingCache::_clock_data_array(uint bank_index)
 	if(lfb_index == ~0u) return; 
 
 	LFB& lfb = bank.lfbs[lfb_index];
-	__assert(lfb.state == LFB::State::DATA_ARRAY);
+	_assert(lfb.state == LFB::State::DATA_ARRAY);
 	lfb.state = LFB::State::FILLED;
 	bank.lfb_return_queue.push(lfb_index);
 }
@@ -122,7 +122,7 @@ bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 	if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return false;
 
 	const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
-	__assert(ret.paddr == _get_block_addr(ret.paddr));
+	_assert(ret.paddr == _get_block_addr(ret.paddr));
 
 	//Mark the associated lse as filled and put it in the return queue
 	Bank& bank = _banks[bank_index];
@@ -131,7 +131,7 @@ bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 		LFB& lfb = bank.lfbs[i];
 		if(lfb.block_addr == ret.paddr)
 		{
-			__assert(lfb.state == LFB::State::MISSED);
+			_assert(lfb.state == LFB::State::MISSED);
 			std::memcpy(lfb.block_data.bytes, ret.data, CACHE_BLOCK_SIZE);
 			lfb.state = LFB::State::FILLED;
 			bank.lfb_return_queue.push(i);
@@ -267,7 +267,7 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 	LFB& lfb = bank.lfbs[bank.lfb_request_queue.front()];
 	if(lfb.type == LFB::Type::READ)
 	{
-		__assert(lfb.state == LFB::State::MISSED);
+		_assert(lfb.state == LFB::State::MISSED);
 
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::LOAD;
@@ -280,7 +280,7 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 	}
 	else if(lfb.type == LFB::Type::WRITE_COMBINING)
 	{
-		__assert(lfb.state == LFB::State::FILLED);
+		_assert(lfb.state == LFB::State::FILLED);
 
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::STORE;
@@ -308,7 +308,9 @@ void UnitNonBlockingCache::_try_return_lfb(uint bank_index)
 	//select the next subentry and copy return to interconnect
 
 	MemoryRequest req = _pop_request(lfb);
-	MemoryReturn ret(req, lfb.block_data.bytes + _get_block_offset(req.paddr));
+	uint block_offset = _get_block_offset(req.paddr);
+	MemoryReturn ret(req, lfb.block_data.bytes + block_offset);
+
 	_return_cross_bar.write(ret, bank_index);
 	log.log_bytes_read(ret.size);
 

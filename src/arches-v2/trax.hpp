@@ -12,6 +12,7 @@
 #include "units/unit-tp.hpp"
 
 #include "units/trax/unit-rt-core.hpp"
+#include "units/trax/unit-treelet-rt-core.hpp"
 #include "units/trax/unit-trax-tp.hpp"
 
 #include "util/elf.hpp"
@@ -182,9 +183,9 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(24.4, 16.4, 12.8), rtm::vec3(24.4 - 0.3, 16.4 - 0.6, 12.8 - 0.6));
 	//global_data.camera = Camera(global_data.framebuffer_width, global_data.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
-	heap_address = align_to(CACHE_BLOCK_SIZE, heap_address) + 32;
-	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
+	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh.nodes, heap_address);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
 
 	main_memory->direct_write(&args, sizeof(KernelArgs), KERNEL_ARGS_ADDRESS);
 
@@ -225,7 +226,7 @@ static void run_sim_trax(int argc, char* argv[])
 	std::vector<Units::UnitNonBlockingCache*> l1ds;
 	std::vector<Units::UnitBlockingCache*> l1is;
 	std::vector<Units::UnitBlockingCache*> l2s;
-	std::vector<Units::TRaX::UnitRTCore*> rt_cores;
+	std::vector<Units::TRaX::UnitTreeletRTCore*> rt_cores;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
@@ -302,7 +303,7 @@ static void run_sim_trax(int argc, char* argv[])
 				simulator.register_unit(l1is.back());
 			}
 
-			rt_cores.push_back(_new  Units::TRaX::UnitRTCore(128, num_tps_per_tm, (paddr_t)kernel_args.treelets, l1ds.back()));
+			rt_cores.push_back(_new  Units::TRaX::UnitTreeletRTCore(128, num_tps_per_tm, (paddr_t)kernel_args.treelets, l1ds.back()));
 			simulator.register_unit(rt_cores.back());
 
 			thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height, 8, 4));
@@ -371,7 +372,7 @@ static void run_sim_trax(int argc, char* argv[])
 		duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 	}
 
-	Units::TRaX::UnitRTCore::Log rt_core_log;
+	Units::TRaX::UnitTreeletRTCore::Log rt_core_log;
 	for(auto& rt_core : rt_cores)
 		rt_core_log.accumulate(rt_core->log);
 

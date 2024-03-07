@@ -64,7 +64,7 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 			if (cache_index != ~0) 
 			{
 				// There is already a load request for this hit
-				__assert(rsb_req.port < 64);
+				_assert(rsb_req.port < 64);
 				channel.rsb_load_queue[rsb_req.hit_info.hit_address] |= (1ull << rsb_req.port);
 				channel.rsb_counter[{rsb_req.hit_info.hit_address, rsb_req.port}]++;
 				request_network.read(channel_index);
@@ -143,7 +143,7 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 			}
 		}
 	}
-	else __assert(false);
+	else _assert(false);
 }
 
 void UnitHitRecordUpdater::process_returns(uint channel_index) {
@@ -165,7 +165,7 @@ void UnitHitRecordUpdater::process_returns(uint channel_index) {
 			uint64_t rsb_set = channel.rsb_load_queue[hit_address];
 			for (uint64_t set = rsb_set, rsb_index; set != 0; set ^= (1ull << rsb_index)) {
 				rsb_index = ctz(set);
-				__assert(channel.rsb_counter.count({ hit_address, rsb_index }));
+				_assert(channel.rsb_counter.count({ hit_address, rsb_index }));
 				MemoryReturn ret_to_rsb;
 				ret_to_rsb.paddr = hit_address;
 				ret_to_rsb.port = rsb_index;
@@ -178,7 +178,7 @@ void UnitHitRecordUpdater::process_returns(uint channel_index) {
 			channel.rsb_load_queue.erase(hit_address);
 		}
 	}
-	else __assert(false); // there must be a record in the cache
+	else _assert(false); // there must be a record in the cache
 }
 
 void UnitHitRecordUpdater::issue_requests(uint channel_index) {
@@ -216,7 +216,7 @@ void UnitHitRecordUpdater::issue_returns(uint channel_index) {
 		MemoryReturn ret = queue.front();
 		if (return_network.is_write_valid(ret.port)) {
 			return_network.write(ret, ret.port);
-			__assert(ret.size == sizeof(rtm::Hit));
+			_assert(ret.size == sizeof(rtm::Hit));
 			queue.pop();
 		}
 	}

@@ -171,7 +171,7 @@ uint8_t UnitTP::_decode(uint thread_id)
 	{
 		if(_inst_cache == nullptr)
 		{
-			__assert(thread.cheat_memory != nullptr);
+			_assert(thread.cheat_memory != nullptr);
 			thread.instr.data = reinterpret_cast<uint32_t*>(thread.cheat_memory)[thread.pc / 4];
 		}
 		else
@@ -354,14 +354,14 @@ void UnitTP::clock_fall()
 
 		if (req.vaddr < (~0x0ull << 20))
 		{
-			__assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
+			_assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
 			UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
 			_set_dependancies(exec_thread_id);
 			mem->write_request(req);
 		}
 		else
 		{
-			if ((req.vaddr | thread.stack_mask) != ~0x0ull) printf("STACK OVERFLOW!!!\n"), __assert(false);
+			if ((req.vaddr | thread.stack_mask) != ~0x0ull) printf("STACK OVERFLOW!!!\n"), _assert(false);
 			if (thread.instr_info.instr_type == ISA::RISCV::InstrType::LOAD)
 			{
 				//Because of forwarding instruction with latency 1 don't cause stalls so we don't need to set pending bit
@@ -373,10 +373,10 @@ void UnitTP::clock_fall()
 				paddr_t buffer_addr = req.vaddr & thread.stack_mask;
 				std::memcpy(&thread.stack_mem[buffer_addr], req.data, req.size);
 			}
-			else __assert(false);
+			else _assert(false);
 		}
 	}
-	else __assert(false);
+	else _assert(false);
 
 	if(!jump) thread.pc += 4;
 	thread.int_regs.zero.u64 = 0x0ull; //Compilers generate instructions with zero register as target so we need to zero the register every cycle

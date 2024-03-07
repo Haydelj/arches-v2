@@ -143,7 +143,7 @@ public:
 
 		void profile_instruction(vaddr_t pc)
 		{
-			__assert(pc >= _elf_start_addr);
+			_assert(pc >= _elf_start_addr);
 
 			uint instr_index = (pc - _elf_start_addr) / 4;
 			if (instr_index >= _profile_counters.size())

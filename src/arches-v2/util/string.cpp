@@ -48,7 +48,7 @@ size_t normalize_newlines(char* source) {
 #endif
 
 std::deque<std::string> get_split(std::string const& main_string, std::string const& test_string) {
-	__assert(!test_string.empty());
+	_assert(!test_string.empty());
 
 	std::deque<std::string> result;
 
@@ -56,7 +56,7 @@ std::deque<std::string> get_split(std::string const& main_string, std::string co
 	LOOP:
 		size_t loc = main_string.find(test_string,offset);
 		if (loc!=main_string.npos) {
-			__assert(offset<=loc);
+			_assert(offset<=loc);
 			result.emplace_back(main_string.substr(offset,loc-offset));
 			offset = loc + test_string.size();
 

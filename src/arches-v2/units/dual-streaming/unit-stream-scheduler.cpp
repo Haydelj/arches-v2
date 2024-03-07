@@ -110,7 +110,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 		_scheduler.bucket_request_queue.push(req.port);
 		_request_network.read(bank_index);
 	}
-	else __assert(false);
+	else _assert(false);
 }
 
 void UnitStreamScheduler::_proccess_return(uint channel_index)

@@ -45,7 +45,7 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 		{
 			//segment is complete, which will be evicted from active segments and candidate segments later
 			
-			Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
+			rtm::Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
 			if (header.subtree_size == 1)
 			{
 				log.log_complete(segment_index, segment_state.weight);
@@ -79,7 +79,7 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 			}
 			else if (candidate_segment != 0 || state.parent_finished)
 			{
-				Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
+				rtm::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
 
 				// push in children nodes
 				if (!state.child_order_generated && state.num_rays > 0)
@@ -141,7 +141,7 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 					_scheduler.segment_state_map.erase(candidate_segment);
 
 					//for all children segments
-					Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
+					rtm::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
 					for (uint i = 0; i < header.num_children; ++i)
 					{
 						//mark the child as parent finsihed
@@ -262,7 +262,8 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 * 
 */
 
-void UnitStreamSchedulerDFS::clock_rise() {
+void UnitStreamSchedulerDFS::clock_rise() 
+{
 	_request_network.clock();
 
 	for (uint i = 0; i < _banks.size(); ++i)
@@ -340,7 +341,7 @@ void UnitStreamSchedulerDFS::_proccess_request(uint bank_index) {
 		{
 			write_buffer.write_ray(req.bray);
 			SegmentState& state = _scheduler.segment_state_map[segment_index];
-			Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
+			rtm::Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
 			state.weight += weight;
 			state.num_rays++;
 			state.average_ray_weight = state.weight / state.num_rays;
@@ -385,7 +386,7 @@ void UnitStreamSchedulerDFS::_proccess_request(uint bank_index) {
 		int tm_index = req.port;
 		_request_network.read(bank_index);
 	}
-	else assert(false);
+	else _assert(false);
 }
 
 void UnitStreamSchedulerDFS::_proccess_return(uint channel_index) {

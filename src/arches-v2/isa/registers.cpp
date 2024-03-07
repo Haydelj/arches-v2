@@ -68,7 +68,7 @@ void write_register(IntegerRegisterFile* int_regs, FloatingPointRegisterFile* fl
 	}
 	else if(dst.reg_type == ISA::RISCV::RegType::FLOAT)
 	{
-		__assert(size == 4);
+		_assert(size == 4);
 		float_regs->registers[dst.reg].f32 = *((float*)data);
 	
 	}

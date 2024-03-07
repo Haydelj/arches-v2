@@ -99,7 +99,7 @@ inline static void kernel(const KernelArgs& args)
 #ifdef USE_TRACERAY
 		_traceray<0x0u>(index, ray, hit);
 #else
-		intersect(args.mesh, ray, hit);
+		intersect(args.nodes, args.tris, ray, hit);
 #endif
 		if(hit.id != ~0u)
 		{
@@ -154,10 +154,9 @@ int main(int argc, char* argv[])
 	rtm::PackedBVH2 packed_bvh(bvh);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
 
-	args.mesh.blas = bvh.nodes.data();
-	args.mesh.tris = tris.data();
-	args.treelets = treelet_bvh.treelets.data();
+	args.nodes = packed_bvh.nodes.data();
 	args.tris = tris.data();
+	args.treelets = treelet_bvh.treelets.data();
 
 	auto start = std::chrono::high_resolution_clock::now();
 
