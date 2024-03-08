@@ -1,6 +1,17 @@
 #pragma once
-#include "stdafx.hpp"
+
+#include "bvh.hpp"
+#include "mesh.hpp"
+
+#ifndef __riscv
 #include <map>
+#include <set>
+#include <unordered_map>
+#include <stack>
+#include <queue>
+#endif
+
+namespace rtm {
 
 #define TREELET_SIZE (7 * 8 * 1024)
 
@@ -317,3 +328,5 @@ public:
 	}
 };
 #endif
+
+} // namespace rtm

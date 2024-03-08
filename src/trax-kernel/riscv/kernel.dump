@@ -61,26 +61,26 @@ Disassembly of section .text:
    100e8:	01212a27          	fsw	fs2,20(sp)
    100ec:	01312827          	fsw	fs3,16(sp)
    100f0:	01412627          	fsw	fs4,12(sp)
-   100f4:	14402987          	flw	fs3,324(zero) # 144 <main-0xff6c>
-   100f8:	14802a07          	flw	fs4,328(zero) # 148 <main-0xff68>
-   100fc:	15c02907          	flw	fs2,348(zero) # 15c <main-0xff54>
-   10100:	16002487          	flw	fs1,352(zero) # 160 <main-0xff50>
-   10104:	16802407          	flw	fs0,360(zero) # 168 <main-0xff48>
-   10108:	16c02887          	flw	fa7,364(zero) # 16c <main-0xff44>
-   1010c:	16402807          	flw	fa6,356(zero) # 164 <main-0xff4c>
-   10110:	15802507          	flw	fa0,344(zero) # 158 <main-0xff58>
-   10114:	17002587          	flw	fa1,368(zero) # 170 <main-0xff40>
-   10118:	17402607          	flw	fa2,372(zero) # 174 <main-0xff3c>
-   1011c:	17802687          	flw	fa3,376(zero) # 178 <main-0xff38>
-   10120:	15002087          	flw	ft1,336(zero) # 150 <main-0xff60>
-   10124:	15402107          	flw	ft2,340(zero) # 154 <main-0xff5c>
+   100f4:	14c02987          	flw	fs3,332(zero) # 14c <main-0xff64>
+   100f8:	15002a07          	flw	fs4,336(zero) # 150 <main-0xff60>
+   100fc:	16402907          	flw	fs2,356(zero) # 164 <main-0xff4c>
+   10100:	16802487          	flw	fs1,360(zero) # 168 <main-0xff48>
+   10104:	17002407          	flw	fs0,368(zero) # 170 <main-0xff40>
+   10108:	17402887          	flw	fa7,372(zero) # 174 <main-0xff3c>
+   1010c:	16c02807          	flw	fa6,364(zero) # 16c <main-0xff44>
+   10110:	16002507          	flw	fa0,352(zero) # 160 <main-0xff50>
+   10114:	17802587          	flw	fa1,376(zero) # 178 <main-0xff38>
+   10118:	17c02607          	flw	fa2,380(zero) # 17c <main-0xff34>
+   1011c:	18002687          	flw	fa3,384(zero) # 180 <main-0xff30>
+   10120:	15802087          	flw	ft1,344(zero) # 158 <main-0xff58>
+   10124:	15c02107          	flw	ft2,348(zero) # 15c <main-0xff54>
    10128:	11003503          	ld	a0,272(zero) # 110 <main-0xffa0>
    1012c:	28072387          	flw	ft7,640(a4) # 11280 <__DATA_BEGIN__+0xc>
    10130:	fff00893          	li	a7,-1
    10134:	ff000337          	lui	t1,0xff000
    10138:	ff000837          	lui	a6,0xff000
    1013c:	10002703          	lw	a4,256(zero) # 100 <main-0xffb0>
-   10140:	14c02007          	flw	ft0,332(zero) # 14c <main-0xff64>
+   10140:	15402007          	flw	ft0,340(zero) # 154 <main-0xff5c>
    10144:	02e7d6bb          	divuw	a3,a5,a4
    10148:	02e7f73b          	remuw	a4,a5,a4
    1014c:	d016f253          	fcvt.s.wu	ft4,a3

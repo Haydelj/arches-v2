@@ -18,6 +18,8 @@ struct KernelArgs
 	bool use_trace_ray;
 
 	rtm::vec3 light_dir;
-	MeshPointers mesh;
+	rtm::PackedBVH2::Node* nodes;
+	rtm::Triangle* tris;
+	rtm::PackedTreelet* treelets;
 	rtm::Camera camera;
 };

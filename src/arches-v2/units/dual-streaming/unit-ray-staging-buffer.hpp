@@ -93,7 +93,7 @@ private:
 		if (_hit_record_updater->return_port_read_valid(tm_index) && returned_hit.paddr == ~0)
 		{
 			returned_hit = _hit_record_updater->read_return(tm_index);
-			assert(returned_hit.size == sizeof(rtm::Hit));
+			_assert(returned_hit.size == sizeof(rtm::Hit));
 		}
 
 		if (_stream_scheduler->return_port_read_valid(tm_index))
@@ -216,8 +216,8 @@ private:
 	{
 		if (returned_hit.paddr != ~0)
 		{
-			assert(returned_hit.size == sizeof(rtm::Hit));
-			assert(tp_load_hit_request.count(returned_hit.paddr));
+			_assert(returned_hit.size == sizeof(rtm::Hit));
+			_assert(tp_load_hit_request.count(returned_hit.paddr));
 
 			auto& queue = tp_load_hit_request[returned_hit.paddr];
 			const auto& tp_request = queue.front();
@@ -331,6 +331,4 @@ private:
 	}
 };
 
-}
-}
-}
+}}}

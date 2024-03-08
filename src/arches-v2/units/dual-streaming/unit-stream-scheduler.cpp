@@ -110,7 +110,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 		_scheduler.bucket_request_queue.push(req.port);
 		_request_network.read(bank_index);
 	}
-	else assert(false);
+	else _assert(false);
 }
 
 void UnitStreamScheduler::_proccess_return(uint channel_index)
@@ -162,7 +162,7 @@ void UnitStreamScheduler::_update_scheduler()
 			_scheduler.segment_state_map.erase(segment_index);
 
 			//for all children segments
-			Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
+			rtm::Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
 			for(uint i = 0; i < header.num_children; ++i)
 			{
 				//mark the child as parent finsihed
@@ -256,7 +256,7 @@ void UnitStreamScheduler::_update_scheduler()
 					//Otherwise queue up the children segments. The segment will be removed from active set when all rays complete
 					
 					//for all children segments
-					Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
+					rtm::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
 					for(uint i = 0; i < header.num_children; ++i)
 					{
 						//add child to the traversal qeueue

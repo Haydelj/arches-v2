@@ -11,8 +11,8 @@
 #include "units/unit-sfu.hpp"
 #include "units/unit-tp.hpp"
 
-#include "units/unit-rt-core.hpp"
-
+#include "units/trax/unit-rt-core.hpp"
+#include "units/trax/unit-treelet-rt-core.hpp"
 #include "units/trax/unit-trax-tp.hpp"
 
 #include "util/elf.hpp"
@@ -151,19 +151,26 @@ static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignmen
 static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address)
 {
 	rtm::Mesh mesh("../../datasets/sponza.obj");
-	rtm::BVH blas;
+	rtm::BVH bvh;
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;
 	for(uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
-	blas.build(build_objects);
+	bvh.build(build_objects);
 	mesh.reorder(build_objects);
 	mesh.get_triangles(tris);
 
+	rtm::PackedBVH2 packed_bvh(bvh);
+	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
+
 	KernelArgs args;
-	args.framebuffer_width = 1024;
-	args.framebuffer_height = 1024;
+	args.framebuffer_width = 256;
+	args.framebuffer_height = 256;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
+
+	//args.tile_width = 1;
+	//args.tile_height = 1;
+	//args.tile_size = args.tile_width * args.tile_height;
 
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address); heap_address += args.framebuffer_size * sizeof(uint32_t);
@@ -173,11 +180,12 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(24.4, 16.4, 12.8), rtm::vec3(24.4 - 0.3, 16.4 - 0.6, 12.8 - 0.6));
 	//global_data.camera = Camera(global_data.framebuffer_width, global_data.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
-	heap_address = align_to(CACHE_BLOCK_SIZE, heap_address) + 32;
-	args.mesh.blas = write_vector(main_memory, 32, blas.nodes, heap_address);
-	args.mesh.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh.nodes, heap_address);
+	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
 
 	main_memory->direct_write(&args, sizeof(KernelArgs), KERNEL_ARGS_ADDRESS);
 
@@ -187,7 +195,7 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 static void run_sim_trax(int argc, char* argv[])
 {
 	uint num_threads_per_tp = 8;
-	uint num_tps_per_tm = 32;
+	uint num_tps_per_tm = 64;
 	uint num_tms_per_l2 = 64;
 	uint num_l2 = 1;
 
@@ -218,7 +226,7 @@ static void run_sim_trax(int argc, char* argv[])
 	std::vector<Units::UnitNonBlockingCache*> l1ds;
 	std::vector<Units::UnitBlockingCache*> l1is;
 	std::vector<Units::UnitBlockingCache*> l2s;
-	std::vector<Units::UnitRTCore*> rt_cores;
+	std::vector<Units::TRaX::UnitTreeletRTCore*> rt_cores;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
@@ -228,7 +236,6 @@ static void run_sim_trax(int argc, char* argv[])
 	simulator.register_unit(&mm);
 	
 	ELF elf("../trax-kernel/riscv/kernel");
-	vaddr_t global_pointer;
 	paddr_t heap_address = mm.write_elf(elf);
 	
 	KernelArgs kernel_args = initilize_buffers(&mm, heap_address);
@@ -268,8 +275,8 @@ static void run_sim_trax(int argc, char* argv[])
 			l1_config.num_banks = num_l1_banks;
 			l1_config.cross_bar_width = num_l1_banks;
 			l1_config.bank_select_mask = 0b0101'0100'0000ull;
-			l1_config.num_lfb = 8;
-			l1_config.check_retired_lfb = true;
+			l1_config.num_lfb = 128;
+			l1_config.check_retired_lfb = false;
 			l1_config.mem_higher = l2s.back();
 			l1_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_i;
 			l1_config.mem_higher_port_stride = 2;
@@ -281,7 +288,7 @@ static void run_sim_trax(int argc, char* argv[])
 			for (uint i_cache_index = 0; i_cache_index < num_icache_per_tm; ++i_cache_index)
 			{
 				Units::UnitBlockingCache::Configuration i_l1_config;
-				i_l1_config.size = 4 * 1024;
+				i_l1_config.size = 8 * 1024;
 				i_l1_config.associativity = 4;
 				i_l1_config.latency = 1;
 				i_l1_config.cycle_time = 1;
@@ -296,7 +303,7 @@ static void run_sim_trax(int argc, char* argv[])
 				simulator.register_unit(l1is.back());
 			}
 
-			rt_cores.push_back(_new  Units::UnitRTCore(256, num_tps_per_tm, (paddr_t)kernel_args.mesh.blas, (paddr_t)kernel_args.mesh.tris, l1ds.back()));
+			rt_cores.push_back(_new  Units::TRaX::UnitTreeletRTCore(128, num_tps_per_tm, (paddr_t)kernel_args.treelets, l1ds.back()));
 			simulator.register_unit(rt_cores.back());
 
 			thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height, 8, 4));
@@ -311,18 +318,18 @@ static void run_sim_trax(int argc, char* argv[])
 			unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
 			unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rt_cores.back();
 
-			sfu_list.push_back(_new Units::UnitSFU(32, 2, 1, num_tps_per_tm));
+			sfu_list.push_back(_new Units::UnitSFU(64, 2, 1, num_tps_per_tm));
 			simulator.register_unit(sfu_list.back());
 			unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
 			unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
 			unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
 
-			sfu_list.push_back(_new Units::UnitSFU(2, 1, 1, num_tps_per_tm));
+			sfu_list.push_back(_new Units::UnitSFU(8, 1, 1, num_tps_per_tm));
 			simulator.register_unit(sfu_list.back());
 			unit_table[(uint)ISA::RISCV::InstrType::IMUL] = sfu_list.back();
 			unit_table[(uint)ISA::RISCV::InstrType::IDIV] = sfu_list.back();
 
-			sfu_list.push_back(_new Units::UnitSFU(1, 20, 1, num_tps_per_tm));
+			sfu_list.push_back(_new Units::UnitSFU(4, 6, 1, num_tps_per_tm));
 			simulator.register_unit(sfu_list.back());
 			unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
 			unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
@@ -343,7 +350,7 @@ static void run_sim_trax(int argc, char* argv[])
 				tp_config.sp = 0x0;
 				tp_config.stack_size = stack_size;
 				tp_config.cheat_memory = mm._data_u8;
-				tp_config.inst_cache = nullptr; // l1is[uint(tm_index * num_icache_per_tm + tp_index / num_tps_per_i_cache)];
+				tp_config.inst_cache = l1is[uint(tm_index * num_icache_per_tm + tp_index / num_tps_per_i_cache)];
 				tp_config.num_tps_per_i_cache = num_tps_per_i_cache;
 				tp_config.unit_table = &unit_tables.back();
 				tp_config.unique_mems = &mem_lists.back();
@@ -364,6 +371,10 @@ static void run_sim_trax(int argc, char* argv[])
 		auto stop = std::chrono::high_resolution_clock::now();
 		duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 	}
+
+	Units::TRaX::UnitTreeletRTCore::Log rt_core_log;
+	for(auto& rt_core : rt_cores)
+		rt_core_log.accumulate(rt_core->log);
 
 	Units::UnitTP::Log tp_log(elf.segments[0]->vaddr);
 	for(auto& tp : tps)
@@ -386,19 +397,24 @@ static void run_sim_trax(int argc, char* argv[])
 	mm.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
 
 	printf("\nL2$\n");
-	l2_log.print_log();
+	l2_log.print_log(simulator.current_cycle);
 
 	printf("\nL1D$\n");
-	l1_log.print_log();
+	l1_log.print_log(simulator.current_cycle);
 
 	printf("\nL1I$\n");
-	i_l1_log.print_log();
+	i_l1_log.print_log(simulator.current_cycle);
 
 	printf("\nTP\n");
 	tp_log.print_log();
 
+	printf("\nRT Core\n");
+	rt_core_log.print_log(simulator.current_cycle, rt_cores.size());
+
 	printf("\nRuntime: %lldms\n", duration.count());
 	printf("Cycles: %lld\n", simulator.current_cycle);
+	printf("MRays/s: %.2f\n", 2000.0f * tp_log.instruction_counters[(size_t)ISA::RISCV::InstrType::CUSTOM7] / simulator.current_cycle);
+	printf("MPixels/s: %.2f\n", 2000.0f * kernel_args.framebuffer_size / simulator.current_cycle);
 
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;

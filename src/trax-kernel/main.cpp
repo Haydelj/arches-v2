@@ -52,11 +52,11 @@ inline static void kernel(const KernelArgs& args)
 			#ifdef USE_TRACERAY
 				_traceray<0x0u>(index, ray, hit);
 			#else
-				intersect(args.mesh, ray, hit);
+				intersect(args.treelets, ray, hit);
 			#endif
 				if(hit.id != ~0u)
 				{
-					normal = args.mesh.tris[hit.id].normal();
+					normal = args.tris[hit.id].normal();
 					float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
 					if(ndotl > 0.0f)
 					{
@@ -68,7 +68,7 @@ inline static void kernel(const KernelArgs& args)
 					#ifdef USE_TRACERAY
 						_traceray<0x1u>(index, sray, shit);
 					#else
-						intersect(args.mesh, sray, shit, true);
+						intersect(args.treelets, sray, shit);
 					#endif
 						if(shit.id != ~0u)
 							ndotl = 0.0f;
@@ -99,7 +99,7 @@ inline static void kernel(const KernelArgs& args)
 #ifdef USE_TRACERAY
 		_traceray<0x0u>(index, ray, hit);
 #else
-		intersect(args.mesh, ray, hit);
+		intersect(args.nodes, args.tris, ray, hit);
 #endif
 		if(hit.id != ~0u)
 		{
@@ -128,13 +128,13 @@ int main()
 int main(int argc, char* argv[])
 {
 	KernelArgs args;
-	args.framebuffer_width = 1024;
-	args.framebuffer_height = 1024;
+	args.framebuffer_width = 256;
+	args.framebuffer_height = 256;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.samples_per_pixel = 16;
-	args.max_depth = 16;
+	args.samples_per_pixel = 1;
+	args.max_depth = 1;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
@@ -142,17 +142,21 @@ int main(int argc, char* argv[])
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 	
 	rtm::Mesh mesh(argv[1]);
-	rtm::BVH mesh_blas;
+	rtm::BVH bvh;
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;
 	for(uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
-	mesh_blas.build(build_objects);
+	bvh.build(build_objects);
 	mesh.reorder(build_objects);
 	mesh.get_triangles(tris);
 
-	args.mesh.blas = mesh_blas.nodes.data();
-	args.mesh.tris = tris.data();
+	rtm::PackedBVH2 packed_bvh(bvh);
+	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
+
+	args.nodes = packed_bvh.nodes.data();
+	args.tris = tris.data();
+	args.treelets = treelet_bvh.treelets.data();
 
 	auto start = std::chrono::high_resolution_clock::now();
 

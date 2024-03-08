@@ -11,7 +11,7 @@ protected:
 	uint32_t _size{64};
 
 public:
-	RoundRobinArbiter(uint size = 64) : _size(size) { assert(size <= 64); }
+	RoundRobinArbiter(uint size = 64) : _size(size) { _assert(size <= 64); }
 
 	uint32_t size() { return _size; }
 
@@ -63,7 +63,7 @@ protected:
 	uint32_t _size{64};
 
 public:
-	RoundRobinArbiter(uint size = 64) : _size(size) { assert(size <= MAX_SIZE * 64); }
+	RoundRobinArbiter(uint size = 64) : _size(size) { __assert(size <= MAX_SIZE * 64); }
 
 	uint32_t size() { return _size; }
 

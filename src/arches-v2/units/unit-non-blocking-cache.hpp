@@ -129,44 +129,37 @@ public:
 	class Log
 	{
 	public:
-		uint64_t _total;
-		uint64_t _hits;
-		uint64_t _misses;
-		uint64_t _half_misses;
-		uint64_t _uncached_writes;
-		uint64_t _lfb_hits;
-		uint64_t _lfb_stalls;
-		uint64_t _tag_array_access;
-		uint64_t _data_array_reads;
-		uint64_t _data_array_writes;
+		union
+		{
+			struct
+			{
+				uint64_t _total;
+				uint64_t _hits;
+				uint64_t _misses;
+				uint64_t _half_misses;
+				uint64_t _uncached_writes;
+				uint64_t _lfb_hits;
+				uint64_t _lfb_stalls;
+				uint64_t _bytes_read;
+				uint64_t _tag_array_access;
+				uint64_t _data_array_reads;
+				uint64_t _data_array_writes;
+			};
+			uint64_t counters[16];
+		};
 
 		Log() { reset(); }
 
 		void reset()
 		{
-			_total = 0;
-			_lfb_hits = 0;
-			_hits = 0;
-			_misses = 0;
-			_half_misses = 0;
-			_uncached_writes = 0;
-			_lfb_stalls = 0;
-			_tag_array_access = 0;
-			_data_array_reads = 0;
-			_data_array_writes = 0;
+			for(uint i = 0; i < 16; ++i)
+				counters[i] = 0;
 		}
 
 		void accumulate(const Log& other)
 		{
-			_total += other._total;
-			_lfb_hits += other._lfb_hits;
-			_hits += other._hits;
-			_misses += other._misses;
-			_half_misses += other._half_misses;;
-			_lfb_stalls += other._lfb_stalls;
-			_tag_array_access += other._tag_array_access;
-			_data_array_reads += other._data_array_reads;
-			_data_array_writes += other._data_array_writes;
+			for(uint i = 0; i < 16; ++i)
+				counters[i] += other.counters[i];
 		}
 
 		void log_requests(uint n = 1) { _total += n; } //TODO hit under miss logging
@@ -175,6 +168,8 @@ public:
 		void log_miss(uint n = 1) { _misses += n; }
 		void log_lfb_hit(uint n = 1) { _lfb_hits += n; }
 		void log_half_miss(uint n = 1) { _half_misses += n; }
+
+		void log_bytes_read(uint bytes) { _bytes_read += bytes; }
 
 		void log_uncached_write(uint n = 1) { _uncached_writes += n; }
 
@@ -187,23 +182,24 @@ public:
 		uint64_t get_total() { return _hits + _misses; }
 		uint64_t get_total_data_array_accesses() { return _data_array_reads + _data_array_writes; }
 
-		void print_log(FILE* stream = stdout, uint units = 1)
+		void print_log(cycles_t cycles, uint units = 1)
 		{
 			uint64_t total = get_total();
 			float ft = total / 100.0f;
 
 			uint64_t da_total = get_total_data_array_accesses();
 
-			fprintf(stream, "Total: %lld\n", total / units);
-			fprintf(stream, "Hits: %lld(%.2f%%)\n", _hits / units, _hits / ft);
-			fprintf(stream, "Misses: %lld(%.2f%%)\n", _misses / units, _misses / ft);
-			fprintf(stream, "Half Misses: %lld(%.2f%%)\n", _half_misses / units, _half_misses / ft);
-			fprintf(stream, "LFB Hits: %lld(%.2f%%)\n", _lfb_hits / units, _lfb_hits / ft);
-			fprintf(stream, "LFB Stalls: %lld\n", _lfb_stalls / units);
-			fprintf(stream, "Tag Array Total: %lld\n", _tag_array_access);
-			fprintf(stream, "Data Array Total: %lld\n", da_total);
-			fprintf(stream, "Data Array Reads: %lld\n", _data_array_reads);
-			fprintf(stream, "Data Array Writes: %lld\n", _data_array_writes);
+			printf("Total: %lld\n", total / units);
+			printf("Hits: %lld(%.2f%%)\n", _hits / units, _hits / ft);
+			printf("Misses: %lld(%.2f%%)\n", _misses / units, _misses / ft);
+			printf("Half Misses: %lld(%.2f%%)\n", _half_misses / units, _half_misses / ft);
+			printf("LFB Hits: %lld(%.2f%%)\n", _lfb_hits / units, _lfb_hits / ft);
+			printf("LFB Stalls: %lld\n", _lfb_stalls / units);
+			printf("Tag Array Total: %lld\n", _tag_array_access);
+			printf("Data Array Total: %lld\n", da_total);
+			printf("Data Array Reads: %lld\n", _data_array_reads);
+			printf("Data Array Writes: %lld\n", _data_array_writes);
+			printf("Bandwidth: %.2f Bytes/Cycle\n", (float)_bytes_read / cycles);
 		}
 	}log;
 };

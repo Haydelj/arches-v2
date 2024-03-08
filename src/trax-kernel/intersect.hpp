@@ -121,7 +121,7 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
-inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+inline bool intersect(const rtm::BVH::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
@@ -133,8 +133,8 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 
 	NodeStackEntry node_stack[32];
 	uint32_t node_stack_size = 1u;
-	node_stack[0].t = _intersect(mesh.blas[0].aabb, ray, inv_d);
-	node_stack[0].data = mesh.blas[0].data;
+	node_stack[0].t = _intersect(nodes[0].aabb, ray, inv_d);
+	node_stack[0].data = nodes[0].data;
 	
 	bool found_hit = false;
 	do
@@ -146,19 +146,19 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 		if(!current_entry.data.is_leaf)
 		{
 			uint child_index = current_entry.data.fst_chld_ind;
-			float t0 = _intersect(mesh.blas[child_index + 0].aabb, ray, inv_d);
-			float t1 = _intersect(mesh.blas[child_index + 1].aabb, ray, inv_d);
+			float t0 = _intersect(nodes[child_index + 0].aabb, ray, inv_d);
+			float t1 = _intersect(nodes[child_index + 1].aabb, ray, inv_d);
 			if(t0 < hit.t || t1 < hit.t)
 			{
 				if(t0 < t1)
 				{
-					current_entry = {t0, mesh.blas[child_index + 0].data};
-					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, mesh.blas[child_index + 1].data};
+					current_entry = {t0, nodes[child_index + 0].data};
+					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data};
 				}
 				else
 				{
-					current_entry = {t1, mesh.blas[child_index + 1].data};
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, mesh.blas[child_index + 0].data};
+					current_entry = {t1, nodes[child_index + 1].data};
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data};
 				}
 				goto POP_SKIP;
 			}
@@ -168,7 +168,7 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 			for(uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; ++i)
 			{
 				uint32_t id = current_entry.data.fst_chld_ind + i;
-				if(_intersect(mesh.tris[id], ray, hit))
+				if(_intersect(tris[id], ray, hit))
 				{
 					hit.id = id;
 					if(first_hit) return true;
@@ -179,4 +179,164 @@ inline bool intersect(const MeshPointers& mesh, const rtm::Ray& ray, rtm::Hit& h
 	} while(node_stack_size);
 
 	return found_hit;
+}
+
+inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::PackedBVH2::Node::Data data;
+	};
+
+	NodeStackEntry node_stack[32];
+	uint32_t node_stack_size = 1u;
+	node_stack[0].t = ray.t_min;
+	node_stack[0].data.is_leaf = 0;
+	node_stack[0].data.child_index = 0;
+
+	bool found_hit = false;
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if(current_entry.t >= hit.t) continue;
+
+	POP_SKIP:
+		if(!current_entry.data.is_leaf)
+		{
+			uint child_index = current_entry.data.child_index;
+			float t0 = _intersect(nodes[child_index].aabb[0], ray, inv_d);
+			float t1 = _intersect(nodes[child_index].aabb[1], ray, inv_d);
+			if(t0 < hit.t || t1 < hit.t)
+			{
+				if(t0 < t1)
+				{
+					current_entry = {t0, nodes[child_index].data[0]};
+					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index].data[1]};
+				}
+				else
+				{
+					current_entry = {t1, nodes[child_index].data[1]};
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index].data[0]};
+				}
+				goto POP_SKIP;
+			}
+		}
+		else
+		{
+			for(uint32_t i = 0; i <= current_entry.data.num_tri; ++i)
+			{
+				uint32_t id = current_entry.data.tri_index + i;
+				if(_intersect(tris[id], ray, hit))
+				{
+					hit.id = id;
+					if(first_hit) return true;
+					else          found_hit = true;
+				}
+			}
+		}
+	} while(node_stack_size);
+
+	return found_hit;
+}
+
+
+inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray& ray, rtm::Hit& hit, uint* treelet_stack, uint& treelet_stack_size)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+	uint treelet_stack_start = treelet_stack_size;
+
+	struct NodeStackEntry
+	{
+		float hit_t;
+		rtm::PackedTreelet::Node::Data data;
+	};
+	NodeStackEntry node_stack[32]; uint node_stack_size = 1u;
+
+	node_stack[0].hit_t = ray.t_min;
+	node_stack[0].data.is_leaf = 0;
+	node_stack[0].data.is_child_treelet = 0;
+	node_stack[0].data.child_index = 0;
+
+	bool is_hit = false;
+	while(node_stack_size)
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if(current_entry.hit_t >= hit.t) continue;
+
+	TRAV:
+		if(!current_entry.data.is_leaf)
+		{
+			if(!current_entry.data.is_child_treelet)
+			{
+				const rtm::PackedTreelet::Node& node = treelet.nodes[current_entry.data.child_index];
+				float hit_ts[2] = {rtm::intersect(node.aabb[0], ray, inv_d), rtm::intersect(node.aabb[1], ray, inv_d)};
+				if(hit_ts[0] < hit_ts[1])
+				{
+					if(hit_ts[1] < hit.t) node_stack[node_stack_size++] = {hit_ts[1], node.data[1]};
+					if(hit_ts[0] < hit.t)
+					{
+						current_entry = {hit_ts[0], node.data[0]};
+						goto TRAV;
+					}
+				}
+				else
+				{
+					if(hit_ts[0] < hit.t) node_stack[node_stack_size++] = {hit_ts[0], node.data[0]};
+					if(hit_ts[1] < hit.t)
+					{
+						current_entry = {hit_ts[1], node.data[1]};
+						goto TRAV;
+					}
+				}
+			}
+			else treelet_stack[treelet_stack_size++] = current_entry.data.child_index;
+		}
+		else
+		{
+			rtm::Treelet::Triangle* tris = (rtm::Treelet::Triangle*)(&treelet.bytes[current_entry.data.tri_offset]);
+			for(uint i = 0; i <= current_entry.data.num_tri; ++i)
+			{
+				rtm::Treelet::Triangle tri = tris[i];
+				if(rtm::intersect(tri.tri, ray, hit))
+				{
+					hit.id = tri.id;
+					is_hit |= true;
+				}
+			}
+		}
+	}
+
+	//treelets are pushed in nearest first order so we need to flip such that we pop nearest first
+	if(treelet_stack_size > 0)
+	{
+		uint treelet_stack_end = treelet_stack_size - 1;
+		while(treelet_stack_start < treelet_stack_end)
+		{
+			uint temp = treelet_stack[treelet_stack_start];
+			treelet_stack[treelet_stack_start] = treelet_stack[treelet_stack_end];
+			treelet_stack[treelet_stack_end] = temp;
+			treelet_stack_start++;
+			treelet_stack_end--;
+		}
+	}
+
+	return is_hit;
+}
+
+bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
+{
+	uint treelet_stack[256]; uint treelet_stack_size = 1u;
+	treelet_stack[0] = 0;
+
+	bool is_hit = false;
+	while(treelet_stack_size)
+	{
+		uint treelet_index = treelet_stack[--treelet_stack_size];
+		is_hit |= intersect_treelet(treelets[treelet_index], ray, hit, treelet_stack, treelet_stack_size);
+	}
+
+	return is_hit;
 }
