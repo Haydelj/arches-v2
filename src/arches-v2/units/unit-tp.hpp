@@ -35,7 +35,7 @@ public:
 		const std::vector<UnitSFU*>* unique_sfus;
 		const std::vector<UnitMemoryBase*>* unique_mems;
 		UnitMemoryBase* inst_cache{nullptr};
-		uint num_tps_per_i_cache;
+		uint num_tps_per_i_cache{ 4 };
 	};
 
 protected:

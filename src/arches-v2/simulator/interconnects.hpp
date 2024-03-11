@@ -483,9 +483,10 @@ public:
 			uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
 			uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
 
-			if (!_sink_fifos.is_write_valid(crossbar_index)) continue;
+			// if (!_sink_fifos.is_write_valid(crossbar_index)) continue; which should be is_write_valid(sink_index)
 
 			uint sink_index = get_sink(_source_fifos.peek(source_index));
+			if (!_sink_fifos.is_write_valid(sink_index)) continue;
 			_source_to_sink[source_index] = ~0u;
 
 			_crossbar_arbiters[crossbar_index].remove(cascade_index);

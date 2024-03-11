@@ -306,7 +306,6 @@ void UnitTP::clock_fall()
 		_last_thread_id = (_last_thread_id + 1) % _num_threads;
 		return;
 	}
-
 	//Reg/PC read
 	ThreadData& thread = _thread_data[exec_thread_id];
 	_log_instruction_issue(exec_thread_id);
@@ -374,7 +373,6 @@ void UnitTP::clock_fall()
 		}
 	}
 	else assert(false);
-
 	if(!jump) thread.pc += 4;
 	thread.int_regs.zero.u64 = 0x0ull; //Compilers generate instructions with zero register as target so we need to zero the register every cycle
 	thread.instr.data = 0;

@@ -99,6 +99,16 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 					else 
 					{
 						state.child_order_generated = true;
+						if (_scheduler.weight_scheme == 2)
+						{
+							for (uint i = 0; i < header.num_children; ++i)
+							{
+								uint child_segment_index = header.first_child + i;
+								SegmentState& child_segment_state = _scheduler.segment_state_map[child_segment_index];
+								_scheduler.traversal_stack.push(child_segment_index);
+							}
+							continue;
+						}
 						std::vector<uint64_t> child_ray_weights(header.num_children);
 						std::vector<uint64_t> child_weights(header.num_children);
 						std::vector<uint> child_id(header.num_children);

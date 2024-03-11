@@ -23,12 +23,12 @@ void Simulator::new_unit_group()
 
 #ifdef USE_TBB
 //tbb controled block ranges
-//#define UNIT_LOOP tbb::parallel_for(tbb::blocked_range<uint>(0, _units.size()), [&](tbb::blocked_range<uint> r) { for(uint i = r.begin(); i < r.end(); ++i) {
-//#define UNIT_LOOP_END }});
+#define UNIT_LOOP tbb::parallel_for(tbb::blocked_range<uint>(0, _units.size()), [&](tbb::blocked_range<uint> r) { for(uint i = r.begin(); i < r.end(); ++i) {
+#define UNIT_LOOP_END }});
 
 //custom block ranges
-#define UNIT_LOOP tbb::parallel_for(tbb::blocked_range<uint>(0, _unit_groups.size(), 1), [&](tbb::blocked_range<uint> r) { for(uint i = _unit_groups[r.begin()].start; i < _unit_groups[r.begin()].end; ++i) {
-#define UNIT_LOOP_END }});
+//#define UNIT_LOOP tbb::parallel_for(tbb::blocked_range<uint>(0, _unit_groups.size(), 1), [&](tbb::blocked_range<uint> r) { for(uint i = _unit_groups[r.begin()].start; i < _unit_groups[r.begin()].end; ++i) {
+//#define UNIT_LOOP_END }});
 #else
 #define UNIT_LOOP for(uint i = 0; i < _units.size(); ++i) {
 #define UNIT_LOOP_END }

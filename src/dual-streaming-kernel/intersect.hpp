@@ -312,7 +312,7 @@ bool inline intersect_treelet(const Treelet& treelet, const rtm::Ray& ray, rtm::
 	return is_hit;
 }
 
-inline void intersect_buckets(const KernelArgs& args)
+inline void intersect_buckets(const DualStreamingKernelArgs& args)
 {
 #ifdef __riscv
 	register float f28 asm("f28") __attribute__((unused));
@@ -333,48 +333,58 @@ inline void intersect_buckets(const KernelArgs& args)
 
 		rtm::Ray ray = wi.bray.ray;
 		rtm::Hit hit; hit.t = wi.bray.ray.t_max;
+		rtm::Hit closest_hit;
+		closest_hit.t = T_MAX;
 		if (early) {
 			if (lhit_delay) _lhit_delay(args.hit_records + wi.bray.id);
-			else hit = _lhit(args.hit_records + wi.bray.id);
+			else hit = closest_hit = _lhit(args.hit_records + wi.bray.id);
 		}
 		uint treelet_stack[16]; uint treelet_stack_size = 0;
 		float child_hit[16];
 		if (intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, child_hit, treelet_stack_size))
 		{
-			// get cloest hit here
-			rtm::Hit cloest_hit;
-			cloest_hit.t = T_MAX;
+		}
+		// get cloest hit here
+		closest_hit.t = T_MAX;
 #ifdef __riscv
-			cloest_hit.t = f28;
-			cloest_hit.bc.x = f29;
-			cloest_hit.bc.y = f30;
+		if (lhit_delay)
+		{
+			closest_hit.t = f28;
+			closest_hit.bc.x = f29;
+			closest_hit.bc.y = f30;
 			float _f31 = f31;
-			cloest_hit.id = *(uint*)&_f31;
+			closest_hit.id = *(uint*)&_f31;
+		}
 #endif
-			//cloest_hit.t = T_MAX;
-			if (early && lhit_delay && hit.t > cloest_hit.t)
-			{
-				hit = cloest_hit;
-				wi.bray.ray.t_max = hit.t;
-			}
-			// update hit record with hit using cshit
-			else if (hit.id != ~0u)
-			{
-				_cshit(hit, args.hit_records + wi.bray.id);
-				wi.bray.ray.t_max = hit.t;
-			}
+		//cloest_hit.t = T_MAX;
+		if (hit.t > closest_hit.t)
+		{
+			hit = closest_hit;
+			wi.bray.ray.t_max = hit.t;
+		}
+		// update hit record with hit using cshit
+		else if (hit.id != ~0u)
+		{
+			_cshit(hit, args.hit_records + wi.bray.id);
+			wi.bray.ray.t_max = hit.t;
 		}
 		rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 		//drain treelet stack
 
-		uint weight = 15;
+		uint weight = 1;
+		// default: popularity, i.e., the number of rays
 		// weight = 2 ^ order
 		// cloest: 2 ^ 15
 		// second-cloest: 2 ^ 14
 		while (treelet_stack_size)
 		{
 			uint treelet_index = treelet_stack[--treelet_stack_size];
-			uint weight = (1 << 15 - treelet_stack_size);
+			
+			if (args.weight_scheme == 1)
+			{
+				// closest
+				weight = (1 << 15 - treelet_stack_size); // assuming the child treelets have been potentially sorted
+			}
 			// If we delay the LHIT, we need to check here
 			if (early && lhit_delay)
 			{

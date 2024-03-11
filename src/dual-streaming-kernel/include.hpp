@@ -4,7 +4,7 @@
 #include "treelet-bvh.hpp"
 #define KERNEL_ARGS_ADDRESS 256ull
 
-struct KernelArgs
+struct DualStreamingKernelArgs
 {
 	uint32_t framebuffer_width;
 	uint32_t framebuffer_height;
@@ -16,6 +16,8 @@ struct KernelArgs
 
 	bool use_early;
 	bool hit_delay;
+	bool use_secondary_rays;
+	uint weight_scheme;
 
 	rtm::Camera camera;
 	rtm::vec3 light_dir;
@@ -25,4 +27,7 @@ struct KernelArgs
 	rtm::Hit* hit_records;
 	Treelet* treelets;
 	rtm::Triangle* triangles;
+	
+	rtm::Hit* primary_hits;
+	rtm::Ray* secondary_rays;
 };

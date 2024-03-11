@@ -55,6 +55,7 @@ public:
 		uint num_banks;
 
 		uint traversal_scheme = 1; // 0-bfs, 1-dfs
+		uint weight_scheme = 0; // If weight scheme = 2, we use the default DFS order
 
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{ 0 };
@@ -176,8 +177,9 @@ private:
 		int root_rays_counter = 0;
 		int num_root_rays = 0;
 		uint traversal_scheme = 0;
+		uint weight_scheme = 0;
 
-		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1), last_segment_on_tm(config.num_tms, ~0u), num_root_rays(config.num_root_rays), traversal_scheme(config.traversal_scheme)
+		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1), last_segment_on_tm(config.num_tms, ~0u), num_root_rays(config.num_root_rays), traversal_scheme(config.traversal_scheme), weight_scheme(config.weight_scheme)
 		{
 			for (uint i = 0; i < NUM_DRAM_CHANNELS; ++i)
 				memory_managers.emplace_back(i, config.heap_addr);
