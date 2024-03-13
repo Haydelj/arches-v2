@@ -23,110 +23,90 @@ void inline barrier()
 inline static void kernel(const DualStreamingKernelArgs& args)
 {
 #if __riscv
-	if (args.use_secondary_rays)
-	{
-		uint index;
-		for (index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
-		{
-			uint x = index % args.framebuffer_width;
-			uint y = index / args.framebuffer_width;
-			rtm::RNG rng(index);
-
-			rtm::Ray ray = args.secondary_rays[index];
-			if (ray.t_max > 0)
-			{
-				WorkItem wi;
-				wi.bray.ray = ray;
-				wi.bray.id = index;
-				wi.segment = 0;
-				_swi(wi);
-			}
-		}
-		intersect_buckets(args);
-
-		////spin sleep
-		for (volatile uint i = 0; i < 1024; i++);
-
-		for (index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
-		{
-			rtm::Hit hit = _lhit(args.hit_records + index);
-			args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
-
-			rtm::Ray ray = args.secondary_rays[index];
-			rtm::vec3 out = 0.0f;
-			if (hit.t < T_MAX)
-			{
-				rtm::vec3 n = args.triangles[hit.id].normal();
-				out = n * 0.5f + 0.5f;
-				args.framebuffer[index] = encode_pixel(out);
-			}
-		}
-	}
-	//else
+	//if (args.use_secondary_rays)
 	//{
 	//	uint index;
-	//	for(index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	//	for (index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	//	{
 	//		uint x = index % args.framebuffer_width;
-	//		uint y = index / args.framebuffer_width;	
+	//		uint y = index / args.framebuffer_width;
 	//		rtm::RNG rng(index);
-
-	//		rtm::Hit primary_hit = args.primary_hits[index];
-	//		if (primary_hit.id != ~0u)
+	//		rtm::Ray ray = args.secondary_rays[index];
+	//		if (ray.t_max > 0)
 	//		{
-	//			args.framebuffer[index] = rtm::RNG::hash(primary_hit.id) | 0xff000000;
-	//		}
-	//		continue;
-
-	//		WorkItem wi;
-	//		wi.bray.ray = args.camera.generate_ray_through_pixel(x, y);
-	//		wi.bray.id = index;
-	//		wi.segment = 0;
-
-	//		//write root ray to ray bucket
-	//	#if 1
-	//		_swi(wi);
-	//	#else
-
-	//		rtm::Hit hit; hit.t = wi.bray.ray.t_max;
-	//		uint treelet_stack[32]; uint treelet_stack_size = 0;
-	//		if(intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
-	//		{
-	//			//update hit record with hit using cshit
-	//			_cshit(hit, args.hit_records + index);
-	//			wi.bray.ray.t_max = hit.t;
-	//		}
-
-	//		//drain treelet stack
-	//		while(treelet_stack_size)
-	//		{
-	//			uint treelet_index = treelet_stack[--treelet_stack_size];
-	//			wi.segment = treelet_index;
+	//			WorkItem wi;
+	//			wi.bray.ray = ray;
+	//			wi.bray.id = index;
+	//			wi.segment = 0;
 	//			_swi(wi);
 	//		}
-	//	#endif
 	//	}
-
 	//	intersect_buckets(args);
-
 	//	////spin sleep
-	//	for(volatile uint i = 0; i < 1024; i++);
-
-	//	for(index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
+	//	for (volatile uint i = 0; i < 1024; i++);
+	//	for (index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
 	//	{
 	//		rtm::Hit hit = _lhit(args.hit_records + index);
 	//		args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
-
+	//		rtm::Ray ray = args.secondary_rays[index];
 	//		rtm::vec3 out = 0.0f;
-	//		if(hit.t < T_MAX)
+	//		if (hit.t < T_MAX)
 	//		{
 	//			rtm::vec3 n = args.triangles[hit.id].normal();
 	//			out = n * 0.5f + 0.5f;
+	//			args.framebuffer[index] = encode_pixel(out);
 	//		}
-
-	//		args.framebuffer[index] = encode_pixel(out);
 	//	}
 	//}
+	//else
+	{
+		uint index;
+		for(index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+		{
+			uint x = index % args.framebuffer_width;
+			uint y = index / args.framebuffer_width;	
+			rtm::RNG rng(index);
+			WorkItem wi;
+			wi.bray.ray = args.camera.generate_ray_through_pixel(x, y);
+			wi.bray.id = index;
+			wi.segment = 0;
+			//write root ray to ray bucket
+		#if 1
+			_swi(wi);
+		#else
+			rtm::Hit hit; hit.t = wi.bray.ray.t_max;
+			uint treelet_stack[32]; uint treelet_stack_size = 0;
+			if(intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
+			{
+				//update hit record with hit using cshit
+				_cshit(hit, args.hit_records + index);
+				wi.bray.ray.t_max = hit.t;
+			}
+			//drain treelet stack
+			while(treelet_stack_size)
+			{
+				uint treelet_index = treelet_stack[--treelet_stack_size];
+				wi.segment = treelet_index;
+				_swi(wi);
+			}
+		#endif
+		}
+		intersect_buckets(args);
+		////spin sleep
+		for(volatile uint i = 0; i < 1024; i++);
+		for(index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
+		{
+			rtm::Hit hit = _lhit(args.hit_records + index);
+			args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
+			rtm::vec3 out = 0.0f;
+			if(hit.t < T_MAX)
+			{
+				rtm::vec3 n = args.triangles[hit.id].normal();
+				out = n * 0.5f + 0.5f;
+			}
+			args.framebuffer[index] = encode_pixel(out);
+		}
+	}
 #else
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{

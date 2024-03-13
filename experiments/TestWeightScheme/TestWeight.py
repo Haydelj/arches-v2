@@ -4,8 +4,8 @@ EXE_PATH = R"..\..\build\src\arches-v2\Arches-v2.exe"
 
 default_config = {}
 default_config["scene_name"] = "sponza"
-default_config["framebuffer_width"] = 1024
-default_config["framebuffer_height"] = 1024
+default_config["framebuffer_width"] = 32
+default_config["framebuffer_height"] = 32
 default_config["traversal_scheme"] = 1
 default_config["use_early"] = 1
 default_config["hit_delay"] = 0
@@ -52,7 +52,9 @@ if __name__ == "__main__":
     for size in size_list:
         for scene in scene_list:
             for weight_scheme in weight_schemes:
-                config = default_config 
+                config = default_config
+                config["framebuffer_width"] = config["framebuffer_height"] = size
                 config["scene_name"] = scene
                 config["weight_scheme"] = weight_scheme
+                config["secondary_rays"] = 0
                 run_config(config, os_run=False)

@@ -8,7 +8,7 @@ default_config["framebuffer_width"] = 1024
 default_config["framebuffer_height"] = 1024
 default_config["traversal_scheme"] = 1
 default_config["simulator"] = 1 # 0 - trax, 1 - dual-streaming
-default_config["use_secondary_rays"] = 0
+default_config["secondary_rays"] = 0
 default_config["hit_buffer_size"] = 128
 default_config["hit_delay"] = 0
 default_config["use_early"] = 1
@@ -56,8 +56,10 @@ def run_config(config: dict, os_run: bool = True):
 if __name__ == "__main__":
     for scene in scene_list:
         for delay in delay_list:
-            config = default_config
-            config["simulator"] = 1
-            config["scene_name"] = scene
-            config["hit_delay"] = delay
-            run_config(config, os_run=False)
+            for size in hit_buffer_size:
+                config = default_config
+                config["simulator"] = 1
+                config["scene_name"] = scene
+                config["hit_delay"] = delay
+                config["hit_buffer_size"] = size
+                run_config(config, os_run=False)

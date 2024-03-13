@@ -27,7 +27,5 @@ struct DualStreamingKernelArgs
 	rtm::Hit* hit_records;
 	Treelet* treelets;
 	rtm::Triangle* triangles;
-	
-	rtm::Hit* primary_hits;
 	rtm::Ray* secondary_rays;
 };

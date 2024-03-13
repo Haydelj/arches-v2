@@ -278,6 +278,8 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	args.use_secondary_rays = global_config.use_secondary_rays;
 	args.weight_scheme = global_config.weight_scheme;
 
+
+	std::cout << args.weight_scheme << '\n';
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address); heap_address += args.framebuffer_size * sizeof(uint32_t);
 
@@ -286,7 +288,6 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	args.hit_records = write_vector(main_memory, ROW_BUFFER_SIZE, hits, heap_address);
 	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
 	args.triangles = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
-	args.primary_hits = write_vector(main_memory, CACHE_BLOCK_SIZE, Arches::primary_hits, heap_address);
 	args.secondary_rays = write_vector(main_memory, CACHE_BLOCK_SIZE, Arches::secondary_rays, heap_address);
 
 	main_memory->direct_write(&args, sizeof(DualStreamingKernelArgs), KERNEL_ARGS_ADDRESS);
@@ -353,7 +354,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	stream_scheduler_config.traversal_scheme = global_config.traversal_scheme;
 	stream_scheduler_config.num_root_rays = kernel_args.framebuffer_size;
 	if (global_config.use_secondary_rays) stream_scheduler_config.num_root_rays = global_config.valid_secondary_rays;
-
+	stream_scheduler_config.weight_scheme = global_config.weight_scheme;
 	Units::DualStreaming::UnitStreamSchedulerDFS stream_scheduler(stream_scheduler_config);
 	simulator.register_unit(&stream_scheduler);
 
@@ -485,7 +486,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		for (uint tp_index = 0; tp_index < num_tps_per_tm; ++tp_index)
 		{
 			Units::UnitTP::Configuration tp_config;
-			tp_config.num_threads = 4;
+			tp_config.num_threads = 1;
 			tp_config.tp_index = tp_index;
 			tp_config.tm_index = tm_index;
 			tp_config.pc = elf.elf_header->e_entry.u64;
