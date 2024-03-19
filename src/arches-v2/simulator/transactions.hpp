@@ -30,6 +30,8 @@ public:
 		AMO_MAXU,
 	};
 
+#define SCENE_BUFFER_FLAG 0x1
+
 	//meta data 
 	Type     type;
 	uint8_t  size;
@@ -104,6 +106,11 @@ public:
 
 	MemoryReturn(const MemoryReturn& other) : size(other.size), port(other.port), dst(other.dst), paddr(other.paddr)
 	{
+		if (data == nullptr || other.data == nullptr)
+		{
+			printf("fuck up\n");
+			exit(0);
+		}
 		std::memcpy(data, other.data, size);
 	}
 
@@ -147,6 +154,15 @@ struct StreamSchedulerRequest
 
 struct SFURequest
 {
+	uint16_t dst;
+	uint16_t port;
+};
+
+struct SceneBufferLoadRequest
+{
+	uint sink = ~0u;
+	paddr_t paddr = ~0u;
+	uint8_t size;
 	uint16_t dst;
 	uint16_t port;
 };

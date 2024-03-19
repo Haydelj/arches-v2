@@ -324,8 +324,8 @@ inline void intersect_buckets(const DualStreamingKernelArgs& args)
 	//register float f30 asm("f30");
 	//register float f31 asm("f31");
 #endif
-	bool early = args.use_early;
-	bool lhit_delay = args.hit_delay;
+	bool early = true;
+	bool lhit_delay = true;
 	while (1)
 	{
 		WorkItem wi = _lwi();
@@ -339,6 +339,7 @@ inline void intersect_buckets(const DualStreamingKernelArgs& args)
 		}
 		uint treelet_stack[16]; uint treelet_stack_size = 0;
 		float child_hit[16];
+		bool has_hit = intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, child_hit, treelet_stack_size);
 		// get cloest hit here
 		rtm::Hit cloest_hit;
 		cloest_hit.t = T_MAX;
@@ -349,7 +350,6 @@ inline void intersect_buckets(const DualStreamingKernelArgs& args)
 		float _f31 = f31;
 		cloest_hit.id = *(uint*)&_f31;
 #endif
-		bool has_hit = intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, child_hit, treelet_stack_size);
 		//cloest_hit.t = T_MAX;
 		if (early && lhit_delay && hit.t > cloest_hit.t)
 		{

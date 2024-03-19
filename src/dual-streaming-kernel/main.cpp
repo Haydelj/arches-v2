@@ -97,14 +97,15 @@ inline static void kernel(const DualStreamingKernelArgs& args)
 		for(index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
 		{
 			rtm::Hit hit = _lhit(args.hit_records + index);
-			args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
-			rtm::vec3 out = 0.0f;
+			//args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
+			//rtm::vec3 out = 0.0f;
 			if(hit.t < T_MAX)
 			{
-				rtm::vec3 n = args.triangles[hit.id].normal();
-				out = n * 0.5f + 0.5f;
+				//rtm::vec3 n = args.triangles[hit.id].normal();
+				//out = n * 0.5f + 0.5f;
+				args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
 			}
-			args.framebuffer[index] = encode_pixel(out);
+			//args.framebuffer[index] = encode_pixel(out);
 		}
 	}
 #else

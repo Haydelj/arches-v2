@@ -12,6 +12,15 @@ namespace DualStreaming {
 * \brief In this function, we deal with the traversal logic and decide the next ray bucket to load from DRAM
 */
 void UnitStreamSchedulerDFS::_update_scheduler() {
+	// update segment state from scene buffer
+	if (!_scene_buffer->segment_prefetched.empty())
+	{
+		uint segment_index = _scene_buffer->segment_prefetched.front();
+		_scene_buffer->segment_prefetched.pop();
+		//assert(_scheduler.segment_state_map.count(segment_index));
+		SegmentState& state = _scheduler.segment_state_map[segment_index];
+		state.data_prefetched = true;
+	}
 	// update the segment states to include new buckets
 	// This step mainly allocates new ray buckets for child nodes
 	while (!_scheduler.bucket_allocated_queue.empty())
@@ -45,6 +54,8 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 		{
 			//segment is complete, which will be evicted from active segments and candidate segments later
 			
+			_scene_buffer->segment_finished.push(segment_index);
+
 			Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
 			if (header.subtree_size == 1)
 			{
@@ -71,7 +82,8 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 			if (state.active_buckets != state.total_buckets)
 			{
 				//last segment match or first match
-				if (!state.bucket_address_queue.empty() && (current_segment == ~0u || candidate_segment == last_segment /* || state.depth > depth*/))
+				// We can only issue rays from prefetched segments
+				if (state.data_prefetched && !state.bucket_address_queue.empty() && (current_segment == ~0u || candidate_segment == last_segment /* || state.depth > depth*/))
 				{
 					current_segment = candidate_segment;
 					depth = state.depth;
@@ -136,7 +148,7 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 							_scheduler.traversal_stack.push(child_segment_index);
 						}
 					}
-					
+					break;
 				}
 
 				if (state.parent_finished && state.total_buckets == 0)
@@ -200,7 +212,7 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 		{
 			// prefetch segments
 			// try to pick a new segment to prefetch
-			//if ((_scheduler.active_segments.size()) < MAX_ACTIVE_SEGMENTS)
+			if ((_scheduler.active_segments.size()) < max_active_segments)
 			{
 				//we have room in the working set and a segment in the traversal queue try to expand working set
 				if (_scheduler.traversal_stack.size()) {
@@ -213,12 +225,15 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 					//Add the segment to the active set
 					_scheduler.active_segments.insert(next_segment);
 					printf("DFS Segment %d scheduled, Segment weight %llu, Average Weight %llu\n", next_segment, state.weight, state.average_ray_weight);
+
+					// every time we add a new segment to the candidate set, we need to send a prefetch request
+					_scene_buffer->prefetch_request.push(next_segment);
 				}
 			}
 		}
 	}
 
-	//if ((_scheduler.active_segments.size()) < MAX_ACTIVE_SEGMENTS)
+	if ((_scheduler.active_segments.size()) < max_active_segments)
 	{
 		//we have room in the working set and a segment in the traversal queue try to expand working set
 		if (_scheduler.traversal_queue.size())
@@ -231,6 +246,8 @@ void UnitStreamSchedulerDFS::_update_scheduler() {
 			//Add the segment to the active set
 			_scheduler.active_segments.insert(next_segment);
 			printf("BFS Segment %d scheduled\n", next_segment);
+
+			_scene_buffer->prefetch_request.push(next_segment);
 		}
 	}
 

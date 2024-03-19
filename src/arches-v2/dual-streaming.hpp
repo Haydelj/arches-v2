@@ -6,6 +6,7 @@
 #include "units/dual-streaming/unit-ray-staging-buffer.hpp"
 #include "units/dual-streaming/unit-ds-tp.hpp"
 #include "units/dual-streaming/unit-hit-record-updater.hpp"
+#include "units/dual-streaming/unit-scene-buffer.hpp"
 //#include "simulator/simulator.hpp"
 //
 //#include "units/unit-dram.hpp"
@@ -203,6 +204,7 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{ return isa_custo
 
 namespace DualStreaming {
 #include "dual-streaming-kernel/include.hpp"
+std::pair<paddr_t, paddr_t> treelet_range;
 static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config)
 {
 	std::cerr << "Dual Streaming:: Initializing buffers...\n";
@@ -286,7 +288,9 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	std::vector<rtm::Hit> hits(args.framebuffer_size);
 	for (auto& hit : hits) hit.t = T_MAX;
 	args.hit_records = write_vector(main_memory, ROW_BUFFER_SIZE, hits, heap_address);
+	treelet_range.first = heap_address;
 	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
+	treelet_range.second = heap_address;
 	args.triangles = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 	args.secondary_rays = write_vector(main_memory, CACHE_BLOCK_SIZE, Arches::secondary_rays, heap_address);
 
@@ -332,7 +336,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 
-	Units::UnitDRAM dram(64, mem_size, &simulator); dram.clear();
+	Units::UnitDRAM dram(6 * NUM_DRAM_CHANNELS, mem_size, &simulator); dram.clear();
 	simulator.register_unit(&dram);
 
 	simulator.new_unit_group();
@@ -342,6 +346,23 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 
 	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config);
 
+	uint l1_banks = 16;
+
+	Units::DualStreaming::UnitSceneBuffer::Configuration scene_buffer_config;
+	scene_buffer_config.size = 32 * 1024 * 1024; // 32MB
+	scene_buffer_config.num_ports = num_tms * l1_banks;
+	scene_buffer_config.main_mem = &dram;
+	scene_buffer_config.main_mem_port_offset = 1;
+	scene_buffer_config.main_mem_port_stride = 6;
+	scene_buffer_config.num_banks = 32;
+	scene_buffer_config.row_size = 4 * 1024; // 4KB
+	scene_buffer_config.bank_select_mask = 0b0011'0001'1100'0000;
+	scene_buffer_config.treelet_size = TREELET_SIZE;
+	scene_buffer_config.treelet_start = *(paddr_t*)&kernel_args.treelets;
+	scene_buffer_config.treelet_end = treelet_range.second;
+	Units::DualStreaming::UnitSceneBuffer scene_buffer(scene_buffer_config);
+	simulator.register_unit(&scene_buffer);
+
 	Units::DualStreaming::UnitStreamSchedulerDFS::Configuration stream_scheduler_config;
 	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
@@ -349,10 +370,12 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	stream_scheduler_config.num_banks = 16;
 	stream_scheduler_config.cheat_treelets = (Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
 	stream_scheduler_config.main_mem = &dram;
-	stream_scheduler_config.main_mem_port_offset = 1;
-	stream_scheduler_config.main_mem_port_stride = 4;
+	stream_scheduler_config.main_mem_port_offset = 2;
+	stream_scheduler_config.main_mem_port_stride = 6;
 	stream_scheduler_config.traversal_scheme = global_config.traversal_scheme;
 	stream_scheduler_config.num_root_rays = kernel_args.framebuffer_size;
+	stream_scheduler_config.scene_buffer = &scene_buffer;
+	stream_scheduler_config.scene_buffer_size = scene_buffer_config.size;
 	if (global_config.use_secondary_rays) stream_scheduler_config.num_root_rays = global_config.valid_secondary_rays;
 	stream_scheduler_config.weight_scheme = global_config.weight_scheme;
 	Units::DualStreaming::UnitStreamSchedulerDFS stream_scheduler(stream_scheduler_config);
@@ -361,8 +384,8 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	Units::DualStreaming::UnitHitRecordUpdater::Configuration hit_record_updater_config;
 	hit_record_updater_config.num_tms = num_tms;
 	hit_record_updater_config.main_mem = &dram;
-	hit_record_updater_config.main_mem_port_offset = 3;
-	hit_record_updater_config.main_mem_port_stride = 4;
+	hit_record_updater_config.main_mem_port_offset = 5;
+	hit_record_updater_config.main_mem_port_stride = 6;
 	hit_record_updater_config.hit_record_start = *(paddr_t*)&kernel_args.hit_records;
 	hit_record_updater_config.cache_size = global_config.hit_buffer_size; // 128 * 16 = 2048B = 2KB
 	hit_record_updater_config.associativity = 4;
@@ -385,15 +408,15 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	Units::UnitBlockingCache::Configuration l2_config;
 	l2_config.size = 32 * 1024 * 1024;
 	l2_config.associativity = 8;
-	l2_config.num_ports = num_tms * 8;
+	l2_config.num_ports = num_tms * l1_banks;
 	l2_config.num_banks = 32;
-	l2_config.cross_bar_width = 32;
+	l2_config.cross_bar_width = 16;
 	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull; //The high order bits need to match the channel assignment bits
 	l2_config.latency = 10;
-	l2_config.cycle_time = 1;
+	l2_config.cycle_time = 2;
 	l2_config.mem_higher = &dram;
 	l2_config.mem_higher_port_offset = 0;
-	l2_config.mem_higher_port_stride = 2;
+	l2_config.mem_higher_port_stride = 3;
 
 	Units::UnitBlockingCache l2(l2_config);
 	simulator.register_unit(&l2);
@@ -409,16 +432,19 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		std::vector<Units::UnitMemoryBase*> mem_list;
 
 		Units::UnitNonBlockingCache::Configuration l1_config;
-		l1_config.size = 32 * 1024;
+		l1_config.size = 128 * 1024;
 		l1_config.associativity = 4;
 		l1_config.num_ports = num_tps_per_tm;
-		l1_config.num_banks = 8;
-		l1_config.cross_bar_width = 8;
-		l1_config.bank_select_mask = 0b0000'0101'0100'0000ull;
+		l1_config.num_banks = l1_banks;
+		l1_config.cross_bar_width = l1_banks;
+		l1_config.bank_select_mask = 0b0000'0001'1100'0000ull; generate_nbit_mask(log2i(l1_banks) << log2i(CACHE_BLOCK_SIZE)); // 0b0000'0001'1100'0000ull;
 		l1_config.latency = 1;
-		l1_config.num_lfb = 8;
+		l1_config.num_lfb = 16;
+		l1_config.check_retired_lfb = false;
 		l1_config.mem_higher = &l2;
 		l1_config.mem_higher_port_offset = l1_config.num_banks * tm_index;
+		l1_config.scene_buffer = &scene_buffer;
+		l1_config.treelet_range = treelet_range;
 
 		l1s.push_back(new Units::UnitNonBlockingCache(l1_config));
 		mem_list.push_back(l1s.back());
@@ -442,8 +468,6 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM4] = rsbs.back(); //SWI
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM5] = rsbs.back(); //CSHIT
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rsbs.back(); //LHIT
-
-
 
 		std::vector<Units::UnitSFU*> sfu_list;
 
@@ -523,6 +547,8 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	for (auto& tp : tps)
 		tp_log.accumulate(tp->log);
 	tp_log.print_log();
+
+	tp_log.print_profile(dram._data_u8);
 
 	stream_scheduler.log.print();
 

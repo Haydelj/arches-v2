@@ -58,7 +58,7 @@ struct GlobalConfig
 	uint traversal_scheme = 1; // 0 - BFS, 1 - DFS
 	uint hit_buffer_size = 128 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
 	bool use_early = 1;
-	bool hit_delay = 0;
+	bool hit_delay = 1;
 	bool use_secondary_rays = false; // 0-primary ray, 1-secondary ray
 	uint valid_secondary_rays = 0;
 	uint weight_scheme = 1;

@@ -256,6 +256,13 @@ public:
 	const T& peek(uint sink_index) override
 	{
 		assert(is_read_valid(sink_index));
+		uint t = _fifos[sink_index].size();
+		if (t == 0)
+		{
+			printf("sdadsad\n");
+			printf("size: %d, fifo_size: %d\n", _sizes[sink_index], t);
+			exit(0);
+		}
 		return _fifos[sink_index].front();
 	}
 
@@ -394,9 +401,8 @@ public:
 	{
 		for (uint source_index = 0; source_index < _source_fifos.num_sinks(); ++source_index)
 		{
-			if (!_source_fifos.is_read_valid(source_index) || already_arrange[source_index] == ~0u) continue;
+			if (!_source_fifos.is_read_valid(source_index) || already_arrange[source_index] != ~0u) continue;
 			uint sink_index = get_sink(_source_fifos.peek(source_index));
-			assert((_arbiters[sink_index]._pending & (1ull << source_index)) == 0);
 			already_arrange[source_index] = sink_index;
 			_arbiters[sink_index].add(source_index);
 		}
@@ -405,7 +411,6 @@ public:
 		{
 			if (!_sink_fifos.is_write_valid(sink_index) || _arbiters[sink_index].num_pending() == 0) continue;
 			uint source_index = _arbiters[sink_index].get_index();
-			assert(already_arrange[source_index] == sink_index);
 			_sink_fifos.write(_source_fifos.read(source_index), sink_index);
 			already_arrange[source_index] = ~0u;
 			_arbiters[sink_index].remove(source_index);

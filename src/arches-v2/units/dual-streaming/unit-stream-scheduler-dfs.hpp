@@ -6,11 +6,13 @@
 #include "units/unit-buffer.hpp"
 
 #include "dual-streaming-kernel/include.hpp"
+#include "unit-scene-buffer.hpp"
 
 namespace Arches {
 namespace Units {
 namespace DualStreaming {
 
+// TO DO: config scene buffer size
 #define SCENE_BUFFER_SIZE (4 * 1024 * 1024)
 
 #define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(Treelet))
@@ -57,6 +59,8 @@ public:
 		uint traversal_scheme = 1; // 0-bfs, 1-dfs
 		uint weight_scheme = 0; // If weight scheme = 2, we use the default DFS order
 
+		uint scene_buffer_size = 4 * 1024 * 1024;
+		UnitSceneBuffer* scene_buffer;
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{ 0 };
 		uint                main_mem_port_stride{ 1 };
@@ -147,6 +151,7 @@ private:
 		uint64_t				average_ray_weight;
 		uint				depth = 0;
 		bool				child_order_generated{ false };
+		bool				data_prefetched{ false };
 	};
 
 
@@ -193,7 +198,6 @@ private:
 			active_segments.insert(0);
 			Treelet::Header root_header = cheat_treelets[0].header;
 			candidate_segments.push_back(0);
-
 		}
 
 		bool is_complete()
@@ -238,6 +242,7 @@ private:
 		Channel() {};
 	};
 
+	UnitSceneBuffer* _scene_buffer;
 	UnitMainMemoryBase* _main_mem;
 	uint                _main_mem_port_offset;
 	uint                _main_mem_port_stride;
@@ -249,13 +254,20 @@ private:
 	std::vector<Channel> _channels;
 	UnitMemoryBase::ReturnCrossBar _return_network;
 
+	uint scene_buffer_size = 0;
+	uint max_active_segments = 0;
+
 public:
-	UnitStreamSchedulerDFS(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, NUM_DRAM_CHANNELS, NUM_DRAM_CHANNELS)
+	UnitStreamSchedulerDFS(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, NUM_DRAM_CHANNELS, NUM_DRAM_CHANNELS), _scene_buffer(config.scene_buffer), scene_buffer_size(config.scene_buffer_size)
 	{
+		max_active_segments = scene_buffer_size / TREELET_SIZE;
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;
 		log.log_root_rays(config.num_root_rays);
+
+		_scene_buffer->prefetch_request.push(0);
+		//printf("SS: Scene buffer request queue size: %u\n", _scene_buffer->prefetch_request.size());
 	}
 
 	void clock_rise() override;
