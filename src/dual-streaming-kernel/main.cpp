@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
 	for (int i = 0; i < args.framebuffer_size; i++) {
 		(args.hit_records + i)->t = 1e8;
 	}
-
+	 
 	auto start = std::chrono::high_resolution_clock::now();
 
 	/*uint thread_count = std::max(std::thread::hardware_concurrency() - 1u, 1u);

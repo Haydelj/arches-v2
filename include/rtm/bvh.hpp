@@ -18,7 +18,7 @@ namespace rtm
 #define BUILD_QUALITY 2
 #endif
 
-constexpr uint max_children = 8;
+constexpr uint max_children = 1;
 
 class BVH
 {
@@ -113,7 +113,7 @@ private:
 					right_aabb.add(build_objects[start + i].aabb);
 					cost_right[i] = AABB::cost() + right_cost_sum * right_aabb.surface_area() * inv_aabb_sa;
 				}
-
+ 
 				std::vector<float> costs;
 				for (uint i = 0; i < size; ++i)
 				{
@@ -121,7 +121,6 @@ private:
 					if(i == 0) cost = left_cost_sum;
 					else       cost = cost_left[i] + cost_right[i];
 					costs.push_back(cost);
-
 					if (cost < best_spliting_cost)
 					{
 						best_spliting_index = start + i;
