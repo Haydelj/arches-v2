@@ -49,7 +49,7 @@ namespace rtm
 
 		struct WideBVHNode
 		{
-			float	 p[3];						//local grid origin
+			rtm::vec3 p[3];						//anchor point 
 			uint8_t  e[3];						//exponent power of 2 for local grid scale
 			uint8_t  imask;						//internal node flag
 			uint32_t base_index_child;			//base offset in streamlined child node array
@@ -63,7 +63,8 @@ namespace rtm
 			uint8_t  q_max_z[8] = {};
 		};
 
-		std::Array<Decision> decisions; // Finite static memory array to store cost and meta data for the collapse algorithm
+		std::vector<Decision> decisions; // Finite static memory array to store cost and meta data for the collapse algorithm
+		std::vector<WideBVHNode> nodes;
 
 		int		calculate_cost(int node_index, float parent_surface_area,const rtm::BVH& bvh);
 		void	collapse(const rtm::BVH& bvh);

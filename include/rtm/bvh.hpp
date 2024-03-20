@@ -197,7 +197,7 @@ public:
 		printf("BVH%d Building\n", 1 << splits);
 		nodes.clear();
 
-		//Build morton codes for build objects
+		//Build Morton codes for build objects
 		AABB cent_aabb;
 		for(auto& build_object : build_objects)
 			cent_aabb.add(build_object.aabb.centroid());

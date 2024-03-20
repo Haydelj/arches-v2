@@ -17,6 +17,7 @@ namespace rtm
 	WideBVH::WideBVH(const rtm::BVH& bvh)
 	{
 		decisions.resize(bvh.nodes.size() * (n_ary_sz- 1));		//as per implementation in paper
+		nodes.emplace_back(); //default init root node
 		calculate_cost(0,bvh.nodes[0].aabb.surface_area(),bvh);	//fill in cost table using dynamic programming (bottom up)
 		collapse(bvh);											//collapse SBVH into WideBVH using the cost table
 	}
@@ -127,9 +128,14 @@ namespace rtm
 	}
 
 
-	void WideBVH::collapse(const rtm::BVH& bvh)
+	void WideBVH::collapse(const rtm::BVH& bvh, int node_index_wbvh, int node_index_bvh)
 	{
+		WideBVHNode& node = nodes[node_index_wbvh];
+		const rtm::AABB aabb = bvh.nodes[node_index_bvh].aabb();
 
+		node.p = aabb.min();
+		constexpr int Nq = 8;
+		constexpr float denom = 1.0f / float((1 << Nq) - 1);
 	}
 
 	void WideBVH::get_children(int node_index, const rtm::BVH& bvh, int children[8], int& child_count, int i)
