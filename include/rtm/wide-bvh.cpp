@@ -128,18 +128,183 @@ namespace rtm
 	}
 
 
-	void WideBVH::collapse(const rtm::BVH& bvh, int node_index_wbvh, int node_index_bvh)
+	void WideBVH::collapse(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
 	{
+
 		WideBVHNode& node = nodes[node_index_wbvh];
-		const rtm::AABB aabb = bvh.nodes[node_index_bvh].aabb();
+		const rtm::AABB aabb = bvh2.nodes[node_index_bvh2].aabb();
 
 		node.p = aabb.min();
 		constexpr int Nq = 8;
 		constexpr float denom = 1.0f / float((1 << Nq) - 1);
+
+		rtm::vec3 e(
+			exp2f(ceilf(log2f(aabb.max.x - aabb.min.x) * denom))),
+			exp2f(ceilf(log2f(aabb.max.y - aabb.min.y) * denom))),
+			exp2f(ceilf(log2f(aabb.max.z - aabb.min.z) * denom)))
+			);
+
+			rtm::vec3 one_over_e = (1.0f / e.x, 1.0f / e.y, 1.0f / e.z);
+
+			uint32_t u_ex = {};
+			uint32_t u_ey = {};
+			uint32_t u_ez = {};
+
+			memcpy(u_ex, e.x, sizeof(float));
+			memcpy(u_ey, e.y, sizeof(float));
+			memcpy(u_ez, e.z, sizeof(float));
+
+			//Only the exponent bits can be non-zero
+			assert((u_ex & 0b10000000011111111111111111111111) == 0);
+			assert((u_ey & 0b10000000011111111111111111111111) == 0);
+			assert((u_ez & 0b10000000011111111111111111111111) == 0);
+
+			//Store only 8 bit exponent
+			node.e[0] = u_ex >> 23;
+			node.e[1] = u_ey >> 23;
+			node.e[2] = u_ez >> 23;
+
+
+			int child_count = 0;
+			int children[n_ary_sz] = { INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID };
+
+			//get children for this node based on the decision array costs
+			get_children(node_index_bvh2, bvh2, children, child_count, 0);
+			assert(child_count <= n_ary_sz);
+			
+			//order children based on octant traversal order
+
+			node.imask = 0;
+			node.base_index_triangle = uint32_t(indices.size());
+			node.base_index_child = uint32_t(nodes.size());
+
+			int num_internal_nodes = 0;
+			int num_triangles = 0;
+
+			for (int = 0; i < n_ary_sz; i++)
+			{
+				int child_index = children[i];
+				if (child_index == INVALID) continue;
+				const AABB& child_aabb = bvh2.nodes[child_index].aabb();
+
+				//Store the compressed child node
+				node.q_min_x[i] = uint8_t(floorf((child_aabb.min.x - node.p.x) * one_over_e.x));
+				node.q_min_y[i] = uint8_t(floorf((child_aabb.min.y - node.p.y) * one_over_e.y));
+				node.q_min_z[i] = uint8_t(floorf((child_aabb.min.z - node.p.z) * one_over_e.z));
+
+				node.q_max_x[i] = uint8_t(floorf((child_aabb.max.x - node.p.x) * one_over_e.x));
+				node.q_max_y[i] = uint8_t(floorf((child_aabb.max.y - node.p.y) * one_over_e.y));
+				node.q_max_z[i] = uint8_t(floorf((child_aabb.max.z - node.p.z) * one_over_e.z));
+
+				switch (decisions[child_index * 7].type)
+				{
+					case Decision::Type::LEAF:
+						int triangle_count = count_primitives(child_index,bvh2);//collect triangles in the current subtree recursively
+						assert(triangle_count > 0 && triangle_count <= 3);
+						//Three highest bits contain unary representation of triangle count
+						for (int j = 0; j < triangle_count; j++)
+						{
+							node.meta[i] |= (1 << (j + 5));
+						}
+						node.meta[i] |= num_triangles;
+						num_triangles += triangle_count;
+						assert(num_triangles <= 24);
+						break;
+					case Decision::Type::INTERNAL:
+						node.meta[i] = (i + 24) | 0b00100000;
+						node.imask |= (1 << i);
+						num_internal_nodes++;
+						break;
+					default:
+						//unreachable
+						break;
+				}
+			}
+
+			for (int i = 0; i < num_internal_nodes; i++)
+			{
+				nodes.emplace_back();
+			}
+
+			node = nodes[node_index_wbvh];
+
+			assert(node.base_index_child + num_internal_nodes == nodes.size());
+			assert(node.base_index_triangle + num_triangles == indices.size());
+
+			//Recurse on internal nodes
+			int offset = 0;
+			for (int i = 0; i < n_ary_sz; i++)
+			{
+				int child_index = children[i];
+				if (child_index == INVALID) continue;
+
+				if (node.imask & (1 << i))
+				{
+					collapse(bvh2, node.base_index_child + offset++, child_index);
+				}
+			}
 	}
 
-	void WideBVH::get_children(int node_index, const rtm::BVH& bvh, int children[8], int& child_count, int i)
+	//recursive count of triangles in a subtree
+	int WideBVH::count_primitives(int node_index, const rtm::BVH& bvh2)
 	{
+		const rtm::BVH::Node bvh2node = bvh2.nodes[node_index];
+
+		if (bvh2node.data.is_leaf)
+		{
+			int count = bvh2node.data.lst_chld_ofst;
+			assert(count == 1);
+
+
+			for (uint32_t i = 0; i < count; i++)
+			{
+				indices.push_back(bvh2node.data.fst_chld_ind + i);
+			}
+
+			return count;
+		}
+
+		return
+			count_primitives(bvh2node.data.fst_chld_ind, bvh2) +
+			count_primitives(bvh2node.data.fst_chld_ind + 1, bvh2);
+	}
+
+
+	void WideBVH::get_children(int node_index, const rtm::BVH& bvh2, int children[8], int& child_count, int i)
+	{
+		const rtm::BVH::Node& bvh2node = bvh2.nodes[node_index];
+		
+		if (bvh2node.data.is_leaf)
+		{
+			children[child_count++] = node_index;
+			return;
+		}
+
+		char distribute_left = decisions[node_index * 7 + i].distribute_left;
+		char distribute_right = decisions[node_index * 7 + i].distribute_right;
+
+		assert(distribute_left >= 0 && distribute_left < 7);
+		assert(distribute_right >= 0 && distribute_right < 7);
+
+		//recurse on left child if it needs to distribute
+		if (decisions[bvh2node.Data.fst_chld_ind * 7 + distribute_left].type == Decision::Type::DISTRIBUTE)
+		{
+			get_children(bvh2node.Data.fst_chld_ind, bvh2, children, child_count, distribute_right);
+		}
+		else
+		{
+			children[child_count++] = bvh2node.Data.fst_chld_ind;
+		}
+
+		//recurse on right child if it needs to distribute
+		if (decisions[(bvh2node.Data.fst_chld_ind + 1) * 7 + distribute_right].type == Decision::Type::DISTRIBUTE)
+		{
+			get_children(bvh2node.Data.fst_chld_ind + 1, bvh2, children, child_count, distribute_right);
+		}
+		else
+		{
+			children[child_count++] = bvh2node.Data.fst_chld_ind + 1;
+		}
 
 	}
 

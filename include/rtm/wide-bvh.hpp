@@ -64,13 +64,15 @@ namespace rtm
 		};
 
 		std::vector<Decision> decisions; // Finite static memory array to store cost and meta data for the collapse algorithm
-		std::vector<WideBVHNode> nodes;
+		std::vector<WideBVHNode> nodes;  // Linearized nodes buffer for wide bvh
+		std::vector<int> indices;		 // index buffer to triangle primitives
 
 		int		calculate_cost(int node_index, float parent_surface_area,const rtm::BVH& bvh);
 		void	collapse(const rtm::BVH& bvh);
-		void	get_children();
+		void	get_children(int node_index, const rtm::BVH& bvh, int children[8], int& child_count, int i);
 		void	order_children();
-		int		count_primitives();
+		int count_primitives(int node_index, const rtm::BVH& bvh2)
+			
 
 	};
 	
