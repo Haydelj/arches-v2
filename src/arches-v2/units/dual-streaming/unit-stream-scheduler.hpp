@@ -19,7 +19,7 @@ namespace Arches { namespace Units { namespace DualStreaming {
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
 	paddr_t next_bucket{0};
-	uint segment{0};
+	uint segment_id{0};
 	uint num_rays{0};
 	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
 
@@ -62,7 +62,7 @@ private:
 			if(request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
 			{
 				//if this is a workitem write or bucket completed then distrbute across banks
-				return request.segment % num_sinks();
+				return request.swi.segment_id % num_sinks();
 			}
 			else
 			{
@@ -130,7 +130,7 @@ private:
 		std::queue<uint> bucket_allocated_queue;
 		std::queue<uint> bucket_request_queue;
 		std::queue<uint> bucket_complete_queue;
-		Casscade<RayBucket> bucket_write_cascade;
+		Cascade<RayBucket> bucket_write_cascade;
 
 		std::vector<uint> last_segment_on_tm;
 		std::map<uint, SegmentState> segment_state_map;

@@ -265,7 +265,7 @@ public:
 
 	void reorder(std::vector<BuildObject>& ordered_build_objects)
 	{
-		__assert(ordered_build_objects.size() == vertex_indices.size());
+		assert(ordered_build_objects.size() == vertex_indices.size());
 		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);
 		std::vector<rtm::uvec3> tmp_nrml_inds(normal_indices);
 		std::vector<rtm::uvec3> tmp_txcd_inds(tex_coord_indices);

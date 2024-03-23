@@ -12,7 +12,7 @@ namespace Arches { namespace Units {
 class UnitSFU : public UnitBase
 {
 private:
-	Casscade<SFURequest> request_crossbar;
+	Cascade<SFURequest> request_crossbar;
 	std::vector<Pipline<SFURequest>> piplines;
 	FIFOArray<SFURequest> return_crossbar;
 

@@ -7,13 +7,11 @@
 
 #include "dual-streaming-kernel/include.hpp"
 
-namespace Arches {
-namespace Units {
-namespace DualStreaming {
+namespace Arches { namespace Units { namespace DualStreaming {
 
 #define SCENE_BUFFER_SIZE (4 * 1024 * 1024)
 
-#define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(rtm::Treelet))
+#define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(rtm::PackedTreelet))
 
 #define RAY_BUCKET_SIZE (2048)
 #define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 16) / sizeof(BucketRay))
@@ -21,7 +19,7 @@ namespace DualStreaming {
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
 	paddr_t next_bucket{ 0 };
-	uint segment{ 0 };
+	uint segment_id{ 0 };
 	uint num_rays{ 0 };
 	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
 
@@ -48,7 +46,7 @@ public:
 	{
 		paddr_t  treelet_addr;
 		paddr_t  heap_addr;
-		rtm::Treelet* cheat_treelets{ nullptr };
+		rtm::PackedTreelet* cheat_treelets{ nullptr };
 
 		uint num_root_rays;
 		uint num_tms;
@@ -69,17 +67,13 @@ private:
 
 		uint get_sink(const StreamSchedulerRequest& request) override
 		{
+			//segment zero is a special case it needs to be distrubted accross all banks for performance reasons
 			if (request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
 			{
-				//if this is a workitem write or bucket completed then distrbute across banks
-				if (request.segment == 0) {
-					//current_sink = (current_sink + 1) % num_sinks();
-					//return current_sink; // distributes across all banks
-					//otherwise cascade
+				if(request.swi.segment_id == 0)
 					return request.port * num_sinks() / num_sources();
-				}
-				
-				return request.segment % num_sinks();
+
+				return request.swi.segment_id % num_sinks();
 			}
 			else
 			{
@@ -144,11 +138,9 @@ private:
 		bool			    is_top_level{ true };
 		uint64_t			weight;
 		uint64_t			num_rays;
-		uint64_t				average_ray_weight;
 		uint				depth = 0;
 		bool				child_order_generated{ false };
 	};
-
 
 	struct Scheduler
 	{
@@ -156,17 +148,18 @@ private:
 
 		std::queue<uint> bucket_request_queue;
 		std::queue<uint> bucket_complete_queue;
-		Casscade<RayBucket> bucket_write_cascade;
+		Cascade<RayBucket> bucket_write_cascade;
 
 		std::vector<uint> last_segment_on_tm;
 		std::map<uint, SegmentState> segment_state_map;
-		rtm::Treelet* cheat_treelets;
+		rtm::PackedTreelet* cheat_treelets;
 		paddr_t treelet_addr;
 
 		std::vector<MemoryManager> memory_managers;
 
 		//the list of segments in the scene buffer or schduled to be in the scene buffer
 		std::set<uint> active_segments;
+		uint active_children;
 
 		//the set of segments that are ready to issue buckets
 		std::vector<uint> candidate_segments;
@@ -190,7 +183,7 @@ private:
 			treelet_addr = config.treelet_addr;
 
 			active_segments.insert(0);
-			rtm::Treelet::Header root_header = cheat_treelets[0].header;
+			rtm::PackedTreelet::Header root_header = cheat_treelets[0].header;
 			candidate_segments.push_back(0);
 
 		}
@@ -326,7 +319,6 @@ public:
 		}
 		void print()
 		{
-			printf("\n\n-------------------------Stream Scheduler Stats:----------------------\n");
 			printf("Total number of rays: %llu\n", num_rays);
 
 			uint64_t leaf_nodes_num = leaf_node_rays_counter.size();
@@ -344,7 +336,6 @@ public:
 			{
 				printf("Leaf node id: %d, Number of rays: %d, Average ray weight: %.3lf\n", node_id, leaf_node_rays_counter[node_id], 1.0 * leaf_node_weights[node_id] / leaf_node_rays_counter[node_id]);
 			}
-			printf("\n");
 
 			//printf("Ray distributed info : \n");
 			//for (auto& [ray_id, node_list] : ray_info)
@@ -355,9 +346,8 @@ public:
 			//	printf("\n");
 			//}
 		}
-	}log;
+	}
+	log;
 };
 
-}
-}
-}
+}}}

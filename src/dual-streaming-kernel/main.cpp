@@ -22,82 +22,47 @@ void inline barrier()
 
 inline static void kernel(const KernelArgs& args)
 {
-#if __riscv
+#ifdef __riscv
 	uint index;
 	for(index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint x = index % args.framebuffer_width;
 		uint y = index / args.framebuffer_width;	
-		rtm::RNG rng(index);
 
 		WorkItem wi;
 		wi.bray.ray = args.camera.generate_ray_through_pixel(x, y);
 		wi.bray.id = index;
-		wi.segment = 0;
-
-		//write root ray to ray bucket
-	#if 1
-		_swi(wi);
-	#else
-
-		rtm::Hit hit; hit.t = wi.bray.ray.t_max;
-		uint treelet_stack[32]; uint treelet_stack_size = 0;
-		if(intersect_treelet(args.treelets[wi.segment], wi.bray.ray, hit, treelet_stack, treelet_stack_size))
-		{
-			//update hit record with hit using cshit
-			_cshit(hit, args.hit_records + index);
-			wi.bray.ray.t_max = hit.t;
-		}
-
-		//drain treelet stack
-		while(treelet_stack_size)
-		{
-			uint treelet_index = treelet_stack[--treelet_stack_size];
-			wi.segment = treelet_index;
-			_swi(wi);
-		}
-	#endif
+		wi.segment_id = 0;
+		wi.order_hint = 0;
+		_swi(wi); //write root ray to ray bucket
 	}
 
-	intersect_buckets(args);
-
-	//spin sleep
-	for(volatile uint i = 0; i < 1024; i++);
+	#ifndef USE_RT_CORE
+		intersect_buckets(args); //use software traversal
+	#endif
 
 	for(index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
 	{
 		rtm::Hit hit = _lhit(args.hit_records + index);
-		args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
-
-		rtm::vec3 out = 0.0f;
-		if(hit.t < T_MAX)
-		{
-			rtm::vec3 n = args.triangles[hit.id].normal();
-			out = n * 0.5f + 0.5f;
-		}
-
-		args.framebuffer[index] = encode_pixel(out);
-	}
 #else
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint x = index % args.framebuffer_width;
 		uint y = index / args.framebuffer_width;
-		rtm::RNG rng(index);
 
+		WorkItem wi;
 		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
-		rtm::Hit hit; hit.t = ray.t_max;
+		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 
-		rtm::vec3 out = 0.0f;
-		if (intersect(args.treelets, ray, hit))
-		{
-			rtm::vec3 n = args.triangles[hit.id].normal();
-			out = n * 0.5f + 0.5f;
-		}
-
-		args.framebuffer[index] = encode_pixel(out);
-	}
+		intersect(args.treelets, ray, hit);
 #endif
+
+		uint out = 0xff000000;
+		if(hit.id != ~0u)
+			out |= rtm::RNG::hash(hit.id);
+		args.framebuffer[index] = out;
+	}
+
 }
 
 #ifdef __riscv 
@@ -108,6 +73,7 @@ int main()
 }
 
 #else
+#define MULTI_THREADED
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stbi/stb_image.h"
@@ -140,7 +106,7 @@ int main(int argc, char* argv[])
 	mesh.get_triangles(tris);
 
 	std::cout << tris.size() << '\n';
-	TreeletBVH treelet_bvh(bvh, mesh);
+	rtm::PackedTreeletBVH treelet_bvh(bvh, mesh);
 	std::vector<rtm::Ray> ray_buffer(args.framebuffer_size);
 	std::vector<rtm::Hit> hit_buffer(args.framebuffer_size);
 
@@ -154,14 +120,19 @@ int main(int argc, char* argv[])
 
 	auto start = std::chrono::high_resolution_clock::now();
 
-	/*uint thread_count = std::max(std::thread::hardware_concurrency() - 1u, 1u);
+#ifdef MULTI_THREADED
+	uint thread_count = std::max(std::thread::hardware_concurrency() - 1u, 0u);
+
 	std::vector<std::thread> threads;
-	for (uint i = 0; i < thread_count; ++i)
-		threads.emplace_back(kernel, args);
-	for (uint i = 0; i < thread_count; ++i)
-		threads[i].join();*/
+	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
 
 	kernel(args);
+
+	for (uint i = 0; i < thread_count; ++i)
+		threads[i].join();
+#else
+	kernel(args);
+#endif
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

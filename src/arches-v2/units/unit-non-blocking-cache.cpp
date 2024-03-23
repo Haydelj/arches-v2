@@ -78,12 +78,16 @@ uint UnitNonBlockingCache::_fetch_or_allocate_lfb(uint bank_index, uint64_t bloc
 
 void UnitNonBlockingCache::_push_request(LFB& lfb, const MemoryRequest& request)
 {
-	LFB::SubEntry sub_entry;
-	sub_entry.offset = _get_block_offset(request.paddr);
-	sub_entry.size = request.size;
-	sub_entry.port = request.port;
-	sub_entry.dst = request.dst;
-	lfb.sub_entries.push(sub_entry);
+	//prefetch requests don't produce a sub entry
+	if(request.type != MemoryRequest::Type::PREFECTH)
+	{
+		LFB::SubEntry sub_entry;
+		sub_entry.offset = _get_block_offset(request.paddr);
+		sub_entry.size = request.size;
+		sub_entry.port = request.port;
+		sub_entry.dst = request.dst;
+		lfb.sub_entries.push(sub_entry);
+	}
 }
 
 MemoryRequest UnitNonBlockingCache::_pop_request(LFB& lfb)
@@ -160,7 +164,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 	uint block_offset = _get_block_offset(request.paddr);
 	log.log_requests();
 
-	if(request.type == MemoryRequest::Type::LOAD)
+	if(request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFECTH)
 	{
 		//Try to fetch an lfb for the line or allocate a new lfb for the line
 		uint lfb_index = _fetch_or_allocate_lfb(bank_index, block_addr, LFB::Type::READ);
@@ -243,7 +247,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 			for(uint i = 0; i < request.size; ++i)
 				if((request.write_mask >> i) & 0x1)
 					lfb.block_data.bytes[block_offset + i] = request.data[i];
-			
+
 			if(lfb.state == LFB::State::EMPTY)
 			{
 				lfb.state = LFB::State::FILLED; //since we just filled it
@@ -253,6 +257,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 			_request_cross_bar.read(bank_index);
 		}
 	}
+	else _assert(false);
 
 	return true;
 }

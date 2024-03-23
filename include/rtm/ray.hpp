@@ -18,6 +18,9 @@ struct Hit
 	float t;
 	rtm::vec2 bc;
 	uint32_t id;
+
+	Hit() = default;
+	Hit(float t, rtm::vec2 bc, uint id) : t(t), bc(bc), id(id) {}
 };
 
 }
