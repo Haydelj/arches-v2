@@ -1,10 +1,10 @@
 #pragma once
 #include "stdafx.hpp"
 
-#include "intersect.hpp"
+#define USE_RT_CORE
+#define USE_HARDWARE_INTERSECTORS
 
 #define KERNEL_ARGS_ADDRESS 256ull
-
 struct KernelArgs
 {
 	uint32_t framebuffer_width;
@@ -14,8 +14,6 @@ struct KernelArgs
 
 	uint32_t samples_per_pixel;
 	uint32_t max_depth;
-
-	bool use_trace_ray;
 
 	rtm::vec3 light_dir;
 	rtm::PackedBVH2::Node* nodes;

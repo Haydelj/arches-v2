@@ -229,8 +229,6 @@ namespace Arches {
 	public:
 		FIFOArray(uint size, uint depth = 8) : _sizes(size), _fifos(size), _max_size(depth) {}
 
-
-
 		void clock() override
 		{
 
@@ -245,8 +243,6 @@ namespace Arches {
 		{
 			return _sizes.size();
 		}
-
-
 
 		bool is_read_valid(uint sink_index) override
 		{
@@ -284,7 +280,7 @@ namespace Arches {
 
 
 	template<typename T>
-	class Casscade : public InterconnectionNetwork<T>
+	class Cascade : public InterconnectionNetwork<T>
 	{
 	private:
 		FIFOArray<T> _source_fifos;
@@ -293,7 +289,7 @@ namespace Arches {
 		FIFOArray<T> _sink_fifos;
 
 	public:
-		Casscade(uint sources, uint sinks, uint fifo_depth = 8) :
+		Cascade(uint sources, uint sinks, uint fifo_depth = 8) :
 			_source_fifos(sources, fifo_depth),
 			_cascade_ratio((sources + sinks - 1) / sinks),
 			_arbiters(sinks, _cascade_ratio),
@@ -338,18 +334,20 @@ namespace Arches {
 	};
 
 	template<typename T>
-	class Decasscade : public InterconnectionNetwork<T>
+	class Decascade : public InterconnectionNetwork<T>
 	{
 	private:
 		FIFOArray<T> _source_fifos;
 		FIFOArray<T> _sink_fifos;
+		size_t       _cascade_ratio;
 
 	public:
-		Decasscade(uint sources, uint sinks) :
+		Decascade(uint sources, uint sinks) :
 			_source_fifos(sources),
-			_sink_fifos(sinks)
+			_sink_fifos(sinks),
+			_cascade_ratio((sinks + sources - 1) / sources)
 		{
-			_assert(source <= sinks);
+			_assert(sources <= sinks);
 		}
 
 		virtual uint get_sink(const T& transaction) = 0;
@@ -360,7 +358,8 @@ namespace Arches {
 			{
 				if(!_source_fifos.is_read_valid(source_index)) continue;
 
-				uint sink_index = get_sink(_source_fifos.peek(source_index), source_index);
+				uint sink_index = get_sink(_source_fifos.peek(source_index));
+				_assert(sink_index / _cascade_ratio * _cascade_ratio == source_index);
 				if(!_sink_fifos.is_write_valid(sink_index)) continue;
 
 				_sink_fifos.write(_source_fifos.read(source_index), sink_index);

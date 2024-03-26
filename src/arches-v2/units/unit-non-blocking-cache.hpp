@@ -82,7 +82,6 @@ private:
 		Type type{Type::READ};
 		State state{State::INVALID};
 
-
 		LFB() = default;
 
 		bool operator==(const LFB& other) const
@@ -182,7 +181,7 @@ public:
 		uint64_t get_total() { return _hits + _misses; }
 		uint64_t get_total_data_array_accesses() { return _data_array_reads + _data_array_writes; }
 
-		void print_log(cycles_t cycles, uint units = 1)
+		void print(cycles_t cycles, uint units = 1)
 		{
 			uint64_t total = get_total();
 			float ft = total / 100.0f;

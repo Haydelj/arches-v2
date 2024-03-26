@@ -15,10 +15,6 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	return out;
 }
 
-#if __riscv
-#define USE_TRACERAY
-#endif
-
 inline static void kernel(const KernelArgs& args)
 {
 #if 0
@@ -49,10 +45,10 @@ inline static void kernel(const KernelArgs& args)
 				}
 
 				hit.t = ray.t_max; hit.id = ~0u;
-			#ifdef USE_TRACERAY
+			#if defined(__riscv) &&  defined(USE_RT_CORE)
 				_traceray<0x0u>(index, ray, hit);
 			#else
-				intersect(args.treelets, ray, hit);
+				intersect(args.nodes, args.tris, ray, hit);
 			#endif
 				if(hit.id != ~0u)
 				{
@@ -65,10 +61,10 @@ inline static void kernel(const KernelArgs& args)
 						sray.d = args.light_dir;
 						rtm::Hit shit;
 						shit.t = sray.t_max; shit.id = ~0u;
-					#ifdef USE_TRACERAY
+					#if defined(__riscv) &&  defined(USE_RT_CORE)
 						_traceray<0x1u>(index, sray, shit);
 					#else
-						intersect(args.treelets, sray, shit);
+						intersect(args.nodes, args.tris, sray, shit);
 					#endif
 						if(shit.id != ~0u)
 							ndotl = 0.0f;
@@ -96,11 +92,11 @@ inline static void kernel(const KernelArgs& args)
 		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
 
 		rtm::Hit hit; hit.t = ray.t_max; hit.id = ~0u;
-#ifdef USE_TRACERAY
+	#if defined(__riscv) &&  defined(USE_RT_CORE)
 		_traceray<0x0u>(index, ray, hit);
-#else
+	#else
 		intersect(args.nodes, args.tris, ray, hit);
-#endif
+	#endif
 		if(hit.id != ~0u)
 		{
 			args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
@@ -141,7 +137,11 @@ int main(int argc, char* argv[])
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 	
-	rtm::Mesh mesh(argv[1]);
+	std::string mesh_path = "../../datasets/sponza.obj";
+	if(argc > 1)
+		mesh_path = argv[1];
+
+	rtm::Mesh mesh(mesh_path);
 	rtm::BVH bvh;
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;

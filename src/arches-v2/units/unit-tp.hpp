@@ -35,11 +35,10 @@ public:
 		const std::vector<UnitSFU*>* unique_sfus;
 		const std::vector<UnitMemoryBase*>* unique_mems;
 		UnitMemoryBase* inst_cache{nullptr};
-		uint num_tps_per_i_cache;
+		uint num_tps_per_i_cache{1};
 	};
 
 protected:
-
 	struct ThreadData
 	{
 		ISA::RISCV::IntegerRegisterFile       int_regs{};
@@ -173,7 +172,7 @@ public:
 			profile_instruction(pc);
 		}
 
-		void print_log(FILE* stream = stdout, uint num_units = 1)
+		void print(FILE* stream = stdout, uint num_units = 1)
 		{
 			uint64_t total = 0;
 

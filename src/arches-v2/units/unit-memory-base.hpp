@@ -38,6 +38,23 @@ public:
 		}
 	};
 
+	class RequestCascade : public Cascade<MemoryRequest>
+	{
+	public:
+		RequestCascade(uint ports, uint banks) : Cascade<MemoryRequest>(ports, banks) {}
+	};
+
+	class ReturnCascade : public Decascade<MemoryReturn>
+	{
+	public:
+		ReturnCascade(uint ports, uint banks) : Decascade<MemoryReturn>(banks, ports) {}
+
+		uint get_sink(const MemoryReturn& ret) override
+		{
+			return ret.port;
+		}
+	};
+
 public:
 	UnitMemoryBase() = default;
 

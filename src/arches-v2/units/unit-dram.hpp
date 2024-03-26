@@ -33,7 +33,7 @@ private:
 	bool _busy{false};
 
 	std::vector<Channel> _channels;
-	Casscade<MemoryRequest> _request_network;
+	Cascade<MemoryRequest> _request_network;
 	FIFOArray<MemoryReturn> _return_network;
 	cycles_t _current_cycle{ 0 };
 

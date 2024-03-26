@@ -1,8 +1,10 @@
 #pragma once
 #include "stdafx.hpp"
 
-#define KERNEL_ARGS_ADDRESS 256ull
+#define USE_RT_CORE
+#define USE_HARDWARE_INTERSECTORS
 
+#define KERNEL_ARGS_ADDRESS 256ull
 struct KernelArgs
 {
 	uint32_t framebuffer_width;
@@ -22,6 +24,6 @@ struct KernelArgs
 	//heap data pointers
 	uint32_t* framebuffer;
 	rtm::Hit* hit_records;
-	rtm::Treelet* treelets;
+	rtm::PackedTreelet* treelets;
 	rtm::Triangle* triangles;
 };

@@ -14,7 +14,7 @@ class UnitThreadScheduler : public UnitMemoryBase
 private:
 	UnitAtomicRegfile* _atomic_regs;
 
-	Casscade<MemoryRequest> _request_network;
+	Cascade<MemoryRequest> _request_network;
 	FIFOArray<MemoryReturn> _return_network;
 
 	bool _current_request_valid{ false };

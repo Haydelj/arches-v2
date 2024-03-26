@@ -183,8 +183,8 @@ public:
 		std::vector<std::vector<uint>> treelet_assignments;
 		std::unordered_map<uint, uint> root_node_treelet;
 
-		std::map<uint, uint> father_map;
-		std::vector<uint> father;
+		std::map<uint, uint> parent_map;
+		std::vector<uint> parent;
 
 		std::queue<uint> root_node_queue;
 		root_node_queue.push(0);
@@ -192,9 +192,9 @@ public:
 		{
 			uint root_node = root_node_queue.front();
 
-			uint father_treelet = ~0u;
-			if (father_map.count(root_node))
-				father_treelet = father_map[root_node];
+			uint parent_treelet = ~0u;
+			if (parent_map.count(root_node))
+				parent_treelet = parent_map[root_node];
 			else
 				assert(root_node == 0);
 
@@ -244,21 +244,23 @@ public:
 				if (cost == best_cost[root_node]) break;
 			}
 
-			uint depth = father_treelet == ~0u ? 0 : treelet_headers[father_treelet].depth + 1;
+			uint depth = parent_treelet == ~0u ? 0 : treelet_headers[parent_treelet].depth + 1;
 			treelet_headers.push_back({ (uint)(root_node_queue.size() + treelet_assignments.size()), (uint)cut.size(), 1, depth });
-			father.push_back(father_treelet);
+			parent.push_back(parent_treelet);
 
 			//we use a queue so that treelets are breadth first in memory
 			for (auto& n : cut)
 			{
-				father_map[n] = treelet_assignments.size() - 1;
+				parent_map[n] = treelet_assignments.size() - 1;
 				root_node_queue.push(n);
 			}
 		}
-		assert(father.size() == treelet_headers.size());
-		for (int i = father.size() - 1; i >= 0; i--) {
-			int fa = father[i];
-			if (fa != -1) {
+		assert(parent.size() == treelet_headers.size());
+		for (int i = parent.size() - 1; i >= 0; i--) 
+		{
+			int fa = parent[i];
+			if (fa != -1) 
+			{
 				assert(fa < i);
 				treelet_headers[fa].subtree_size += treelet_headers[i].subtree_size;
 			}

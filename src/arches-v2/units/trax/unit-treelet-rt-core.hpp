@@ -5,7 +5,7 @@
 #include "../unit-base.hpp"
 #include "../unit-memory-base.hpp"
 
-#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
+//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
 
 #ifndef ENABLE_RT_DEBUG_PRINTS 
 #define ENABLE_RT_DEBUG_PRINTS (false)
@@ -16,7 +16,7 @@ namespace Arches { namespace Units { namespace TRaX {
 class UnitTreeletRTCore : public UnitMemoryBase
 {
 private:
-	Casscade<MemoryRequest> _request_network;
+	Cascade<MemoryRequest> _request_network;
 	FIFOArray<MemoryReturn> _return_network;
 	UnitMemoryBase*         _cache;
 
