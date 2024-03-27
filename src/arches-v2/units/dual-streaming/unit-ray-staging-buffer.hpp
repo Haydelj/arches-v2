@@ -140,6 +140,7 @@ private:
 			}
 			else if(request_valid && request.size == sizeof(WorkItem) && request.type == MemoryRequest::Type::STORE)
 			{
+				
 				//a store is pending forward to stream scheduler
 				StreamSchedulerRequest req;
 				req.type = StreamSchedulerRequest::Type::STORE_WORKITEM;
@@ -235,7 +236,6 @@ private:
 				{
 					for(uint i = 0; i < segment_state.active_buckets; ++i)
 						completed_buckets.push(segment_index);
-
 					segment_state_map.erase(segment_index);
 				}
 			}

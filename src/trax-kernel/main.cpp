@@ -11,38 +11,62 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	out |= static_cast<uint32_t>(in.r * 255.0f + 0.5f) << 0;
 	out |= static_cast<uint32_t>(in.g * 255.0f + 0.5f) << 8;
 	out |= static_cast<uint32_t>(in.b * 255.0f + 0.5f) << 16;
-	out |= 0xff                                        << 24;
+	out |= 0xff << 24;
 	return out;
 }
 
-inline static void kernel(const KernelArgs& args)
+inline static void kernel(const TRaXKernelArgs& args)
 {
-#if 0
-	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+#if 1
+	//if (args.use_secondary_rays)
+	//{
+	//	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	//	{
+	//		uint32_t x = index % args.framebuffer_width;
+	//		uint32_t y = index / args.framebuffer_width;
+	//		rtm::Ray ray = args.secondary_rays[index];
+	//		if (ray.t_max > 0)
+	//		{
+	//			rtm::Hit hit;
+	//			hit.id = ~0u;
+	//			hit.t = ray.t_max;
+	//			intersect(args.mesh, ray, hit);
+	//			if (hit.id != ~0u)
+	//			{
+	//				rtm::vec3 normal = args.mesh.tris[hit.id].normal();
+	//				rtm::vec3 output = normal * 0.5 + 0.5;
+	//				args.framebuffer[index] = encode_pixel(output);
+	//			}
+	//		}
+	//	}
+	//}
+//	else 
 	{
-		uint32_t x = index % args.framebuffer_width;
-		uint32_t y = index / args.framebuffer_width;	
-
-		rtm::RNG rng(index);
-		rtm::vec3 output(0.0f);
-		
-		for(uint i = 0; i < args.samples_per_pixel; ++i)
+		for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 		{
-			rtm::Ray ray; rtm::Hit hit; rtm::vec3 normal;
+			uint32_t x = index % args.framebuffer_width;
+			uint32_t y = index / args.framebuffer_width;
 
-			if(args.samples_per_pixel > 1)  ray = args.camera.generate_ray_through_pixel(x, y, &rng);
-			else                            ray = args.camera.generate_ray_through_pixel(x, y);
-		
-			rtm::vec3 attenuation(1.0f);
-			for(uint j = 0; j < args.max_depth; ++j)
+			rtm::RNG rng(index);
+			rtm::vec3 output(0.0f);
+
+			for (uint i = 0; i < args.samples_per_pixel; ++i)
 			{
-				if(j != 0)
+				rtm::Ray ray; rtm::Hit hit; rtm::vec3 normal;
+
+				if (args.samples_per_pixel > 1)  ray = args.camera.generate_ray_through_pixel(x, y, &rng);
+				else                            ray = args.camera.generate_ray_through_pixel(x, y);
+
+				rtm::vec3 attenuation(1.0f);
+				for (uint j = 0; j < args.max_depth; ++j)
 				{
-					ray.o = ray.o + ray.d * hit.t;
-					ray.d = cosine_sample_hemisphere(normal, rng);
-					hit.t = ray.t_max;
-					attenuation *= 0.8f;
-				}
+					if (j != 0)
+					{
+						ray.o = ray.o + ray.d * hit.t;
+						ray.d = cosine_sample_hemisphere(normal, rng);
+						hit.t = ray.t_max;
+						attenuation *= 0.8f;
+					}
 
 				hit.t = ray.t_max; hit.id = ~0u;
 			#if defined(__riscv) &&  defined(USE_RT_CORE)
@@ -79,11 +103,12 @@ inline static void kernel(const KernelArgs& args)
 			}
 		}
 
-		args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
+			args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
+		}
 	}
 
 #else
-	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint32_t x = index % args.framebuffer_width;
 		uint32_t y = index / args.framebuffer_width;
@@ -112,7 +137,7 @@ inline static void kernel(const KernelArgs& args)
 #ifdef __riscv 
 int main()
 {
-	kernel(*(const KernelArgs*)KERNEL_ARGS_ADDRESS);
+	kernel(*(const TRaXKernelArgs*)KERNEL_ARGS_ADDRESS);
 	return 0;
 }
 
@@ -123,9 +148,9 @@ int main()
 #include "stbi/stb_image_write.h"
 int main(int argc, char* argv[])
 {
-	KernelArgs args;
-	args.framebuffer_width = 256;
-	args.framebuffer_height = 256;
+	TRaXKernelArgs args;
+	args.framebuffer_width = 1024;
+	args.framebuffer_height = 1024;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
@@ -136,16 +161,64 @@ int main(int argc, char* argv[])
 
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
-	
-	std::string mesh_path = "../../datasets/sponza.obj";
-	if(argc > 1)
-		mesh_path = argv[1];
 
-	rtm::Mesh mesh(mesh_path);
-	rtm::BVH bvh;
+	args.use_secondary_rays = true;
+	uint framebuffer_size = args.framebuffer_size;
+	std::vector<rtm::Ray> secondary_rays(framebuffer_size);
+	std::vector<rtm::Hit> primary_hits(framebuffer_size);
+	if (args.use_secondary_rays == 1)
+	{
+		std::cout << "generating secondray rays..." << '\n';
+		// If the secondary hits already exist in the disk, we don't need to generate it again
+
+		// build BVH
+		rtm::Mesh mesh("../../datasets/sponza.obj");
+		std::vector<rtm::BVH::BuildObject> build_objects;
+		for (uint i = 0; i < mesh.size(); ++i)
+			build_objects.push_back(mesh.get_build_object(i));
+		rtm::BVH blas;
+		std::vector<rtm::Triangle> tris;
+		blas.build(build_objects);
+		mesh.reorder(build_objects);
+		mesh.get_triangles(tris);
+		MeshPointers mesh_pointers;
+		mesh_pointers.blas = blas.nodes.data();
+		mesh_pointers.tris = tris.data();
+
+		for (int index = 0; index < framebuffer_size; index++)
+		{
+			uint32_t x = index % args.framebuffer_width;
+			uint32_t y = index / args.framebuffer_width;
+			rtm::RNG rng(index);
+			rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
+			rtm::Hit primary_hit;
+			primary_hit.t = ray.t_max;
+			primary_hit.id = ~0u;
+			intersect(mesh_pointers, ray, primary_hit);
+			primary_hits[index] = primary_hit;
+			if (primary_hit.id != ~0u)
+			{
+				rtm::vec3 normal = tris[primary_hit.id].normal();
+				ray.o = ray.o + ray.d * primary_hit.t;
+				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondray rays
+				ray.t_max = 1;
+				secondary_rays[index] = ray;
+			}
+			else
+			{
+				ray.t_max = -1;
+				secondary_rays[index] = ray;
+			}
+		}
+	}
+
+
+
+	rtm::Mesh mesh("../../datasets/sponza.obj");
+	rtm::BVH mesh_blas;
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;
-	for(uint i = 0; i < mesh.size(); ++i)
+	for (uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
 	bvh.build(build_objects);
 	mesh.reorder(build_objects);
@@ -162,9 +235,9 @@ int main(int argc, char* argv[])
 
 	std::vector<std::thread> threads;
 	uint thread_count = std::max(std::thread::hardware_concurrency() - 2u, 0u);
-	for(uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
+	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
 	kernel(args);
-	for(uint i = 0; i < thread_count; ++i) threads[i].join();
+	for (uint i = 0; i < thread_count; ++i) threads[i].join();
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

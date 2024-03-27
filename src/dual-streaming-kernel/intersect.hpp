@@ -249,7 +249,7 @@ inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray&
 }
 
 #ifdef __riscv
-inline void intersect_buckets(const KernelArgs& args)
+inline void intersect_buckets(const DualStreamingKernelArgs& args)
 {
 	bool early = args.use_early;
 	bool lhit_delay = args.hit_delay;

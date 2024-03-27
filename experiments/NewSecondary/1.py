@@ -7,15 +7,16 @@ default_config["scene_name"] = "sponza"
 default_config["framebuffer_width"] = 256
 default_config["framebuffer_height"] = 256
 default_config["traversal_scheme"] = 0
-default_config["simulator"] = 1 # 0 - trax, 1 - dual-streaming
+default_config["simulator"] = 0 # 0 - trax, 1 - dual-streaming
+default_config["secondary_rays"] = 1
 
-# scene_list = ["sponza", "san-miguel", "hairball"]
-scene_list = ["sponza"]
-size_list = [256]
-scheme_list = [0]
-early_list = [0]
-delay_list = [0]
-# size_list = [1024]
+scene_list = ["sponza", "san-miguel", "hairball"]
+# scene_list = ["sponza"]
+# size_list = [256]
+scheme_list = [0, 1]
+early_list = [0, 1]
+delay_list = [1]
+size_list = [1024]
 # scheme_list = [0, 1]
 
 def get_command(config: dict):
@@ -65,9 +66,10 @@ if __name__ == "__main__":
     #         config["simulator"] = 0
     #         config["framebuffer_width"] = config["framebuffer_height"] = size
     #         config["scene_name"] = scene
-    #         run_config(config, os_run=True)
+    #         run_config(config, os_run=False)
 
-
+    # quit()
+    #os.system("..\\..\\build\\src\\arches-v2\\Arches-v2.exe -Dscene_name=sponza -Dframebuffer_width=1024 -Dframebuffer_height=1024 -Dtraversal_scheme=0 -Dsimulator=1 -Duse_secondary_rays=1 -Duse_early=0 -Dhit_delay=0")
     for size in size_list:
         for scene in scene_list:
             for scheme in scheme_list:

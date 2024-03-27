@@ -5,7 +5,8 @@
 #define USE_HARDWARE_INTERSECTORS
 
 #define KERNEL_ARGS_ADDRESS 256ull
-struct KernelArgs
+
+struct TRaXKernelArgs
 {
 	uint32_t framebuffer_width;
 	uint32_t framebuffer_height;
@@ -15,9 +16,14 @@ struct KernelArgs
 	uint32_t samples_per_pixel;
 	uint32_t max_depth;
 
+	bool use_trace_ray;
+	bool use_secondary_rays;
+
 	rtm::vec3 light_dir;
 	rtm::PackedBVH2::Node* nodes;
 	rtm::Triangle* tris;
 	rtm::PackedTreelet* treelets;
 	rtm::Camera camera;
+
+	rtm::Ray* secondary_rays;
 };
