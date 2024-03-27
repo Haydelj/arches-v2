@@ -22,96 +22,96 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 inline static void kernel(const TRaXKernelArgs& args)
 {
 #if 1
-	if (args.use_secondary_rays)
+	//if (args.use_secondary_rays)
+	//{
+	//	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	//	{
+	//		uint32_t x = index % args.framebuffer_width;
+	//		uint32_t y = index / args.framebuffer_width;
+	//		rtm::Ray ray = args.secondary_rays[index];
+	//		if (ray.t_max > 0)
+	//		{
+	//			rtm::Hit hit;
+	//			hit.id = ~0u;
+	//			hit.t = ray.t_max;
+	//			intersect(args.mesh, ray, hit);
+	//			if (hit.id != ~0u)
+	//			{
+	//				rtm::vec3 normal = args.mesh.tris[hit.id].normal();
+	//				rtm::vec3 output = normal * 0.5 + 0.5;
+	//				args.framebuffer[index] = encode_pixel(output);
+	//			}
+	//		}
+	//	}
+	//}
+//	else 
 	{
 		for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 		{
 			uint32_t x = index % args.framebuffer_width;
 			uint32_t y = index / args.framebuffer_width;
-			rtm::Ray ray = args.secondary_rays[index];
-			if (ray.t_max > 0)
-			{
-				rtm::Hit hit;
-				hit.id = ~0u;
-				hit.t = ray.t_max;
 
-				intersect(args.mesh, ray, hit);
-				if (hit.id != ~0u)
+			rtm::RNG rng(index);
+			rtm::vec3 output(0.0f);
+
+			for (uint i = 0; i < args.samples_per_pixel; ++i)
+			{
+				rtm::Ray ray; rtm::Hit hit; rtm::vec3 normal;
+
+				if (args.samples_per_pixel > 1)  ray = args.camera.generate_ray_through_pixel(x, y, &rng);
+				else                            ray = args.camera.generate_ray_through_pixel(x, y);
+
+				rtm::vec3 attenuation(1.0f);
+				for (uint j = 0; j < args.max_depth; ++j)
 				{
-					rtm::vec3 normal = args.mesh.tris[hit.id].normal();
-					rtm::vec3 output = normal * 0.5 + 0.5;
-					args.framebuffer[index] = encode_pixel(output);
+					if (j != 0)
+					{
+						ray.o = ray.o + ray.d * hit.t;
+						ray.d = cosine_sample_hemisphere(normal, rng);
+						hit.t = ray.t_max;
+						attenuation *= 0.8f;
+					}
+
+					hit.t = ray.t_max; hit.id = ~0u;
+#ifdef USE_TRACERAY
+					_traceray<0x0u>(index, ray, hit);
+#else
+					intersect(args.mesh, ray, hit);
+#endif
+					if (hit.id != ~0u)
+					{
+						normal = args.mesh.tris[hit.id].normal();
+						output = normal * 0.5 + 0.5;
+						break;
+						float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
+						if (ndotl > 0.0f)
+						{
+							rtm::Ray sray = ray;
+							sray.o = ray.o + ray.d * hit.t;
+							sray.d = args.light_dir;
+							rtm::Hit shit;
+							shit.t = sray.t_max; shit.id = ~0u;
+#ifdef USE_TRACERAY
+							_traceray<0x1u>(index, sray, shit);
+#else
+							intersect(args.mesh, sray, shit, true);
+#endif
+							if (shit.id != ~0u)
+								ndotl = 0.0f;
+						}
+						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
+					}
+					else
+					{
+						//output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
+						break;
+					}
 				}
 			}
+
+			args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
 		}
 	}
-//	else {
-//		for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
-//		{
-//			uint32_t x = index % args.framebuffer_width;
-//			uint32_t y = index / args.framebuffer_width;
-//
-//			rtm::RNG rng(index);
-//			rtm::vec3 output(0.0f);
-//
-//			for (uint i = 0; i < args.samples_per_pixel; ++i)
-//			{
-//				rtm::Ray ray; rtm::Hit hit; rtm::vec3 normal;
-//
-//				if (args.samples_per_pixel > 1)  ray = args.camera.generate_ray_through_pixel(x, y, &rng);
-//				else                            ray = args.camera.generate_ray_through_pixel(x, y);
-//
-//				rtm::vec3 attenuation(1.0f);
-//				for (uint j = 0; j < args.max_depth; ++j)
-//				{
-//					if (j != 0)
-//					{
-//						ray.o = ray.o + ray.d * hit.t;
-//						ray.d = cosine_sample_hemisphere(normal, rng);
-//						hit.t = ray.t_max;
-//						attenuation *= 0.8f;
-//					}
-//
-//					hit.t = ray.t_max; hit.id = ~0u;
-//#ifdef USE_TRACERAY
-//					_traceray<0x0u>(index, ray, hit);
-//#else
-//					intersect(args.mesh, ray, hit);
-//#endif
-//					if (hit.id != ~0u)
-//					{
-//						normal = args.mesh.tris[hit.id].normal();
-//						output = normal * 0.5 + 0.5;
-//						break;
-//						float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
-//						if (ndotl > 0.0f)
-//						{
-//							rtm::Ray sray = ray;
-//							sray.o = ray.o + ray.d * hit.t;
-//							sray.d = args.light_dir;
-//							rtm::Hit shit;
-//							shit.t = sray.t_max; shit.id = ~0u;
-//#ifdef USE_TRACERAY
-//							_traceray<0x1u>(index, sray, shit);
-//#else
-//							intersect(args.mesh, sray, shit, true);
-//#endif
-//							if (shit.id != ~0u)
-//								ndotl = 0.0f;
-//						}
-//						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
-//					}
-//					else
-//					{
-//						//output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
-//						break;
-//					}
-//				}
-//			}
-//
-//			args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
-//		}
-//	}
 
 #else
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())

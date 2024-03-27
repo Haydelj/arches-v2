@@ -80,7 +80,7 @@ Arches::GlobalConfig parse_config(int argc, char* argv[])
 		if (Arches::readCmd) ParseCommand(argv[i]);
 	}
 	Arches::scene_configs[Arches::SCENES::SPONZA].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	Arches::scene_configs[Arches::SCENES::SAN_MIGUEL].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 24.0f, rtm::vec3(24.4, 16.4, 12.8), rtm::vec3(24.4 - 0.3, 16.4 - 0.6, 12.8 - 0.6));
+	Arches::scene_configs[Arches::SCENES::SAN_MIGUEL].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 	Arches::scene_configs[Arches::SCENES::HAIRBALL].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 12.0, rtm::vec3(0, 0, 10), rtm::vec3(0, 0, -1));
 	Arches::scene_configs[Arches::SCENES::LIVING_ROOM].camera = rtm::Camera(global_config.framebuffer_width, global_config.framebuffer_height, 12.0, rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92));
 	global_config.scene_config = Arches::scene_configs[global_config.scene_id];

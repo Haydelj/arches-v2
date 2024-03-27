@@ -134,7 +134,6 @@ private:
 		//if (ray_buffer[(front_buffer_id + 1) % ]bytes_returned == RAY_BUCKET_SIZE && ray_buffer[front_buffer_id].next_ray >= ray_buffer[front_buffer_id].ray_bucket.num_rays)
 		//{
 		//	std::swap(front_buffer, back_buffer);
-
 		//	//reset back buffer to empty state
 		//	back_buffer->bytes_returned = 0;
 		//	back_buffer->requested = false;
@@ -159,6 +158,7 @@ private:
 			}
 			else if (request_valid && request.size == sizeof(WorkItem) && request.type == MemoryRequest::Type::STORE)
 			{
+				
 				//a store is pending forward to stream scheduler
 				StreamSchedulerRequest req;
 				req.type = StreamSchedulerRequest::Type::STORE_WORKITEM;
@@ -168,7 +168,6 @@ private:
 				std::memcpy(&wi, request.data, request.size);
 				req.bray = wi.bray;
 				req.segment = wi.segment;
-
 				_stream_scheduler->write_request(req, req.port);
 				request_valid = false;
 				return;
@@ -255,11 +254,9 @@ private:
 				{
 					for (uint i = 0; i < segment_state.active_buckets; ++i)
 						completed_buckets.push(segment_index);
-
 					segment_state_map.erase(segment_index);
 				}
 			}
-
 
 			request_valid = false;
 		}
@@ -286,11 +283,13 @@ private:
 			wi.segment = ray_buffer[front_buffer_id].ray_bucket.segment;
 			std::memcpy(ret.data, &wi, ret.size);
 			_return_network.write(ret, ret.port);
+
 			if (ray_buffer[front_buffer_id].next_ray == 0)
 			{
 				segment_state_map[wi.segment].active_buckets++;
 				segment_state_map[wi.segment].active_rays += ray_buffer[front_buffer_id].ray_bucket.num_rays;
 			}
+			assert(_stream_scheduler->erased[wi.segment] == false);
 			//segment_executing_on_tp[ret.port] = wi.segment;
 			segment_executing_on_thread[{ret.port, ret.dst}] = wi.segment;
 			//workitem_request_queue.pop();

@@ -324,8 +324,8 @@ inline void intersect_buckets(const DualStreamingKernelArgs& args)
 	//register float f30 asm("f30");
 	//register float f31 asm("f31");
 #endif
-	bool early = true;
-	bool lhit_delay = true;
+	bool early = args.use_early;
+	bool lhit_delay = args.hit_delay;
 	while (1)
 	{
 		WorkItem wi = _lwi();

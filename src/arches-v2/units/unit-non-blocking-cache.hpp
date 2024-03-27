@@ -26,7 +26,7 @@ public:
 		bool check_retired_lfb{true};
 
 		std::pair<paddr_t, paddr_t> treelet_range;
-		DualStreaming::UnitSceneBuffer* scene_buffer;
+		DualStreaming::UnitSceneBuffer* scene_buffer{ nullptr };
 		UnitMemoryBase* mem_higher{nullptr};
 		uint            mem_higher_port_offset{0};
 		uint            mem_higher_port_stride{1};

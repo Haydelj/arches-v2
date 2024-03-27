@@ -9,15 +9,19 @@ void UnitSceneBuffer::process_finish()
 {
 	if (!segment_finished.empty())
 	{
+		// note: if a segment is finished, we then reject all following returns of this segment
 		uint segment_index = segment_finished.front();
+		finished[segment_index] = true;
 		segment_finished.pop();
+		//printf("Scene Buffer Finish Segment %d\n", segment_index);
 
-		assert(segment_offset.count(segment_index));
+		if (!segment_offset.count(segment_index)) return;
 		SegmentState& segment = segments[segment_offset[segment_index]];
 		segment.state = SegmentState::State::EMPTY;
 		segment.segment_index = ~0u;
 		segment.byte_requested = 0;
 		segment.byte_returned = 0;
+		segment_offset.erase(segment_index);
 	}
 }
 
@@ -42,28 +46,71 @@ void UnitSceneBuffer::process_prefetch()
 		// need to find a slot for this segment
 		assert(!segment_offset.count(segment_index));
 
+		if (finished.count(segment_index))
+		{
+			prefetch_request.pop();
+			return;
+		}
 		uint new_segment_slot = find_segment_slot();
-		std::cout << "new segment slot for segment " << segment_index << ": " << new_segment_slot << '\n';
 		if (new_segment_slot != ~0u)
 		{
+			//std::cout << "new segment slot for segment " << segment_index << ": " << new_segment_slot << '\n';
 			prefetch_request.pop();
 
 			segment_offset[segment_index] = new_segment_slot;
 			// distribute the prefetch request to multiple bank
-			uint start_bank = (new_segment_slot * treelet_size / row_size) % num_bank;
-			uint num_banks_to_across = treelet_size / row_size;
-			uint treelet_offset = 0;
-			for (uint i = 0; i < num_banks_to_across; i++)
+			paddr_t segment_address = treelet_start + 1ull * segment_index * treelet_size;
+			uint start_channel = calcDramAddr(segment_address).channel;
+
+			uint num_channels_to_across = treelet_size / dram_row_size;
+			for (uint i = 0; i < num_channels_to_across; i++)
 			{
-				uint bank_index = (start_bank + i) % num_bank;
+				uint channel_index = (start_channel + i) % NUM_DRAM_CHANNELS;
 				
-				banks[bank_index].prefetch_queue.push({ segment_index, treelet_offset });
-				treelet_offset += row_size;
+				channels[channel_index].prefetch_queue.push({ segment_address});
+				segment_address += dram_row_size;
 			}
 
 			SegmentState& segment = segments[new_segment_slot];
 			segment.state = SegmentState::State::PREFETCHING;
 			segment.segment_index = segment_index;
+		}
+	}
+}
+
+void UnitSceneBuffer::process_internal_return(uint bank_index)
+{
+	Bank& bank = banks[bank_index];
+	if (internal_return_crossbar.is_read_valid(bank_index))
+	{
+		MemoryReturn ret = internal_return_crossbar.read(bank_index);
+		assert(ret.size == CACHE_BLOCK_SIZE);
+		uint segment_index = calculate_segment(ret.paddr);
+
+		if (!segment_offset.count(segment_index))
+		{
+			return;
+		}
+		SegmentState& segment = segments[segment_offset[segment_index]];
+		uint treelet_offset = offset_in_treelet(ret.paddr);
+		
+		assert(segment.state == SegmentState::State::PREFETCHING);
+
+		segment.returned_blocks.insert(ret.paddr);
+		std::memcpy(segment.data_u8 + treelet_offset, ret.data, ret.size);
+		segment.byte_returned += ret.size;
+		
+		assert(segment.byte_returned <= treelet_size);
+
+		if (segment.byte_returned >= treelet_size * 0.8 && allow_wait && !segment_signal_returned[segment_index])
+		{ 
+			segment_signal_returned[segment_index] = true;
+			bank.segment_prefetched = segment_index;
+		}
+		if (segment.byte_returned == treelet_size)
+		{
+			segment.state = SegmentState::State::LOADED;
+			if(!segment_signal_returned[segment_index]) bank.segment_prefetched = segment_index;
 		}
 	}
 }
@@ -82,12 +129,22 @@ void UnitSceneBuffer::process_requests(uint bank_index)
 		assert(segment_offset.count(segment_index));
 
 		SegmentState& segment = segments[segment_offset[segment_index]];
-		assert(segment.state == SegmentState::State::LOADED);
+		if(!allow_wait) assert(segment.state == SegmentState::State::LOADED);
 
 		uint data_offset = offset_in_treelet(req.paddr);
 
 		assert(data_offset + req.size - 1 < treelet_size);
 		assert(get_bank(req.paddr + req.size - 1) == bank_index); // requested data should be all in this bank
+
+		// Check whether the corresponding data has been returned
+		auto& returned_set = segment.returned_blocks;
+		assert(!returned_set.empty()); // at least some data has been returned
+		auto it = returned_set.upper_bound(req.paddr);
+		if (it == returned_set.begin()) return;
+		it--;
+		if (*it + CACHE_BLOCK_SIZE <= req.paddr) return;
+		// We are sure the needed data is returned
+
 		//if (return_network.is_write_valid(req.port))
 		//{
 			bank.has_return = true;
@@ -103,31 +160,6 @@ void UnitSceneBuffer::process_requests(uint bank_index)
 			//return_network.write(ret, ret.port);
 		//}
 	}
-	else if (!bank.prefetch_queue.empty())
-	{
-		auto [segment_index, treelet_offset] = bank.prefetch_queue.front();
-		assert(segment_offset.count(segment_index));
-		//printf("Bank %d prefetching segment %d, already requested %d, row_size: %d\n", bank_index, segment_index, bank.byte_requested, row_size);
-		SegmentState& segment = segments[segment_offset[segment_index]];
-		assert(segment.state == SegmentState::State::PREFETCHING);
-		if (internal_crossbar.is_write_valid(bank_index))
-		{
-			MemoryRequest req;
-			req.paddr = calculate_treelet_address(segment_index) + treelet_offset + bank.byte_requested;
-			req.size = CACHE_BLOCK_SIZE;
-			req.type = MemoryRequest::Type::LOAD;
-			internal_crossbar.write(req, bank_index);
-			//printf("req size: %d\n", req.size);
-			bank.byte_requested += req.size;
-			segment.byte_requested += req.size;
-			assert(segment.byte_requested <= treelet_size);
-			if (bank.byte_requested == row_size)
-			{
-				bank.byte_requested = 0;
-				bank.prefetch_queue.pop();
-			}
-		}
-	}
 }
 
 void UnitSceneBuffer::process_returns(uint channel_index)
@@ -140,29 +172,30 @@ void UnitSceneBuffer::process_returns(uint channel_index)
 	{
 		// write to the buffer directly
 		// TO DO: maybe need to implement latency here (e.g. add an internal return crossbar)
-		const MemoryReturn& ret = main_memory->read_return(port_in_dram);
+
+		MemoryReturn ret = main_memory->peek_return(port_in_dram);
 		assert(ret.size == CACHE_BLOCK_SIZE);
 		uint segment_index = calculate_segment(ret.paddr);
+		if (!segment_offset.count(segment_index))
+		{
+			main_memory->read_return(port_in_dram);
+			return;
+		}
+		ret.port = get_bank(ret.paddr);
 		uint data_offset = offset_in_treelet(ret.paddr);
-
+		
 		assert(segment_offset.count(segment_index));
 		assert(data_offset + ret.size - 1 < treelet_size);
-
-		assert(get_bank(ret.paddr + ret.size - 1) == get_bank(ret.paddr));
-
 		SegmentState& segment = segments[segment_offset[segment_index]];
 		assert(segment.state == SegmentState::State::PREFETCHING);
 
-		std::memcpy(segment.data_u8 + data_offset, &ret.data, ret.size);
-		segment.byte_returned += ret.size;
-
-		assert(segment.byte_returned <= treelet_size);
-		if (segment.byte_returned == treelet_size)
+		assert(get_bank(ret.paddr + ret.size - 1) == get_bank(ret.paddr));
+		uint bank_index = get_bank(ret.paddr);
+		if (internal_return_crossbar.is_write_valid(channel_index))
 		{
-			segment.state = SegmentState::State::LOADED;
-			segment_prefetched.push(segment_index);
+			internal_return_crossbar.write(ret, channel_index);
+			main_memory->read_return(port_in_dram);
 		}
-		//printf("Scene Buffer Loading Segment: %d, Data loaded percentage: %.2f\%\n", segment_index, 100.0 * segment.byte_returned / treelet_size);
 	}
 
 }
@@ -170,16 +203,36 @@ void UnitSceneBuffer::process_returns(uint channel_index)
 void UnitSceneBuffer::issue_requests(uint channel_index)
 {
 	uint port_in_dram = main_mem_port_stride * channel_index + main_mem_port_offset;
-	if (main_memory->request_port_write_valid(port_in_dram) && internal_crossbar.is_read_valid(channel_index))
+	Channel& channel = channels[channel_index];
+	if (!channel.prefetch_queue.empty() && main_memory->request_port_write_valid(port_in_dram))
 	{
-		//printf("Scene Buffer issuing requests from channel %d\n", channel_index);
-		MemoryRequest req = internal_crossbar.read(channel_index);
-
-		uint segment_index = calculate_segment(req.paddr);
-		SegmentState& segment = segments[segment_offset[segment_index]];
-		assert(segment.state == SegmentState::State::PREFETCHING);
+		paddr_t start_address = channel.prefetch_queue.front();
+		uint segment_index = calculate_segment(start_address);
+		if (!segment_offset.count(segment_index))
+		{
+			channel.byte_requested = 0;
+			channel.prefetch_queue.pop();
+			return;
+		}
+		MemoryRequest req;
+		req.size = CACHE_BLOCK_SIZE;
+		req.paddr = start_address + channel.byte_requested;
+		req.type = MemoryRequest::Type::LOAD;
 		req.port = port_in_dram;
 		main_memory->write_request(req);
+		channel.byte_requested += req.size;
+		if (channel.byte_requested == dram_row_size)
+		{
+			channel.byte_requested = 0;
+			channel.prefetch_queue.pop();
+		}
+		
+		
+		SegmentState& segment = segments[segment_offset[segment_index]];
+		assert(segment.state == SegmentState::State::PREFETCHING);
+		segment.byte_requested += req.size;
+
+		assert(segment.byte_requested <= treelet_size);
 	}
 }
 
@@ -191,7 +244,11 @@ void UnitSceneBuffer::issue_returns(uint bank_index)
 		bank.has_return = false;
 		return_network.write(bank.ret, bank.ret.port);
 	}
-
+	if (bank.segment_prefetched != ~0u)
+	{
+		segment_prefetched.push(bank.segment_prefetched);
+		bank.segment_prefetched = ~0u;
+	}
 	// Technically, we need to send signal to Stream Scheduler if data is loaded
 	// This process will be done in stream scheduler
 	
@@ -200,11 +257,12 @@ void UnitSceneBuffer::issue_returns(uint bank_index)
 void UnitSceneBuffer::clock_rise()
 {
 	request_network.clock();
-
-	process_finish();
 	process_prefetch();
+	process_finish();
+	
 	for (int i = 0; i < banks.size(); i++)
 	{
+		process_internal_return(i);
 		process_requests(i);
 	}
 	for (int i = 0; i < NUM_DRAM_CHANNELS; i++)
@@ -215,7 +273,6 @@ void UnitSceneBuffer::clock_rise()
 
 void UnitSceneBuffer::clock_fall()
 {
-	internal_crossbar.clock();
 	for (int i = 0; i < NUM_DRAM_CHANNELS; i++)
 	{
 		issue_requests(i);
@@ -225,6 +282,7 @@ void UnitSceneBuffer::clock_fall()
 		issue_returns(i);
 	}
 	return_network.clock();
+	internal_return_crossbar.clock();
 }
 
 }

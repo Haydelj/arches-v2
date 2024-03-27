@@ -356,10 +356,11 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	scene_buffer_config.main_mem_port_stride = 6;
 	scene_buffer_config.num_banks = 32;
 	scene_buffer_config.row_size = 4 * 1024; // 4KB
-	scene_buffer_config.bank_select_mask = 0b0011'0001'1100'0000;
+	scene_buffer_config.bank_select_mask = 0b0011'0001'1100'0000ull;
 	scene_buffer_config.treelet_size = TREELET_SIZE;
-	scene_buffer_config.treelet_start = *(paddr_t*)&kernel_args.treelets;
+	scene_buffer_config.treelet_start = treelet_range.first;
 	scene_buffer_config.treelet_end = treelet_range.second;
+	scene_buffer_config.allow_wait = global_config.allow_wait;
 	Units::DualStreaming::UnitSceneBuffer scene_buffer(scene_buffer_config);
 	simulator.register_unit(&scene_buffer);
 
@@ -548,7 +549,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		tp_log.accumulate(tp->log);
 	tp_log.print_log();
 
-	tp_log.print_profile(dram._data_u8);
+	//tp_log.print_profile(dram._data_u8);
 
 	stream_scheduler.log.print();
 

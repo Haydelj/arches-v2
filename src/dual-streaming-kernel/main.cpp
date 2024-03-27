@@ -98,14 +98,14 @@ inline static void kernel(const DualStreamingKernelArgs& args)
 		{
 			rtm::Hit hit = _lhit(args.hit_records + index);
 			//args.framebuffer[index] = encode_pixel(rtm::vec3(hit.bc.x, hit.bc.y, hit.t));
-			//rtm::vec3 out = 0.0f;
+			rtm::vec3 out = 0.0f;
 			if(hit.t < T_MAX)
 			{
-				//rtm::vec3 n = args.triangles[hit.id].normal();
-				//out = n * 0.5f + 0.5f;
-				args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
+				rtm::vec3 n = args.triangles[hit.id].normal();
+				out = n * 0.5f + 0.5f;
+				//args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
 			}
-			//args.framebuffer[index] = encode_pixel(out);
+			args.framebuffer[index] = encode_pixel(out);
 		}
 	}
 #else
@@ -115,8 +115,8 @@ inline static void kernel(const DualStreamingKernelArgs& args)
 		uint y = index / args.framebuffer_width;
 		rtm::RNG rng(index);
 
-		//rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
-		rtm::Ray ray = args.secondary_rays[index];
+		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
+		//rtm::Ray ray = args.secondary_rays[index];
 		if (ray.t_max > 0)
 		{
 			ray.t_max = T_MAX;
@@ -159,11 +159,11 @@ int main(int argc, char* argv[])
 	args.max_path_depth = 1;
 
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(6.78f, -5.87, 0.84), rtm::vec3(7.78f, -5.87, 0.84f));
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(24.4, 16.4, 12.8), rtm::vec3(24.4 - 0.3, 16.4 - 0.6, 12.8 - 0.6));
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 	args.light_dir = rtm::normalize(rtm::vec3(4.5, 42.5, 5.0));
-	rtm::Mesh mesh("../../datasets/sponza.obj");
-	//rtm::Mesh mesh("../../datasets/san-miguel.obj");
+	//rtm::Mesh mesh("../../datasets/sponza.obj");
+	rtm::Mesh mesh("../../datasets/san-miguel.obj");
 	rtm::BVH bvh;
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;

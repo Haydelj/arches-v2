@@ -66,7 +66,7 @@ public:
 		uint                main_mem_port_stride{ 1 };
 	};
 
-private:
+public:
 	class StreamSchedulerRequestCrossbar : public CasscadedCrossBar<StreamSchedulerRequest>
 	{
 	public:
@@ -115,7 +115,7 @@ private:
 				return bucket_address;
 			}
 
-			uint bucket_address = next_bucket_addr;
+			paddr_t bucket_address = next_bucket_addr;
 
 			next_bucket_addr += RAY_BUCKET_SIZE;
 			if ((next_bucket_addr % ROW_BUFFER_SIZE) == 0)
@@ -178,6 +178,9 @@ private:
 		
 		std::stack<uint> traversal_stack; // for DFS
 		std::queue<uint> traversal_queue; // for BFS
+
+		uint need_prefetch = ~0u;
+		uint segment_finished = ~0u;
 
 		int root_rays_counter = 0;
 		int num_root_rays = 0;
@@ -257,8 +260,10 @@ private:
 	uint scene_buffer_size = 0;
 	uint max_active_segments = 0;
 
+	std::map<uint, bool> erased;
+
 public:
-	UnitStreamSchedulerDFS(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, NUM_DRAM_CHANNELS, NUM_DRAM_CHANNELS), _scene_buffer(config.scene_buffer), scene_buffer_size(config.scene_buffer_size)
+	UnitStreamSchedulerDFS(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, config.num_tms, NUM_DRAM_CHANNELS), _scene_buffer(config.scene_buffer), scene_buffer_size(config.scene_buffer_size)
 	{
 		max_active_segments = scene_buffer_size / TREELET_SIZE;
 		_main_mem = config.main_mem;
@@ -352,12 +357,12 @@ public:
 			printf("Average treelets per ray: %.3lf\n", 1.0 * number_of_treelets_visited / num_rays);
 
 
-			printf("Leaf completed order : \n");
-			for (auto node_id: leaf_completed_order)
-			{
-				printf("Leaf node id: %d, Number of rays: %d, Average ray weight: %.3lf\n", node_id, leaf_node_rays_counter[node_id], 1.0 * leaf_node_weights[node_id] / leaf_node_rays_counter[node_id]);
-			}
-			printf("\n");
+			//printf("Leaf completed order : \n");
+			//for (auto node_id: leaf_completed_order)
+			//{
+			//	printf("Leaf node id: %d, Number of rays: %d, Average ray weight: %.3lf\n", node_id, leaf_node_rays_counter[node_id], 1.0 * leaf_node_weights[node_id] / leaf_node_rays_counter[node_id]);
+			//}
+			//printf("\n");
 
 			//printf("Ray distributed info : \n");
 			//for (auto& [ray_id, node_list] : ray_info)
