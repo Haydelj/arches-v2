@@ -140,9 +140,22 @@ int main(int argc, char* argv[])
 
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
-	
-	rtm::Mesh mesh(argv[1]);
+
+	std::string meshArg;
+
+	if (argv[1])
+	{
+		meshArg = argv[1];
+	}
+	else
+	{
+		meshArg = ("../../datasets/sponza.obj");
+	}
+
+	rtm::Mesh mesh(meshArg);
 	rtm::BVH mesh_blas;
+	rtm::WideBVH wide_bvh;
+
 	std::vector<rtm::Triangle> tris;
 	std::vector<rtm::BVH::BuildObject> build_objects;
 	for(uint i = 0; i < mesh.size(); ++i)
@@ -150,6 +163,8 @@ int main(int argc, char* argv[])
 	mesh_blas.build(build_objects);
 	mesh.reorder(build_objects);
 	mesh.get_triangles(tris);
+	wide_bvh.build(mesh_blas);
+
 
 	args.mesh.blas = mesh_blas.nodes.data();
 	args.mesh.tris = tris.data();

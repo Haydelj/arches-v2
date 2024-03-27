@@ -20,6 +20,7 @@
 #include "camera.hpp"
 #include "mesh.hpp"
 #include "bvh.hpp"
+#include "wide-bvh.hpp"
 #include "packed-bvh.hpp"
 
 #include "intersect.hpp"

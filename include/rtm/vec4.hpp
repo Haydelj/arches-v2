@@ -149,6 +149,7 @@ inline vec4 mix(const vec4& a, const vec4& b, float t)
 	return t * (b - a) + a;
 }
 
+
 #ifdef RTM_POW
 inline vec4 pow(const vec4 & a, const vec4 &b)
 {
