@@ -34,7 +34,7 @@ public:
 
 #ifndef __riscv
 	std::vector<Node> nodes;
-	PackedBVH2() {};
+
 	PackedBVH2(const BVH& bvh)
 	{
 		size_t num_packed_nodes = 0;

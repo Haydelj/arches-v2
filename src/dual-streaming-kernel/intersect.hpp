@@ -228,10 +228,7 @@ inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray&
 					}
 				}
 			}
-			else
-			{
-				treelet_queue[treelet_queue_tail++] = { current_entry.t, current_entry.data.child_index };
-			}
+			else treelet_queue[treelet_queue_tail++] = {current_entry.t, current_entry.data.child_index};
 		}
 		else
 		{
@@ -252,7 +249,7 @@ inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray&
 }
 
 #ifdef __riscv
-inline void intersect_buckets(const DualStreamingKernelArgs& args)
+inline void intersect_buckets(const KernelArgs& args)
 {
 	bool early = args.use_early;
 	bool lhit_delay = args.hit_delay;
@@ -333,7 +330,7 @@ inline bool intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 
 		uint treelet_queue_tail = 0;
 		TreeletStackEntry treelet_queue[32];
-		if(intersect_treelet(treelets[entry.treelet_id], ray, hit, treelet_queue, treelet_queue_tail))
+		if(intersect_treelet(treelets[entry.treelet_id], ray, hit, treelet_queue, treelet_stack_size))
 			hit_found = true;
 	
 		for(uint treelet_queue_head = 0; treelet_queue_head < treelet_queue_tail; ++treelet_queue_head)

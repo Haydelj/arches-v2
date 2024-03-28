@@ -1,12 +1,11 @@
 #pragma once
 #include "stdafx.hpp"
 
-//#define USE_RT_CORE
+#define USE_RT_CORE
 #define USE_HARDWARE_INTERSECTORS
 
 #define KERNEL_ARGS_ADDRESS 256ull
-
-struct DualStreamingKernelArgs
+struct KernelArgs
 {
 	uint32_t framebuffer_width;
 	uint32_t framebuffer_height;
@@ -18,8 +17,6 @@ struct DualStreamingKernelArgs
 
 	bool use_early;
 	bool hit_delay;
-	bool use_secondary_rays;
-	uint weight_scheme;
 
 	rtm::Camera camera;
 	rtm::vec3 light_dir;
@@ -29,5 +26,4 @@ struct DualStreamingKernelArgs
 	rtm::Hit* hit_records;
 	rtm::PackedTreelet* treelets;
 	rtm::Triangle* triangles;
-	rtm::Ray* secondary_rays;
 };

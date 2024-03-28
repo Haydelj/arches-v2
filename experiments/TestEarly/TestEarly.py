@@ -7,15 +7,14 @@ default_config["scene_name"] = "sponza"
 default_config["framebuffer_width"] = 256
 default_config["framebuffer_height"] = 256
 default_config["traversal_scheme"] = 0
-default_config["simulator"] = 1 # 0 - trax, 1 - dual-streaming
 
 # scene_list = ["sponza", "san-miguel", "hairball"]
 scene_list = ["sponza"]
 size_list = [256]
-scheme_list = [0]
-early_list = [0]
-delay_list = [0]
-# size_list = [1024]
+scheme_list = [1]
+early_list = [0, 1]
+delay_list = [0, 1]
+# size_list = [256, 1024]
 # scheme_list = [0, 1]
 
 def get_command(config: dict):
@@ -31,16 +30,7 @@ def run_config(config: dict, os_run: bool = True):
     else:
         print("Can not find the exe file")
     cmd = get_command(config)
-    simulator = "TRaX" if config["simulator"] == 0 else "DualStreaming"
-    scene = config["scene_name"]
-    size = str(config["framebuffer_width"])
-    test_name = simulator + "_" + scene + "_" + size
-    if simulator == "DualStreaming":
-        early = "Early" if config["use_early"] == 1 else "NoEarly"
-        scheme = "BFS" if config["traversal_scheme"] == 0 else "DFS"
-        test_name = test_name + "_" + early + "_" + scheme
-
-
+    test_name = ("Early" if config["use_early"] else "NoEarly") + "_" + ("Delay" if config["hit_delay"] else "NoDelay") + "_" + config["scene_name"] + "_" + ("Breadth" if config["traversal_scheme"] == 0 else "Depth") + str(config["framebuffer_width"])
     if os_run:
         os.system(cmd)
     else:
@@ -58,16 +48,6 @@ def run_config(config: dict, os_run: bool = True):
     print("{} Finished".format(test_name))
 
 if __name__ == "__main__":
-    # trax
-    # for scene in scene_list:
-    #     for size in size_list:
-    #         config = default_config
-    #         config["simulator"] = 0
-    #         config["framebuffer_width"] = config["framebuffer_height"] = size
-    #         config["scene_name"] = scene
-    #         run_config(config, os_run=True)
-
-
     for size in size_list:
         for scene in scene_list:
             for scheme in scheme_list:
@@ -76,7 +56,6 @@ if __name__ == "__main__":
                         config = default_config
                         if early == 0 and delay == 1:
                             continue
-                        config["simulator"] = 1
                         config["framebuffer_width"] = size
                         config["framebuffer_height"] = size
                         config["scene_name"] = scene
