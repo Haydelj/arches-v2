@@ -1,24 +1,8 @@
 #pragma once
-#include "stdafx.hpp"
-
-#include "simulator/simulator.hpp"
-
-#include "units/unit-dram.hpp"
-#include "units/unit-blocking-cache.hpp"
-#include "units/unit-non-blocking-cache.hpp"
-#include "units/unit-atomic-reg-file.hpp"
-#include "units/unit-tile-scheduler.hpp"
-#include "units/unit-sfu.hpp"
-#include "units/unit-tp.hpp"
-
+#include "shared-utils.hpp"
+#include "units/trax/unit-tp.hpp"
 #include "units/trax/unit-rt-core.hpp"
 #include "units/trax/unit-treelet-rt-core.hpp"
-#include "units/trax/unit-tp.hpp"
-
-#include "util/elf.hpp"
-
-#include "trax-kernel/include.hpp"
-
 namespace Arches {
 
 namespace ISA { namespace RISCV { namespace TRaX {
@@ -139,44 +123,84 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{ return isa_custo
 
 }}}
 
-template <typename RET>
-static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, RET* data, size_t size, paddr_t& heap_address)
+namespace TRaX {
+#include "trax-kernel/include.hpp"
+static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config)
 {
-	paddr_t array_address = align_to(alignment, heap_address);
-	heap_address = array_address + size * sizeof(RET);
-	main_memory->direct_write(data, size * sizeof(RET), array_address);
-	return reinterpret_cast<RET*>(array_address);
-}
+	std::string s = scene_names[global_config.scene_id];
+	TCHAR exePath[MAX_PATH];
+	GetModuleFileName(NULL, exePath, MAX_PATH);
+	std::wstring fullPath(exePath);
+	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
+	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 
-template <typename RET>
-static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignment, std::vector<RET> v, paddr_t& heap_address)
-{
-	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
-}
-
-static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address)
-{
-	rtm::Mesh mesh("../../datasets/sponza.obj");
-	rtm::BVH bvh;
+	std::string filename = current_folder_path + "../../../../datasets/" + s + ".obj";
+	std::string bvh_filename = current_folder_path + "../../../../datasets/" + s + "_bvh.cache";
+	std::string triangle_filename = current_folder_path + "../../../../datasets/" + s + "_triangles.cache";
+	std::string treelet_filename = current_folder_path + "../../../../datasets/" + s + "_treelets.cache";
+	std::ifstream inputBVH(bvh_filename, std::ios::binary);
+	std::ifstream inputTriangles(triangle_filename, std::ios::binary);
+	std::ifstream inputTreelets(triangle_filename, std::ios::binary);
+	rtm::PackedBVH2 packed_bvh;
 	std::vector<rtm::Triangle> tris;
-	std::vector<rtm::BVH::BuildObject> build_objects;
-	for(uint i = 0; i < mesh.size(); ++i)
-		build_objects.push_back(mesh.get_build_object(i));
-	bvh.build(build_objects);
-	mesh.reorder(build_objects);
-	mesh.get_triangles(tris);
+	rtm::PackedTreeletBVH treelet_bvh;
+	if (inputTreelets.is_open() && inputBVH.is_open() && inputTriangles.is_open())
+	{
+		printf("Loading packed bvh from %s\n", bvh_filename.c_str());
+		rtm::PackedBVH2::Node curr_node;
+		while (inputBVH.read(reinterpret_cast<char*>(&curr_node), sizeof(rtm::PackedBVH2::Node)))
+			packed_bvh.nodes.push_back(curr_node);
+		printf("Loaded %zd packed bvh nodes\n", packed_bvh.nodes.size());
 
-	rtm::PackedBVH2 packed_bvh(bvh);
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
+		printf("Loading packed treelets from %s\n", treelet_filename.c_str());
+		rtm::PackedTreelet curr_tree;
+		while (inputTreelets.read(reinterpret_cast<char*>(&curr_tree), sizeof(rtm::PackedTreelet)))
+			treelet_bvh.treelets.push_back(curr_tree);
+		printf("Loaded %zd packed treelets\n", treelet_bvh.treelets.size());
 
-	KernelArgs args;
-	args.framebuffer_width = 256;
-	args.framebuffer_height = 256;
+		printf("Loading triangles from %s\n", triangle_filename.c_str());
+		rtm::Triangle cur_tri;
+		while (inputTriangles.read(reinterpret_cast<char*>(&cur_tri), sizeof(rtm::Triangle)))
+			tris.push_back(cur_tri);
+		printf("Loaded %zd triangles\n", tris.size());
+	}
+	else {
+		rtm::Mesh mesh(filename);
+		rtm::BVH bvh;
+		std::vector<rtm::BVH::BuildObject> build_objects;
+		for (uint i = 0; i < mesh.size(); ++i)
+			build_objects.push_back(mesh.get_build_object(i));
+		bvh.build(build_objects);
+		mesh.reorder(build_objects);
+		mesh.get_triangles(tris);
+
+		packed_bvh = rtm::PackedBVH2(bvh);
+		treelet_bvh = rtm::PackedTreeletBVH(packed_bvh, mesh);
+		std::ofstream outputBVH(bvh_filename, std::ios::binary);
+		std::ofstream outputTriangles(triangle_filename, std::ios::binary);
+		std::ofstream outputTreelets(treelet_filename, std::ios::binary);
+		printf("Writing %zd packed bvh nodes to %s, %zd treelets to %s\n", packed_bvh.nodes.size(), bvh_filename.c_str(), treelet_bvh.treelets.size(), treelet_filename.c_str());
+		for (auto& t : packed_bvh.nodes)
+		{
+			outputBVH.write(reinterpret_cast<const char*>(&t), sizeof(t));
+		}
+		for (auto& tt : tris)
+		{
+			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(tt));
+		}
+		for (auto& treelet : treelet_bvh.treelets)
+		{
+			outputTreelets.write(reinterpret_cast<const char*>(&treelet), sizeof(treelet));
+		}
+	}
+
+	TRaXKernelArgs args;
+	args.framebuffer_width = global_config.framebuffer_width;
+	args.framebuffer_height = global_config.framebuffer_height;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 
-	//args.tile_width = 1;
-	//args.tile_height = 1;
-	//args.tile_size = args.tile_width * args.tile_height;
+	// secondary rays only
+	args.use_secondary_rays = global_config.use_secondary_rays;
 
 	heap_address = align_to(ROW_BUFFER_SIZE, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address); heap_address += args.framebuffer_size * sizeof(uint32_t);
@@ -185,15 +209,14 @@ static KernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, padd
 	args.max_depth = 1;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(24.4, 16.4, 12.8), rtm::vec3(24.4 - 0.3, 16.4 - 0.6, 12.8 - 0.6));
+	args.camera = global_config.scene_config.camera;
 	//global_data.camera = Camera(global_data.framebuffer_width, global_data.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh.nodes, heap_address);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
 
-	main_memory->direct_write(&args, sizeof(KernelArgs), KERNEL_ARGS_ADDRESS);
+	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), KERNEL_ARGS_ADDRESS);
 
 	return args;
 }
@@ -210,7 +233,7 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-static void run_sim_trax(int argc, char* argv[])
+static void run_sim_trax(GlobalConfig global_config)
 {
 	double clock_rate = 2'000'000'000.0;
 
@@ -254,18 +277,26 @@ static void run_sim_trax(int argc, char* argv[])
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
 
+
 	Units::UnitDRAM mm(num_l2 * num_l2_banks, 1024ull * 1024ull * 1024ull, &simulator); mm.clear();
 	simulator.register_unit(&mm);
 
-	ELF elf("../trax-kernel/riscv/kernel");
+	TCHAR exePath[MAX_PATH];
+	GetModuleFileName(NULL, exePath, MAX_PATH);
+	std::wstring fullPath(exePath);
+	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
+	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
+	ELF elf(current_folder_path + "../../trax-kernel/riscv/kernel");
+	//ELF elf("../trax-kernel/riscv/kernel");
+	vaddr_t global_pointer;
 	paddr_t heap_address = mm.write_elf(elf);
 
-	KernelArgs kernel_args = initilize_buffers(&mm, heap_address);
+	TRaXKernelArgs kernel_args = initilize_buffers(&mm, heap_address, global_config);
 
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
 	simulator.register_unit(&atomic_regs);
 
-	for(uint l2_index = 0; l2_index < num_l2; ++l2_index)
+	for (uint l2_index = 0; l2_index < num_l2; ++l2_index)
 	{
 		Units::UnitBlockingCache::Configuration l2_config;
 		l2_config.size = 36 * 1024 * 1024;
@@ -282,7 +313,7 @@ static void run_sim_trax(int argc, char* argv[])
 
 		l2s.push_back(new Units::UnitBlockingCache(l2_config));
 
-		for(uint tm_i = 0; tm_i < num_tms_per_l2; ++tm_i)
+		for (uint tm_i = 0; tm_i < num_tms_per_l2; ++tm_i)
 		{
 			simulator.new_unit_group();
 			uint tm_index = l2_index * num_tms_per_l2 + tm_i;
@@ -377,14 +408,22 @@ static void run_sim_trax(int argc, char* argv[])
 			simulator.register_unit(sfu_list.back());
 			unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
 
-			for(auto& sfu : sfu_list)
+			sfu_list.push_back(_new Units::UnitSFU(2, 3, 1, num_tps_per_tm));
+			simulator.register_unit(sfu_list.back());
+			unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
+
+			sfu_list.push_back(_new Units::UnitSFU(1, 22, 8, num_tps_per_tm));
+			simulator.register_unit(sfu_list.back());
+			unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
+
+			for (auto& sfu : sfu_list)
 				sfus.push_back(sfu);
 
 			unit_tables.emplace_back(unit_table);
 			sfu_lists.emplace_back(sfu_list);
 			mem_lists.emplace_back(mem_list);
 
-			for(uint tp_index = 0; tp_index < num_tps_per_tm; ++tp_index)
+			for (uint tp_index = 0; tp_index < num_tps_per_tm; ++tp_index)
 			{
 				Units::UnitTP::Configuration tp_config;
 				tp_config.tp_index = tp_index;
@@ -399,7 +438,7 @@ static void run_sim_trax(int argc, char* argv[])
 				tp_config.unique_mems = &mem_lists.back();
 				tp_config.unique_sfus = &sfu_lists.back();
 				tp_config.num_threads = num_threads_per_tp;
-
+				//tp_config.num_threads = 1;
 				tps.push_back(new Units::TRaX::UnitTP(tp_config));
 				simulator.register_unit(tps.back());
 				simulator.units_executing++;
@@ -419,19 +458,19 @@ static void run_sim_trax(int argc, char* argv[])
 		rt_core_log.accumulate(rt_core->log);
 
 	Units::UnitTP::Log tp_log(elf.segments[0]->vaddr);
-	for(auto& tp : tps)
+	for (auto& tp : tps)
 		tp_log.accumulate(tp->log);
 
 	Units::UnitBlockingCache::Log i_l1_log;
-	for(auto& i_l1 : l1is)
+	for (auto& i_l1 : l1is)
 		i_l1_log.accumulate(i_l1->log);
 
 	Units::UnitNonBlockingCache::Log l1_log;
-	for(auto& l1 : l1ds)
+	for (auto& l1 : l1ds)
 		l1_log.accumulate(l1->log);
 
 	Units::UnitBlockingCache::Log l2_log;
-	for(auto& l2 : l2s)
+	for (auto& l2 : l2s)
 		l2_log.accumulate(l2->log);
 
 	//tp_log.print_profile(mm._data_u8);
@@ -476,7 +515,8 @@ static void run_sim_trax(int argc, char* argv[])
 
 	paddr_t paddr_frame_buffer = reinterpret_cast<paddr_t>(kernel_args.framebuffer);
 	stbi_flip_vertically_on_write(true);
-	mm.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "out.png");
+	std::string scene_name = scene_names[global_config.scene_id];
+	mm.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, scene_name + "_trax_out.png");
 }
-
+}
 }

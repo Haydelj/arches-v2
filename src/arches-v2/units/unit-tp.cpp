@@ -254,9 +254,9 @@ void UnitTP::clock_fall()
 	if(fetch_thread_id != ~0u)
 	{
 		ThreadData& fetch_thread = _thread_data[fetch_thread_id];
-		uint i_cache_port = _tp_index % _num_tps_per_i_cache;
 		if(_inst_cache)
 		{
+			uint i_cache_port = _tp_index % _num_tps_per_i_cache;
 			if(_inst_cache->request_port_write_valid(i_cache_port))
 			{
 				MemoryRequest i_req;
@@ -309,7 +309,6 @@ void UnitTP::clock_fall()
 		_last_thread_id = (_last_thread_id + 1) % _num_threads;
 		return;
 	}
-
 	//Reg/PC read
 	ThreadData& thread = _thread_data[exec_thread_id];
 	_log_instruction_issue(exec_thread_id);

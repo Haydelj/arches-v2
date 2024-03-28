@@ -3,6 +3,7 @@
 
 #include "util/arbitration.hpp"
 #include "unit-cache-base.hpp"
+#include "units/dual-streaming/unit-scene-buffer.hpp"
 
 namespace Arches { namespace Units {
 
@@ -24,6 +25,8 @@ public:
 		uint num_lfb{1};
 		bool check_retired_lfb{true};
 
+		std::pair<paddr_t, paddr_t> treelet_range;
+		DualStreaming::UnitSceneBuffer* scene_buffer{ nullptr };
 		UnitMemoryBase* mem_higher{nullptr};
 		uint            mem_higher_port_offset{0};
 		uint            mem_higher_port_stride{1};
@@ -105,9 +108,12 @@ private:
 	RequestCrossBar _request_cross_bar;
 	ReturnCrossBar _return_cross_bar;
 
+	DualStreaming::UnitSceneBuffer* _scene_buffer;
 	UnitMemoryBase* _mem_higher;
 	uint _mem_higher_port_offset;
 	uint _mem_higher_port_stride;
+
+	std::pair<paddr_t, paddr_t> treelet_range;
 
 	void _push_request(LFB& lfb, const MemoryRequest& request);
 	MemoryRequest _pop_request(LFB& lfb);

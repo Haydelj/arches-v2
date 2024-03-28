@@ -7,15 +7,16 @@ default_config["scene_name"] = "sponza"
 default_config["framebuffer_width"] = 256
 default_config["framebuffer_height"] = 256
 default_config["traversal_scheme"] = 0
-default_config["simulator"] = 1 # 0 - trax, 1 - dual-streaming
+default_config["simulator"] = 0 # 0 - trax, 1 - dual-streaming
+default_config["use_secondary_rays"] = 1
 
-# scene_list = ["sponza", "san-miguel", "hairball"]
-scene_list = ["sponza"]
-size_list = [256]
-scheme_list = [0]
-early_list = [0]
+scene_list = ["san-miguel", "hairball"]
+# scene_list = ["sponza"]
+size_list = [1024]
+scheme_list = [0, 1]
+early_list = [0, 1] 
 delay_list = [0]
-# size_list = [1024]
+# size_list = [256, 1024]
 # scheme_list = [0, 1]
 
 def get_command(config: dict):
@@ -59,15 +60,15 @@ def run_config(config: dict, os_run: bool = True):
 
 if __name__ == "__main__":
     # trax
-    # for scene in scene_list:
-    #     for size in size_list:
-    #         config = default_config
-    #         config["simulator"] = 0
-    #         config["framebuffer_width"] = config["framebuffer_height"] = size
-    #         config["scene_name"] = scene
-    #         run_config(config, os_run=True)
+    for scene in scene_list:
+        for size in size_list:
+            config = default_config
+            config["simulator"] = 0
+            config["framebuffer_width"] = config["framebuffer_height"] = size
+            config["scene_name"] = scene
+            run_config(config, os_run=False)
 
-
+    quit()
     for size in size_list:
         for scene in scene_list:
             for scheme in scheme_list:

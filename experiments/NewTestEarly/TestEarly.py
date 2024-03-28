@@ -1,6 +1,6 @@
 import os
 from subprocess import PIPE, run
-EXE_PATH = R"..\..\build\src\arches-v2\Arches-v2.exe"
+EXE_PATH = R"..\..\build\src\arches-v2\Release\Arches-v2.exe"
 
 default_config = {}
 default_config["scene_name"] = "sponza"
@@ -10,11 +10,11 @@ default_config["traversal_scheme"] = 0
 default_config["simulator"] = 1 # 0 - trax, 1 - dual-streaming
 
 # scene_list = ["sponza", "san-miguel", "hairball"]
-scene_list = ["sponza"]
+scene_list = ["san-miguel"]
 size_list = [256]
-scheme_list = [0]
-early_list = [0]
-delay_list = [0]
+scheme_list = [1]
+early_list = [1]
+delay_list = [1]
 # size_list = [1024]
 # scheme_list = [0, 1]
 
@@ -65,9 +65,9 @@ if __name__ == "__main__":
     #         config["simulator"] = 0
     #         config["framebuffer_width"] = config["framebuffer_height"] = size
     #         config["scene_name"] = scene
-    #         run_config(config, os_run=True)
+    #         run_config(config, os_run=False)
 
-
+    # quit()
     for size in size_list:
         for scene in scene_list:
             for scheme in scheme_list:
