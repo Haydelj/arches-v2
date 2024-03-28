@@ -1,7 +1,8 @@
 #pragma once
 #include "shared-utils.hpp"
-#include "units/trax/unit-trax-tp.hpp"
-#include "trax-kernel/include.hpp"
+#include "units/trax/unit-tp.hpp"
+#include "units/trax/unit-rt-core.hpp"
+#include "units/trax/unit-treelet-rt-core.hpp"
 namespace Arches {
 
 namespace ISA { namespace RISCV { namespace TRaX {
@@ -132,60 +133,64 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	std::wstring fullPath(exePath);
 	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
-	std::string filename = current_folder_path + "../../datasets/" + s + ".obj";
 
-	std::ifstream inputBVH(s + "_bvh.dat", std::ios::binary);
-	std::ifstream inputTriangles(s + "_triangles.dat", std::ios::binary);
-	rtm::BVH blas;
+	std::string filename = current_folder_path + "../../../../datasets/" + s + ".obj";
+	std::string bvh_filename = current_folder_path + "../../../../datasets/" + s + "_bvh.cache";
+	std::string triangle_filename = current_folder_path + "../../../../datasets/" + s + "_triangles.cache";
+	std::string treelet_filename = current_folder_path + "../../../../datasets/" + s + "_treelets.cache";
+	std::ifstream inputBVH(bvh_filename, std::ios::binary);
+	std::ifstream inputTriangles(triangle_filename, std::ios::binary);
+	std::ifstream inputTreelets(triangle_filename, std::ios::binary);
+	rtm::PackedBVH2 packed_bvh;
 	std::vector<rtm::Triangle> tris;
-	std::vector<rtm::BVH::BuildObject> build_objects;
-	for(uint i = 0; i < mesh.size(); ++i)
-		build_objects.push_back(mesh.get_build_object(i));
-	bvh.build(build_objects);
-	mesh.reorder(build_objects);
-	mesh.get_triangles(tris);
-
-	rtm::PackedBVH2 packed_bvh(bvh);
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
-
-	KernelArgs args;
-	args.framebuffer_width = 256;
-	args.framebuffer_height = 256;
-	if (inputBVH.is_open() && inputTriangles.is_open())
+	rtm::PackedTreeletBVH treelet_bvh;
+	if (inputTreelets.is_open() && inputBVH.is_open() && inputTriangles.is_open())
 	{
-		// Do not need to rebuild treelets every time
-		std::cout << "TRaX: Loading BVH from file...\n";
-		rtm::BVH::Node t;
-		rtm::Triangle tt;
-		while (inputBVH.read(reinterpret_cast<char*>(&t), sizeof(t)))
-		{
-			blas.nodes.push_back(t);
-		}
-		while (inputTriangles.read(reinterpret_cast<char*>(&tt), sizeof(rtm::Triangle)))
-		{
-			tris.push_back(tt);
-		}
-		std::cout << "BVH node count: " << blas.nodes.size() << '\n';
+		printf("Loading packed bvh from %s\n", bvh_filename.c_str());
+		rtm::PackedBVH2::Node curr_node;
+		while (inputBVH.read(reinterpret_cast<char*>(&curr_node), sizeof(rtm::PackedBVH2::Node)))
+			packed_bvh.nodes.push_back(curr_node);
+		printf("Loaded %zd packed bvh nodes\n", packed_bvh.nodes.size());
+
+		printf("Loading packed treelets from %s\n", treelet_filename.c_str());
+		rtm::PackedTreelet curr_tree;
+		while (inputTreelets.read(reinterpret_cast<char*>(&curr_tree), sizeof(rtm::PackedTreelet)))
+			treelet_bvh.treelets.push_back(curr_tree);
+		printf("Loaded %zd packed treelets\n", treelet_bvh.treelets.size());
+
+		printf("Loading triangles from %s\n", triangle_filename.c_str());
+		rtm::Triangle cur_tri;
+		while (inputTriangles.read(reinterpret_cast<char*>(&cur_tri), sizeof(rtm::Triangle)))
+			tris.push_back(cur_tri);
+		printf("Loaded %zd triangles\n", tris.size());
 	}
 	else {
 		rtm::Mesh mesh(filename);
+		rtm::BVH bvh;
 		std::vector<rtm::BVH::BuildObject> build_objects;
 		for (uint i = 0; i < mesh.size(); ++i)
 			build_objects.push_back(mesh.get_build_object(i));
-		blas.build(build_objects);
+		bvh.build(build_objects);
 		mesh.reorder(build_objects);
 		mesh.get_triangles(tris);
-		std::ofstream outputBVH(s + "_bvh.dat", std::ios::binary);
-		std::ofstream outputTriangles(s + "_triangles.dat", std::ios::binary);
-		std::cout << "BVH node count: " << blas.nodes.size() << '\n';
-		std::cout << "TRaX: Writing BVH to disk...\n";
-		for (auto& t : blas.nodes)
+
+		packed_bvh = rtm::PackedBVH2(bvh);
+		treelet_bvh = rtm::PackedTreeletBVH(packed_bvh, mesh);
+		std::ofstream outputBVH(bvh_filename, std::ios::binary);
+		std::ofstream outputTriangles(triangle_filename, std::ios::binary);
+		std::ofstream outputTreelets(treelet_filename, std::ios::binary);
+		printf("Writing %zd packed bvh nodes to %s, %zd treelets to %s\n", packed_bvh.nodes.size(), bvh_filename.c_str(), treelet_bvh.treelets.size(), treelet_filename.c_str());
+		for (auto& t : packed_bvh.nodes)
 		{
 			outputBVH.write(reinterpret_cast<const char*>(&t), sizeof(t));
 		}
 		for (auto& tt : tris)
 		{
-			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(rtm::Triangle));
+			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(tt));
+		}
+		for (auto& treelet : treelet_bvh.treelets)
+		{
+			outputTreelets.write(reinterpret_cast<const char*>(&treelet), sizeof(treelet));
 		}
 	}
 
@@ -211,7 +216,7 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 	args.treelets = write_vector(main_memory, ROW_BUFFER_SIZE, treelet_bvh.treelets, heap_address);
 
-	main_memory->direct_write(&args, sizeof(KernelArgs), KERNEL_ARGS_ADDRESS);
+	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), KERNEL_ARGS_ADDRESS);
 
 	return args;
 }
@@ -228,22 +233,8 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-void print_header(std::string string, uint header_length = 80)
-{
-	uint spacers = string.length() < header_length ? header_length - string.length() : 0;
-	printf("\n");
-	for(uint i = 0; i < spacers / 2; ++i)
-		printf("-");
-	printf("%s", string.c_str());
-	for(uint i = 0; i < (spacers + 1) / 2; ++i)
-		printf("-");
-	printf("\n");
-}
-
 static void run_sim_trax(GlobalConfig global_config)
 {
-	uint num_threads_per_tp = 1;
-	uint num_tps_per_tm = 32;
 	double clock_rate = 2'000'000'000.0;
 
 	uint num_threads_per_tp = 8;
@@ -295,7 +286,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	std::wstring fullPath(exePath);
 	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
-	ELF elf(current_folder_path + "../trax-kernel/riscv/kernel");
+	ELF elf(current_folder_path + "../../trax-kernel/riscv/kernel");
 	//ELF elf("../trax-kernel/riscv/kernel");
 	vaddr_t global_pointer;
 	paddr_t heap_address = mm.write_elf(elf);
@@ -524,7 +515,8 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	paddr_t paddr_frame_buffer = reinterpret_cast<paddr_t>(kernel_args.framebuffer);
 	stbi_flip_vertically_on_write(true);
-	mm.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "out.png");
+	std::string scene_name = scene_names[global_config.scene_id];
+	mm.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, scene_name + "_trax_out.png");
 }
 }
 }

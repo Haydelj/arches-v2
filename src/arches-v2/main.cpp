@@ -1,10 +1,9 @@
 #include "stdafx.hpp"
 
+#include "shared-utils.hpp"
 #include "trax.hpp"
 #include "dual-streaming.hpp"
-#include "shared-utils.hpp"
-#include "trax-kernel/include.hpp"
-
+#include "trax-kernel/intersect.hpp"
 //global verbosity flag
 int arches_verbosity = 1;
 
@@ -118,9 +117,7 @@ int main(int argc, char* argv[])
 		blas.build(build_objects);
 		mesh.reorder(build_objects);
 		mesh.get_triangles(tris);
-		MeshPointers mesh_pointers;
-		mesh_pointers.blas = blas.nodes.data();
-		mesh_pointers.tris = tris.data();
+		rtm::PackedBVH2 packed_bvh(blas);
 		for (int index = 0; index < framebuffer_size; index++)
 		{
 			uint32_t x = index % global_config.framebuffer_width;
@@ -130,7 +127,7 @@ int main(int argc, char* argv[])
 			rtm::Hit primary_hit;
 			primary_hit.t = ray.t_max;
 			primary_hit.id = ~0u;
-			intersect(mesh_pointers, ray, primary_hit);
+			intersect(packed_bvh.nodes.data(), tris.data(), ray, primary_hit);
 			Arches::primary_hits[index] = primary_hit;
 			if (primary_hit.id != ~0u)
 			{

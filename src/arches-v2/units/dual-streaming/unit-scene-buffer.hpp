@@ -67,8 +67,11 @@ public:
 	uint get_bank(paddr_t address)
 	{
 		uint segment = calculate_segment(address);
-		if (finished.count(segment))
+		if (finished.count(segment) || !segment_offset.count(segment))
 		{
+			//std::cout << segment << '\n';
+			//std::cout << address << ' ' << offset_in_treelet(address) << '\n';
+			//exit(0);
 			// something wrong here
 			// shouldn't be here but bug sometimes happens
 			return ~0u;
@@ -168,7 +171,7 @@ public:
 	uint                main_mem_port_offset{ 0 };
 	uint                main_mem_port_stride{ 1 };
 
-	UnitSceneBuffer(Configuration config) : treelet_start(config.treelet_start), bank_select_mask(config.bank_select_mask), treelet_size(config.treelet_size), request_network(config.num_ports, config.num_banks), return_network(config.num_ports), main_memory(config.main_mem), main_mem_port_stride(config.main_mem_port_stride), main_mem_port_offset(config.main_mem_port_offset), row_size(config.row_size), num_bank(config.num_banks), treelet_end(config.treelet_end), internal_return_crossbar(config.num_banks, NUM_DRAM_CHANNELS, config.num_banks), allow_wait(config.allow_wait)
+	UnitSceneBuffer(Configuration config) : treelet_start(config.treelet_start), bank_select_mask(config.bank_select_mask), treelet_size(config.treelet_size), request_network(config.num_ports, config.num_banks), return_network(config.num_ports), main_memory(config.main_mem), main_mem_port_stride(config.main_mem_port_stride), main_mem_port_offset(config.main_mem_port_offset), row_size(config.row_size), num_bank(config.num_banks), treelet_end(config.treelet_end), internal_return_crossbar(config.num_banks, NUM_DRAM_CHANNELS, NUM_DRAM_CHANNELS), allow_wait(config.allow_wait)
 	{
 		channels.resize(NUM_DRAM_CHANNELS);
 		banks.resize(config.num_banks);

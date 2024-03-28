@@ -110,7 +110,11 @@ void UnitSceneBuffer::process_internal_return(uint bank_index)
 		if (segment.byte_returned == treelet_size)
 		{
 			segment.state = SegmentState::State::LOADED;
-			if(!segment_signal_returned[segment_index]) bank.segment_prefetched = segment_index;
+			if (!segment_signal_returned[segment_index])
+			{
+				bank.segment_prefetched = segment_index;
+				segment_signal_returned[segment_index] = true;
+			}
 		}
 	}
 }

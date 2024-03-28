@@ -1,6 +1,6 @@
 import os
 from subprocess import PIPE, run
-EXE_PATH = R"..\..\build\src\arches-v2\Arches-v2.exe"
+EXE_PATH = R"..\..\build\src\arches-v2\Release\Arches-v2.exe"
 
 default_config = {}
 default_config["scene_name"] = "sponza"

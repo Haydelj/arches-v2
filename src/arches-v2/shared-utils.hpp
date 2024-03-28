@@ -14,9 +14,8 @@
 #include "isa/riscv.hpp"
 
 #include "stdafx.hpp"
-
-#include "units/unit-rt-core.hpp"
-
+#include "rtm/packed-bvh.hpp"
+#include "rtm/packed-treelet-bvh.hpp"
 #include <Windows.h>
 
 namespace Arches {
@@ -52,7 +51,7 @@ struct SceneConfig
 struct GlobalConfig
 {
 	uint simulator = 1; // 0 - trax, 1-dual-streaming
-	uint scene_id = 1;
+	uint scene_id = 0;
 	uint framebuffer_width = 256;
 	uint framebuffer_height = 256;
 	uint traversal_scheme = 0; // 0 - BFS, 1 - DFS

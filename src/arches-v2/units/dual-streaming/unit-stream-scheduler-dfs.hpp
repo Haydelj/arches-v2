@@ -254,8 +254,6 @@ public:
 	uint scene_buffer_size = 0;
 	uint max_active_segments = 0;
 
-	std::map<uint, bool> erased;
-
 public:
 	UnitStreamSchedulerDFS(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, config.num_tms, NUM_DRAM_CHANNELS), _scene_buffer(config.scene_buffer), scene_buffer_size(config.scene_buffer_size)
 	{

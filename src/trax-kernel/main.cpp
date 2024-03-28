@@ -68,40 +68,43 @@ inline static void kernel(const TRaXKernelArgs& args)
 						attenuation *= 0.8f;
 					}
 
-				hit.t = ray.t_max; hit.id = ~0u;
-			#if defined(__riscv) &&  defined(USE_RT_CORE)
-				_traceray<0x0u>(index, ray, hit);
-			#else
-				intersect(args.nodes, args.tris, ray, hit);
-			#endif
-				if(hit.id != ~0u)
-				{
-					normal = args.tris[hit.id].normal();
-					float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
-					if(ndotl > 0.0f)
+					hit.t = ray.t_max; hit.id = ~0u;
+				#if defined(__riscv) &&  defined(USE_RT_CORE)
+					_traceray<0x0u>(index, ray, hit);
+				#else
+					intersect(args.nodes, args.tris, ray, hit);
+				#endif
+					if(hit.id != ~0u)
 					{
-						rtm::Ray sray = ray;
-						sray.o = ray.o + ray.d * hit.t;
-						sray.d = args.light_dir;
-						rtm::Hit shit;
-						shit.t = sray.t_max; shit.id = ~0u;
-					#if defined(__riscv) &&  defined(USE_RT_CORE)
-						_traceray<0x1u>(index, sray, shit);
-					#else
-						intersect(args.nodes, args.tris, sray, shit);
-					#endif
-						if(shit.id != ~0u)
-							ndotl = 0.0f;
+						normal = args.tris[hit.id].normal();
+						normal = normal * 0.5f + 0.5f;
+						output = normal;
+						break;
+						float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
+						if(ndotl > 0.0f)
+						{
+							rtm::Ray sray = ray;
+							sray.o = ray.o + ray.d * hit.t;
+							sray.d = args.light_dir;
+							rtm::Hit shit;
+							shit.t = sray.t_max; shit.id = ~0u;
+						#if defined(__riscv) &&  defined(USE_RT_CORE)
+							_traceray<0x1u>(index, sray, shit);
+						#else
+							intersect(args.nodes, args.tris, sray, shit);
+						#endif
+							if(shit.id != ~0u)
+								ndotl = 0.0f;
+						}
+						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
 					}
-					output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
+					else
+					{
+						output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
+					}
 				}
-				else
-				{
-					output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
-					break;
-				}
+				break;
 			}
-		}
 
 			args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
 		}
@@ -162,28 +165,30 @@ int main(int argc, char* argv[])
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
-	args.use_secondary_rays = true;
+	args.use_secondary_rays = false;
 	uint framebuffer_size = args.framebuffer_size;
 	std::vector<rtm::Ray> secondary_rays(framebuffer_size);
 	std::vector<rtm::Hit> primary_hits(framebuffer_size);
+	rtm::Mesh mesh("../../datasets/sponza.obj");
+	rtm::BVH bvh;
+	std::vector<rtm::Triangle> tris;
+	std::vector<rtm::BVH::BuildObject> build_objects;
+	for (uint i = 0; i < mesh.size(); ++i)
+		build_objects.push_back(mesh.get_build_object(i));
+	bvh.build(build_objects);
+	mesh.reorder(build_objects);
+	mesh.get_triangles(tris);
+	rtm::PackedBVH2 packed_bvh(bvh);
+	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
+
+	args.nodes = packed_bvh.nodes.data();
+	args.tris = tris.data();
+	args.treelets = treelet_bvh.treelets.data();
 	if (args.use_secondary_rays == 1)
 	{
 		std::cout << "generating secondray rays..." << '\n';
-		// If the secondary hits already exist in the disk, we don't need to generate it again
-
-		// build BVH
-		rtm::Mesh mesh("../../datasets/sponza.obj");
-		std::vector<rtm::BVH::BuildObject> build_objects;
-		for (uint i = 0; i < mesh.size(); ++i)
-			build_objects.push_back(mesh.get_build_object(i));
-		rtm::BVH blas;
-		std::vector<rtm::Triangle> tris;
-		blas.build(build_objects);
-		mesh.reorder(build_objects);
-		mesh.get_triangles(tris);
-		MeshPointers mesh_pointers;
-		mesh_pointers.blas = blas.nodes.data();
-		mesh_pointers.tris = tris.data();
+		// If the secondary hits already exist in the disk, we don't need to generate it 
+		// Considering it's running on CPU, it's acceptible
 
 		for (int index = 0; index < framebuffer_size; index++)
 		{
@@ -194,7 +199,7 @@ int main(int argc, char* argv[])
 			rtm::Hit primary_hit;
 			primary_hit.t = ray.t_max;
 			primary_hit.id = ~0u;
-			intersect(mesh_pointers, ray, primary_hit);
+			intersect(args.nodes, args.tris, ray, primary_hit);
 			primary_hits[index] = primary_hit;
 			if (primary_hit.id != ~0u)
 			{
@@ -211,26 +216,6 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-
-
-
-	rtm::Mesh mesh("../../datasets/sponza.obj");
-	rtm::BVH mesh_blas;
-	std::vector<rtm::Triangle> tris;
-	std::vector<rtm::BVH::BuildObject> build_objects;
-	for (uint i = 0; i < mesh.size(); ++i)
-		build_objects.push_back(mesh.get_build_object(i));
-	bvh.build(build_objects);
-	mesh.reorder(build_objects);
-	mesh.get_triangles(tris);
-
-	rtm::PackedBVH2 packed_bvh(bvh);
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
-
-	args.nodes = packed_bvh.nodes.data();
-	args.tris = tris.data();
-	args.treelets = treelet_bvh.treelets.data();
-
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::vector<std::thread> threads;

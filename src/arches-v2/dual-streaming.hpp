@@ -8,25 +8,7 @@
 #include "units/dual-streaming/unit-tp.hpp"
 #include "units/dual-streaming/unit-hit-record-updater.hpp"
 #include "units/dual-streaming/unit-scene-buffer.hpp"
-//#include "simulator/simulator.hpp"
-//
-//#include "units/unit-dram.hpp"
-//#include "units/unit-blocking-cache.hpp"
-//#include "units/unit-non-blocking-cache.hpp"
-//#include "units/unit-buffer.hpp"
-//#include "units/unit-atomic-reg-file.hpp"
-//#include "units/unit-tile-scheduler.hpp"
-//#include "units/unit-sfu.hpp"
-//#include "units/unit-tp.hpp"
-//
-//#include "units/dual-streaming/unit-stream-scheduler-dfs.hpp"
-////#include "units/dual-streaming/unit-stream-scheduler.hpp"
-//#include "units/dual-streaming/unit-ray-staging-buffer.hpp"
-//#include "units/dual-streaming/unit-ds-tp.hpp"
-//#include "units/dual-streaming/unit-hit-record-updater.hpp"
-//
-//#include "util/elf.hpp"
-//#include "isa/riscv.hpp"
+#include "units/dual-streaming/unit-treelet-rt-core.hpp"
 
 namespace Arches {
 
@@ -232,18 +214,18 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 
 	rtm::PackedTreeletBVH treelet_bvh;
 	std::vector<rtm::Triangle> tris;
-	if(inputTreelets.is_open() && inputTriangles.is_open())
+	if (inputTreelets.is_open() && inputTriangles.is_open())
 	{
 		// Do not need to rebuild treelets every time
 		printf("Loading packed treelets from %s\n", treelet_filename.c_str());
 		rtm::PackedTreelet curr_tree;
-		while(inputTreelets.read(reinterpret_cast<char*>(&curr_tree), sizeof(rtm::PackedTreelet)))
+		while (inputTreelets.read(reinterpret_cast<char*>(&curr_tree), sizeof(rtm::PackedTreelet)))
 			treelet_bvh.treelets.push_back(curr_tree);
 		printf("Loaded %zd packed treelets\n", treelet_bvh.treelets.size());
 
 		printf("Loading triangles from %s\n", triangle_filename.c_str());
 		rtm::Triangle cur_tri;
-		while(inputTriangles.read(reinterpret_cast<char*>(&cur_tri), sizeof(rtm::Triangle)))
+		while (inputTriangles.read(reinterpret_cast<char*>(&cur_tri), sizeof(rtm::Triangle)))
 			tris.push_back(cur_tri);
 		printf("Loaded %zd triangles\n", tris.size());
 	}
@@ -252,7 +234,7 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 		rtm::Mesh mesh(filename);
 		rtm::BVH bvh;
 		std::vector<rtm::BVH::BuildObject> build_objects;
-		for(uint i = 0; i < mesh.size(); ++i)
+		for (uint i = 0; i < mesh.size(); ++i)
 			build_objects.push_back(mesh.get_build_object(i));
 		bvh.build(build_objects);
 		mesh.reorder(build_objects);
@@ -264,11 +246,11 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 		std::ofstream outputTriangles(triangle_filename, std::ios::binary);
 
 		printf("Writing %zd packed treelets to %s\n", treelet_bvh.treelets.size(), treelet_filename.c_str());
-		for(auto& t : treelet_bvh.treelets)
+		for (auto& t : treelet_bvh.treelets)
 			outputTreelets.write(reinterpret_cast<const char*>(&t), TREELET_SIZE);
 
 		printf("Writing %zd triangles to %s\n", tris.size(), triangle_filename.c_str());
-		for(auto& tt : tris)
+		for (auto& tt : tris)
 			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(rtm::Triangle));
 	}
 	DualStreamingKernelArgs args;
@@ -312,10 +294,10 @@ void print_header(std::string string, uint header_length = 80)
 {
 	uint spacers = string.length() < header_length ? header_length - string.length() : 0;
 	printf("\n");
-	for(uint i = 0; i < spacers / 2; ++i)
+	for (uint i = 0; i < spacers / 2; ++i)
 		printf("-");
 	printf("%s", string.c_str());
-	for(uint i = 0; i < (spacers + 1) / 2; ++i)
+	for (uint i = 0; i < (spacers + 1) / 2; ++i)
 		printf("-");
 	printf("\n");
 }
@@ -468,9 +450,9 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		l1_config.size = l1_size;
 		l1_config.associativity = 4;
 		l1_config.num_ports = num_tps_per_tm;
-	#ifdef USE_RT_CORE
+#ifdef USE_RT_CORE
 		l1_config.num_ports += 1; //add extra port for RT core
-	#endif
+#endif
 		l1_config.num_banks = num_l1_banks;
 		l1_config.cross_bar_width = num_l1_banks;
 		l1_config.bank_select_mask = generate_nbit_mask(log2i(num_l1_banks)) << log2i(CACHE_BLOCK_SIZE);
@@ -496,7 +478,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::ATOMIC] = thread_schedulers.back();
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
 
-	#ifdef USE_RT_CORE
+#ifdef USE_RT_CORE
 		rsbs.push_back(_new Units::DualStreaming::UnitRayStagingBuffer(1, tm_index, &stream_scheduler, &hit_record_updater));
 		simulator.register_unit(rsbs.back());
 
@@ -514,7 +496,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		mem_list.push_back(rtcs.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM4] = rtcs.back(); //SWI
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rtcs.back(); //LHIT
-	#else
+#else
 		rsbs.push_back(_new Units::DualStreaming::UnitRayStagingBuffer(num_tps_per_tm, tm_index, &stream_scheduler, &hit_record_updater));
 		simulator.register_unit(rsbs.back());
 		mem_list.push_back(rsbs.back());
@@ -522,7 +504,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM4] = rsbs.back(); //SWI
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM5] = rsbs.back(); //CSHIT
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rsbs.back(); //LHIT
-	#endif
+#endif
 
 		std::vector<Units::UnitSFU*> sfu_list;
 
@@ -594,7 +576,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 		tp_log.accumulate(tp->log);
 
 	Units::DualStreaming::UnitTreeletRTCore::Log rtc_log;
-	for(auto& rtc : rtcs)
+	for (auto& rtc : rtcs)
 		rtc_log.accumulate(rtc->log);
 
 	//tp_log.print_profile(mm._data_u8);
@@ -630,14 +612,14 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	paddr_t paddr_frame_buffer = reinterpret_cast<paddr_t>(kernel_args.framebuffer);
 
 	std::string scene_name = scene_names[global_config.scene_id];
-	dram.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, scene_name + "_out.png");
+	dram.dump_as_png_uint8(paddr_frame_buffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, scene_name + "_dual_out.png");
 
-	for(auto& tp : tps) delete tp;
-	for(auto& rtc : rtcs) delete rtc;
-	for(auto& sfu : sfus) delete sfu;
-	for(auto& rsb : rsbs) delete rsb;
-	for(auto& ts : thread_schedulers) delete ts;
-	for(auto& l1 : l1s) delete l1;
+	for (auto& tp : tps) delete tp;
+	for (auto& rtc : rtcs) delete rtc;
+	for (auto& sfu : sfus) delete sfu;
+	for (auto& rsb : rsbs) delete rsb;
+	for (auto& ts : thread_schedulers) delete ts;
+	for (auto& l1 : l1s) delete l1;
 }
-
+}
 }
