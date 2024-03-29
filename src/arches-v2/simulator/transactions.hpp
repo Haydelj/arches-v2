@@ -19,6 +19,7 @@ public:
 
 		LOAD,
 		STORE,
+		PREFECTH,
 
 		AMO_ADD,
 		AMO_XOR,
@@ -29,6 +30,8 @@ public:
 		AMO_MINU,
 		AMO_MAXU,
 	};
+
+#define SCENE_BUFFER_FLAG 0x1
 
 	//meta data 
 	Type     type;
@@ -57,9 +60,9 @@ public:
 public:
 	MemoryRequest() = default;
 
-	MemoryRequest(const MemoryRequest& other) : type(other.type), size(other.size), flags(other.flags), dst(other.dst), port(other.port), write_mask(other.write_mask), paddr(other.paddr)
+	MemoryRequest(const MemoryRequest& other)
 	{
-		std::memcpy(data, other.data, size);
+		*this = other;
 	}
 
 	MemoryRequest& operator=(const MemoryRequest& other)
@@ -102,9 +105,9 @@ public:
 public:
 	MemoryReturn() = default;
 
-	MemoryReturn(const MemoryReturn& other) : size(other.size), port(other.port), dst(other.dst), paddr(other.paddr)
+	MemoryReturn(const MemoryReturn& other)
 	{
-		std::memcpy(data, other.data, size);
+		*this = other;
 	}
 
 	MemoryReturn(const MemoryRequest& request, const void* data) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
@@ -128,25 +131,64 @@ struct StreamSchedulerRequest
 	enum class Type : uint8_t
 	{
 		NA,
+		STORE_WORKITEM,
 		LOAD_BUCKET,
 		BUCKET_COMPLETE,
-		STORE_WORKITEM,
 	};
 
 	Type     type{Type::NA};
 	uint16_t port;
 
-	uint      segment;
-	BucketRay bray;
-
-	StreamSchedulerRequest()
+	union
 	{
+		WorkItem swi;
+		struct
+		{
+			uint previous_segment_id;
+		}lb;
+		struct
+		{
+			uint segment_id;
+		}bc;
+	};
 
+	StreamSchedulerRequest() {};
+
+	StreamSchedulerRequest(const MemoryReturn& other)
+	{
+		*this = other;
+	}
+
+	StreamSchedulerRequest& operator=(const StreamSchedulerRequest& other)
+	{
+		type = other.type;
+		port = other.port;
+		if(type == StreamSchedulerRequest::Type::STORE_WORKITEM)
+		{
+			swi = other.swi;
+		}
+		else if(type == StreamSchedulerRequest::Type::LOAD_BUCKET)
+		{
+			lb = other.lb;
+		}
+		else if(type == StreamSchedulerRequest::Type::BUCKET_COMPLETE)
+		{
+			bc = other.bc;
+		}
 	}
 };
 
 struct SFURequest
 {
+	uint16_t dst;
+	uint16_t port;
+};
+
+struct SceneBufferLoadRequest
+{
+	uint sink = ~0u;
+	paddr_t paddr = ~0u;
+	uint8_t size;
 	uint16_t dst;
 	uint16_t port;
 };

@@ -17,7 +17,7 @@ private:
 	bool _current_request_valid{ false };
 	MemoryRequest _current_request;
 
-	Casscade<MemoryRequest> _request_network;
+	Cascade<MemoryRequest> _request_network;
 	FIFOArray<MemoryReturn> _return_network;
 
 public:

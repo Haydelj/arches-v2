@@ -8,7 +8,7 @@
 //#endif
 
 #ifndef REL_PATH_BIN_TO_SAMPLES
-#  define REL_PATH_BIN_TO_SAMPLES "./config-files/"
+#  define REL_PATH_BIN_TO_SAMPLES "../config-files/"
 #endif
 
 int usimm_setup(char* config_filename, char* usimm_vi_file);

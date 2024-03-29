@@ -71,20 +71,20 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 
 	if(req.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
 	{
-		uint segment_index = req.segment;
+		uint segment_index = req.swi.segment_id;
 
 		//if this segment is not in the coalescer add an entry
 		if(bank.ray_coalescer.count(segment_index) == 0)
 		{
 			_scheduler.bucket_allocated_queue.push(segment_index);
-			bank.ray_coalescer[segment_index].segment = segment_index;
+			bank.ray_coalescer[segment_index].segment_id = segment_index;
 		}
 
 		RayBucket& write_buffer = bank.ray_coalescer[segment_index];
 
 		if(!write_buffer.is_full())
 		{
-			write_buffer.write_ray(req.bray);
+			write_buffer.write_ray(req.swi.bray);
 			_request_network.read(bank_index);
 		}
 
@@ -101,7 +101,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 	else if(req.type == StreamSchedulerRequest::Type::BUCKET_COMPLETE)
 	{
 		//forward to stream scheduler
-		_scheduler.bucket_complete_queue.push(req.segment);
+		_scheduler.bucket_complete_queue.push(req.bc.segment_id);
 		_request_network.read(bank_index);
 	}
 	else if(req.type == StreamSchedulerRequest::Type::LOAD_BUCKET)
@@ -110,7 +110,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 		_scheduler.bucket_request_queue.push(req.port);
 		_request_network.read(bank_index);
 	}
-	else assert(false);
+	else _assert(false);
 }
 
 void UnitStreamScheduler::_proccess_return(uint channel_index)
@@ -162,7 +162,7 @@ void UnitStreamScheduler::_update_scheduler()
 			_scheduler.segment_state_map.erase(segment_index);
 
 			//for all children segments
-			Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
+			rtm::Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
 			for(uint i = 0; i < header.num_children; ++i)
 			{
 				//mark the child as parent finsihed
@@ -256,7 +256,7 @@ void UnitStreamScheduler::_update_scheduler()
 					//Otherwise queue up the children segments. The segment will be removed from active set when all rays complete
 					
 					//for all children segments
-					Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
+					rtm::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
 					for(uint i = 0; i < header.num_children; ++i)
 					{
 						//add child to the traversal qeueue
@@ -300,7 +300,7 @@ void UnitStreamScheduler::_update_scheduler()
 	if(_scheduler.bucket_write_cascade.is_read_valid(0))
 	{
 		const RayBucket& bucket = _scheduler.bucket_write_cascade.peek(0);
-		uint segment_index = bucket.segment;
+		uint segment_index = bucket.segment_id;
 		SegmentState& state = _scheduler.segment_state_map[segment_index];
 
 		uint channel_index = state.next_channel;

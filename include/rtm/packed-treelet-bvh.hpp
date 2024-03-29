@@ -1,12 +1,24 @@
 #pragma once
-#include "stdafx.hpp"
+
+#include "packed-bvh.hpp"
+#include "mesh.hpp"
+
+#ifndef __riscv
 #include <map>
+#include <set>
+#include <unordered_map>
+#include <stack>
+#include <queue>
+#endif
+
+namespace rtm {
 
 #define TREELET_SIZE (7 * 8 * 1024)
+#define PACK_SIZE 2
 
-struct alignas(8 * 1024) Treelet
+struct PackedTreelet
 {
-	struct alignas(32) Header
+	struct alignas(32 * PACK_SIZE) Header
 	{
 		uint first_child;
 		uint num_children;
@@ -14,7 +26,7 @@ struct alignas(8 * 1024) Treelet
 		uint depth;
 	};
 
-	struct alignas(32) Node
+	struct alignas(32 * PACK_SIZE) Node
 	{
 		union Data
 		{
@@ -22,21 +34,19 @@ struct alignas(8 * 1024) Treelet
 			{
 				uint32_t is_leaf : 1;
 				uint32_t num_tri : 3;
-				uint32_t tri0_word0 : 16;
+				uint32_t tri_offset : 28;
 			};
-
 			struct
 			{
-				uint32_t : 1;
-				uint32_t is_treelet : 1;
-				uint32_t index : 30;
-			}
-			child[2];
+				uint32_t                  : 1;
+				uint32_t is_child_treelet : 1;
+				uint32_t child_index      : 30;
+			};
 		};
 
 		//rtm::AABB aabb;
-		rtm::AABB child_aabb[2];
-		Data      data;
+		rtm::AABB aabb[PACK_SIZE];
+		Data      data[PACK_SIZE];
 	};
 
 	struct Triangle
@@ -52,36 +62,36 @@ struct alignas(8 * 1024) Treelet
 			Header header;
 			Node   nodes[(TREELET_SIZE - sizeof(Header)) / sizeof(Node)];
 		};
-		uint32_t words[TREELET_SIZE / sizeof(uint32_t)];
+		uint8_t bytes[TREELET_SIZE];
 	};
 
-	Treelet() {}
+	PackedTreelet() {}
 };
 
 #ifndef __riscv
-class TreeletBVH
+class PackedTreeletBVH
 {
 public:
-	std::vector<Treelet> treelets;
+	std::vector<PackedTreelet> treelets;
 
-	TreeletBVH(){}
-	TreeletBVH(const rtm::BVH& bvh, const rtm::Mesh& mesh)
+	PackedTreeletBVH(){}
+	PackedTreeletBVH(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
 	{
-		printf("Treelet BVH Building\n");
+		printf("Packed Treelet BVH Building\n");
 		build_treelet(bvh, mesh);
-		printf("Treelet BVH Built\n");
+		printf("Packed Treelet BVH Built\n");
 	}
 
-	uint get_node_size(uint node, const rtm::BVH& bvh, const rtm::Mesh& mesh)
+	uint get_node_size(uint node, const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
 	{
-		uint node_size = sizeof(Treelet::Node);
-		if (bvh.nodes[node].data.is_leaf)
-			node_size += sizeof(Treelet::Triangle) * (bvh.nodes[node].data.lst_chld_ofst + 1);
-
+		uint node_size = sizeof(PackedTreelet::Node);
+		for(uint i = 0; i < PACK_SIZE; ++i)
+			if (bvh.nodes[node].data[i].is_leaf)
+				node_size += sizeof(PackedTreelet::Triangle) * (bvh.nodes[node].data[i].num_tri + 1);
 		return node_size;
 	}
 
-	void build_treelet(const rtm::BVH& bvh, const rtm::Mesh& mesh)
+	void build_treelet(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
 	{
 		//Phase 0 setup
 		uint total_footprint = 0;
@@ -92,11 +102,16 @@ public:
 		{
 			footprint.push_back(get_node_size(i, bvh, mesh));
 			total_footprint += footprint.back();
-			area.push_back(bvh.nodes[i].aabb.surface_area());
+
+			AABB aabb;
+			for(uint j = 0; j < PACK_SIZE; ++j)
+				aabb.add(bvh.nodes[i].aabb[j]);
+
+			area.push_back(aabb.surface_area());
 			best_cost.push_back(INFINITY);
 		}
 
-		float epsilon = bvh.nodes[0].aabb.surface_area() * sizeof(Treelet) / (10 * total_footprint);
+		float epsilon = area[0] * sizeof(PackedTreelet) / (10 * total_footprint);
 
 		std::stack<uint> post_stack;
 		std::stack<uint> pre_stack; pre_stack.push(0);
@@ -105,9 +120,9 @@ public:
 			uint node = pre_stack.top();
 			pre_stack.pop();
 
-			if (!bvh.nodes[node].data.is_leaf)
-				for (uint i = 0; i <= bvh.nodes[node].data.lst_chld_ofst; ++i)
-					pre_stack.push(bvh.nodes[node].data.fst_chld_ind + i);
+			for(uint i = 0; i < PACK_SIZE; ++i)
+				if (!bvh.nodes[node].data[i].is_leaf)
+					pre_stack.push(bvh.nodes[node].data[i].child_index);
 
 			post_stack.push(node);
 		}
@@ -123,14 +138,15 @@ public:
 			post_stack.pop();
 
 			subtree_footprint[root_node] = footprint[root_node];
-			if (!bvh.nodes[root_node].data.is_leaf)
-				for (uint i = 0; i <= bvh.nodes[root_node].data.lst_chld_ofst; ++i)
-					subtree_footprint[root_node] += subtree_footprint[bvh.nodes[root_node].data.fst_chld_ind + i];
+			
+			for(uint i = 0; i < PACK_SIZE; ++i)
+				if (!bvh.nodes[root_node].data[i].is_leaf)
+					subtree_footprint[root_node] += subtree_footprint[bvh.nodes[root_node].data[i].child_index];
 
 			std::set<uint> cut{ root_node };
-			uint bytes_remaining = sizeof(Treelet) - sizeof(Treelet::Header);
+			uint bytes_remaining = sizeof(PackedTreelet) - sizeof(PackedTreelet::Header);
 			best_cost[root_node] = INFINITY;
-			while (cut.size() < 16)
+			while (cut.size() < 1024)
 			{
 				uint best_node = ~0u;
 				float best_score = -INFINITY;
@@ -139,7 +155,7 @@ public:
 					if (footprint[n] <= bytes_remaining)
 					{
 						float gain = area[n] + epsilon;
-						float price = rtm::min(subtree_footprint[n], sizeof(Treelet));
+						float price = rtm::min(subtree_footprint[n], sizeof(PackedTreelet));
 						float score = gain / price;
 						if (score > best_score)
 						{
@@ -151,9 +167,9 @@ public:
 				if (best_node == ~0u) break;
 
 				cut.erase(best_node);
-				if (!bvh.nodes[best_node].data.is_leaf)
-					for (uint i = 0; i <= bvh.nodes[best_node].data.lst_chld_ofst; ++i)
-						cut.insert(bvh.nodes[best_node].data.fst_chld_ind + i);
+				for(uint i = 0; i < PACK_SIZE; ++i)
+					if (!bvh.nodes[best_node].data[i].is_leaf)
+						cut.insert(bvh.nodes[best_node].data[i].child_index);
 
 				bytes_remaining -= footprint[best_node];
 
@@ -168,12 +184,12 @@ public:
 
 
 		//Phase 2 treelet assignment
-		std::vector<Treelet::Header> treelet_headers;
+		std::vector<PackedTreelet::Header> treelet_headers;
 		std::vector<std::vector<uint>> treelet_assignments;
 		std::unordered_map<uint, uint> root_node_treelet;
 
-		std::map<uint, uint> father_map;
-		std::vector<uint> father;
+		std::map<uint, uint> parent_map;
+		std::vector<uint> parent;
 
 		std::queue<uint> root_node_queue;
 		root_node_queue.push(0);
@@ -181,9 +197,9 @@ public:
 		{
 			uint root_node = root_node_queue.front();
 
-			uint father_treelet = ~0u;
-			if (father_map.count(root_node))
-				father_treelet = father_map[root_node];
+			uint parent_treelet = ~0u;
+			if (parent_map.count(root_node))
+				parent_treelet = parent_map[root_node];
 			else
 				assert(root_node == 0);
 
@@ -193,8 +209,8 @@ public:
 			treelet_assignments.push_back({});
 
 			std::vector<uint> cut{ root_node };
-			uint bytes_remaining = sizeof(Treelet);
-			while (cut.size() < 16)
+			uint bytes_remaining = sizeof(PackedTreelet);
+			while (cut.size() < 1024)
 			{
 				uint best_index = ~0u;
 				float best_score = -INFINITY;
@@ -204,7 +220,7 @@ public:
 					if (footprint[n] <= bytes_remaining)
 					{
 						float gain = area[n] + epsilon;
-						float price = rtm::min(subtree_footprint[n], sizeof(Treelet));
+						float price = rtm::min(subtree_footprint[n], sizeof(PackedTreelet));
 						float score = gain / price;
 						if (score > best_score)
 						{
@@ -220,9 +236,11 @@ public:
 				//maintain the cut in breadth first ordering so that sibling nodes that are treelet roots are placed in adjacent treelets
 				uint best_node = cut[best_index];
 				cut.erase(cut.begin() + best_index);
-				if (!bvh.nodes[best_node].data.is_leaf)
-					for (uint i = 0; i <= bvh.nodes[best_node].data.lst_chld_ofst; ++i)
-						cut.insert(cut.begin() + best_index + i, bvh.nodes[best_node].data.fst_chld_ind + i);
+
+				uint j = 0;
+				for(uint i = 0; i < PACK_SIZE; ++i)
+					if (!bvh.nodes[best_node].data[i].is_leaf)
+						cut.insert(cut.begin() + best_index + j++, bvh.nodes[best_node].data[i].child_index);
 
 				bytes_remaining -= footprint[best_node];
 
@@ -233,21 +251,24 @@ public:
 				if (cost == best_cost[root_node]) break;
 			}
 
-			uint depth = father_treelet == ~0u ? 0 : treelet_headers[father_treelet].depth + 1;
+			uint depth = parent_treelet == ~0u ? 0 : treelet_headers[parent_treelet].depth + 1;
 			treelet_headers.push_back({ (uint)(root_node_queue.size() + treelet_assignments.size()), (uint)cut.size(), 1, depth });
-			father.push_back(father_treelet);
+			parent.push_back(parent_treelet);
 
 			//we use a queue so that treelets are breadth first in memory
 			for (auto& n : cut)
 			{
-				father_map[n] = treelet_assignments.size() - 1;
+				parent_map[n] = treelet_assignments.size() - 1;
 				root_node_queue.push(n);
 			}
 		}
-		assert(father.size() == treelet_headers.size());
-		for (int i = father.size() - 1; i >= 0; i--) {
-			int fa = father[i];
-			if (fa != -1) {
+
+		assert(parent.size() == treelet_headers.size());
+		for (int i = parent.size() - 1; i >= 0; i--) 
+		{
+			int fa = parent[i];
+			if (fa != -1) 
+			{
 				assert(fa < i);
 				treelet_headers[fa].subtree_size += treelet_headers[i].subtree_size;
 			}
@@ -262,50 +283,47 @@ public:
 			std::unordered_map<uint, uint> node_map;
 			node_map[treelet_assignments[treelet_index][0]] = nodes_mapped++;
 
-			Treelet& treelet = treelets[treelet_index];
+			PackedTreelet& treelet = treelets[treelet_index];
 			treelet.header = treelet_headers[treelet_index];
-			uint primative_start = (treelet_assignments[treelet_index].size() * sizeof(Treelet::Node) + sizeof(Treelet::Header)) / 4;
-			for (uint j = 0; j < treelet_assignments[treelet_index].size(); ++j)
+			uint primative_start = treelet_assignments[treelet_index].size() * sizeof(PackedTreelet::Node) + sizeof(PackedTreelet::Header);
+			for (uint i = 0; i < treelet_assignments[treelet_index].size(); ++i)
 			{
-				uint node_id = treelet_assignments[treelet_index][j];
-				const rtm::BVH::Node& node = bvh.nodes[node_id];
+				uint node_id = treelet_assignments[treelet_index][i];
+				const rtm::PackedBVH2::Node& node = bvh.nodes[node_id];
 
 				assert(node_map.find(node_id) != node_map.end());
 				uint tnode_id = node_map[node_id];
-				Treelet::Node& tnode = treelets[treelet_index].nodes[tnode_id];
+				PackedTreelet::Node& tnode = treelets[treelet_index].nodes[tnode_id];
 
-				//if(j == 0) treelet.root_aabb = node.aabb;
-				tnode.data.is_leaf = node.data.is_leaf;
-				if (node.data.is_leaf)
+				for(uint j = 0; j < PACK_SIZE; ++j)
 				{
-					tnode.data.num_tri = node.data.lst_chld_ofst;
-					tnode.data.tri0_word0 = primative_start;
-
-					Treelet::Triangle* tris = (Treelet::Triangle*)(&treelet.words[primative_start]);
-					for (uint k = 0; k <= node.data.lst_chld_ofst; ++k)
+					tnode.data[j].is_leaf = node.data[j].is_leaf;
+					tnode.aabb[j] = node.aabb[j];
+					if (node.data[j].is_leaf)
 					{
-						tris[k].id = node.data.fst_chld_ind + k;
-						tris[k].tri = mesh.get_triangle(node.data.fst_chld_ind + k);
+						tnode.data[j].num_tri = node.data[j].num_tri;
+						tnode.data[j].tri_offset = primative_start;
+
+						PackedTreelet::Triangle* tris = (PackedTreelet::Triangle*)(&treelet.bytes[primative_start]);
+						for (uint k = 0; k <= node.data[j].num_tri; ++k)
+						{
+							tris[k].id = node.data[j].tri_index + k;
+							tris[k].tri = mesh.get_triangle(tris[k].id);
+						}
+						primative_start += sizeof(PackedTreelet::Triangle) * (node.data[j].num_tri + 1);
 					}
-					primative_start += (sizeof(Treelet::Triangle) / 4) * (node.data.lst_chld_ofst + 1);
-				}
-				else
-				{
-					assert(node.data.lst_chld_ofst == 1);
-					for (uint i = 0; i < 2; ++i)
+					else
 					{
-						uint child_node_id = node.data.fst_chld_ind + i;
-						tnode.child_aabb[i] = bvh.nodes[child_node_id].aabb;
-
+						uint child_node_id = node.data[j].child_index;
 						if (root_node_treelet.find(child_node_id) != root_node_treelet.end())
 						{
-							tnode.data.child[i].is_treelet = 1;
-							tnode.data.child[i].index = root_node_treelet[child_node_id];
+							tnode.data[j].is_child_treelet = 1;
+							tnode.data[j].child_index = root_node_treelet[child_node_id];
 						}
 						else
 						{
-							tnode.data.child[i].is_treelet = 0;
-							tnode.data.child[i].index = node_map[child_node_id] = nodes_mapped++;
+							tnode.data[j].is_child_treelet = 0;
+							tnode.data[j].child_index = node_map[child_node_id] = nodes_mapped++;
 						}
 					}
 				}
@@ -313,7 +331,9 @@ public:
 		}
 
 		printf("Treelets: %zu\n", treelets.size());
-		printf("Treelet Fill Rate: %.1f%%\n", 100.0f * total_footprint / treelets.size() / (sizeof(Treelet) - sizeof(Treelet::Header)));
+		printf("PackedTreelet Fill Rate: %.1f%%\n", 100.0f * total_footprint / treelets.size() / (sizeof(PackedTreelet) - sizeof(PackedTreelet::Header)));
 	}
 };
 #endif
+
+} // namespace rtm

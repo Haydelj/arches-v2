@@ -5,7 +5,7 @@ namespace Arches {namespace Units {
 UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) : 
 	UnitCacheBase(config.size, config.associativity),
 	_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask),
-	_return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width)
+	_return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width), _scene_buffer(config.scene_buffer), treelet_range(config.treelet_range)
 {
 	_check_retired_lfb = config.check_retired_lfb;
 
@@ -78,12 +78,16 @@ uint UnitNonBlockingCache::_fetch_or_allocate_lfb(uint bank_index, uint64_t bloc
 
 void UnitNonBlockingCache::_push_request(LFB& lfb, const MemoryRequest& request)
 {
-	LFB::SubEntry sub_entry;
-	sub_entry.offset = _get_block_offset(request.paddr);
-	sub_entry.size = request.size;
-	sub_entry.port = request.port;
-	sub_entry.dst = request.dst;
-	lfb.sub_entries.push(sub_entry);
+	//prefetch requests don't produce a sub entry
+	if(request.type != MemoryRequest::Type::PREFECTH)
+	{
+		LFB::SubEntry sub_entry;
+		sub_entry.offset = _get_block_offset(request.paddr);
+		sub_entry.size = request.size;
+		sub_entry.port = request.port;
+		sub_entry.dst = request.dst;
+		lfb.sub_entries.push(sub_entry);
+	}
 }
 
 MemoryRequest UnitNonBlockingCache::_pop_request(LFB& lfb)
@@ -111,7 +115,7 @@ void UnitNonBlockingCache::_clock_data_array(uint bank_index)
 	if(lfb_index == ~0u) return; 
 
 	LFB& lfb = bank.lfbs[lfb_index];
-	assert(lfb.state == LFB::State::DATA_ARRAY);
+	_assert(lfb.state == LFB::State::DATA_ARRAY);
 	lfb.state = LFB::State::FILLED;
 	bank.lfb_return_queue.push(lfb_index);
 }
@@ -119,9 +123,19 @@ void UnitNonBlockingCache::_clock_data_array(uint bank_index)
 bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 {
 	uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
-	if(!_mem_higher->return_port_read_valid(mem_higher_port_index)) return false;
-
-	const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
+	MemoryReturn ret;
+	// Process data from scene buffer first
+	if (_scene_buffer != nullptr && _scene_buffer->return_port_read_valid(mem_higher_port_index))
+	{
+		ret = _scene_buffer->read_return(mem_higher_port_index);
+	}
+	else if (_mem_higher->return_port_read_valid(mem_higher_port_index))
+	{
+		ret = _mem_higher->read_return(mem_higher_port_index);
+	}
+	else return false;
+	//const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
+	
 	assert(ret.paddr == _get_block_addr(ret.paddr));
 
 	//Mark the associated lse as filled and put it in the return queue
@@ -131,7 +145,7 @@ bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 		LFB& lfb = bank.lfbs[i];
 		if(lfb.block_addr == ret.paddr)
 		{
-			assert(lfb.state == LFB::State::MISSED);
+			_assert(lfb.state == LFB::State::MISSED);
 			std::memcpy(lfb.block_data.bytes, ret.data, CACHE_BLOCK_SIZE);
 			lfb.state = LFB::State::FILLED;
 			bank.lfb_return_queue.push(i);
@@ -157,10 +171,10 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 	Bank& bank = _banks[bank_index];
 	const MemoryRequest& request = _request_cross_bar.peek(bank_index);
 	paddr_t block_addr = _get_block_addr(request.paddr);
-	uint block_offset = _get_block_offset(request.paddr);
+	paddr_t block_offset = _get_block_offset(request.paddr);
 	log.log_requests();
 
-	if(request.type == MemoryRequest::Type::LOAD)
+	if(request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFECTH)
 	{
 		//Try to fetch an lfb for the line or allocate a new lfb for the line
 		uint lfb_index = _fetch_or_allocate_lfb(bank_index, block_addr, LFB::Type::READ);
@@ -241,9 +255,9 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 			LFB& lfb = bank.lfbs[lfb_index];
 			lfb.write_mask |= request.write_mask << block_offset;
 			for(uint i = 0; i < request.size; ++i)
-				if((request.write_mask >> i) & 0x1)
+				if((request.write_mask >> i) & 0x1)                                                                          
 					lfb.block_data.bytes[block_offset + i] = request.data[i];
-			
+
 			if(lfb.state == LFB::State::EMPTY)
 			{
 				lfb.state = LFB::State::FILLED; //since we just filled it
@@ -253,6 +267,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 			_request_cross_bar.read(bank_index);
 		}
 	}
+	else _assert(false);
 
 	return true;
 }
@@ -262,25 +277,56 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 	Bank& bank = _banks[bank_index];
 	uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
 
-	if(bank.lfb_request_queue.empty() || !_mem_higher->request_port_write_valid(mem_higher_port_index)) return;
-	
+	if (bank.lfb_request_queue.empty()) return;
 	LFB& lfb = bank.lfbs[bank.lfb_request_queue.front()];
+	paddr_t addr = lfb.block_addr;
+	bool visit_treelet = false;
+	if (addr >= treelet_range.first && addr <= treelet_range.second)
+		visit_treelet = true;
 	if(lfb.type == LFB::Type::READ)
 	{
 		assert(lfb.state == LFB::State::MISSED);
-
-		MemoryRequest outgoing_request;
-		outgoing_request.type = MemoryRequest::Type::LOAD;
-		outgoing_request.size = CACHE_BLOCK_SIZE;
-		outgoing_request.port = mem_higher_port_index;
-		outgoing_request.paddr = lfb.block_addr;
-		_mem_higher->write_request(outgoing_request);
-
-		bank.lfb_request_queue.pop();
+		if (_scene_buffer != nullptr && visit_treelet && _scene_buffer->request_port_write_valid(mem_higher_port_index))
+		{
+			SceneBufferLoadRequest outgoing_request;
+			outgoing_request.paddr = lfb.block_addr;
+			outgoing_request.port = mem_higher_port_index;
+			outgoing_request.sink = _scene_buffer->get_bank(outgoing_request.paddr);
+			outgoing_request.size = CACHE_BLOCK_SIZE;
+			if (outgoing_request.sink != ~0u)
+			{
+				_scene_buffer->write_request(outgoing_request, mem_higher_port_index);
+				bank.lfb_request_queue.pop();
+			}
+			else
+			{
+				static int cnt = 0;
+				cnt++;
+				std::cout << "!!!!!!!!!!!!!!!!!!!!!!bug happens: " << cnt << " times\n";
+				MemoryRequest outgoing_request;
+				outgoing_request.type = MemoryRequest::Type::LOAD;
+				outgoing_request.size = CACHE_BLOCK_SIZE;
+				outgoing_request.port = mem_higher_port_index;
+				outgoing_request.paddr = lfb.block_addr;
+				_mem_higher->write_request(outgoing_request);
+				bank.lfb_request_queue.pop();
+			}
+			
+		}
+		if ((_scene_buffer == nullptr || !visit_treelet) && _mem_higher->request_port_write_valid(mem_higher_port_index))
+		{
+			MemoryRequest outgoing_request;
+			outgoing_request.type = MemoryRequest::Type::LOAD;
+			outgoing_request.size = CACHE_BLOCK_SIZE;
+			outgoing_request.port = mem_higher_port_index;
+			outgoing_request.paddr = lfb.block_addr;
+			_mem_higher->write_request(outgoing_request);
+			bank.lfb_request_queue.pop();
+		}
 	}
-	else if(lfb.type == LFB::Type::WRITE_COMBINING)
+	else if(lfb.type == LFB::Type::WRITE_COMBINING && _mem_higher->request_port_write_valid(mem_higher_port_index))
 	{
-		assert(lfb.state == LFB::State::FILLED);
+		_assert(lfb.state == LFB::State::FILLED);
 
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::STORE;
@@ -308,8 +354,11 @@ void UnitNonBlockingCache::_try_return_lfb(uint bank_index)
 	//select the next subentry and copy return to interconnect
 
 	MemoryRequest req = _pop_request(lfb);
-	MemoryReturn ret(req, lfb.block_data.bytes + _get_block_offset(req.paddr));
+	uint block_offset = _get_block_offset(req.paddr);
+	MemoryReturn ret(req, lfb.block_data.bytes + block_offset);
+
 	_return_cross_bar.write(ret, bank_index);
+	log.log_bytes_read(ret.size);
 
 	if(lfb.sub_entries.empty())
 	{

@@ -14,7 +14,7 @@ class UnitThreadScheduler : public UnitMemoryBase
 private:
 	UnitAtomicRegfile* _atomic_regs;
 
-	Casscade<MemoryRequest> _request_network;
+	Cascade<MemoryRequest> _request_network;
 	FIFOArray<MemoryReturn> _return_network;
 
 	bool _current_request_valid{ false };
@@ -90,6 +90,11 @@ public:
 				uint y = (_current_tile / (_width / _tile_width)) * _tile_height + tile_y;
 				uint32_t index = y * _width + x;
 				MemoryReturn ret(_current_request, &index);
+
+				if(index == 60250)
+				{
+					//__debugbreak();
+				}
 
 				_return_network.write(ret, ret.port);
 

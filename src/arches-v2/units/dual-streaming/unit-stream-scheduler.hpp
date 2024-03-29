@@ -11,7 +11,7 @@ namespace Arches { namespace Units { namespace DualStreaming {
 
 #define SCENE_BUFFER_SIZE (4 * 1024 * 1024)
 
-#define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(Treelet))
+#define MAX_ACTIVE_SEGMENTS (SCENE_BUFFER_SIZE / sizeof(rtm::Treelet))
 
 #define RAY_BUCKET_SIZE (2048)
 #define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 16) / sizeof(BucketRay))
@@ -19,7 +19,7 @@ namespace Arches { namespace Units { namespace DualStreaming {
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
 	paddr_t next_bucket{0};
-	uint segment{0};
+	uint segment_id{0};
 	uint num_rays{0};
 	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
 
@@ -41,7 +41,7 @@ public:
 	{
 		paddr_t  treelet_addr;
 		paddr_t  heap_addr;
-		Treelet* cheat_treelets{nullptr};
+		rtm::Treelet* cheat_treelets{nullptr};
 
 		uint num_tms;
 		uint num_banks;
@@ -62,7 +62,7 @@ private:
 			if(request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
 			{
 				//if this is a workitem write or bucket completed then distrbute across banks
-				return request.segment % num_sinks();
+				return request.swi.segment_id % num_sinks();
 			}
 			else
 			{
@@ -130,11 +130,11 @@ private:
 		std::queue<uint> bucket_allocated_queue;
 		std::queue<uint> bucket_request_queue;
 		std::queue<uint> bucket_complete_queue;
-		Casscade<RayBucket> bucket_write_cascade;
+		Cascade<RayBucket> bucket_write_cascade;
 
 		std::vector<uint> last_segment_on_tm;
 		std::map<uint, SegmentState> segment_state_map;
-		Treelet* cheat_treelets;
+		rtm::Treelet* cheat_treelets;
 		paddr_t treelet_addr;
 
 		std::vector<MemoryManager> memory_managers;
@@ -162,7 +162,7 @@ private:
 			treelet_addr = config.treelet_addr;
 
 			active_segments.insert(0);
-			Treelet::Header root_header = cheat_treelets[0].header;
+			rtm::Treelet::Header root_header = cheat_treelets[0].header;
 			for(uint i = 0; i < root_header.num_children; ++i)
 				traversal_queue.push(root_header.first_child + i);
 		}

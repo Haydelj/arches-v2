@@ -35,11 +35,10 @@ public:
 		const std::vector<UnitSFU*>* unique_sfus;
 		const std::vector<UnitMemoryBase*>* unique_mems;
 		UnitMemoryBase* inst_cache{nullptr};
-		uint num_tps_per_i_cache;
+		uint num_tps_per_i_cache{1};
 	};
 
 protected:
-
 	struct ThreadData
 	{
 		ISA::RISCV::IntegerRegisterFile       int_regs{};
@@ -97,13 +96,15 @@ protected:
 public:
 	class Log
 	{
+	public:
+		uint64_t instruction_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
+
 	protected:
 		vaddr_t _elf_start_addr;
 		std::vector<uint64_t> _profile_counters;
 		uint _instr_index{ 0 };
 
 		uint64_t _cycles;
-		uint64_t _instruction_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
 		uint64_t _resource_stall_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
 		uint64_t _data_stall_counters[static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES)];
 
@@ -115,7 +116,7 @@ public:
 			_cycles = 0;
 			for (uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
-				_instruction_counters[i] = 0;
+				instruction_counters[i] = 0;
 				_resource_stall_counters[i] = 0;
 				_data_stall_counters[i] = 0;
 				_profile_counters.clear();
@@ -127,7 +128,7 @@ public:
 			_cycles += other._cycles;
 			for (uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
-				_instruction_counters[i] += other._instruction_counters[i];
+				instruction_counters[i] += other.instruction_counters[i];
 				_resource_stall_counters[i] += other._resource_stall_counters[i];
 				_data_stall_counters[i] += other._data_stall_counters[i];
 			}
@@ -141,7 +142,7 @@ public:
 
 		void profile_instruction(vaddr_t pc)
 		{
-			assert(pc >= _elf_start_addr);
+			_assert(pc >= _elf_start_addr);
 
 			uint instr_index = (pc - _elf_start_addr) / 4;
 			if (instr_index >= _profile_counters.size())
@@ -153,7 +154,7 @@ public:
 		void log_instruction_issue(const ISA::RISCV::InstrType type, vaddr_t pc)
 		{
 			_cycles++;
-			_instruction_counters[(uint)type]++;
+			instruction_counters[(uint)type]++;
 			profile_instruction(pc);
 		}
 
@@ -171,15 +172,15 @@ public:
 			profile_instruction(pc);
 		}
 
-		void print_log(FILE* stream = stdout, uint num_units = 1)
+		void print(FILE* stream = stdout, uint num_units = 1)
 		{
 			uint64_t total = 0;
 
 			std::vector<std::pair<const char*, uint64_t>> _instruction_counter_pairs;
 			for (uint i = 0; i < static_cast<size_t>(ISA::RISCV::InstrType::NUM_TYPES); ++i)
 			{
-				total += _instruction_counters[i];
-				_instruction_counter_pairs.push_back({ ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)i].c_str(), _instruction_counters[i] });
+				total += instruction_counters[i];
+				_instruction_counter_pairs.push_back({ ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)i].c_str(), instruction_counters[i] });
 			}
 			std::sort(_instruction_counter_pairs.begin(), _instruction_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
@@ -187,7 +188,7 @@ public:
 			fprintf(stream, "Issue Cycles (%.2f%%)\n", 100.0f * total / _cycles);
 			fprintf(stream, "\tTotal: %lld\n", total / num_units);
 			for (uint i = 0; i < _instruction_counter_pairs.size(); ++i)
-				if (_instruction_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _instruction_counter_pairs[i].first, _instruction_counter_pairs[i].second / num_units, static_cast<float>(_instruction_counter_pairs[i].second) / total * 100.0f);
+				if (_instruction_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _instruction_counter_pairs[i].first, _instruction_counter_pairs[i].second / num_units, static_cast<float>(_instruction_counter_pairs[i].second) / _cycles * 100.0f);
 
 			total = 0;
 
@@ -203,7 +204,7 @@ public:
 			fprintf(stream, "\nPipeline Stall Cycles (%.2f%%)\n", 100.0f * total / _cycles);
 			fprintf(stream, "\tTotal: %lld \n", total / num_units);
 			for (uint i = 0; i < _resource_stall_counter_pairs.size(); ++i)
-				if (_resource_stall_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _resource_stall_counter_pairs[i].first, _resource_stall_counter_pairs[i].second / num_units, static_cast<float>(_resource_stall_counter_pairs[i].second) / total * 100.0f);
+				if (_resource_stall_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _resource_stall_counter_pairs[i].first, _resource_stall_counter_pairs[i].second / num_units, static_cast<float>(_resource_stall_counter_pairs[i].second) / _cycles * 100.0f);
 
 			total = 0;
 
@@ -219,7 +220,7 @@ public:
 			fprintf(stream, "\nData Stall Cycles (%.2f%%)\n", 100.0f * total / _cycles);
 			fprintf(stream, "\tTotal: %lld\n", total / num_units);
 			for (uint i = 0; i < _data_stall_counter_pairs.size(); ++i)
-				if (_data_stall_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, static_cast<float>(_data_stall_counter_pairs[i].second) / total * 100.0f);
+				if (_data_stall_counter_pairs[i].second) fprintf(stream, "\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, static_cast<float>(_data_stall_counter_pairs[i].second) / _cycles * 100.0f);
 		}
 
 		void print_profile(uint8_t* backing_memory, FILE* stream = stdout)

@@ -166,12 +166,12 @@ uint8_t UnitTP::_decode(uint thread_id)
 	ThreadData& thread = _thread_data[thread_id];
 
 	//Check for instruction fetch hazard
-	if(thread.pc == 0x0ull) return (uint8_t)ISA::RISCV::InstrType::INSRT_FETCH;
+	if(thread.pc == 0x0ull) return (uint8_t)ISA::RISCV::InstrType::INSTR_FETCH;
 	if(thread.instr.data == 0)
 	{
 		if(_inst_cache == nullptr)
 		{
-			assert(thread.cheat_memory != nullptr);
+			_assert(thread.cheat_memory != nullptr);
 			thread.instr.data = reinterpret_cast<uint32_t*>(thread.cheat_memory)[thread.pc / 4];
 		}
 		else
@@ -181,7 +181,7 @@ uint8_t UnitTP::_decode(uint thread_id)
 			{
 				thread.instr.data = reinterpret_cast<uint32_t*>(thread.i_buffer.data)[addr_offset / 4];
 			}
-			else return (uint8_t)ISA::RISCV::InstrType::INSRT_FETCH;
+			else return (uint8_t)ISA::RISCV::InstrType::INSTR_FETCH;
 		}
 		thread.instr_info = thread.instr.get_info();
 	}
@@ -202,10 +202,13 @@ uint8_t UnitTP::_decode(uint thread_id)
 		}
 		else if(thread.instr_info.exec_type == ISA::RISCV::ExecType::MEMORY)
 		{
-			//check for pipline hazard
-			UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
-			if(!mem->request_port_write_valid(_tp_index))
-				return 128 + (uint)thread.instr_info.instr_type;
+			if(thread.int_regs.registers[thread.instr.rs1].u64 < (~0x0ull << 20))
+			{
+				//check for pipline hazard
+				UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
+				if(!mem->request_port_write_valid(_tp_index))
+					return 128 + (uint)thread.instr_info.instr_type;
+			}
 		}
 	}
 
@@ -251,9 +254,9 @@ void UnitTP::clock_fall()
 	if(fetch_thread_id != ~0u)
 	{
 		ThreadData& fetch_thread = _thread_data[fetch_thread_id];
-		uint i_cache_port = _tp_index % _num_tps_per_i_cache;
 		if(_inst_cache)
 		{
+			uint i_cache_port = _tp_index % _num_tps_per_i_cache;
 			if(_inst_cache->request_port_write_valid(i_cache_port))
 			{
 				MemoryRequest i_req;
@@ -296,17 +299,16 @@ void UnitTP::clock_fall()
 
 		if (ENABLE_TP_DEBUG_PRINTS && last_thread.instr.data != 0)
 		{
-			printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
-			last_thread.instr_info.print_instr(last_thread.instr);
-			if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());
-			else                             printf("\t%s pipline hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)(last_thread_stall_type - 128)].c_str());
-			printf("\033[0m\n");
+			//printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
+			//last_thread.instr_info.print_instr(last_thread.instr);
+			//if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());
+			//else                             printf("\t%s pipline hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)(last_thread_stall_type - 128)].c_str());
+			//printf("\033[0m\n");
 		}
 
 		_last_thread_id = (_last_thread_id + 1) % _num_threads;
 		return;
 	}
-
 	//Reg/PC read
 	ThreadData& thread = _thread_data[exec_thread_id];
 	_log_instruction_issue(exec_thread_id);
@@ -351,14 +353,14 @@ void UnitTP::clock_fall()
 
 		if (req.vaddr < (~0x0ull << 20))
 		{
-			assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
+			_assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
 			UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
 			_set_dependancies(exec_thread_id);
 			mem->write_request(req);
 		}
 		else
 		{
-			if ((req.vaddr | thread.stack_mask) != ~0x0ull) printf("STACK OVERFLOW!!!\n"), assert(false);
+			if ((req.vaddr | thread.stack_mask) != ~0x0ull) printf("STACK OVERFLOW!!!\n"), _assert(false);
 			if (thread.instr_info.instr_type == ISA::RISCV::InstrType::LOAD)
 			{
 				//Because of forwarding instruction with latency 1 don't cause stalls so we don't need to set pending bit
@@ -370,10 +372,10 @@ void UnitTP::clock_fall()
 				paddr_t buffer_addr = req.vaddr & thread.stack_mask;
 				std::memcpy(&thread.stack_mem[buffer_addr], req.data, req.size);
 			}
-			else assert(false);
+			else _assert(false);
 		}
 	}
-	else assert(false);
+	else _assert(false);
 
 	if(!jump) thread.pc += 4;
 	thread.int_regs.zero.u64 = 0x0ull; //Compilers generate instructions with zero register as target so we need to zero the register every cycle
