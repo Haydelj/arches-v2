@@ -48,6 +48,8 @@ namespace rtm
 			float cost;
 		};
 
+
+	public:
 		struct WideBVHNode
 		{
 			rtm::vec3 p;						//anchor point 
@@ -55,16 +57,35 @@ namespace rtm
 			uint8_t  imask;						//internal node flag
 			uint32_t base_index_child;			//base offset in streamlined child node array
 			uint32_t base_index_triangle;		//base offset in streamlined primitive array
-			uint8_t  meta[n_ary_sz];					//count and indexing offset
-			uint8_t  q_min_x[n_ary_sz] = {};			//quantized bb 
-			uint8_t  q_min_y[n_ary_sz] = {};
-			uint8_t  q_min_z[n_ary_sz] = {};
-			uint8_t  q_max_x[n_ary_sz] = {};
-			uint8_t  q_max_y[n_ary_sz] = {};
-			uint8_t  q_max_z[n_ary_sz] = {};
-		};
+			uint8_t  meta[n_ary_sz];			//count and indexing offset
+			uint8_t  q_min_x[n_ary_sz];			//quantized bb 
+			uint8_t  q_min_y[n_ary_sz];
+			uint8_t  q_min_z[n_ary_sz];
+			uint8_t  q_max_x[n_ary_sz];
+			uint8_t  q_max_y[n_ary_sz];
+			uint8_t  q_max_z[n_ary_sz];
+			WideBVHNode() : p(0.0f, 0.0f, 0.0f), e{ 0,0,0 },imask(0), base_index_child(0), base_index_triangle(0)
+			{
+				for (int i = 0; i < n_ary_sz; i++)
+				{
+					meta[i] = 0;
+					q_min_x[i] = 0;
+					q_min_y[i] = 0;
+					q_min_z[i] = 0;
+					q_max_x[i] = 0;
+					q_max_y[i] = 0;
+					q_max_z[i] = 0;
+				}
+			};
+			~WideBVHNode() = default;
 
-	public:
+			//routines to decompress and retrieve data
+			rtm::AABB getAABB()
+			{
+				rtm::AABB aabb;
+				//aabb.min.x = p.x + powf(2.0f, e[0]) * q_min_x[]
+			}
+		};
 
 		void build(const rtm::BVH& bvh)
 		{
@@ -73,6 +94,11 @@ namespace rtm
 	
 			calculate_cost(0, bvh.nodes[0].aabb.surface_area(), bvh);	//fill in cost table using dynamic programming (bottom up) 
 			collapse(bvh,0,0);											//collapse SBVH into WideBVH using the cost table
+		}
+
+		WideBVHNode* getNodes()
+		{
+			return nodes.data();
 		}
 
 		private:
@@ -216,6 +242,7 @@ namespace rtm
 				count_primitives(bvh2node.data.fst_chld_ind, bvh2) +
 				count_primitives(bvh2node.data.fst_chld_ind + 1, bvh2);
 		}
+
 		void get_children(int node_index, const rtm::BVH& bvh2, int children[n_ary_sz], int& child_count, int i)
 		{
 			const rtm::BVH::Node& bvh2node = bvh2.nodes[node_index];
@@ -261,7 +288,7 @@ namespace rtm
 			const rtm::AABB aabb = bvh2.nodes.at(node_index_bvh2).aabb;
 
 			node.p = aabb.min;
-			constexpr int Nq = 8; // 8 bits per plane
+			constexpr int Nq = 8; // 8 Bits Per Plane
 			constexpr float denom = 1.0f / float((1 << Nq) - 1);
 
 			rtm::vec3 e(
@@ -284,21 +311,20 @@ namespace rtm
 				assert((u_ey & 0b10000000011111111111111111111111) == 0);
 				assert((u_ez & 0b10000000011111111111111111111111) == 0);
 
-				//Store only 8 bit exponent
+				//Store Only 8 bit exponent
 				node.e[0] = u_ex >> 23;
 				node.e[1] = u_ey >> 23;
 				node.e[2] = u_ez >> 23;
 
-
 				int child_count = 0;
-				int children[n_ary_sz] = { INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID };
+				int children[n_ary_sz];
+				for (int i = 0; i < n_ary_sz; i++)	{	children[i] = INVALID;	}
 
-				//get child nodes for this node based on the decision array costs
+				//Get child nodes for this node based on the decision array costs
 				get_children(node_index_bvh2, bvh2, children, child_count, 0);
 				assert(child_count <= n_ary_sz);
 
-				//order children based on octant traversal order
-
+				//Order children based on octant traversal order
 				node.imask = 0;
 				node.base_index_triangle = uint32_t(indices.size());
 				node.base_index_child = uint32_t(nodes.size());
