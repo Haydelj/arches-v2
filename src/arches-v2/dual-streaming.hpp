@@ -349,11 +349,20 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 
-	Units::UnitDRAM dram(6 * NUM_DRAM_CHANNELS, mem_size, &simulator); dram.clear();
-	simulator.register_unit(&dram);
+	Units::UnitBuffer::Configuration sram_config;
+	sram_config.bank_select_mask = 0b0001'1110'0000'0000'0000ull;
+	sram_config.cross_bar_width = NUM_DRAM_CHANNELS;
+	sram_config.latency = 1;
+	sram_config.size = mem_size;
+	sram_config.num_banks = NUM_DRAM_CHANNELS;
+	sram_config.num_ports = 6 * NUM_DRAM_CHANNELS;
 
+	//Units::UnitBuffer dram(sram_config);
+	Units::UnitDRAM dram(6 * NUM_DRAM_CHANNELS, mem_size, &simulator);
+	simulator.register_unit(&dram);
 	simulator.new_unit_group();
 
+	//dram.clear();
 	ELF elf(current_folder_path + "../../dual-streaming-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
 
@@ -401,6 +410,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	hit_record_updater_config.associativity = 4;
 	Units::DualStreaming::UnitHitRecordUpdater hit_record_updater(hit_record_updater_config);
 	simulator.register_unit(&hit_record_updater);
+	simulator.new_unit_group();
 
 	/*
 	Units::UnitBuffer::Configuration scene_buffer_config;
@@ -413,9 +423,7 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	simulator.register_unit(&scene_buffer);
 	*/
 
-	simulator.new_unit_group();
-
-	Units::UnitBlockingCache::Configuration l2_config;
+	Units::UnitNonBlockingCache::Configuration l2_config;
 	l2_config.size = l2_size;
 	l2_config.associativity = 8;
 	l2_config.num_ports = num_tms * num_l1_banks;
@@ -423,12 +431,14 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	l2_config.cross_bar_width = 16;
 	l2_config.bank_select_mask = 0b0001'1110'0000'0100'0000ull; //The high order bits need to match the channel assignment bits
 	l2_config.latency = 10;
-	l2_config.cycle_time = 2;
+	l2_config.num_lfb = 16;
+	l2_config.check_retired_lfb = false;
+	//l2_config.cycle_time = 2;
 	l2_config.mem_higher = &dram;
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = 3;
 
-	Units::UnitBlockingCache l2(l2_config);
+	Units::UnitNonBlockingCache l2(l2_config);
 	simulator.register_unit(&l2);
 
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
@@ -574,25 +584,30 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	for (auto& rtc : rtcs)
 		rtc_log.accumulate(rtc->log);
 
-	//tp_log.print_profile(mm._data_u8);
+	//tp_log.print_profile(dram._data_u8);
 
-	print_header("DRAM");
 	dram.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
 
-	print_header("Stream Scheduler");
-	stream_scheduler.log.print();
+	print_header("DRAM");
+	dram.log.print(simulator.current_cycle);
 
 	print_header("L2$");
-	l2.log.print_log(simulator.current_cycle);
+	l2.log.print(simulator.current_cycle);
 
 	print_header("L1d$");
 	l1_log.print(simulator.current_cycle);
 
+	print_header("Stream Scheduler");
+	stream_scheduler.log.print();
+
 	print_header("TP");
 	tp_log.print();
 
-	print_header("RT Core");
-	rtc_log.print_log(simulator.current_cycle);
+	if(!rtcs.empty())
+	{
+		print_header("RT Core");
+		rtc_log.print(simulator.current_cycle, rtcs.size());
+	}
 
 	print_header("Performance Summary");
 	//printf("Clock rate: %.0fMHz\n", clock_rate / 1'000'000.0);

@@ -1,7 +1,7 @@
 #pragma once
 #include "stdafx.hpp"
 
-//#define USE_RT_CORE
+#define USE_RT_CORE
 #define USE_HARDWARE_INTERSECTORS
 
 #define KERNEL_ARGS_ADDRESS 256ull

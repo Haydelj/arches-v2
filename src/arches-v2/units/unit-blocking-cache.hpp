@@ -104,7 +104,7 @@ public:
 		uint64_t get_total() { return hits + misses; }
 		uint64_t get_total_data_array_accesses() { return data_array_reads + data_array_writes; }
 
-		void print_log(cycles_t cycles, uint units = 1)
+		void print(cycles_t cycles, uint units = 1)
 		{
 			uint64_t total = get_total();
 			float ft = total / 100.0f;

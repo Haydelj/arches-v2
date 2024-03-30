@@ -146,61 +146,109 @@ void UnitStreamScheduler::_update_scheduler()
 			state.active_buckets++;
 		}
 
-		uint buckets_ready = 0;
-		for(uint segment : _scheduler.candidate_segments)
-		{
-			SegmentState& state = _scheduler.segment_state_map[segment];
-			buckets_ready += state.total_buckets - state.active_buckets;
-		}
 
-		//if we fall bellow the low water mark try to expand the candidate set
-		if(_scheduler.root_rays_counter == _scheduler.num_root_rays && buckets_ready < 16 &&
-			_scheduler.active_segments.size() < _scheduler.max_active_segments &&
-			_scheduler.active_segments.size() == _scheduler.candidate_segments.size())
+		if(_scheduler.traversal_scheme == 0)
 		{
-			SegmentState& state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
-			if(!state.child_order_generated)
+			SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
+			if(!last_segment_state.child_order_generated)
 			{
 				rtm::PackedTreelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
-				std::vector<uint64_t> child_weights(header.num_children);
-				std::vector<uint> child_offsets(header.num_children);
-				std::iota(child_offsets.begin(), child_offsets.end(), 0);
 				for(uint i = 0; i < header.num_children; ++i)
 				{
 					uint child_id = header.first_child + i;
-					SegmentState& child_state = _scheduler.segment_state_map[child_id];
-					child_state.depth = state.depth + 1;
-					//child_weights[i] = child_state.weight; // based on total weight
-					child_weights[i] = child_state.weight / std::max(1ull, child_state.num_rays); // based on average ray weight
+					_scheduler.traversal_queue.push(child_id);
 				}
-
-				std::sort(child_offsets.begin(), child_offsets.end(), [&](const uint& x, const uint& y)
-					{
-						return child_weights[x] < child_weights[y];
-					});
-
-				for(const uint& child_offset : child_offsets)
-				{
-					uint child_id = header.first_child + child_offset;
-					_scheduler.traversal_stack.push(child_id);
-				}
-
-				state.child_order_generated = true;
+				last_segment_state.child_order_generated = true;
 			}
 
-			//try to expand working set
-			if(_scheduler.traversal_stack.size())
+			if(!_scheduler.traversal_queue.empty()
+				&& _scheduler.active_segments.size() < _scheduler.max_active_segments)
 			{
-				uint next_segment = _scheduler.traversal_stack.top();
-				_scheduler.traversal_stack.pop();
+				uint next_segment = _scheduler.traversal_queue.front();
+				_scheduler.traversal_queue.pop();
 
-				// every time we add a new segment to the active set, we need to send a prefetch request before placing it in the candidate set
-				_scheduler.active_segments.insert(next_segment);
-				_scheduler.prefetch_queue.push(next_segment);
-				_scheduler.last_segment_activated = next_segment;
-				
-				SegmentState& state = _scheduler.segment_state_map[next_segment];
-				printf("DFS Segment %d scheduled, Segment weight %llu, Average Weight %llu\n", next_segment, state.weight, state.weight / std::max(1ull, state.num_rays));
+				SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
+				if(next_segment_state.total_buckets > 0 || !next_segment_state.parent_finished)
+				{
+					//every time we add a new segment to the active set, we need to send a prefetch request before placing it in the candidate set
+					_scheduler.active_segments.insert(next_segment);
+					_scheduler.prefetch_queue.push(next_segment);
+					_scheduler.last_segment_activated = next_segment;
+					printf("BFS Segment %d scheduled\n", next_segment);
+				}
+				else
+				{
+					printf("BFS Segment %d culled\n", next_segment);
+				}
+			}
+		}
+		else if(_scheduler.traversal_scheme == 0)
+		{
+			//DFS
+			uint buckets_ready = 0;
+			for(uint segment : _scheduler.active_segments)
+			{
+				SegmentState& state = _scheduler.segment_state_map[segment];
+				buckets_ready += state.total_buckets - state.active_buckets;
+			}
+
+			//if we fall bellow the low water mark try to expand the candidate set
+			if(buckets_ready < 16
+				&& _scheduler.root_rays_counter == _scheduler.num_root_rays
+				&& _scheduler.active_segments.size() < _scheduler.max_active_segments
+				&& (_scheduler.active_segments.size() - _scheduler.candidate_segments.size()) < 4 //limits the number of concurent prefetches
+				)
+			{
+				SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
+				if(!last_segment_state.child_order_generated)
+				{
+					rtm::PackedTreelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
+					std::vector<uint64_t> child_weights(header.num_children);
+					std::vector<uint> child_offsets(header.num_children);
+					std::iota(child_offsets.begin(), child_offsets.end(), 0);
+					for(uint i = 0; i < header.num_children; ++i)
+					{
+						uint child_id = header.first_child + i;
+						SegmentState& child_state = _scheduler.segment_state_map[child_id];
+						child_state.depth = last_segment_state.depth + 1;
+						//child_weights[i] = child_state.weight; // based on total weight
+						child_weights[i] = child_state.weight / std::max(1ull, child_state.num_rays); // based on average ray weight
+					}
+
+					std::sort(child_offsets.begin(), child_offsets.end(), [&](const uint& x, const uint& y)
+						{
+							return child_weights[x] < child_weights[y];
+						});
+
+					for(const uint& child_offset : child_offsets)
+					{
+						uint child_id = header.first_child + child_offset;
+						_scheduler.traversal_stack.push(child_id);
+					}
+
+					last_segment_state.child_order_generated = true;
+				}
+
+				//try to expand working set
+				if(_scheduler.traversal_stack.size())
+				{
+					uint next_segment = _scheduler.traversal_stack.top();
+					_scheduler.traversal_stack.pop();
+
+					SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
+					if(next_segment_state.total_buckets > 0 || !next_segment_state.parent_finished)
+					{
+						//every time we add a new segment to the active set, we need to send a prefetch request before placing it in the candidate set
+						_scheduler.active_segments.insert(next_segment);
+						_scheduler.prefetch_queue.push(next_segment);
+						_scheduler.last_segment_activated = next_segment;
+						printf("DFS Segment %d scheduled, Segment weight %llu, Average Weight %llu\n", next_segment, next_segment_state.weight, next_segment_state.weight / std::max(1ull, next_segment_state.num_rays));
+					}
+					else
+					{
+						printf("DFS Segment %d culled\n", next_segment);
+					}
+				}
 			}
 		}
 	}

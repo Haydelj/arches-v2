@@ -356,9 +356,9 @@ public:
 		{
 			if(!_source_fifos.is_read_valid(source_index)) continue;
 
-			uint sink_index = get_sink(_source_fifos.peek(source_index));
-			_assert(sink_index / _cascade_ratio * _cascade_ratio == source_index);
-			if(!_sink_fifos.is_write_valid(sink_index)) continue;
+				uint sink_index = get_sink(_source_fifos.peek(source_index));
+				_assert(sink_index / _cascade_ratio == source_index);
+				if(!_sink_fifos.is_write_valid(sink_index)) continue;
 
 			_sink_fifos.write(_source_fifos.read(source_index), sink_index);
 		}

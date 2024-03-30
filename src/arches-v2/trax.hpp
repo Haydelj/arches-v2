@@ -476,15 +476,17 @@ static void run_sim_trax(GlobalConfig global_config)
 	//tp_log.print_profile(mm._data_u8);
 
 	mm.print_usimm_stats(CACHE_BLOCK_SIZE, 4, simulator.current_cycle);
+	print_header("DRAM");
+	mm.log.print(simulator.current_cycle);
 
 	print_header("L2$");
-	l2_log.print_log(simulator.current_cycle);
+	l2_log.print(simulator.current_cycle);
 
 	print_header("L1d$");
 	l1_log.print(simulator.current_cycle);
 
 	print_header("L1i$");
-	i_l1_log.print_log(simulator.current_cycle);
+	i_l1_log.print(simulator.current_cycle);
 
 	print_header("TP");
 	tp_log.print();
@@ -502,7 +504,6 @@ static void run_sim_trax(GlobalConfig global_config)
 	print_header("Simulation Summary");
 	printf("Simulation rate: %.1fKHz\n", simulator.current_cycle / simulation_time / 1000.0);
 	printf("Simulation time: %.1fs\n", simulation_time);
-
 
 
 	for(auto& tp : tps) delete tp;

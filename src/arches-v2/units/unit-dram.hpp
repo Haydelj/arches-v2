@@ -33,8 +33,8 @@ private:
 	bool _busy{false};
 
 	std::vector<Channel> _channels;
-	Cascade<MemoryRequest> _request_network;
-	FIFOArray<MemoryReturn> _return_network;
+	RequestCascade _request_network;
+	ReturnCascade _return_network;
 	cycles_t _current_cycle{ 0 };
 
 	std::vector<MemoryReturn> returns;
@@ -63,6 +63,48 @@ public:
 private:
 	bool _load(const MemoryRequest& request_item, uint channel_index);
 	bool _store(const MemoryRequest& request_item, uint channel_index);
+
+public:
+	class Log
+	{
+	public:
+		union
+		{
+			struct
+			{
+				uint64_t loads;
+				uint64_t stores;
+				uint64_t bytes_read;
+			};
+			uint64_t counters[8];
+		};
+
+		Log() { reset(); }
+
+		void reset()
+		{
+			for(uint i = 0; i < 8; ++i)
+				counters[i] = 0;
+		}
+
+		void accumulate(const Log& other)
+		{
+			for(uint i = 0; i < 8; ++i)
+				counters[i] += other.counters[i];
+		}
+
+		void print(cycles_t cycles, uint units = 1)
+		{
+			uint64_t total = loads + stores;
+			float ft = total / 100.0f;
+
+			printf("Total: %lld\n", total / units);
+			printf("Loads: %lld\n", loads / units);
+			printf("Stores: %lld\n", stores / units);
+			printf("Bandwidth: %.2f Bytes/Cycle\n", (double)bytes_read / units / cycles);
+		}
+	}
+	log;
 };
 
 }}

@@ -10,7 +10,10 @@ UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 	_tri_staging_buffers.resize(config.max_rays);
 	_ray_states.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
+	{
+		_ray_states[i].phase = RayState::Phase::RAY_FETCH;
 		_work_item_load_queue.push(i);
+	}
 	_active_ray_slots = _ray_states.size();
 }
 
@@ -82,18 +85,25 @@ void UnitTreeletRTCore::_read_returns()
 			WorkItem work_item;
 			std::memcpy(&work_item, ret.data, sizeof(WorkItem));
 			uint ray_id = ret.dst;
+			RayState& ray_state = _ray_states[ray_id];
 
 			if(work_item.segment_id != INVALID_SEGMENT_ID)
 			{
-				_ray_states[ray_id] = RayState(work_item);
-
+				ray_state = RayState(work_item);
 				if(_use_early_termination)
+				{
+					ray_state.phase = RayState::Phase::HIT_FETCH;
 					_hit_load_queue.push(ray_id);
+				}
 				else
+				{
+					ray_state.phase = RayState::Phase::SCHEDULER;
 					_ray_scheduling_queue.push(ray_id);
+				}
 			}
 			else
 			{
+				ray_state.phase = RayState::Phase::NONE;
 				--_active_ray_slots;
 			}
 		}
@@ -113,6 +123,7 @@ void UnitTreeletRTCore::_read_returns()
 					ray_state.hit = hit;
 				}
 
+				ray_state.phase = RayState::Phase::SCHEDULER;
 				_ray_scheduling_queue.push(ray_id);
 			}
 			else
@@ -138,7 +149,10 @@ void UnitTreeletRTCore::_read_returns()
 
 			buffer.bytes_filled += ret.size;
 			if(buffer.bytes_filled == sizeof(rtm::PackedTreelet::Triangle))
+			{
+				_ray_states[ray_id].phase = RayState::Phase::TRI_ISECT;
 				_tri_isect_queue.push(ray_id);
+			}
 		}
 		else
 		{
@@ -148,6 +162,7 @@ void UnitTreeletRTCore::_read_returns()
 			buffer.ray_id = ray_id;
 			std::memcpy(&buffer.node, ret.data, ret.size);
 
+			_ray_states[ray_id].phase = RayState::Phase::NODE_ISECT;
 			_node_isect_queue.push(buffer);
 		}
 	}
@@ -172,6 +187,7 @@ void UnitTreeletRTCore::_schedule_ray()
 				{
 					if(_try_queue_tri(ray_id, ray_state.treelet_id, entry.data.tri_offset))
 					{
+						ray_state.phase = RayState::Phase::TRI_FETCH;
 						if(entry.data.num_tri == 0)
 						{
 							ray_state.nstack_size--;
@@ -209,8 +225,12 @@ void UnitTreeletRTCore::_schedule_ray()
 					}
 					else
 					{
-						if(_try_queue_node(ray_id, ray_state.treelet_id, entry.data.child_index)) ray_state.nstack_size--;
-						else                                                                     _ray_scheduling_queue.push(ray_id);
+						if(_try_queue_node(ray_id, ray_state.treelet_id, entry.data.child_index))
+						{
+							ray_state.phase = RayState::Phase::NODE_FETCH;
+							ray_state.nstack_size--;
+						}
+						else _ray_scheduling_queue.push(ray_id);
 					}
 				}
 			}
@@ -237,8 +257,16 @@ void UnitTreeletRTCore::_schedule_ray()
 		}
 		else
 		{
-			if(ray_state.hit_found) _hit_store_queue.push(ray_id);
-			else                    _work_item_load_queue.push(ray_id);
+			if(ray_state.hit_found)
+			{
+				_ray_states[ray_id].phase = RayState::Phase::HIT_UPDATE;
+				_hit_store_queue.push(ray_id);
+			}
+			else
+			{
+				_ray_states[ray_id].phase = RayState::Phase::RAY_FETCH;
+				_work_item_load_queue.push(ray_id);
+			}
 		}
 	}
 }
@@ -279,7 +307,10 @@ void UnitTreeletRTCore::_simualte_intersectors()
 	{
 		uint ray_id = _box_pipline.read();
 		if(ray_id != ~0u)
+		{
+			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+		}
 
 		log.nodes += 2;
 	}
@@ -311,7 +342,10 @@ void UnitTreeletRTCore::_simualte_intersectors()
 	{
 		uint ray_id = _tri_pipline.read();
 		if(ray_id != ~0u)
+		{
+			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+		}
 
 		log.tris++;
 	}
@@ -349,6 +383,7 @@ void UnitTreeletRTCore::_issue_requests()
 			std::memcpy(req.data, &ray_state.hit, req.size);
 			_rsb->write_request(req);
 
+			ray_state.phase = RayState::Phase::RAY_FETCH;
 			_work_item_load_queue.push(ray_id);
 		}
 		//stores must be higher priority so that they land before a given thread issues it's next load

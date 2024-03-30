@@ -13,6 +13,20 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
+const static std::string phase_names[] =
+{
+	"NONE",
+	"SCHEDULER",
+	"RAY_FETCH",
+	"HIT_FETCH",
+	"HIT_UPDATE",
+	"NODE_FETCH",
+	"TRI_FETCH",
+	"NODE_ISECT",
+	"TRI_ISECT",
+	"NUM_PHASES",
+};
+
 class UnitTreeletRTCore : public UnitMemoryBase
 {
 public:
@@ -31,6 +45,9 @@ public:
 	};
 
 private:
+
+
+
 	struct RayState
 	{
 		struct NodeStackEntry
@@ -44,6 +61,21 @@ private:
 			float t;
 			uint index;
 		};
+
+		enum class Phase
+		{
+			NONE,
+			SCHEDULER,
+			RAY_FETCH,
+			HIT_FETCH, 
+			HIT_UPDATE,
+			NODE_FETCH,
+			TRI_FETCH,
+			NODE_ISECT,
+			TRI_ISECT,
+			NUM_PHASES,
+		}
+		phase;
 
 		rtm::Ray ray;
 		uint32_t global_ray_id;
@@ -63,10 +95,11 @@ private:
 
 		uint order_hint;
 
-		RayState() = default;
+		RayState() : phase(Phase::NONE) {};
 
 		RayState(const WorkItem& wi)
 		{
+			phase = Phase::NONE;
 			ray = wi.bray.ray;
 			global_ray_id = wi.bray.id;
 			treelet_id = wi.segment_id;
@@ -143,6 +176,7 @@ private:
 	paddr_t _treelet_base_addr;
 	paddr_t _hit_record_base_addr;
 	bool _use_early_termination;
+	uint last_ray_id = 0;
 
 public:
 	UnitTreeletRTCore(const Configuration& config);
@@ -152,8 +186,24 @@ public:
 		_request_network.clock();
 		_read_requests();
 		_read_returns();
-		for(uint i = 0; i < 2; ++i) //2 pops per cycle. In reality this would need to be multi banked
-			_schedule_ray();
+
+		if(_ray_scheduling_queue.empty())
+		{
+			for(uint i = 0; i < _ray_states.size(); ++i)
+			{
+				uint phase = (uint)_ray_states[last_ray_id].phase;
+				if(++last_ray_id == _ray_states.size()) last_ray_id = 0;
+				if(phase != 0)
+				{
+					log.stall_counters[phase]++;
+					break;
+				}
+			}
+		}
+
+		//for(uint i = 0; i < 2; ++i) //2 pops per cycle. In reality this would need to be multi banked
+		_schedule_ray();
+
 		_simualte_intersectors();
 	}
 
@@ -217,29 +267,45 @@ public:
 				uint64_t rays;
 				uint64_t nodes;
 				uint64_t tris;
+				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
 			};
-			uint64_t counters[8];
+			uint64_t counters[16];
 		};
 
 		Log() { reset(); }
 
 		void reset()
 		{
-			for(uint i = 0; i < 8; ++i)
+			for(uint i = 0; i < 16; ++i)
 				counters[i] = 0;
 		}
 
 		void accumulate(const Log& other)
 		{
-			for(uint i = 0; i < 8; ++i)
+			for(uint i = 0; i < 16; ++i)
 				counters[i] += other.counters[i];
 		}
 
-		void print_log(cycles_t cycles, uint units = 1)
+		void print(cycles_t cycles, uint num_units = 1)
 		{
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
 			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);
+
+			uint64_t total = 0;
+
+			std::vector<std::pair<const char*, uint64_t>> _data_stall_counter_pairs;
+			for(uint i = 0; i < (uint)RayState::Phase::NUM_PHASES; ++i)
+			{
+				total += stall_counters[i];
+				_data_stall_counter_pairs.push_back({phase_names[i].c_str(), stall_counters[i]});
+			}
+			std::sort(_data_stall_counter_pairs.begin(), _data_stall_counter_pairs.end(),
+				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
+
+			printf("\nStall Cycles: %lld (%.2f%%)\n", total / num_units, 100.0f * total / num_units / cycles);
+			for(uint i = 0; i < _data_stall_counter_pairs.size(); ++i)
+				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / num_units  / cycles );
 		};
 	}log;
 };

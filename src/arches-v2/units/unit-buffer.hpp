@@ -3,11 +3,11 @@
 
 #include "util/bit-manipulation.hpp"
 #include "unit-base.hpp"
-#include "unit-memory-base.hpp"
+#include "unit-main-memory-base.hpp"
 
 namespace Arches { namespace Units {
 
-class UnitBuffer : public UnitMemoryBase
+class UnitBuffer : public UnitMainMemoryBase
 {
 public:
 	struct Configuration
@@ -24,40 +24,38 @@ private:
 	struct Bank
 	{
 		Pipline<MemoryRequest> data_pipline;
-		Bank(uint latency) : data_pipline(latency, 1) {}
+		Bank(uint latency) : data_pipline(latency) {}
 	};
 
-	uint8_t* _data_u8;
+	bool exec = false;
+
 	uint64_t _buffer_address_mask;
 
 	std::vector<Bank> _banks;
-	RequestCrossBar _request_cross_bar;
-	ReturnCrossBar _return_cross_bar;
+	RequestCascade _request_network;
+	ReturnCascade _return_network;
 
 public:
-	UnitBuffer(Configuration config) : UnitMemoryBase(),
-		_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask), _return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width), _banks(config.num_banks, config.latency)
+	UnitBuffer(Configuration config) : UnitMainMemoryBase(config.size),
+		_request_network(config.num_ports, config.num_banks), 
+		_return_network(config.num_ports, config.num_banks), 
+		_banks(config.num_banks, config.latency)
 	{
-		_data_u8 = (uint8_t*)malloc(config.size);
 		_buffer_address_mask = generate_nbit_mask(log2i(config.size));
-	}
-
-	~UnitBuffer()
-	{
-		free(_data_u8);
 	}
 
 	void clock_rise() override
 	{
-		_request_cross_bar.clock();
+		_request_network.clock();
 
 		//select next request and issue to pipline
 		for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
 		{
 			Bank& bank = _banks[bank_index];
-			bank.data_pipline.clock();
-			if(!bank.data_pipline.is_write_valid() || !_request_cross_bar.is_read_valid(bank_index)) continue;
-			bank.data_pipline.write(_request_cross_bar.read(bank_index));
+
+			if(!_request_network.is_read_valid(bank_index) || !bank.data_pipline.is_write_valid()) continue;
+
+			bank.data_pipline.write(_request_network.read(bank_index));
 		}
 	}
 
@@ -66,55 +64,112 @@ public:
 		for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
 		{
 			Bank& bank = _banks[bank_index];
+			bank.data_pipline.clock();
+
 			if(!bank.data_pipline.is_read_valid()) continue;
 
 			const MemoryRequest& req = bank.data_pipline.peek();
 			paddr_t buffer_addr = _get_buffer_addr(req.paddr);
 			if(req.type == MemoryRequest::Type::LOAD)
 			{
-				if(!_request_cross_bar.is_write_valid(bank_index)) continue;
+				if(!_return_network.is_write_valid(bank_index)) continue;
+
+				_assert(req.paddr < 0x1ull << 32);
+
+				log.loads++;
+				log.bytes_read += req.size;
 
 				MemoryReturn ret(req, &_data_u8[buffer_addr]);
-				_return_cross_bar.write(ret, bank_index);
+				_return_network.write(ret, bank_index);
 				bank.data_pipline.read();
 			}
 			else if(req.type == MemoryRequest::Type::STORE)
 			{
-				std::memcpy(&_data_u8[buffer_addr], req.data, req.size);
+				log.stores++;
+
+				//Masked write
+				for(uint i = 0; i < req.size; ++i)
+					if((req.write_mask >> i) & 0x1)
+						_data_u8[buffer_addr + i] = req.data[i];
+
+				//std::memcpy(&_data_u8[buffer_addr], req.data, req.size);
+
 				bank.data_pipline.read();
 			}
 		}
 
-		_return_cross_bar.clock();
+		_return_network.clock();
 	}
 
 	bool request_port_write_valid(uint port_index) override
 	{
-		return _request_cross_bar.is_write_valid(port_index);
+		return _request_network.is_write_valid(port_index);
 	}
 
 	void write_request(const MemoryRequest& request) override
 	{
-		_request_cross_bar.write(request, request.port);
+		_request_network.write(request, request.port);
 	}
 
 	bool return_port_read_valid(uint port_index) override
 	{
-		return _return_cross_bar.is_read_valid(port_index);
+		return _return_network.is_read_valid(port_index);
 	}
 
 	const MemoryReturn& peek_return(uint port_index) override
 	{
-		return _return_cross_bar.peek(port_index);
+		return _return_network.peek(port_index);
 	}
 
 	const MemoryReturn read_return(uint port_index) override
 	{
-		return _return_cross_bar.read(port_index);
+		return _return_network.read(port_index);
 	}
 
 private:
 	paddr_t _get_buffer_addr(paddr_t paddr) { return paddr & _buffer_address_mask; }
+
+public:
+	class Log
+	{
+	public:
+		union
+		{
+			struct
+			{
+				uint64_t loads;
+				uint64_t stores;
+				uint64_t bytes_read;
+			};
+			uint64_t counters[8];
+		};
+
+		Log() { reset(); }
+
+		void reset()
+		{
+			for(uint i = 0; i < 8; ++i)
+				counters[i] = 0;
+		}
+
+		void accumulate(const Log& other)
+		{
+			for(uint i = 0; i < 8; ++i)
+				counters[i] += other.counters[i];
+		}
+
+		void print(cycles_t cycles, uint units = 1)
+		{
+			uint64_t total = loads + stores;
+			float ft = total / 100.0f;
+
+			printf("Total: %lld\n", total / units);
+			printf("Loads: %lld\n", loads / units);
+			printf("Stores: %lld\n", stores / units);
+			printf("Bandwidth: %.2f Bytes/Cycle\n", (double)bytes_read / units / cycles);
+		}
+	}
+	log;
 };
 
 }}

@@ -23,7 +23,7 @@ public:
 		uint64_t bank_select_mask{0};
 
 		uint num_lfb{1};
-		bool check_retired_lfb{true};
+		bool check_retired_lfb{false};
 
 		std::pair<paddr_t, paddr_t> treelet_range;
 		DualStreaming::UnitSceneBuffer* scene_buffer{ nullptr };

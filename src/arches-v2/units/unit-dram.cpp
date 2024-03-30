@@ -7,7 +7,7 @@ namespace Arches { namespace Units {
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
 UnitDRAM::UnitDRAM(uint num_ports, uint64_t size, Simulator* simulator) : UnitMainMemoryBase(size),
-	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(num_ports)
+	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(num_ports, NUM_DRAM_CHANNELS)
 {
 	char* usimm_config_file = (char*)REL_PATH_BIN_TO_SAMPLES"gddr5_16ch.cfg";
 	char* usimm_vi_file = (char*)REL_PATH_BIN_TO_SAMPLES"1Gb_x16_amd2GHz.vi";
@@ -112,6 +112,8 @@ bool UnitDRAM::_load(const MemoryRequest& request, uint channel_index)
 		_channels[dram_addr.channel].return_queue.push({(Arches::cycles_t)reqRet.completionTime / DRAM_CLOCK_MULTIPLIER, arches_request});
 	}
 
+	log.loads++;
+
 	return true;
 }
 
@@ -142,6 +144,8 @@ bool UnitDRAM::_store(const MemoryRequest& request, uint channel_index)
 
 	_assert(!reqRet.retLatencyKnown);
 	_assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE);
+
+	log.stores++;
 
 	return true;
 }
@@ -194,12 +198,13 @@ void UnitDRAM::clock_fall()
 		{
 			const USIMMReturn& usimm_return = channel.return_queue.top();
 			const MemoryReturn& ret = returns[usimm_return.req.return_id];
-			if(_current_cycle >= usimm_return.return_cycle && _return_network.is_write_valid(ret.port))
+			if(_current_cycle >= usimm_return.return_cycle && _return_network.is_write_valid(channel_index))
 			{
 #if ENABLE_DRAM_DEBUG_PRINTS
 				printf("Load Return(%d): 0x%llx\n", ret.port, ret.paddr);
 #endif
-				_return_network.write(ret, ret.port);
+				log.bytes_read += ret.size;
+				_return_network.write(ret, channel_index);
 				free_return_ids.push(usimm_return.req.return_id);
 				channel.return_queue.pop();
 			}

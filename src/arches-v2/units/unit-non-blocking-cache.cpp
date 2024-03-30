@@ -72,7 +72,7 @@ uint UnitNonBlockingCache::_fetch_or_allocate_lfb(uint bank_index, uint64_t bloc
 	lfb.state = LFB::State::EMPTY;
 	
 	uint lfb_index = _fetch_lfb(bank_index, lfb);
-	if(lfb_index != ~0) return lfb_index;
+	if(lfb_index != ~0u) return lfb_index;
 	return _allocate_lfb(bank_index, lfb);
 }
 

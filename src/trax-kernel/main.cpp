@@ -17,7 +17,7 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 
 inline static void kernel(const TRaXKernelArgs& args)
 {
-#if 1
+#if 0
 	//if (args.use_secondary_rays)
 	//{
 	//	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
