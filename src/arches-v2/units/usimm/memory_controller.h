@@ -22,7 +22,7 @@
 #define BIG_ACTIVATION_WINDOW 1000000
 
 #define UNKNOWN_LATENCY       10000000000
-#define DRAM_CLOCK_MULTIPLIER 2
+#define DRAM_CLOCK_MULTIPLIER 1
 
 
 // Moved here from main.c 

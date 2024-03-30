@@ -1,9 +1,8 @@
 #pragma once
 
 #include "shared-utils.hpp"
-#include "units/dual-streaming/unit-stream-scheduler-dfs.hpp"
 #include "units/dual-streaming/unit-treelet-rt-core.hpp"
-//#include "units/dual-streaming/unit-stream-scheduler.hpp"
+#include "units/dual-streaming/unit-stream-scheduler.hpp"
 #include "units/dual-streaming/unit-ray-staging-buffer.hpp"
 #include "units/dual-streaming/unit-tp.hpp"
 #include "units/dual-streaming/unit-hit-record-updater.hpp"
@@ -247,7 +246,7 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 
 		printf("Writing %zd packed treelets to %s\n", treelet_bvh.treelets.size(), treelet_filename.c_str());
 		for (auto& t : treelet_bvh.treelets)
-			outputTreelets.write(reinterpret_cast<const char*>(&t), TREELET_SIZE);
+			outputTreelets.write(reinterpret_cast<const char*>(&t), sizeof(rtm::PackedTreelet));
 
 		printf("Writing %zd triangles to %s\n", tris.size(), triangle_filename.c_str());
 		for (auto& tt : tris)
@@ -360,25 +359,21 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 
 	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config);
 
-	uint l1_banks = 16;
-
 	Units::DualStreaming::UnitSceneBuffer::Configuration scene_buffer_config;
-	scene_buffer_config.size = 32 * 1024 * 1024; // 32MB
-	scene_buffer_config.num_ports = num_tms * l1_banks;
+	scene_buffer_config.size = 4 * 1024 * 1024; // 4MB
+	scene_buffer_config.num_ports = num_tms * num_l1_banks;
 	scene_buffer_config.main_mem = &dram;
 	scene_buffer_config.main_mem_port_offset = 1;
 	scene_buffer_config.main_mem_port_stride = 6;
 	scene_buffer_config.num_banks = 32;
-	scene_buffer_config.row_size = 4 * 1024; // 4KB
-	scene_buffer_config.bank_select_mask = 0b0011'0001'1100'0000ull;
-	scene_buffer_config.treelet_size = TREELET_SIZE;
-	scene_buffer_config.treelet_start = treelet_range.first;
-	scene_buffer_config.treelet_end = treelet_range.second;
+	scene_buffer_config.bank_select_mask = 0b0000'0111'1100'0000ull;
+	scene_buffer_config.segment_start = treelet_range.first;
+	scene_buffer_config.segment_size = sizeof(rtm::PackedTreelet);
 	scene_buffer_config.allow_wait = global_config.allow_wait;
 	Units::DualStreaming::UnitSceneBuffer scene_buffer(scene_buffer_config);
 	simulator.register_unit(&scene_buffer);
 
-	Units::DualStreaming::UnitStreamSchedulerDFS::Configuration stream_scheduler_config;
+	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
 	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
 	stream_scheduler_config.num_tms = num_tms;
@@ -389,11 +384,11 @@ static void run_sim_dual_streaming(GlobalConfig global_config)
 	stream_scheduler_config.main_mem_port_stride = 6;
 	stream_scheduler_config.traversal_scheme = global_config.traversal_scheme;
 	stream_scheduler_config.num_root_rays = kernel_args.framebuffer_size;
+	stream_scheduler_config.max_active_segments = scene_buffer_config.size / sizeof(rtm::PackedTreelet);
 	stream_scheduler_config.scene_buffer = &scene_buffer;
-	stream_scheduler_config.scene_buffer_size = scene_buffer_config.size;
 	if (global_config.use_secondary_rays) stream_scheduler_config.num_root_rays = global_config.valid_secondary_rays;
 	stream_scheduler_config.weight_scheme = global_config.weight_scheme;
-	Units::DualStreaming::UnitStreamSchedulerDFS stream_scheduler(stream_scheduler_config);
+	Units::DualStreaming::UnitStreamScheduler stream_scheduler(stream_scheduler_config);
 	simulator.register_unit(&stream_scheduler);
 
 	Units::DualStreaming::UnitHitRecordUpdater::Configuration hit_record_updater_config;

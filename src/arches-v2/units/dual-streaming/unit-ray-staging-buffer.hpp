@@ -3,7 +3,7 @@
 
 #include "units/unit-base.hpp"
 #include "units/unit-memory-base.hpp"
-#include "unit-stream-scheduler-dfs.hpp"
+#include "unit-stream-scheduler.hpp"
 #include "unit-hit-record-updater.hpp"
 
 namespace Arches { namespace Units { namespace DualStreaming {
@@ -29,7 +29,7 @@ struct RayBucketBuffer
 class UnitRayStagingBuffer : public UnitMemoryBase
 {
 public:
-	UnitRayStagingBuffer(uint num_tp, uint tm_index, UnitStreamSchedulerDFS* stream_scheduler, UnitHitRecordUpdater* hit_record_updater) : UnitMemoryBase(),
+	UnitRayStagingBuffer(uint num_tp, uint tm_index, UnitStreamScheduler* stream_scheduler, UnitHitRecordUpdater* hit_record_updater) : UnitMemoryBase(),
 		_request_network(num_tp, 1), _return_network(num_tp), num_tp(num_tp), tm_index(tm_index), _stream_scheduler(stream_scheduler), _hit_record_updater(hit_record_updater)
 	{
 		returned_hit.paddr = ~0;
@@ -39,7 +39,7 @@ private:
 	Cascade<MemoryRequest> _request_network;
 	FIFOArray<MemoryReturn> _return_network;
 
-	UnitStreamSchedulerDFS* _stream_scheduler;
+	UnitStreamScheduler*  _stream_scheduler;
 	UnitHitRecordUpdater* _hit_record_updater;
 
 	uint tm_index;

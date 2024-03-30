@@ -94,18 +94,18 @@ inline static void kernel(const DualStreamingKernelArgs& args)
 
 		intersect(args.treelets, ray, hit);
 #endif
-		rtm::vec3 out = 0;
-		if (hit.id != ~0u)
-		{
-			rtm::vec3 n = args.triangles[hit.id].normal();
-			out = n * 0.5f + 0.5f;
-		}
-		args.framebuffer[index] = encode_pixel(out);
-
-		//uint out = 0xff000000;
+		//rtm::vec3 out = 0;
 		//if (hit.id != ~0u)
-		//	out |= rtm::RNG::hash(hit.id);
-		//args.framebuffer[index] = out;
+		//{
+		//	rtm::vec3 n = args.triangles[hit.id].normal();
+		//	out = n * 0.5f + 0.5f;
+		//}
+		//args.framebuffer[index] = encode_pixel(out);
+
+		uint out = 0xff000000;
+		if (hit.id != ~0u)
+			out |= rtm::RNG::hash(hit.id);
+		args.framebuffer[index] = out;
 	}
 
 }
@@ -199,11 +199,10 @@ int main(int argc, char* argv[])
 	auto start = std::chrono::high_resolution_clock::now();
 
 #ifdef MULTI_THREADED
-	uint thread_count = std::max(std::thread::hardware_concurrency() - 1u, 0u);
-
 	std::vector<std::thread> threads;
-	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
-
+	uint thread_count = std::thread::hardware_concurrency() - 1u;
+	for (uint i = 0; i < thread_count; ++i) 
+		threads.emplace_back(kernel, args);
 	kernel(args);
 
 	for (uint i = 0; i < thread_count; ++i)

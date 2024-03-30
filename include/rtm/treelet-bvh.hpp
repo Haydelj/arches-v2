@@ -13,10 +13,10 @@
 
 namespace rtm {
 
-#define TREELET_SIZE (7 * 8 * 1024)
-
 struct alignas(8 * 1024) Treelet
 {
+	const static uint size = 7 * 8 * 102;
+
 	struct alignas(32) Header
 	{
 		uint first_child;
@@ -61,9 +61,9 @@ struct alignas(8 * 1024) Treelet
 		struct
 		{
 			Header header;
-			Node   nodes[(TREELET_SIZE - sizeof(Header)) / sizeof(Node)];
+			Node   nodes[(size - sizeof(Header)) / sizeof(Node)];
 		};
-		uint32_t words[TREELET_SIZE / sizeof(uint32_t)];
+		uint32_t words[size / sizeof(uint32_t)];
 	};
 
 	Treelet() {}

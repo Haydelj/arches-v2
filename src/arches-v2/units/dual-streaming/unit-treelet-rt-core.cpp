@@ -16,7 +16,7 @@ UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 
 bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_id)
 {
-	paddr_t start = (paddr_t) & ((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id].nodes[node_id];
+	paddr_t start = (paddr_t)&((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id].nodes[node_id];
 	_assert(start < 4ull * 1204 * 1024 * 1024);
 	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::PackedTreelet::Node)), (uint16_t)ray_id});
 	return true;
@@ -24,7 +24,7 @@ bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_
 
 bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset)
 {
-	paddr_t start = (paddr_t) & ((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id].bytes[tri_offset];
+	paddr_t start = (paddr_t)&((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id].bytes[tri_offset];
 	paddr_t end = start + sizeof(rtm::PackedTreelet::Triangle);
 
 	_assert(start < 4ull * 1204 * 1024 * 1024);
@@ -37,6 +37,8 @@ bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_of
 	paddr_t addr = start;
 	while(addr < end)
 	{
+		if(addr >= (paddr_t)(&((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id + 1])) __debugbreak();
+
 		paddr_t next_boundry = std::min(end, block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
 		_fetch_queue.push({addr, size, (uint16_t)(ray_id | 0x8000u)});

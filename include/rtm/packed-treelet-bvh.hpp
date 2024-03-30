@@ -13,11 +13,12 @@
 
 namespace rtm {
 
-#define TREELET_SIZE (7 * 8 * 1024)
 #define PACK_SIZE 2
 
 struct PackedTreelet
 {
+	const static uint size = 7 * 8 * 1024;
+
 	struct alignas(32 * PACK_SIZE) Header
 	{
 		uint first_child;
@@ -60,9 +61,9 @@ struct PackedTreelet
 		struct
 		{
 			Header header;
-			Node   nodes[(TREELET_SIZE - sizeof(Header)) / sizeof(Node)];
+			Node   nodes[(size - sizeof(Header)) / sizeof(Node)];
 		};
-		uint8_t bytes[TREELET_SIZE];
+		uint8_t bytes[size];
 	};
 
 	PackedTreelet() {}
@@ -93,6 +94,8 @@ public:
 
 	void build_treelet(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
 	{
+		size_t usable_space = sizeof(PackedTreelet) - sizeof(PackedTreelet::Header);
+
 		//Phase 0 setup
 		uint total_footprint = 0;
 		std::vector<uint> footprint;
@@ -111,7 +114,7 @@ public:
 			best_cost.push_back(INFINITY);
 		}
 
-		float epsilon = area[0] * sizeof(PackedTreelet) / (10 * total_footprint);
+		float epsilon = area[0] * usable_space / (10 * total_footprint);
 
 		std::stack<uint> post_stack;
 		std::stack<uint> pre_stack; pre_stack.push(0);
@@ -144,7 +147,7 @@ public:
 					subtree_footprint[root_node] += subtree_footprint[bvh.nodes[root_node].data[i].child_index];
 
 			std::set<uint> cut{ root_node };
-			uint bytes_remaining = sizeof(PackedTreelet) - sizeof(PackedTreelet::Header);
+			uint bytes_remaining = usable_space;
 			best_cost[root_node] = INFINITY;
 			while (cut.size() < 1024)
 			{
@@ -155,7 +158,7 @@ public:
 					if (footprint[n] <= bytes_remaining)
 					{
 						float gain = area[n] + epsilon;
-						float price = rtm::min(subtree_footprint[n], sizeof(PackedTreelet));
+						float price = rtm::min(subtree_footprint[n], usable_space);
 						float score = gain / price;
 						if (score > best_score)
 						{
@@ -209,7 +212,7 @@ public:
 			treelet_assignments.push_back({});
 
 			std::vector<uint> cut{ root_node };
-			uint bytes_remaining = sizeof(PackedTreelet);
+			uint bytes_remaining = usable_space;
 			while (cut.size() < 1024)
 			{
 				uint best_index = ~0u;
@@ -220,7 +223,7 @@ public:
 					if (footprint[n] <= bytes_remaining)
 					{
 						float gain = area[n] + epsilon;
-						float price = rtm::min(subtree_footprint[n], sizeof(PackedTreelet));
+						float price = rtm::min(subtree_footprint[n], usable_space);
 						float score = gain / price;
 						if (score > best_score)
 						{
@@ -309,8 +312,8 @@ public:
 						{
 							tris[k].id = node.data[j].tri_index + k;
 							tris[k].tri = mesh.get_triangle(tris[k].id);
+							primative_start += sizeof(PackedTreelet::Triangle);
 						}
-						primative_start += sizeof(PackedTreelet::Triangle) * (node.data[j].num_tri + 1);
 					}
 					else
 					{
@@ -331,7 +334,7 @@ public:
 		}
 
 		printf("Treelets: %zu\n", treelets.size());
-		printf("PackedTreelet Fill Rate: %.1f%%\n", 100.0f * total_footprint / treelets.size() / (sizeof(PackedTreelet) - sizeof(PackedTreelet::Header)));
+		printf("PackedTreelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);
 	}
 };
 #endif

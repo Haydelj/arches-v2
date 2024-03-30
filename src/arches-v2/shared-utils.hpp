@@ -54,7 +54,7 @@ struct GlobalConfig
 	uint scene_id = 0;
 	uint framebuffer_width = 256;
 	uint framebuffer_height = 256;
-	uint traversal_scheme = 0; // 0 - BFS, 1 - DFS
+	uint traversal_scheme = 1; // 0 - BFS, 1 - DFS
 	uint hit_buffer_size = 128 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
 	bool use_early = 1;
 	bool hit_delay = 1;

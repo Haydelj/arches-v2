@@ -277,43 +277,27 @@ void UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 	Bank& bank = _banks[bank_index];
 	uint mem_higher_port_index = bank_index * _mem_higher_port_stride + _mem_higher_port_offset;
 
-	if (bank.lfb_request_queue.empty()) return;
+	if(bank.lfb_request_queue.empty()) return;
 	LFB& lfb = bank.lfbs[bank.lfb_request_queue.front()];
+
 	paddr_t addr = lfb.block_addr;
-	bool visit_treelet = false;
-	if (addr >= treelet_range.first && addr <= treelet_range.second)
-		visit_treelet = true;
+	bool visit_scene_buffer = _scene_buffer && addr >= treelet_range.first && addr < treelet_range.second;
+
 	if(lfb.type == LFB::Type::READ)
 	{
 		assert(lfb.state == LFB::State::MISSED);
-		if (_scene_buffer != nullptr && visit_treelet && _scene_buffer->request_port_write_valid(mem_higher_port_index))
+		if(visit_scene_buffer && _scene_buffer->request_port_write_valid(mem_higher_port_index))
 		{
-			SceneBufferLoadRequest outgoing_request;
-			outgoing_request.paddr = lfb.block_addr;
-			outgoing_request.port = mem_higher_port_index;
-			outgoing_request.sink = _scene_buffer->get_bank(outgoing_request.paddr);
+			MemoryRequest outgoing_request;
+			outgoing_request.type = MemoryRequest::Type::LOAD;
 			outgoing_request.size = CACHE_BLOCK_SIZE;
-			if (outgoing_request.sink != ~0u)
-			{
-				_scene_buffer->write_request(outgoing_request, mem_higher_port_index);
-				bank.lfb_request_queue.pop();
-			}
-			else
-			{
-				static int cnt = 0;
-				cnt++;
-				std::cout << "!!!!!!!!!!!!!!!!!!!!!!bug happens: " << cnt << " times\n";
-				MemoryRequest outgoing_request;
-				outgoing_request.type = MemoryRequest::Type::LOAD;
-				outgoing_request.size = CACHE_BLOCK_SIZE;
-				outgoing_request.port = mem_higher_port_index;
-				outgoing_request.paddr = lfb.block_addr;
-				_mem_higher->write_request(outgoing_request);
-				bank.lfb_request_queue.pop();
-			}
+			outgoing_request.port = mem_higher_port_index;
+			outgoing_request.paddr = lfb.block_addr;
+			_scene_buffer->write_request(outgoing_request);
+			bank.lfb_request_queue.pop();
 			
 		}
-		if ((_scene_buffer == nullptr || !visit_treelet) && _mem_higher->request_port_write_valid(mem_higher_port_index))
+		else if(_mem_higher->request_port_write_valid(mem_higher_port_index))
 		{
 			MemoryRequest outgoing_request;
 			outgoing_request.type = MemoryRequest::Type::LOAD;
