@@ -21,3 +21,5 @@
 #include "rtm/rtm.hpp"
 
 typedef unsigned int uint;
+
+#define WIDE_BVH

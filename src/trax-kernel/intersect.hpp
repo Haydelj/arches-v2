@@ -236,6 +236,138 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 	return found_hit;
 }
 
+inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		bool is_leaf;
+		int childCount;
+		std::vector<rtm::WideBVH::DecompressedNodeData> dnodes;
+		std::vector<int> triIndices;
+
+		NodeStackEntry() : t(INFINITY), is_leaf(false), childCount(0), dnodes(n_ary_sz), triIndices(p_max, INVALID) {}
+		~NodeStackEntry() {}
+	};
+
+	NodeStackEntry node_stack[32];
+	uint32_t node_stack_size = 1u;
+
+	//Decompress and insert nodes
+
+	std::vector<rtm::WideBVH::DecompressedNodeData> dnodes;
+	dnodes.resize(n_ary_sz);
+
+	int childCount;
+	bool rootIsInterior = true;
+	nodes[0].decompress(rootIsInterior,dnodes,childCount);
+
+	node_stack[0].t = ray.t_min;
+	node_stack[0].is_leaf = !rootIsInterior;	
+	node_stack[0].childCount = childCount;
+
+	std::copy(dnodes.begin(), dnodes.end(), node_stack[0].dnodes.begin());
+
+	bool found_hit = false;
+	bool nodeHit = false;
+	float t[n_ary_sz];
+
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if (current_entry.t >= hit.t) continue;
+
+	POP_SKIP:
+		if (!current_entry.is_leaf)
+		{
+			nodeHit = false;
+
+			for (int i = 0; i < n_ary_sz; i++)
+			{
+				t[i] = INFINITY;
+			}
+				
+			for (int i = 0; i < current_entry.childCount; i++)
+			{
+				t[i] = _intersect(current_entry.dnodes[i].aabb, ray, inv_d);
+				t[i] < hit.t ? nodeHit = true : 0;
+			}
+				
+			//Use insertion sort to sort the Child Nodes and their Corresponding t values
+			for (int j = 1; j < current_entry.childCount; j++)
+			{
+				float key = t[j];
+				rtm::WideBVH::DecompressedNodeData dataKey = current_entry.dnodes[j];
+				int i = j - 1;
+				while ( (i > -1) && (t[i] > key))
+				{
+					std::swap(t[i], t[i + 1]);
+					std::swap(current_entry.dnodes[i], current_entry.dnodes[i + 1]);
+					i = i - 1;
+				}
+				t[i + 1] = key;
+				current_entry.dnodes[i + 1] = dataKey;
+			}
+
+			if (nodeHit)
+			{
+				//Push the rest of the children on stack
+				
+				NodeStackEntry newEntry;
+				int ccount;
+				dnodes.resize(n_ary_sz);
+
+				for (int i = 0; i < current_entry.childCount; i++)
+				{
+
+					uint32_t idx = current_entry.dnodes[i].nodeIndex;
+					nodes[idx].decompress(current_entry.dnodes[i].is_leaf, dnodes, ccount);
+					newEntry.childCount = ccount;
+					newEntry.t = t[i];
+					newEntry.is_leaf = current_entry.dnodes[i].is_leaf;
+
+					//copy child nodes if interior node
+					memcpy(&newEntry.dnodes[0], &dnodes[0], sizeof(rtm::WideBVH::DecompressedNodeData)* ccount);
+					//copy tri indices if leaf node
+					memcpy(&newEntry.triIndices[0], &dnodes[i].triIndices[0], sizeof(uint32_t)* p_max);
+
+
+					if (i == 0) //keep shortest dist node on stack top
+					{
+						current_entry = newEntry;
+					}
+					else 	//push rest onto the stack
+					{
+						if(t[i] < hit.t) 
+							node_stack[node_stack_size++] = newEntry;
+					}
+				}
+				goto POP_SKIP;
+			}
+		}
+		else
+		{
+			
+			for (int i = 0; i < p_max; i++)
+			{
+				uint32_t triID = current_entry.triIndices[i];
+				if (triID != uint32_t(INVALID))
+				{
+					if (_intersect(tris[indices[triID]], ray, hit))
+					{
+						hit.id = triID;
+						if (first_hit)	return true;
+						else			found_hit = true;
+					}
+				}
+			}
+		}
+	} while (node_stack_size);
+
+	return found_hit;
+}
 
 inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray& ray, rtm::Hit& hit, uint* treelet_stack, uint& treelet_stack_size)
 {
@@ -319,8 +451,7 @@ inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray&
 
 	return is_hit;
 }
-
-bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
+inline bool intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, rtm::Hit& hit)
 {
 	uint treelet_stack[256]; uint treelet_stack_size = 1u;
 	treelet_stack[0] = 0;

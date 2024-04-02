@@ -20,7 +20,12 @@ struct TRaXKernelArgs
 	bool use_secondary_rays;
 
 	rtm::vec3 light_dir;
+#ifdef WIDE_BVH
+	rtm::WideBVH::WideBVHNode* nodes;
+	int* indices;
+#else
 	rtm::PackedBVH2::Node* nodes;
+#endif
 	rtm::Triangle* tris;
 	rtm::PackedTreelet* treelets;
 	rtm::Camera camera;
