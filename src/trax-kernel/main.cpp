@@ -73,13 +73,14 @@ inline static void kernel(const TRaXKernelArgs& args)
 					_traceray<0x0u>(index, ray, hit);
 				#else
 					#if defined(WIDE_BVH)
-						intersect(args.nodes, args.indices, args.tris, ray, hit, true);
+						intersect(args.nodes, args.indices, args.tris, ray, hit);
 					#else
 						intersect(args.nodes, args.tris, ray, hit);
 					#endif
 				#endif
 					if(hit.id != ~0u)
 					{
+						/*
 						normal = args.tris[hit.id].normal();
 						normal = normal * 0.5f + 0.5f;
 						output = normal;
@@ -96,7 +97,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 							_traceray<0x1u>(index, sray, shit);
 						#else
 							#if defined(WIDE_BVH)
-								intersect(args.nodes, args.indices,args.tris, sray, shit, true);
+								intersect(args.nodes, args.indices,args.tris, sray, shit);
 							#else
 								intersect(args.nodes, args.tris, sray, shit);
 							#endif
@@ -105,6 +106,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 								ndotl = 0.0f;
 						}
 						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
+						*/
+						output += rtm::vec3(hit.id, hit.id, hit.id) * 0.166;
 					}
 					else
 					{
@@ -160,8 +163,8 @@ int main()
 int main(int argc, char* argv[])
 {
 	TRaXKernelArgs args;
-	args.framebuffer_width = 1024;
-	args.framebuffer_height = 1024;
+	args.framebuffer_width = 64;
+	args.framebuffer_height = 64;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
@@ -171,13 +174,13 @@ int main(int argc, char* argv[])
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
 	args.use_secondary_rays = false;
 	uint framebuffer_size = args.framebuffer_size;
 	std::vector<rtm::Ray> secondary_rays(framebuffer_size);
 	std::vector<rtm::Hit> primary_hits(framebuffer_size);
-	rtm::Mesh mesh("../../datasets/sponza.obj");
+	rtm::Mesh mesh("../../datasets/teapot.obj");
 	rtm::BVH bvh;
 	rtm::WideBVH wbvh;
 
@@ -239,17 +242,21 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+
+	std::cout << "Launching TraX kernel now..." << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::vector<std::thread> threads;
 	uint thread_count = std::max(std::thread::hardware_concurrency() - 2u, 0u);
+	//uint thread_count = 1;
+
 	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
 	kernel(args);
 	for (uint i = 0; i < thread_count; ++i) threads[i].join();
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-	std::cout << "Runtime: " << duration.count() << " ms\n\n";
+	std::cout << "Kernel Execution Runtime: " << duration.count() << " ms\n\n";
 
 	stbi_flip_vertically_on_write(true);
 	stbi_write_png("./out.png", args.framebuffer_width, args.framebuffer_height, 4, args.framebuffer, 0);

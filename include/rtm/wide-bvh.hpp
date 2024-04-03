@@ -125,12 +125,8 @@ namespace rtm
 							{
 								if (meta[i] & (uint8_t(1 << (j + 5)))) //if triangle present
 								{
-
 									dnodes[i].triIndices[j] = base_index_triangle + (meta[i] & 0b00011111) + j;
-
 								}
-
-
 							}
 						}
 					}
@@ -142,12 +138,15 @@ namespace rtm
 
 		void build(const rtm::BVH& bvh)
 			{
+				std::cout << "WideBVH building ... " << std::endl;
+
 				decisions.resize(bvh.nodes.size() * (n_ary_sz - 1));		//as per implementation in paper
 				nodes.emplace_back(); //default init root node
 
 				calculate_cost(0, bvh.nodes[0].aabb.surface_area(), bvh);	//fill in cost table using dynamic programming (bottom up) 
 				collapse(bvh, 0, 0);											//collapse SBVH into WideBVH using the cost table
-			}
+				std::cout << "WideBVH build complete "<< std::endl;
+		}
 		WideBVHNode* getNodes()
 			{
 				return nodes.data();

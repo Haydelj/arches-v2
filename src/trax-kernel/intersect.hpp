@@ -250,25 +250,28 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 
 		NodeStackEntry() : t(INFINITY), is_leaf(false), childCount(0), dnodes(n_ary_sz), triIndices(p_max, INVALID) {}
 		~NodeStackEntry() {}
+
+		NodeStackEntry& operator=(const NodeStackEntry& rhs)
+		{
+			t = rhs.t;
+			is_leaf = rhs.is_leaf;
+			childCount = rhs.childCount;
+			std::copy(rhs.dnodes.begin(), rhs.dnodes.end(), dnodes.begin());
+			std::memcpy(&triIndices[0], &rhs.triIndices[0], sizeof(int) * p_max);
+
+			return *this;
+		}
 	};
 
-	NodeStackEntry node_stack[32];
+	std::vector<NodeStackEntry> node_stack;
 	uint32_t node_stack_size = 1u;
+	node_stack.resize(1);
 
 	//Decompress and insert nodes
-
-	std::vector<rtm::WideBVH::DecompressedNodeData> dnodes;
-	dnodes.resize(n_ary_sz);
-
-	int childCount;
 	bool rootIsInterior = true;
-	nodes[0].decompress(rootIsInterior,dnodes,childCount);
-
+	nodes[0].decompress(rootIsInterior, node_stack[0].dnodes, node_stack[0].childCount);
 	node_stack[0].t = ray.t_min;
 	node_stack[0].is_leaf = !rootIsInterior;	
-	node_stack[0].childCount = childCount;
-
-	std::copy(dnodes.begin(), dnodes.end(), node_stack[0].dnodes.begin());
 
 	bool found_hit = false;
 	bool nodeHit = false;
@@ -276,14 +279,18 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 
 	do
 	{
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		//NodeStackEntry current_entry = node_stack[--node_stack_size];
+		NodeStackEntry current_entry = node_stack.back();
+		node_stack.pop_back();
+		node_stack_size--;
+
 		if (current_entry.t >= hit.t) continue;
 
 	POP_SKIP:
 		if (!current_entry.is_leaf)
 		{
 			nodeHit = false;
-
+			int countHits = 0;
 			for (int i = 0; i < n_ary_sz; i++)
 			{
 				t[i] = INFINITY;
@@ -293,46 +300,50 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 			{
 				t[i] = _intersect(current_entry.dnodes[i].aabb, ray, inv_d);
 				t[i] < hit.t ? nodeHit = true : 0;
+				t[i] < hit.t ? countHits++ : 0;
 			}
 				
-			//Use insertion sort to sort the Child Nodes and their Corresponding t values
-			for (int j = 1; j < current_entry.childCount; j++)
-			{
-				float key = t[j];
-				rtm::WideBVH::DecompressedNodeData dataKey = current_entry.dnodes[j];
-				int i = j - 1;
-				while ( (i > -1) && (t[i] > key))
-				{
-					std::swap(t[i], t[i + 1]);
-					std::swap(current_entry.dnodes[i], current_entry.dnodes[i + 1]);
-					i = i - 1;
-				}
-				t[i + 1] = key;
-				current_entry.dnodes[i + 1] = dataKey;
-			}
-
 			if (nodeHit)
 			{
+
+
+				//Use insertion sort to sort the Child Nodes and their Corresponding t values
+				for (int j = 1; j < current_entry.childCount; j++)
+				{
+					float key = t[j];
+					rtm::WideBVH::DecompressedNodeData dataKey = current_entry.dnodes[j];
+					int i = j - 1;
+					while ((i > -1) && (t[i] > key))
+					{
+						std::swap(t[i], t[i + 1]);
+						std::swap(current_entry.dnodes[i], current_entry.dnodes[i + 1]);
+						i = i - 1;
+					}
+					t[i + 1] = key;
+					current_entry.dnodes[i + 1] = dataKey;
+				}
+
+				//hit.id = countHits;
+				//return true;
+				
 				//Push the rest of the children on stack
 				
 				NodeStackEntry newEntry;
-				int ccount;
-				dnodes.resize(n_ary_sz);
 
 				for (int i = 0; i < current_entry.childCount; i++)
 				{
+					newEntry.dnodes.resize(n_ary_sz);
 
 					uint32_t idx = current_entry.dnodes[i].nodeIndex;
-					nodes[idx].decompress(current_entry.dnodes[i].is_leaf, dnodes, ccount);
-					newEntry.childCount = ccount;
-					newEntry.t = t[i];
 					newEntry.is_leaf = current_entry.dnodes[i].is_leaf;
+					nodes[idx].decompress(newEntry.is_leaf, newEntry.dnodes, newEntry.childCount);
+					newEntry.t = t[i];
 
-					//copy child nodes if interior node
-					memcpy(&newEntry.dnodes[0], &dnodes[0], sizeof(rtm::WideBVH::DecompressedNodeData)* ccount);
 					//copy tri indices if leaf node
-					memcpy(&newEntry.triIndices[0], &dnodes[i].triIndices[0], sizeof(uint32_t)* p_max);
-
+					if(newEntry.is_leaf)
+					{
+						memcpy(&newEntry.triIndices[0], &newEntry.dnodes[i].triIndices[0], sizeof(int) * p_max);
+					}
 
 					if (i == 0) //keep shortest dist node on stack top
 					{
@@ -340,10 +351,16 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 					}
 					else 	//push rest onto the stack
 					{
-						if(t[i] < hit.t) 
-							node_stack[node_stack_size++] = newEntry;
+						if (t[i] < hit.t)
+						{
+							//assert(node_stack_size < T_STACK_SZ);
+							//node_stack[node_stack_size++] = newEntry;
+							node_stack.push_back(newEntry);
+							node_stack_size++;
+						}
 					}
 				}
+				
 				goto POP_SKIP;
 			}
 		}
