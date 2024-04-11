@@ -92,7 +92,7 @@ public:
 		return node_size;
 	}
 
-	void build_treelet(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
+	void build_treelet(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
 		size_t usable_space = sizeof(PackedTreelet) - sizeof(PackedTreelet::Header);
 
@@ -149,7 +149,7 @@ public:
 			std::set<uint> cut{ root_node };
 			uint bytes_remaining = usable_space;
 			best_cost[root_node] = INFINITY;
-			while (cut.size() < 1024)
+			while (cut.size() < max_cut_size)
 			{
 				uint best_node = ~0u;
 				float best_score = -INFINITY;
@@ -213,7 +213,7 @@ public:
 
 			std::vector<uint> cut{ root_node };
 			uint bytes_remaining = usable_space;
-			while (cut.size() < 1024)
+			while (cut.size() < max_cut_size)
 			{
 				uint best_index = ~0u;
 				float best_score = -INFINITY;

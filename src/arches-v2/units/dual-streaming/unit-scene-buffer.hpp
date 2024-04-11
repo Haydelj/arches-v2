@@ -16,6 +16,7 @@ public:
 	struct Configuration
 	{
 		uint size = {1024};
+		uint latency{1};
 		uint num_ports{1};
 		uint num_banks{1};
 		paddr_t bank_select_mask{0};
@@ -26,8 +27,14 @@ public:
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{ 0 };
 		uint                main_mem_port_stride{ 1 };
+	};
 
-		bool allow_wait = true;
+	struct PowerConfig
+	{
+		//Energy is joules, power in watts, and time in seconds
+		float read_energy{0.0f};
+		float write_energy{0.0f};
+		float leakage_power{0.0f};
 	};
 
 	FIFO<uint> prefetch_sideband; //clock rise
@@ -164,7 +171,7 @@ public:
 		prefetch_sideband(16), retire_sideband(16), prefetch_complete_sideband(16),
 		_main_memory(config.main_mem), _main_mem_port_stride(config.main_mem_port_stride), _main_mem_port_offset(config.main_mem_port_offset)
 	{
-		_banks.resize(config.num_banks);
+		_banks.resize(config.num_banks, config.latency);
 		_channels.resize(NUM_DRAM_CHANNELS);
 		_data_u8.resize(config.size);
 	}
@@ -204,6 +211,68 @@ private:
 	void process_returns(uint channel_index);
 	void issue_requests(uint channel_index);
 	void issue_returns(uint bank_index);
+
+public:
+	class alignas(64) Log
+	{
+	public:
+		const static uint NUM_COUNTERS = 4;
+		union
+		{
+			struct
+			{
+				uint64_t loads;
+				uint64_t stores;
+				uint64_t bytes_read;
+				uint64_t bytes_written;
+			};
+			uint64_t counters[NUM_COUNTERS];
+		};
+
+		Log() { reset(); }
+
+		void reset()
+		{
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
+				counters[i] = 0;
+		}
+
+		void accumulate(const Log& other)
+		{
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
+				counters[i] += other.counters[i];
+		}
+
+		void print(cycles_t cycles, uint units = 1)
+		{
+			uint64_t total = loads + stores;
+
+			printf("Read Bandwidth: %.1f bytes/cycle\n", (double)bytes_read / units / cycles);
+			printf("Write Bandwidth: %.1f bytes/cycle\n", (double)bytes_written / units / cycles);
+
+			printf("\n");
+			printf("Total: %lld\n", total / units);
+			printf("Loads: %lld\n", loads / units);
+			printf("Stores: %lld\n", stores / units);
+		}
+
+		bool print_power(PowerConfig power_config, float time_delta, uint units = 1)
+		{
+			float read_energy = loads * power_config.read_energy / units;
+			float write_energy = stores * power_config.write_energy / units;
+			float leakage_energy = time_delta * power_config.leakage_power / units;
+
+			float total_energy = read_energy + write_energy + leakage_energy;
+			float total_power = total_energy / time_delta;
+
+			printf("\n");
+			printf("Total Energy: %.2f mJ\n", total_energy * 1000.0f);
+			printf("Total Power: %.2f W\n", total_power);
+
+			return total_power;
+		}
+	}
+	log;
 };
 
 }}}

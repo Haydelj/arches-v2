@@ -13,17 +13,13 @@ struct TRaXKernelArgs
 	uint32_t framebuffer_size;
 	uint32_t* framebuffer;
 
-	uint32_t samples_per_pixel;
-	uint32_t max_depth;
+	bool pregen_rays;
 
-	bool use_trace_ray;
-	bool use_secondary_rays;
-
+	rtm::Camera camera;
 	rtm::vec3 light_dir;
+
 	rtm::PackedBVH2::Node* nodes;
 	rtm::Triangle* tris;
 	rtm::PackedTreelet* treelets;
-	rtm::Camera camera;
-
-	rtm::Ray* secondary_rays;
+	rtm::Ray* rays;
 };

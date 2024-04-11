@@ -8,16 +8,18 @@
 #include "dual-streaming-kernel/include.hpp"
 #include "unit-scene-buffer.hpp"
 
-namespace Arches { namespace Units { namespace DualStreaming {
+namespace Arches {
+namespace Units {
+namespace DualStreaming {
 
 #define RAY_BUCKET_SIZE     (2048)
 #define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 16) / sizeof(BucketRay))
 
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
-	paddr_t next_bucket{ 0 };
-	uint segment_id{ 0 };
-	uint num_rays{ 0 };
+	paddr_t next_bucket{0};
+	uint segment_id{0};
+	uint num_rays{0};
 	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
 
 	bool is_full()
@@ -31,7 +33,8 @@ struct alignas(RAY_BUCKET_SIZE) RayBucket
 	}
 };
 
-enum class TraversalScheme {
+enum class TraversalScheme
+{
 	BFS = 0,
 	DFS
 };
@@ -41,22 +44,22 @@ class UnitStreamScheduler : public UnitBase
 public:
 	struct Configuration
 	{
-		paddr_t  treelet_addr;
-		paddr_t  heap_addr;
-		rtm::PackedTreelet* cheat_treelets{ nullptr };
+		paddr_t  treelet_addr{0};
+		paddr_t  heap_addr{0};
+		rtm::PackedTreelet* cheat_treelets{nullptr};
 
-		uint num_root_rays;
-		uint num_tms;
-		uint num_banks;
+		uint num_root_rays{0};
+		uint num_tms{0};
+		uint num_banks{1};
 
-		uint traversal_scheme = 0; //0-bfs, 1-dfs
-		uint weight_scheme = 0;    //If weight scheme = 2, we use the default DFS order
+		uint traversal_scheme{0}; //0-bfs, 1-dfs
+		uint weight_scheme{0}; //If weight scheme = 2, we use the default DFS order
+		uint max_active_segments{1024 * 1024};
 
-		uint                max_active_segments{0};
-		UnitSceneBuffer*    scene_buffer;
-		UnitMainMemoryBase* main_mem;
-		uint                main_mem_port_offset{ 0 };
-		uint                main_mem_port_stride{ 1 };
+		UnitSceneBuffer* scene_buffer{nullptr};
+		UnitMainMemoryBase* main_mem{nullptr};
+		uint                main_mem_port_offset{0};
+		uint                main_mem_port_stride{1};
 	};
 
 public:
@@ -68,7 +71,7 @@ public:
 		uint get_sink(const StreamSchedulerRequest& request) override
 		{
 			//segment zero is a special case it needs to be distrubted accross all banks for performance reasons
-			if (request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
+			if(request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
 			{
 				if(request.swi.segment_id == 0)
 					return request.port * num_sinks() / num_sources();
@@ -98,7 +101,7 @@ public:
 	public:
 		paddr_t alloc_bucket()
 		{
-			if (!free_buckets.empty())
+			if(!free_buckets.empty())
 			{
 				paddr_t bucket_address = free_buckets.top();
 				free_buckets.pop();
@@ -108,7 +111,7 @@ public:
 			paddr_t bucket_address = next_bucket_addr;
 
 			next_bucket_addr += RAY_BUCKET_SIZE;
-			if ((next_bucket_addr % ROW_BUFFER_SIZE) == 0)
+			if((next_bucket_addr % ROW_BUFFER_SIZE) == 0)
 				next_bucket_addr += (NUM_DRAM_CHANNELS - 1) * ROW_BUFFER_SIZE;
 
 			return bucket_address;
@@ -122,7 +125,7 @@ public:
 		MemoryManager(uint channel_index, paddr_t start_address)
 		{
 			next_bucket_addr = align_to(ROW_BUFFER_SIZE, start_address);
-			while ((next_bucket_addr / ROW_BUFFER_SIZE) % NUM_DRAM_CHANNELS != channel_index)
+			while((next_bucket_addr / ROW_BUFFER_SIZE) % NUM_DRAM_CHANNELS != channel_index)
 				next_bucket_addr += ROW_BUFFER_SIZE;
 		}
 	};
@@ -132,13 +135,16 @@ public:
 		std::queue<paddr_t> bucket_address_queue{};
 		uint                next_channel{0};
 		uint                total_buckets{0};
-		uint                active_buckets{0};
+		uint                retired_buckets{0};
 		bool                parent_finished{false};
+		bool                prefetch_issued{false};
+		bool                prefetch_complete{false};
 		bool				child_order_generated{false};
 
-		uint64_t			weight;
-		uint64_t			num_rays;
-		uint				depth = 0;
+		uint64_t			weight{0};
+		uint64_t			num_rays{0};
+		uint64_t			scheduled_weight{0};
+		uint				depth{0};
 	};
 
 	struct Scheduler
@@ -157,7 +163,6 @@ public:
 
 		//the list of segments in the scene buffer or schduled to be in the scene buffer
 		uint last_segment_activated;
-		std::set<uint> active_segments;
 		std::vector<uint> candidate_segments; //the set of segments that are ready to issue buckets
 		std::stack<uint> traversal_stack; //for DFS
 		std::queue<uint> traversal_queue; //for BFS
@@ -171,10 +176,15 @@ public:
 		uint weight_scheme;
 		uint max_active_segments;
 
+		uint concurent_prefetches;
+		uint active_segments;
 
-		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1), last_segment_on_tm(config.num_tms, ~0u), root_rays_counter(0), num_root_rays(config.num_root_rays), traversal_scheme(config.traversal_scheme), weight_scheme(config.weight_scheme), max_active_segments(config.max_active_segments)
+		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1), last_segment_on_tm(config.num_tms, ~0u),
+			root_rays_counter(0), num_root_rays(config.num_root_rays),
+			traversal_scheme(config.traversal_scheme), weight_scheme(config.weight_scheme),
+			max_active_segments(config.max_active_segments), concurent_prefetches(0), active_segments(0)
 		{
-			for (uint i = 0; i < NUM_DRAM_CHANNELS; ++i)
+			for(uint i = 0; i < NUM_DRAM_CHANNELS; ++i)
 				memory_managers.emplace_back(i, config.heap_addr);
 
 			SegmentState& segment_state = segment_state_map[0];
@@ -185,14 +195,13 @@ public:
 
 			rtm::PackedTreelet::Header root_header = cheat_treelets[0].header;
 
-			active_segments.insert(0);
-			prefetch_queue.push(0);
+			candidate_segments.push_back(0);
 			last_segment_activated = 0;
 		}
 
 		bool is_complete()
 		{
-			return active_segments.size() == 0 && candidate_segments.size() == 0;
+			return candidate_segments.size() == 0;
 		}
 	};
 
@@ -207,7 +216,7 @@ public:
 				READ_SEGMENT,
 			};
 
-			Type type{ READ_BUCKET };
+			Type type{READ_BUCKET};
 			paddr_t address;
 
 			union
@@ -223,11 +232,11 @@ public:
 		std::queue<WorkItem> work_queue;
 
 		//stream state
-		uint bytes_requested{ 0 };
+		uint bytes_requested{0};
 
 		//forwarding
 		MemoryReturn forward_return{};
-		bool forward_return_valid{ false };
+		bool forward_return_valid{false};
 
 		Channel() {};
 	};
@@ -250,8 +259,6 @@ public:
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;
-		log.log_root_rays(config.num_root_rays);
-
 	}
 
 	void clock_rise() override;
@@ -293,66 +300,50 @@ public:
 	class Log
 	{
 	public:
-		uint64_t num_rays = 0;
-		uint64_t leaf_nodes_total_rays = 0; // For testing early termination
-		std::map<int, int> leaf_node_rays_counter;
-		std::map<int, uint64_t> leaf_node_weights;
-		std::map<int, std::vector<int>> ray_info;
-		std::vector<int> leaf_completed_order;
-		
-		uint64_t number_of_treelets_visited = 0;
+		const static uint NUM_COUNTERS = 6;
+		union
+		{
+			struct
+			{
+				uint64_t rays;
+				uint64_t work_items;
+				uint64_t buckets_launched;
+				uint64_t buckets_generated;
+				uint64_t segments_launched;
+				uint64_t single_bucket_segments;
+			};
+			uint64_t counters[NUM_COUNTERS];
+		};
 
-		void log_rays()
+
+	public:
+		Log() { reset(); }
+
+		void reset()
 		{
-			number_of_treelets_visited++;
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
+				counters[i] = 0;
 		}
-		void log_root_rays(uint num)
+
+		void accumulate(const Log& other)
 		{
-			num_rays = num;
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
+				counters[i] += other.counters[i];
 		}
-		void log_leaf_rays(uint node_id, uint ray_id)
-		{
-			leaf_node_rays_counter[node_id]++;
-			leaf_nodes_total_rays++;
-			ray_info[ray_id].push_back(node_id);
-		}
-		void log_complete(uint node_id, uint64_t weight)
-		{
-			leaf_completed_order.push_back(node_id);
-			leaf_node_weights[node_id] = weight;
-		}
+
 		void print()
 		{
-			printf("Total number of rays: %llu\n", num_rays);
-
-			uint64_t leaf_nodes_num = leaf_node_rays_counter.size();
-			printf("Total number of leaf nodes: %llu\n", leaf_nodes_num);
-
-			printf("Early Termination Stats:\n");
-			printf("Total rays in leaf nodes: %llu\n", leaf_nodes_total_rays);
-			printf("Average rays per leaf: %.3lf\n", 1.0 * leaf_nodes_total_rays / leaf_nodes_num);
-			printf("Average leafs per ray: %.3lf\n", 1.0 * leaf_nodes_total_rays / num_rays);
-			printf("Average treelets per ray: %.3lf\n", 1.0 * number_of_treelets_visited / num_rays);
-
-
-			//printf("Leaf completed order : \n");
-			//for (auto node_id: leaf_completed_order)
-			//{
-			//	printf("Leaf node id: %d, Number of rays: %d, Average ray weight: %.3lf\n", node_id, leaf_node_rays_counter[node_id], 1.0 * leaf_node_weights[node_id] / leaf_node_rays_counter[node_id]);
-			//}
-			//printf("\n");
-
-			//printf("Ray distributed info : \n");
-			//for (auto& [ray_id, node_list] : ray_info)
-			//{
-			//	printf("Ray id: %d\n", ray_id);
-			//	printf("Visited node list: ");
-			//	for (auto node_id : node_list) printf("%d ", node_id);
-			//	printf("\n");
-			//}
+			printf("Rays: %lld\n", rays);
+			printf("Ray duplication: %.2f\n", (float)work_items / rays);
+			printf("Rays per bucket: %.2f\n", (float)work_items / buckets_launched);
+			printf("Buckets per segment: %.2f\n", (float)buckets_launched / segments_launched);
+			printf("Total segments: %llu\n", segments_launched);
+			printf("Single buckets segments: %lld (%.2f%%)\n", single_bucket_segments, 100.0f * single_bucket_segments / segments_launched);
 		}
 	}
 	log;
 };
 
-}}}
+}
+}
+}

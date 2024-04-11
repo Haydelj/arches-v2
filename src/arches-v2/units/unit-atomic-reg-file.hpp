@@ -11,9 +11,10 @@ namespace Units {
 
 class UnitAtomicRegfile : public UnitMemoryBase
 {
-private:
-	uint32_t _iregs[32];
+public:
+	uint32_t iregs[32];
 
+private:
 	bool _current_request_valid{ false };
 	MemoryRequest _current_request;
 
@@ -25,7 +26,7 @@ public:
 		_request_network(num_clients, 1), _return_network(num_clients)
 	{
 		for (uint i = 0; i < 32; ++i)
-			_iregs[i] = 0;
+			iregs[i] = 0;
 	}
 
 	void clock_rise() override
@@ -47,49 +48,47 @@ public:
 
 			uint32_t reg_index = (_current_request.paddr >> 2) & 0b1'1111;
 			uint32_t request_data = _current_request.data_u32;
-			uint32_t ret_val = _iregs[reg_index];
+			uint32_t ret_val = iregs[reg_index];
 
 			switch (_current_request.type)
 			{
 			case MemoryRequest::Type::STORE:
-				_iregs[reg_index] = request_data;
+				iregs[reg_index] = request_data;
 				break;
 
 			case MemoryRequest::Type::LOAD:
 				break;
 
 			case MemoryRequest::Type::AMO_ADD:
-				_iregs[reg_index] += request_data;
-				if (_iregs[reg_index] % 64 == 0)
-					printf("Tiles Launched: %d\n", _iregs[reg_index]);
+				iregs[reg_index] += request_data;
 				break;
 
 			case MemoryRequest::Type::AMO_AND:
-				_iregs[reg_index] &= request_data;
+				iregs[reg_index] &= request_data;
 				break;
 
 			case MemoryRequest::Type::AMO_OR:
-				_iregs[reg_index] |= request_data;
+				iregs[reg_index] |= request_data;
 				break;
 
 			case MemoryRequest::Type::AMO_XOR:
-				_iregs[reg_index] ^= request_data;
+				iregs[reg_index] ^= request_data;
 				break;
 
 			case MemoryRequest::Type::AMO_MIN:
-				_iregs[reg_index] = std::min((int32_t)request_data, (int32_t)_iregs[reg_index]);
+				iregs[reg_index] = std::min((int32_t)request_data, (int32_t)iregs[reg_index]);
 				break;
 
 			case MemoryRequest::Type::AMO_MAX:
-				_iregs[reg_index] = std::max((int32_t)request_data, (int32_t)_iregs[reg_index]);
+				iregs[reg_index] = std::max((int32_t)request_data, (int32_t)iregs[reg_index]);
 				break;
 
 			case MemoryRequest::Type::AMO_MINU:
-				_iregs[reg_index] = std::min(request_data, _iregs[reg_index]);
+				iregs[reg_index] = std::min(request_data, iregs[reg_index]);
 				break;
 
 			case MemoryRequest::Type::AMO_MAXU:
-				_iregs[reg_index] = std::max(request_data, _iregs[reg_index]);
+				iregs[reg_index] = std::max(request_data, iregs[reg_index]);
 				break;
 			}
 

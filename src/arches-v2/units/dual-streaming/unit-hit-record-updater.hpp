@@ -290,7 +290,6 @@ public:
 		busy = 0;
 	}
 
-
 	bool request_port_write_valid(uint port_index)
 	{
 		return request_network.is_write_valid(port_index);

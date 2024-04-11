@@ -51,7 +51,7 @@ public:
 	paddr_t write_elf(ELF& elf)
 	{
 		paddr_t paddr = 0ull;
-		for(ELF::LoadableSegment const* seg : elf.segments)
+		for(ELF::LoadableSegment const* seg : elf.segments_intersected)
 		{
 			direct_write(seg->data.data(), seg->data.size(), seg->vaddr);
 			paddr = seg->data.size() + seg->vaddr;

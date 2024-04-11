@@ -15,39 +15,59 @@ UnitTP::UnitTP(const Configuration& config) :
 	_unique_mems(*config.unique_mems), 
 	_unique_sfus(*config.unique_sfus), 
 	_inst_cache(config.inst_cache), 
-	log(0x10000), 
+	_cheat_memory(config.cheat_memory),
 	_num_threads(config.num_threads), 
 	_thread_fetch_arbiter(config.num_threads),
 	_thread_exec_arbiter(config.num_threads),
-	_num_halted_threads(0), 
-	_last_thread_id(0)
+	_thread_data(config.num_threads),
+	_stack_mask(generate_nbit_mask(log2i(config.stack_size))),
+	_tp_index(config.tp_index),
+	_tm_index(config.tm_index),
+	_num_tps_per_i_cache(config.num_tps_per_i_cache),
+	log()
 {
-	for (int i = 0; i < config.num_threads; i++) 
+	for(uint i = 0; i < _thread_data.size(); i++)
 	{
-		ThreadData thread = {};
-		thread.int_regs.zero.u64 = 0;
-		thread.int_regs.sp.u64 = config.sp;
-		thread.int_regs.ra.u64 = 0x0ull;
-		thread.int_regs.gp.u64 = config.gp;
-		thread.pc = config.pc;
-		thread.cheat_memory = config.cheat_memory;
+		ThreadData& thread = _thread_data[i];
 		thread.stack_mem.resize(config.stack_size);
-		thread.stack_mask = generate_nbit_mask(log2i(config.stack_size));
-		thread.instr.data = 0;
+	}
+}
 
-		for (uint i = 0; i < 32; ++i)
+void UnitTP::reset()
+{
+	log.reset();
+
+	_num_halted_threads = 0;
+	_last_thread_id = 0;
+
+	for(uint i = 0; i < _thread_data.size(); i++)
+	{
+		ThreadData& thread = _thread_data[i];
+		thread.int_regs.zero.u64 = 0ull;
+		thread.int_regs.ra.u64 = 0ull;
+		thread.int_regs.sp.u64 = 0ull;
+		thread.instr.data = 0;
+		thread.i_buffer.paddr = 0;
+
+		for(uint i = 0; i < 32; ++i)
 		{
 			thread.int_regs_pending[i] = 0;
 			thread.float_regs_pending[i] = 0;
 		}
 
-		_thread_data.push_back(thread);
 		_thread_fetch_arbiter.add(i);
 	}
 
-	_num_tps_per_i_cache = config.num_tps_per_i_cache;
-	_tp_index = config.tp_index;
-	_tm_index = config.tm_index;
+	simulator->units_executing++;
+}
+
+void UnitTP::set_entry_point(uint64_t entry_point)
+{
+	for(uint i = 0; i < _thread_data.size(); i++)
+	{
+		ThreadData& thread = _thread_data[i];
+		thread.pc = entry_point;
+	}
 }
 
 void UnitTP::_clear_register_pending(uint thread_id, ISA::RISCV::RegAddr dst)
@@ -171,8 +191,8 @@ uint8_t UnitTP::_decode(uint thread_id)
 	{
 		if(_inst_cache == nullptr)
 		{
-			_assert(thread.cheat_memory != nullptr);
-			thread.instr.data = reinterpret_cast<uint32_t*>(thread.cheat_memory)[thread.pc / 4];
+			_assert(_cheat_memory);
+			thread.instr.data = reinterpret_cast<uint32_t*>(_cheat_memory)[thread.pc / 4];
 		}
 		else
 		{
@@ -360,16 +380,16 @@ void UnitTP::clock_fall()
 		}
 		else
 		{
-			if ((req.vaddr | thread.stack_mask) != ~0x0ull) printf("STACK OVERFLOW!!!\n"), _assert(false);
+			if ((req.vaddr | _stack_mask) != ~0x0ull) printf("STACK OVERFLOW!!!\n"), _assert(false);
 			if (thread.instr_info.instr_type == ISA::RISCV::InstrType::LOAD)
 			{
 				//Because of forwarding instruction with latency 1 don't cause stalls so we don't need to set pending bit
-				paddr_t buffer_addr = req.vaddr & thread.stack_mask;
+				paddr_t buffer_addr = req.vaddr & _stack_mask;
 				write_register(&thread.int_regs, &thread.float_regs, req.dst, req.size, &thread.stack_mem[buffer_addr]);
 			}
 			else if (thread.instr_info.instr_type == ISA::RISCV::InstrType::STORE)
 			{
-				paddr_t buffer_addr = req.vaddr & thread.stack_mask;
+				paddr_t buffer_addr = req.vaddr & _stack_mask;
 				std::memcpy(&thread.stack_mem[buffer_addr], req.data, req.size);
 			}
 			else _assert(false);

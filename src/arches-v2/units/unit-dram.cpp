@@ -20,6 +20,11 @@ UnitDRAM::UnitDRAM(uint num_ports, uint64_t size, Simulator* simulator) : UnitMa
 	registerUsimmListener(this);
 }
 
+void UnitDRAM::reset()
+{
+	log.reset();
+}
+
 UnitDRAM::~UnitDRAM() /*override*/
 {
 	usimmDestroy();
@@ -61,8 +66,9 @@ void UnitDRAM::print_usimm_stats(uint32_t const L2_line_size,
 	printUsimmStats(L2_line_size, word_size, cycle_count);
 }
 
-float UnitDRAM::total_power_in_watts()
+float UnitDRAM::total_power()
 {
+	//in watts
 	return getUsimmPower() / 1000.0f;
 }
 
@@ -146,6 +152,7 @@ bool UnitDRAM::_store(const MemoryRequest& request, uint channel_index)
 	_assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE);
 
 	log.stores++;
+	log.bytes_written += popcnt(request.write_mask);
 
 	return true;
 }

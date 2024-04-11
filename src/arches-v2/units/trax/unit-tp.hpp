@@ -31,6 +31,16 @@ private:
 				if(float_regs_pending[i])
 					return float_regs_pending[i];
 		}
+		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM7) //TRACE RAY
+		{
+			for(uint i = 0; i < sizeof(rtm::Ray) / sizeof(float); ++i)
+				if(float_regs_pending[instr.rs1 + i])
+					return float_regs_pending[instr.rs1 + i];
+
+			for(uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); ++i)
+				if(float_regs_pending[instr.rd + i])
+					return float_regs_pending[instr.rd + i];
+		}
 		else return Units::UnitTP::_check_dependancies(thread_id);
 
 		return 0;
@@ -53,6 +63,12 @@ private:
 			//	float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM2;
 			float_regs_pending[instr.rd] = (uint8_t)ISA::RISCV::InstrType::CUSTOM2;
 		}
+		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM7) //TRACE RAY
+		{
+			for(uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); ++i)
+				float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM7;
+		}
+
 		else Units::UnitTP::_set_dependancies(thread_id);
 	}
 };

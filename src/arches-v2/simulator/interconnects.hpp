@@ -225,7 +225,10 @@ private:
 	uint8_t _max_size;
 
 public:
-	FIFOArray(uint size, uint depth = 8) : _sizes(size), _fifos(size), _max_size(depth) {}
+	FIFOArray(uint size, uint depth = 255) : _sizes(size), _fifos(size), _max_size(depth) 
+	{
+		_assert(depth <= 255);
+	}
 
 	void clock() override
 	{
@@ -287,11 +290,11 @@ private:
 	FIFOArray<T> _sink_fifos;
 
 public:
-	Cascade(uint sources, uint sinks, uint fifo_depth = 8) :
-		_source_fifos(sources, fifo_depth),
+	Cascade(uint sources, uint sinks, uint source_fifo_depth = 255, uint sink_fifo_depth = 255) :
+		_source_fifos(sources, source_fifo_depth),
 		_cascade_ratio((sources + sinks - 1) / sinks),
 		_arbiters(sinks, _cascade_ratio),
-		_sink_fifos(sinks, fifo_depth)
+		_sink_fifos(sinks, sink_fifo_depth)
 	{
 		_assert(sources >= sinks);
 	}
@@ -340,9 +343,9 @@ private:
 	size_t       _cascade_ratio;
 
 public:
-	Decascade(uint sources, uint sinks) :
-		_source_fifos(sources),
-		_sink_fifos(sinks),
+	Decascade(uint sources, uint sinks, uint source_fifo_depth = 255, uint sink_fifo_depth = 255) :
+		_source_fifos(sources, source_fifo_depth),
+		_sink_fifos(sinks, sink_fifo_depth),
 		_cascade_ratio((sinks + sources - 1) / sources)
 	{
 		_assert(sources <= sinks);
@@ -384,10 +387,10 @@ private:
 	FIFOArray<T> _sink_fifos;
 
 public:
-	CrossBar(uint sources, uint sinks, uint fifo_depth = 8) :
-		_source_fifos(sources, fifo_depth),
+	CrossBar(uint sources, uint sinks, uint source_fifo_depth = 255, uint sink_fifo_depth = 255) :
+		_source_fifos(sources, source_fifo_depth),
 		_arbiters(sinks, sources),
-		_sink_fifos(sinks, fifo_depth)
+		_sink_fifos(sinks, sink_fifo_depth)
 	{
 	}
 
@@ -436,7 +439,7 @@ private:
 	FIFOArray<T> _sink_fifos;
 
 public:
-	CasscadedCrossBar(uint sources, uint sinks, uint crossbar_width, uint source_fifo_depth = 16, uint sink_fifo_depth = 32) :
+	CasscadedCrossBar(uint sources, uint sinks, uint crossbar_width, uint source_fifo_depth = 255, uint sink_fifo_depth = 255) :
 		_source_fifos(sources, source_fifo_depth),
 		_input_cascade_ratio((sources + crossbar_width - 1) / crossbar_width),
 		_cascade_arbiters(crossbar_width, _input_cascade_ratio),

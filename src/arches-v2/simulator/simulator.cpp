@@ -49,15 +49,21 @@ void Simulator::_clock_fall()
 	UNIT_LOOP_END
 }
 
-void Simulator::execute()
+void Simulator::execute(uint delta, std::function<void()> interval_logger)
 {
-	while(units_executing > 0)
+	for(auto& unit : _units)
+		unit->reset();
+
+	do
 	{
 		_clock_rise();
 		_clock_fall();
+
 		current_cycle++;
-		//if(current_cycle % 1024 == 0) printf("Cycle: %lld\r", current_cycle);
+		if(delta != 0 && current_cycle % delta == 0)
+			interval_logger();
 	}
+	while(units_executing > 0);
 }
 
 }

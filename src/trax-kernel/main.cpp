@@ -17,109 +17,15 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 
 inline static void kernel(const TRaXKernelArgs& args)
 {
-#if 0
-	//if (args.use_secondary_rays)
-	//{
-	//	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
-	//	{
-	//		uint32_t x = index % args.framebuffer_width;
-	//		uint32_t y = index / args.framebuffer_width;
-	//		rtm::Ray ray = args.secondary_rays[index];
-	//		if (ray.t_max > 0)
-	//		{
-	//			rtm::Hit hit;
-	//			hit.id = ~0u;
-	//			hit.t = ray.t_max;
-	//			intersect(args.mesh, ray, hit);
-	//			if (hit.id != ~0u)
-	//			{
-	//				rtm::vec3 normal = args.mesh.tris[hit.id].normal();
-	//				rtm::vec3 output = normal * 0.5 + 0.5;
-	//				args.framebuffer[index] = encode_pixel(output);
-	//			}
-	//		}
-	//	}
-	//}
-//	else 
-	{
-		for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
-		{
-			uint32_t x = index % args.framebuffer_width;
-			uint32_t y = index / args.framebuffer_width;
-
-			rtm::RNG rng(index);
-			rtm::vec3 output(0.0f);
-
-			for (uint i = 0; i < args.samples_per_pixel; ++i)
-			{
-				rtm::Ray ray; rtm::Hit hit; rtm::vec3 normal;
-
-				if (args.samples_per_pixel > 1)  ray = args.camera.generate_ray_through_pixel(x, y, &rng);
-				else                            ray = args.camera.generate_ray_through_pixel(x, y);
-
-				rtm::vec3 attenuation(1.0f);
-				for (uint j = 0; j < args.max_depth; ++j)
-				{
-					if (j != 0)
-					{
-						ray.o = ray.o + ray.d * hit.t;
-						ray.d = cosine_sample_hemisphere(normal, rng);
-						hit.t = ray.t_max;
-						attenuation *= 0.8f;
-					}
-
-					hit.t = ray.t_max; hit.id = ~0u;
-				#if defined(__riscv) &&  defined(USE_RT_CORE)
-					_traceray<0x0u>(index, ray, hit);
-				#else
-					intersect(args.nodes, args.tris, ray, hit);
-				#endif
-					if(hit.id != ~0u)
-					{
-						normal = args.tris[hit.id].normal();
-						normal = normal * 0.5f + 0.5f;
-						output = normal;
-						break;
-						float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
-						if(ndotl > 0.0f)
-						{
-							rtm::Ray sray = ray;
-							sray.o = ray.o + ray.d * hit.t;
-							sray.d = args.light_dir;
-							rtm::Hit shit;
-							shit.t = sray.t_max; shit.id = ~0u;
-						#if defined(__riscv) &&  defined(USE_RT_CORE)
-							_traceray<0x1u>(index, sray, shit);
-						#else
-							intersect(args.nodes, args.tris, sray, shit);
-						#endif
-							if(shit.id != ~0u)
-								ndotl = 0.0f;
-						}
-						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
-					}
-					else
-					{
-						output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
-					}
-				}
-				break;
-			}
-
-			args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
-		}
-	}
-
-#else
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint32_t x = index % args.framebuffer_width;
 		uint32_t y = index / args.framebuffer_width;
 		rtm::RNG rng(index);
 
-		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
+		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
 
-		rtm::Hit hit; hit.t = ray.t_max; hit.id = ~0u;
+		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 	#if defined(__riscv) &&  defined(USE_RT_CORE)
 		_traceray<0x0u>(index, ray, hit);
 	#else
@@ -134,7 +40,6 @@ inline static void kernel(const TRaXKernelArgs& args)
 			args.framebuffer[index] = 0xff000000;
 		}
 	}
-#endif
 }
 
 #ifdef __riscv 
@@ -149,6 +54,7 @@ int main()
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stbi/stb_image.h"
 #include "stbi/stb_image_write.h"
+
 int main(int argc, char* argv[])
 {
 	TRaXKernelArgs args;
@@ -157,65 +63,37 @@ int main(int argc, char* argv[])
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.samples_per_pixel = 1;
-	args.max_depth = 1;
+	args.pregen_rays = true;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
-	args.use_secondary_rays = false;
-	uint framebuffer_size = args.framebuffer_size;
-	std::vector<rtm::Ray> secondary_rays(framebuffer_size);
-	std::vector<rtm::Hit> primary_hits(framebuffer_size);
 	rtm::Mesh mesh("../../datasets/sponza.obj");
-	rtm::BVH bvh;
-	std::vector<rtm::Triangle> tris;
-	std::vector<rtm::BVH::BuildObject> build_objects;
+	std::vector<rtm::BVH2::BuildObject> build_objects;
 	for (uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
+
+	rtm::BVH2 bvh;
 	bvh.build(build_objects);
 	mesh.reorder(build_objects);
+
+	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
+
 	rtm::PackedBVH2 packed_bvh(bvh);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
 
 	args.nodes = packed_bvh.nodes.data();
 	args.tris = tris.data();
 	args.treelets = treelet_bvh.treelets.data();
-	if (args.use_secondary_rays == 1)
-	{
-		std::cout << "generating secondray rays..." << '\n';
-		// If the secondary hits already exist in the disk, we don't need to generate it 
-		// Considering it's running on CPU, it's acceptible
 
-		for (int index = 0; index < framebuffer_size; index++)
-		{
-			uint32_t x = index % args.framebuffer_width;
-			uint32_t y = index / args.framebuffer_width;
-			rtm::RNG rng(index);
-			rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
-			rtm::Hit primary_hit;
-			primary_hit.t = ray.t_max;
-			primary_hit.id = ~0u;
-			intersect(args.nodes, args.tris, ray, primary_hit);
-			primary_hits[index] = primary_hit;
-			if (primary_hit.id != ~0u)
-			{
-				rtm::vec3 normal = tris[primary_hit.id].normal();
-				ray.o = ray.o + ray.d * primary_hit.t;
-				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondray rays
-				ray.t_max = 1;
-				secondary_rays[index] = ray;
-			}
-			else
-			{
-				ray.t_max = -1;
-				secondary_rays[index] = ray;
-			}
-		}
-	}
+	std::vector<rtm::Ray> rays(args.framebuffer_size);
+	if(args.pregen_rays)
+		pregen_rays(args, 1, rays);
+	args.rays = rays.data();
+
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::vector<std::thread> threads;

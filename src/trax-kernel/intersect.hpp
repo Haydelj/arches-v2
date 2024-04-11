@@ -2,12 +2,6 @@
 #include "stdafx.hpp"
 #include "include.hpp"
 
-struct MeshPointers
-{
-	rtm::BVH::Node* blas;
-	rtm::Triangle*  tris;
-};
-
 template<uint32_t FLAGS>
 inline void _traceray(uint id, const rtm::Ray& ray, rtm::Hit& hit)
 {
@@ -115,14 +109,14 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
-inline bool intersect(const rtm::BVH::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::BVH::Node::Data data;
+		rtm::BVH2::Node::Data data;
 	};
 
 	NodeStackEntry node_stack[32];
@@ -236,7 +230,6 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 	return found_hit;
 }
 
-
 inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray& ray, rtm::Hit& hit, uint* treelet_stack, uint& treelet_stack_size)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
@@ -334,3 +327,35 @@ bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 
 	return is_hit;
 }
+
+#ifndef __riscv 
+inline void pregen_rays(const TRaXKernelArgs& args, uint bounce, std::vector<rtm::Ray>& rays)
+{
+	printf("Generating rays...\n");
+	for(int index = 0; index < args.framebuffer_size; index++)
+	{
+		uint32_t x = index % args.framebuffer_width;
+		uint32_t y = index / args.framebuffer_width;
+		rtm::RNG rng(index);
+
+		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
+		for(uint i = 0; i < bounce; ++i)
+		{
+			rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
+			intersect(args.nodes, args.tris, ray, hit);
+			if(hit.id != ~0u)
+			{
+				rtm::vec3 normal = args.tris[hit.id].normal();
+				ray.o += ray.d * hit.t;
+				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondray rays
+			}
+			else
+			{
+				ray.t_max = ray.t_min;
+				break;
+			}
+		}
+		rays[index] = ray;
+	}
+}
+#endif

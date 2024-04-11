@@ -35,16 +35,16 @@ public:
 #ifndef __riscv
 	std::vector<Node> nodes;
 	PackedBVH2() {};
-	PackedBVH2(const BVH& bvh)
+	PackedBVH2(const BVH2& bvh)
 	{
 		size_t num_packed_nodes = 0;
 		struct NodeSet
 		{
-			BVH::Node::Data data;
+			BVH2::Node::Data data;
 			uint32_t        index;
 
 			NodeSet() = default;
-			NodeSet(BVH::Node::Data data, uint32_t index) : data(data), index(index) {};
+			NodeSet(BVH2::Node::Data data, uint32_t index) : data(data), index(index) {};
 		};
 
 		std::vector<NodeSet> stack; stack.reserve(96);
@@ -63,7 +63,7 @@ public:
 				Node& current_pack = nodes[current_set.index];
 
 				uint index = current_set.data.fst_chld_ind + i;
-				BVH::Node node = bvh.nodes[index];
+				BVH2::Node node = bvh.nodes[index];
 
 				current_pack.aabb[i] = node.aabb;
 				current_pack.data[i].is_leaf = node.data.is_leaf;

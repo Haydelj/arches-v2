@@ -422,7 +422,7 @@ class ELF final
 				explicit LoadableSegment(ELF_Header const* header) : _header(header) {}
 				~LoadableSegment() = default;
 		};
-		std::vector<LoadableSegment*> segments;
+		std::vector<LoadableSegment*> segments_intersected;
 
 	public:
 		explicit ELF(std::string const& path);

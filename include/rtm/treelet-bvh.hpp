@@ -76,14 +76,14 @@ public:
 	std::vector<Treelet> treelets;
 
 	TreeletBVH(){}
-	TreeletBVH(const rtm::BVH& bvh, const rtm::Mesh& mesh)
+	TreeletBVH(const rtm::BVH2& bvh, const rtm::Mesh& mesh)
 	{
 		printf("Treelet BVH Building\n");
 		build_treelet(bvh, mesh);
 		printf("Treelet BVH Built\n");
 	}
 
-	uint get_node_size(uint node, const rtm::BVH& bvh, const rtm::Mesh& mesh)
+	uint get_node_size(uint node, const rtm::BVH2& bvh, const rtm::Mesh& mesh)
 	{
 		uint node_size = sizeof(Treelet::Node);
 		if (bvh.nodes[node].data.is_leaf)
@@ -92,7 +92,7 @@ public:
 		return node_size;
 	}
 
-	void build_treelet(const rtm::BVH& bvh, const rtm::Mesh& mesh)
+	void build_treelet(const rtm::BVH2& bvh, const rtm::Mesh& mesh)
 	{
 		//Phase 0 setup
 		uint total_footprint = 0;
@@ -281,7 +281,7 @@ public:
 			for (uint j = 0; j < treelet_assignments[treelet_index].size(); ++j)
 			{
 				uint node_id = treelet_assignments[treelet_index][j];
-				const rtm::BVH::Node& node = bvh.nodes[node_id];
+				const rtm::BVH2::Node& node = bvh.nodes[node_id];
 
 				assert(node_map.find(node_id) != node_map.end());
 				uint tnode_id = node_map[node_id];

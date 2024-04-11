@@ -261,17 +261,17 @@ public:
 
 	uint size() { return (uint)vertex_indices.size(); }
 
-	BVH::BuildObject get_build_object(uint index) const
+	BVH2::BuildObject get_build_object(uint index) const
 	{
 		Triangle triangle({ vertices[vertex_indices[index][0]], vertices[vertex_indices[index][1]], vertices[vertex_indices[index][2]] });
-		BVH::BuildObject build_object;
+		BVH2::BuildObject build_object;
 		build_object.aabb = triangle.aabb();
 		build_object.cost = triangle.cost();
 		build_object.index = index;
 		return build_object;
 	}
 
-	void reorder(std::vector<BVH::BuildObject>& ordered_build_objects)
+	void reorder(std::vector<BVH2::BuildObject>& ordered_build_objects)
 	{
 		assert(ordered_build_objects.size() == vertex_indices.size());
 		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);
