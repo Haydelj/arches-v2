@@ -134,8 +134,11 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom
 namespace TRaX {
 #include "trax-kernel/include.hpp"
 #include "trax-kernel/intersect.hpp"
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 78af85a (Interval Logging)
 static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config)
 {
 	std::string s = scene_names[global_config.scene_id];
@@ -354,11 +357,16 @@ static void run_sim_trax(GlobalConfig global_config)
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
+<<<<<<< HEAD
 	#if USERAMULATOR
 		Units::UnitDRAMRamulator dram(l2_config.num_banks, mem_size, &simulator); dram.clear();
 	#else
 		Units::UnitDRAM dram(l2_config.num_banks, mem_size, &simulator); dram.clear();
 	#endif
+=======
+
+	Units::UnitDRAM dram(l2_config.num_banks, mem_size, &simulator); dram.clear();
+>>>>>>> 78af85a (Interval Logging)
 	simulator.register_unit(&dram);
 	simulator.new_unit_group();
 
@@ -490,11 +498,15 @@ static void run_sim_trax(GlobalConfig global_config)
 		tp->set_entry_point(elf.elf_header->e_entry.u64);
 
 	//master logs
+<<<<<<< HEAD
 #if USERAMULATOR
 	Units::UnitDRAMRamulator::Log dram_log;
 #else
 	Units::UnitDRAM::Log dram_log;
 #endif
+=======
+	Units::UnitDRAM::Log dram_log;
+>>>>>>> 78af85a (Interval Logging)
 	Units::UnitBlockingCache::Log l2_log;
 	Units::UnitNonBlockingCache::Log l1d_log;
 	Units::UnitBlockingCache::Log l1i_log;
@@ -507,12 +519,17 @@ static void run_sim_trax(GlobalConfig global_config)
 	simulator.execute(delta, [&]() -> void
 	{
 		float epsilon_ns = delta / (clock_rate / 1'000'000'000);
+<<<<<<< HEAD
 #if USERAMULATOR
 		Units::UnitDRAMRamulator::Log dram_delta_log = delta_log(dram_log, dram);
 #else
 		Units::UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
 #endif
 		printf("DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
+=======
+
+		Units::UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
+>>>>>>> 78af85a (Interval Logging)
 		Units::UnitBlockingCache::Log l2_delta_log = delta_log(l2_log, l2);
 		Units::UnitNonBlockingCache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
 
@@ -534,6 +551,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	tp_log.print_profile(dram._data_u8);
 
+<<<<<<< HEAD
 #if USERAMULATOR
 	dram.print_ramulator_stats(CACHE_BLOCK_SIZE, 4, frame_cycles);
 #else
@@ -543,6 +561,13 @@ static void run_sim_trax(GlobalConfig global_config)
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);
 	
+=======
+	dram.print_usimm_stats(CACHE_BLOCK_SIZE, 4, frame_cycles);
+	print_header("DRAM");
+	delta_log(dram_log, dram);
+	dram_log.print(frame_cycles);
+
+>>>>>>> 78af85a (Interval Logging)
 	print_header("L2$");
 	delta_log(l2_log, l2);
 	l2_log.print(frame_cycles);
