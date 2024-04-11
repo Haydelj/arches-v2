@@ -58,6 +58,20 @@ namespace rtm
 			uint32_t nodeIndex;
 			rtm::AABB aabb;
 			int triIndices[p_max];
+
+			DecompressedNodeData() : is_leaf(false), nodeIndex(0), aabb(), triIndices{ INVALID,INVALID,INVALID } {}
+			~DecompressedNodeData() {}
+
+			DecompressedNodeData& operator=(const DecompressedNodeData& rhs) {
+				is_leaf = rhs.is_leaf;
+				nodeIndex = rhs.nodeIndex;
+				aabb = rhs.aabb;
+				for (int i = 0; i < p_max; i++)
+				{
+					triIndices[i] = rhs.triIndices[i];
+				}
+				return *this;
+			}
 		};
 
 		struct WideBVHNode
@@ -91,14 +105,14 @@ namespace rtm
 
 			~WideBVHNode() = default;
 
-			bool decompress(bool nodeIsInterior, std::vector<rtm::WideBVH::DecompressedNodeData>& dnodes, int& childCount) const
+			void decompress(rtm::BVH::Node* dnodes, int& childCount) const
 			{
 				childCount = 0;
 				
 				for (int i = 0; i < n_ary_sz; i++)
 				{
 					//check for non-empty child slot
-					if (meta[i] | 0b00000000)
+					if (meta[i])
 					{
 
 						childCount++; //found child
@@ -106,70 +120,96 @@ namespace rtm
 						if (imask & (1 << i)) //if internal node
 						{
 							
-							dnodes[i].is_leaf = false;
-							dnodes[i].nodeIndex = base_index_child + i;
+							dnodes[i].data.is_leaf = false;
+							dnodes[i].data.fst_chld_ind = base_index_child + i;
 
-							dnodes[i].aabb.min.x = p.x + float(e[0] * q_min_x[i]);
-							dnodes[i].aabb.min.y = p.y + float(e[1] * q_min_y[i]);
-							dnodes[i].aabb.min.z = p.z + float(e[2] * q_min_z[i]);
-							dnodes[i].aabb.max.x = p.x + float(e[0] * q_max_x[i]);
-							dnodes[i].aabb.max.y = p.y + float(e[1] * q_max_y[i]);
-							dnodes[i].aabb.max.z = p.z + float(e[2] * q_max_z[i]);
+							uint32_t e0, e1, e2;
+							float e0_f, e1_f, e2_f;
+
+							e0 = uint32_t(e[0]) << 23;
+							e1 = uint32_t(e[1]) << 23;
+							e2 = uint32_t(e[2]) << 23;
+							
+							memcpy(&e0_f, &e0, sizeof(uint32_t));
+							memcpy(&e1_f, &e1, sizeof(uint32_t));
+							memcpy(&e2_f, &e2, sizeof(uint32_t));
+
+							dnodes[i].aabb.min.x = p.x + e0_f * float(q_min_x[i]);
+							dnodes[i].aabb.min.y = p.y + e1_f * float(q_min_y[i]);
+							dnodes[i].aabb.min.z = p.z + e2_f * float(q_min_z[i]);
+							dnodes[i].aabb.max.x = p.x + e0_f * float(q_max_x[i]);
+							dnodes[i].aabb.max.y = p.y + e1_f * float(q_max_y[i]);
+							dnodes[i].aabb.max.z = p.z + e2_f * float(q_max_z[i]);
 						}
-						else
+						else //is leaf
 						{
 
-							dnodes[i].is_leaf = true;
+							dnodes[i].data.is_leaf = true;
+							dnodes[i].data.fst_chld_ind = base_index_triangle + (meta[i] & 0b00011111);
 
-							for (int j = 0; j < 3; j++)
+							int num_set_bits = 0;
+							for (int j = 0; j < p_max; j++)
 							{
-								if (meta[i] & (uint8_t(1 << (j + 5)))) //if triangle present
+								if (meta[i] & (1 << (j + 5))) //if triangle present
 								{
-									dnodes[i].triIndices[j] = base_index_triangle + (meta[i] & 0b00011111) + j;
+									num_set_bits++;
 								}
 							}
+							dnodes[i].data.lst_chld_ofst = num_set_bits - 1;
 						}
 					}
 				}
-
-				return true;
 			}
 		};
 
-		void build(const rtm::BVH& bvh)
-			{
-				std::cout << "WideBVH building ... " << std::endl;
+		static void swap_dnodes(DecompressedNodeData& d1, DecompressedNodeData& d2)
+		{
+			DecompressedNodeData temp;
 
-				decisions.resize(bvh.nodes.size() * (n_ary_sz - 1));		//as per implementation in paper
-				nodes.emplace_back(); //default init root node
-
-				calculate_cost(0, bvh.nodes[0].aabb.surface_area(), bvh);	//fill in cost table using dynamic programming (bottom up) 
-				collapse(bvh, 0, 0);											//collapse SBVH into WideBVH using the cost table
-				std::cout << "WideBVH build complete "<< std::endl;
+			temp = d2;
+			d2 = d1;
+			d1 = temp;
 		}
+
+		void build(const rtm::BVH& bvh)
+		{
+			std::cout << "WideBVH building ... " << std::endl;
+
+			//each node may have max forest size number of cost permutations
+			decisions.resize(bvh.nodes.size() * max_forst_sz);		
+			nodes.emplace_back(); //default init root node
+
+			calculate_cost(0, bvh.nodes[0].aabb.surface_area(), bvh);	//fill in cost table using dynamic programming (bottom up) 
+			collapse(bvh, 0, 0);										//collapse SBVH into WideBVH using the cost table
+			std::cout << "WideBVH build complete "<< std::endl;
+		}
+
 		WideBVHNode* getNodes()
 			{
 				return nodes.data();
 			}
 		int* getIndices() { return indices.data(); }
+
+		std::vector<int> indices;		 // index buffer to triangle primitives
+
 	private:
 
 			std::vector<Decision> decisions; // array to store cost and meta data for the collapse algorithm
 			std::vector<WideBVHNode> nodes;  // Linearized nodes buffer for wide bvh
-			std::vector<int> indices;		 // index buffer to triangle primitives
-
-			int calculate_cost(int node_index, float parent_surface_area, const rtm::BVH& bvh2)
+		
+			int calculate_cost(int node_index, float root_surface_area, const rtm::BVH& bvh2)
 			{
+				///starts with root node for SBVH 
 				const rtm::BVH::Node& node = bvh2.nodes[node_index];
 				int num_primitives = 0;
 
 				if (node.data.is_leaf)
 				{
-					num_primitives = node.data.lst_chld_ofst + 1;
+					num_primitives = node.data.lst_chld_ofst + 1; 
 					assert(num_primitives == 1); //for wide bvh collapse the bvh2 should be constrained to 1 primitive per leaf node
 
 					//SAH cost for leaf
-					float cost_leaf = (node.aabb.surface_area() / parent_surface_area) * float(num_primitives);
+					float cost_leaf = (node.aabb.surface_area() / root_surface_area) * float(num_primitives) * rtm::Triangle::cost();
 
 					//initialize the forest to default value if leaf node
 					for (int i = 0; i < max_forst_sz; i++)
@@ -299,18 +339,18 @@ namespace rtm
 
 				if (bvh2node.data.is_leaf)
 				{
-					children[child_count++] = node_index;
+					children[child_count++] = node_index; //return self index if leaf node
 					return;
 				}
 
-				char distribute_left = decisions[node_index * (n_ary_sz - 1) + i].distribute_left;
-				char distribute_right = decisions[node_index * (n_ary_sz - 1) + i].distribute_right;
+				char distribute_left = decisions[node_index * max_forst_sz + i].distribute_left;
+				char distribute_right = decisions[node_index * max_forst_sz + i].distribute_right;
 
-				assert(distribute_left >= 0 && distribute_left < (n_ary_sz - 1));
-				assert(distribute_right >= 0 && distribute_right < (n_ary_sz - 1));
+				assert(distribute_left >= 0 && distribute_left < max_forst_sz);
+				assert(distribute_right >= 0 && distribute_right < max_forst_sz);
 
 				//recurse on left child if it needs to distribute
-				if (decisions[bvh2node.data.fst_chld_ind * (n_ary_sz - 1) + distribute_left].type == Decision::Type::DISTRIBUTE)
+				if (decisions[bvh2node.data.fst_chld_ind * max_forst_sz + distribute_left].type == Decision::Type::DISTRIBUTE)
 				{
 					get_children(bvh2node.data.fst_chld_ind, bvh2, children, child_count, distribute_left);
 				}
@@ -320,7 +360,7 @@ namespace rtm
 				}
 
 				//recurse on right child if it needs to distribute
-				if (decisions[(bvh2node.data.fst_chld_ind + 1) * (n_ary_sz - 1) + distribute_right].type == Decision::Type::DISTRIBUTE)
+				if (decisions[(bvh2node.data.fst_chld_ind + 1) * max_forst_sz + distribute_right].type == Decision::Type::DISTRIBUTE)
 				{
 					get_children(bvh2node.data.fst_chld_ind + 1, bvh2, children, child_count, distribute_right);
 				}
@@ -330,6 +370,9 @@ namespace rtm
 				}
 
 			}
+
+			//MAP n_ary_nodes to each interior node for wide bvh.
+			//each internal node has a distributed forest associated with it
 			void collapse(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
 			{
 
@@ -341,9 +384,9 @@ namespace rtm
 				constexpr float denom = 1.0f / float((1 << Nq) - 1);
 
 				rtm::vec3 e(
-					exp2f(ceilf(log2f(aabb.max.x - aabb.min.x) * denom)),
-					exp2f(ceilf(log2f(aabb.max.y - aabb.min.y) * denom)),
-					exp2f(ceilf(log2f(aabb.max.z - aabb.min.z) * denom)));
+					exp2f(ceilf(log2f((aabb.max.x - aabb.min.x) * denom))),
+					exp2f(ceilf(log2f((aabb.max.y - aabb.min.y) * denom))),
+					exp2f(ceilf(log2f((aabb.max.z - aabb.min.z) * denom))));
 
 				rtm::vec3 one_over_e = (1.0f / e.x, 1.0f / e.y, 1.0f / e.z);
 
@@ -391,12 +434,11 @@ namespace rtm
 					node.q_min_x[i] = uint8_t(floorf((child_aabb.min.x - node.p.x) * one_over_e.x));
 					node.q_min_y[i] = uint8_t(floorf((child_aabb.min.y - node.p.y) * one_over_e.y));
 					node.q_min_z[i] = uint8_t(floorf((child_aabb.min.z - node.p.z) * one_over_e.z));
-
 					node.q_max_x[i] = uint8_t(ceilf((child_aabb.max.x - node.p.x) * one_over_e.x));
 					node.q_max_y[i] = uint8_t(ceilf((child_aabb.max.y - node.p.y) * one_over_e.y));
 					node.q_max_z[i] = uint8_t(ceilf((child_aabb.max.z - node.p.z) * one_over_e.z));
 
-					switch (decisions[child_index * (n_ary_sz - 1)].type)
+					switch (decisions[child_index * max_forst_sz].type)
 					{
 					case Decision::Type::LEAF:
 					{
@@ -422,6 +464,7 @@ namespace rtm
 					}
 					default:
 						//unreachable
+						assert(true);
 						break;
 					}
 				}
@@ -431,27 +474,25 @@ namespace rtm
 					nodes.emplace_back();
 				}
 
-				//reinitialize cause vector might have changed
-				WideBVHNode& node2 = nodes.at(node_index_wbvh);
-
-				assert((node2.base_index_child + num_internal_nodes) == nodes.size());
-				assert((node2.base_index_triangle + num_triangles) == indices.size());
+			
+				assert((nodes.at(node_index_wbvh).base_index_child + num_internal_nodes) == nodes.size());
+				assert((nodes.at(node_index_wbvh).base_index_triangle + num_triangles) == indices.size());
 
 				//Recurse on internal nodes
 				uint32_t offset = 0;
 				for (int i = 0; i < n_ary_sz; i++)
 				{
-					WideBVHNode& node3 = nodes.at(node_index_wbvh);
-
+					
 					int child_index = children[i];
 					if (child_index == INVALID) continue;
 
-					if (node3.imask & (1 << i))
+					if (nodes.at(node_index_wbvh).imask & (1 << i))
 					{
-						collapse(bvh2, node3.base_index_child + offset++, child_index);
+						collapse(bvh2, nodes.at(node_index_wbvh).base_index_child + offset++, child_index);
 					}
 				}
 			}
+
 			void order_children();
 		};
 }

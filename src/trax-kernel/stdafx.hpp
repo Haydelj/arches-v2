@@ -23,4 +23,4 @@
 typedef unsigned int uint;
 
 #define WIDE_BVH
-#define T_STACK_SZ 8192
+#define T_STACK_SZ 32

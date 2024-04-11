@@ -47,6 +47,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 			uint32_t x = index % args.framebuffer_width;
 			uint32_t y = index / args.framebuffer_width;
 
+			printf("%d\r", y * args.framebuffer_width + x);
+
 			rtm::RNG rng(index);
 			rtm::vec3 output(0.0f);
 
@@ -78,9 +80,10 @@ inline static void kernel(const TRaXKernelArgs& args)
 						intersect(args.nodes, args.tris, ray, hit);
 					#endif
 				#endif
+
 					if(hit.id != ~0u)
 					{
-						/*
+						
 						normal = args.tris[hit.id].normal();
 						normal = normal * 0.5f + 0.5f;
 						output = normal;
@@ -106,8 +109,9 @@ inline static void kernel(const TRaXKernelArgs& args)
 								ndotl = 0.0f;
 						}
 						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
-						*/
-						output += rtm::vec3(hit.id, hit.id, hit.id) * 0.166;
+						
+
+					//	output += rtm::vec3(hit.id, hit.id, hit.id);
 					}
 					else
 					{
@@ -119,6 +123,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 
 			args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
 		}
+
+		printf("\n");
 	}
 
 #else
@@ -163,8 +169,8 @@ int main()
 int main(int argc, char* argv[])
 {
 	TRaXKernelArgs args;
-	args.framebuffer_width = 64;
-	args.framebuffer_height = 64;
+	args.framebuffer_width = 1024;
+	args.framebuffer_height = 1024;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
@@ -180,7 +186,7 @@ int main(int argc, char* argv[])
 	uint framebuffer_size = args.framebuffer_size;
 	std::vector<rtm::Ray> secondary_rays(framebuffer_size);
 	std::vector<rtm::Hit> primary_hits(framebuffer_size);
-	rtm::Mesh mesh("../../datasets/teapot.obj");
+	rtm::Mesh mesh("../../datasets/sponza.obj");
 	rtm::BVH bvh;
 	rtm::WideBVH wbvh;
 
@@ -192,6 +198,7 @@ int main(int argc, char* argv[])
 	wbvh.build(bvh);
 	
 	mesh.reorder(build_objects);
+	mesh.reorder(wbvh.indices);
 	mesh.get_triangles(tris);
 	rtm::PackedBVH2 packed_bvh(bvh);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
