@@ -99,12 +99,12 @@ public:
 	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
 
 	//dual streaming
-	bool use_scene_buffer = 1;
-	bool rays_on_chip = 0;
-	bool use_early = 0;
+	bool use_scene_buffer = 0;
+	bool rays_on_chip = 1;
+	bool use_early = 1;
 	bool hit_delay = 0;
 	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
-	uint traversal_scheme = 0; // 0-BFS, 1-DFS
+	uint traversal_scheme = 1; // 0-BFS, 1-DFS
 	uint weight_scheme = 1; // 0 total, 1 average, 2 none
 
 public:
