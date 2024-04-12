@@ -1,8 +1,6 @@
 #include "unit-scene-buffer.hpp"
 
-namespace Arches {
-namespace Units {
-namespace DualStreaming {
+namespace Arches { namespace Units { namespace DualStreaming {
 
 void UnitSceneBuffer::process_finish()
 {
@@ -39,6 +37,7 @@ void UnitSceneBuffer::process_requests(uint bank_index)
 		const MemoryRequest req = _request_network.read(bank_index);
 		paddr_t buffer_addr = _address_translator.translate(req.paddr);
 		bank.data_array_pipline.write(MemoryReturn(req, &_data_u8[buffer_addr]));
+		log.loads++;
 	}
 	bank.data_array_pipline.clock();
 }
@@ -58,6 +57,9 @@ void UnitSceneBuffer::process_returns(uint channel_index)
 			_segment_states[segment_id].bytes_returned += ret.size;
 			if(_segment_states[segment_id].bytes_returned == _address_translator.segment_size)
 				_prefetch_complete_queue.push(segment_id);
+
+			log.stores++;
+			log.bytes_written += ret.size;
 		}
 	}
 }
@@ -89,8 +91,11 @@ void UnitSceneBuffer::issue_requests(uint channel_index)
 void UnitSceneBuffer::issue_returns(uint bank_index)
 {
 	Bank& bank = _banks[bank_index];
-	if (bank.data_array_pipline.is_read_valid() && _return_network.is_write_valid(bank_index))
+	if(bank.data_array_pipline.is_read_valid() && _return_network.is_write_valid(bank_index))
+	{
+		log.bytes_read += bank.data_array_pipline.peek().size;
 		_return_network.write(bank.data_array_pipline.read(), bank_index);
+	}
 }
 
 void UnitSceneBuffer::clock_rise()
@@ -124,6 +129,4 @@ void UnitSceneBuffer::clock_fall()
 	_return_network.clock();
 }
 
-}
-}
-}
+}}}

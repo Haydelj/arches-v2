@@ -43,6 +43,9 @@ private:
 public:
 	UnitDRAM(uint num_clients, uint64_t size, Simulator* simulator);
 	virtual ~UnitDRAM() override;
+	void reset() override;
+	void clock_rise() override;
+	void clock_fall() override;
 
 	bool request_port_write_valid(uint port_index) override;
 	void write_request(const MemoryRequest& request) override;
@@ -51,12 +54,9 @@ public:
 	const MemoryReturn& peek_return(uint port_index) override;
 	const MemoryReturn read_return(uint port_index) override;
 
-	void clock_rise() override;
-	void clock_fall() override;
-
 	bool usimm_busy();
 	void print_usimm_stats(uint32_t const L2_line_size, uint32_t const word_size, cycles_t cycle_count);
-	float total_power_in_watts();
+	float total_power();
 
 	virtual void UsimmNotifyEvent(cycles_t write_cycle, const arches_request_t& req);
 
@@ -68,6 +68,7 @@ public:
 	class Log
 	{
 	public:
+		const static uint NUM_COUNTERS = 4;
 		union
 		{
 			struct
@@ -75,33 +76,36 @@ public:
 				uint64_t loads;
 				uint64_t stores;
 				uint64_t bytes_read;
+				uint64_t bytes_written;
 			};
-			uint64_t counters[8];
+			uint64_t counters[NUM_COUNTERS];
 		};
 
 		Log() { reset(); }
 
 		void reset()
 		{
-			for(uint i = 0; i < 8; ++i)
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] = 0;
 		}
 
 		void accumulate(const Log& other)
 		{
-			for(uint i = 0; i < 8; ++i)
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] += other.counters[i];
 		}
 
 		void print(cycles_t cycles, uint units = 1)
 		{
 			uint64_t total = loads + stores;
-			float ft = total / 100.0f;
 
+			printf("Read Bandwidth: %.1f bytes/cycle\n", (double)bytes_read / units / cycles);
+			printf("Write Bandwidth: %.1f bytes/cycle\n", (double)bytes_written / units / cycles);
+
+			printf("\n");
 			printf("Total: %lld\n", total / units);
 			printf("Loads: %lld\n", loads / units);
 			printf("Stores: %lld\n", stores / units);
-			printf("Bandwidth: %.2f Bytes/Cycle\n", (double)bytes_read / units / cycles);
 		}
 	}
 	log;

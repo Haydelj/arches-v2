@@ -9,8 +9,7 @@
 #include <cassert>
 #endif
 
-namespace rtm
-{
+namespace rtm {
 
 #ifdef _DEBUG
 #define BUILD_QUALITY 0
@@ -20,7 +19,7 @@ namespace rtm
 
 constexpr uint max_children = 8;
 
-class BVH
+class BVH2
 {
 public:
 	struct BuildObject
@@ -40,43 +39,34 @@ public:
 			uint32_t fst_chld_ind : 28;
 		};
 
-		AABB       aabb{};
-		Node::Data data{};
-		uint32_t   _pad{0xcdcdcdcd};
+		AABB       aabb;
+		Data       data;
+		uint32_t   _pad;
 	};
 
 #ifndef __riscv
-	float cost{1.0f};
+	float cost{0.0f};
 	std::vector<Node> nodes;
 
 private:
-	class _BuildObjectComparatorSpacial
+	struct BuildEvent
 	{
-	public:
-		_BuildObjectComparatorSpacial(uint axis) : _axis(axis) {}
-		bool operator()(const BuildObject& a, const BuildObject& b) { return a.aabb.centroid()[_axis] < b.aabb.centroid()[_axis]; };
-	private:
-		uint _axis;
-	};
-
-	struct _BuildEvent
-	{
-		uint start{0};
-		uint end{0};
-		uint node_index{~0u};
+		uint start;
+		uint end;
+		uint node_index;
 
 		uint split_build_objects(AABB aabb, BuildObject* build_objects)
 		{
 			uint size = end - start;
 			if(size <= 1) return ~0u;
 
-#if BUILD_QUALITY == 0
-			if(size > max_children) 
+		#if BUILD_QUALITY == 0
+			if(size > max_children)
 				return split_build_objects_radix(aabb, build_objects);
-#elif BUILD_QUALITY == 1
+		#elif BUILD_QUALITY == 1
 			if(size > 64)
 				return split_build_objects_radix(aabb, build_objects);
-#endif
+		#endif
 
 			uint best_axis = 0;
 			uint best_spliting_index = 0;
@@ -86,12 +76,14 @@ private:
 			float inv_aabb_sa = 1.0f / aabb_sa;
 
 			uint axis = aabb.longest_axis();
-#if BUILD_QUALITY > 0
-			for (axis = 0; axis < 3; ++axis)
-#endif
+		#if BUILD_QUALITY > 0
+			for(axis = 0; axis < 3; ++axis)
+		#endif
 			{
-				_BuildObjectComparatorSpacial comparator(axis);
-				std::sort(build_objects + start, build_objects + end, comparator);
+				std::sort(build_objects + start, build_objects + end, [&](const BuildObject& a, const BuildObject& b)
+				{
+					return a.aabb.centroid()[axis] < b.aabb.centroid()[axis];
+				});
 
 				std::vector<float> cost_left(size);
 				std::vector<float> cost_right(size);
@@ -99,7 +91,7 @@ private:
 				AABB left_aabb, right_aabb;
 				float left_cost_sum = 0.0f, right_cost_sum = 0.0f;
 
-				for (uint i = 0; i < size; ++i)
+				for(uint i = 0; i < size; ++i)
 				{
 					cost_left[i] = AABB::cost() + left_cost_sum * left_aabb.surface_area() * inv_aabb_sa;
 					left_aabb.add(build_objects[start + i].aabb);
@@ -115,14 +107,14 @@ private:
 				}
 
 				std::vector<float> costs;
-				for (uint i = 0; i < size; ++i)
+				for(uint i = 0; i < size; ++i)
 				{
-					float cost; 
+					float cost;
 					if(i == 0) cost = left_cost_sum;
 					else       cost = cost_left[i] + cost_right[i];
 					costs.push_back(cost);
 
-					if (cost < best_spliting_cost)
+					if(cost < best_spliting_cost)
 					{
 						best_spliting_index = start + i;
 						best_spliting_cost = cost;
@@ -134,14 +126,16 @@ private:
 
 			if(axis != best_axis)
 			{
-				_BuildObjectComparatorSpacial comparator(best_axis);
-				std::sort(build_objects + start, build_objects + end, comparator);
+				std::sort(build_objects + start, build_objects + end, [&](const BuildObject& a, const BuildObject& b)
+				{
+					return a.aabb.centroid()[best_axis] < b.aabb.centroid()[best_axis];
+				});
 			}
 
-			if (best_spliting_index == start)
+			if(best_spliting_index == start)
 			{
-				if (size <= max_children) return ~0;
-				else                      return (start + end) / 2;
+				if(size <= max_children) return ~0;
+				else                     return (start + end) / 2;
 			}
 
 			return best_spliting_index;
@@ -166,7 +160,7 @@ private:
 				if(size <= max_children) return ~0u;
 				else                     return (start + end) / 2;
 			}
-			
+
 			uint64_t sort_bit_mask = 1ull << (63 - common_prefix_size);
 			uint head = start;
 			uint tail = end - 1;
@@ -193,9 +187,9 @@ private:
 	};
 
 public:
-	void build(std::vector<BuildObject>& build_objects, uint splits = 1)
+	void build(std::vector<BuildObject>& build_objects)
 	{
-		printf("BVH%d Building\n", 1 << splits);
+		printf("BVH2 Building\n");
 		nodes.clear();
 
 		//Build morton codes for build objects
@@ -219,7 +213,7 @@ public:
 			build_object.morton_code |= _pdep_u64(z, 0b100100100100100100100100100100100100100100100100100100100100ull);
 		}
 
-		std::vector<_BuildEvent> event_stack;
+		std::vector<BuildEvent> event_stack;
 		event_stack.emplace_back();
 		event_stack.back().start = 0;
 		event_stack.back().end = build_objects.size();
@@ -227,49 +221,29 @@ public:
 
 		while(!event_stack.empty())
 		{
-			_BuildEvent current_build_event = event_stack.back(); event_stack.pop_back();
+			BuildEvent current_build_event = event_stack.back(); event_stack.pop_back();
 
 			AABB aabb;
 			for(uint i = current_build_event.start; i < current_build_event.end; ++i)
 				aabb.add(build_objects[i].aabb);
 
-			std::vector<_BuildEvent> build_events = {current_build_event};
-			for(uint i = 0; i < splits; ++i)
+			uint splitting_index = current_build_event.split_build_objects(aabb, build_objects.data());
+			if(splitting_index != ~0)
 			{
-				std::vector<_BuildEvent> new_build_events;
-				for(auto& build_event : build_events)
-				{
-					uint splitting_index = build_event.split_build_objects(aabb, build_objects.data());
-					if(splitting_index != ~0)
-					{
-						{
-							_BuildEvent new_event;
-							new_event.start = build_event.start;
-							new_event.end = splitting_index;
-							new_build_events.push_back(new_event);
-						}
-						{
-							_BuildEvent new_event;
-							new_event.start = splitting_index;
-							new_event.end = build_event.end;
-							new_build_events.push_back(new_event);
-						}
-					}
-					else
-					{
-						new_build_events.push_back(build_event);
-					}
-				}
+				nodes[current_build_event.node_index].aabb = aabb;
+				nodes[current_build_event.node_index].data.is_leaf = 0;
+				nodes[current_build_event.node_index].data.lst_chld_ofst = 1;
+				nodes[current_build_event.node_index].data.fst_chld_ind = nodes.size();
 
-				if(new_build_events.size() == build_events.size()) break;
+				for(uint i = 0; i < 2; ++i)
+					nodes.emplace_back();
 
-				build_events.clear();
-				build_events = new_build_events;
+				event_stack.push_back({splitting_index, current_build_event.end, (uint)nodes.size() - 1});
+				event_stack.push_back({current_build_event.start, splitting_index, (uint)nodes.size() - 2});
 			}
-
-			//didn't do any splitting meaning this build event can become a leaf node
-			if(build_events.size() == 1)
+			else
 			{
+				//didn't do any splitting meaning this build event can become a leaf node
 				uint size = current_build_event.end - current_build_event.start;
 				assert(size <= max_children && size >= 1);
 
@@ -278,43 +252,34 @@ public:
 				nodes[current_build_event.node_index].data.lst_chld_ofst = size - 1;
 				nodes[current_build_event.node_index].data.fst_chld_ind = current_build_event.start;
 			}
-			else
-			{
-				nodes[current_build_event.node_index].aabb = aabb;
-				nodes[current_build_event.node_index].data.is_leaf = 0;
-				nodes[current_build_event.node_index].data.lst_chld_ofst = build_events.size() - 1;
-				nodes[current_build_event.node_index].data.fst_chld_ind = nodes.size();
-
-				for(uint i = 0; i < build_events.size(); ++i)
-					build_events[i].node_index = nodes.size(), nodes.emplace_back();
-
-				for(uint i = build_events.size() - 1; i < build_events.size(); --i)
-					event_stack.push_back(build_events[i]);
-			}
 		}
 
+		//compute sah
 		std::vector<float> costs(nodes.size());
 		for(uint i = nodes.size() - 1; i < nodes.size(); --i)
 		{
-			costs[i] = AABB::cost();
+			costs[i] = 0.0f;
 			if(nodes[i].data.is_leaf)
 			{
 				for(uint j = 0; j <= nodes[i].data.lst_chld_ofst; ++j)
 					costs[i] += build_objects[nodes[i].data.fst_chld_ind + j].cost;
- 			}
+			}
 			else
 			{
 				float sa = nodes[i].aabb.surface_area();
-				for(uint j = 0; j <= nodes[i].data.lst_chld_ofst; ++j)
+				if(sa > 0.0f)
 				{
-					uint ci = nodes[i].data.fst_chld_ind + j;
-					costs[i] += costs[ci] * nodes[ci].aabb.surface_area() / sa;
+					for(uint j = 0; j <= nodes[i].data.lst_chld_ofst; ++j)
+					{
+						uint ci = nodes[i].data.fst_chld_ind + j;
+						costs[i] +=  AABB::cost() + costs[ci] * std::max(nodes[ci].aabb.surface_area(), 0.0f) / sa;
+					}
 				}
 			}
 		}
 		cost = costs[0];
 
-		printf("BVH%d Built: %.2f\n", 1 << splits, cost);
+		printf("BVH2 Built: %.2f\n", cost);
 	}
 #endif
 };

@@ -176,7 +176,7 @@ private:
 	paddr_t _treelet_base_addr;
 	paddr_t _hit_record_base_addr;
 	bool _use_early_termination;
-	uint last_ray_id = 0;
+	uint last_ray_id{0};
 
 public:
 	UnitTreeletRTCore(const Configuration& config);
@@ -202,8 +202,7 @@ public:
 		}
 
 		//for(uint i = 0; i < 2; ++i) //2 pops per cycle. In reality this would need to be multi banked
-		_schedule_ray();
-
+			_schedule_ray();
 		_simualte_intersectors();
 	}
 

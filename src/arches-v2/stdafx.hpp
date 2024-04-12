@@ -139,6 +139,7 @@
 #include <stack>
 #include <iostream>
 #include <new>
+#include <functional>
 
 #include <intrin.h>
 #include <xmmintrin.h>
@@ -146,7 +147,7 @@
 #ifndef _DEBUG
 inline void _assert(bool x)
 {
-	if(!x) __debugbreak();
+	//if(!x) __debugbreak();
 }
 #else
 inline void _assert(bool x)

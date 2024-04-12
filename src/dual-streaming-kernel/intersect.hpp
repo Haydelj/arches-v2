@@ -342,3 +342,35 @@ inline bool intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 
 	return hit_found;
 }
+
+#ifndef __riscv
+inline void pregen_rays(const DualStreamingKernelArgs& args, uint bounce, std::vector<rtm::Ray>& rays)
+{
+	printf("Generating rays...\n");
+	for(int index = 0; index < args.framebuffer_size; index++)
+	{
+		uint32_t x = index % args.framebuffer_width;
+		uint32_t y = index / args.framebuffer_width;
+		rtm::RNG rng(index);
+
+		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
+		for(uint i = 0; i < bounce; ++i)
+		{
+			rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
+			intersect(args.treelets, ray, hit);
+			if(hit.id != ~0u)
+			{
+				rtm::vec3 normal = args.tris[hit.id].normal();
+				ray.o += ray.d * hit.t;
+				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondray rays
+			}
+			else
+			{
+				ray.t_max = ray.t_min;
+				break;
+			}
+		}
+		rays[index] = ray;
+	}
+}
+#endif

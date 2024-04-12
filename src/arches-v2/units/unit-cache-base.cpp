@@ -1,6 +1,7 @@
 #include "unit-cache-base.hpp"
 
-namespace Arches {namespace Units {
+namespace Arches {
+namespace Units {
 
 UnitCacheBase::UnitCacheBase(size_t size, uint associativity) : UnitMemoryBase()
 {

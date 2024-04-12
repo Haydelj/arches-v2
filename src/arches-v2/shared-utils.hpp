@@ -35,6 +35,28 @@ static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignmen
 	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
 }
 
+template <class T, class L>
+inline static L delta_log(L& master_log, std::vector<T*> units)
+{
+	L delta_log;
+	for(uint i = 0; i < units.size(); ++i)
+	{
+		delta_log.accumulate(units[i]->log);
+		units[i]->log.reset();
+	}
+	master_log.accumulate(delta_log);
+	return delta_log;
+}
+
+template <class T, class L>
+inline static L delta_log(L& master_log, T& unit)
+{
+	L delta_log = unit.log;
+	master_log.accumulate(unit.log);
+	unit.log.reset();
+	return delta_log;
+}
+
 enum SCENES
 {
 	SPONZA = 0,
@@ -43,29 +65,133 @@ enum SCENES
 	LIVING_ROOM,
 	NUMBER
 };
+
 std::vector<std::string> scene_names = { "sponza", "san-miguel", "hairball", "living_room" };
-struct SceneConfig
+
+struct CameraConfig
 {
-	rtm::Camera camera;
-}scene_configs[SCENES::NUMBER];
-struct GlobalConfig
-{
-	uint simulator = 1; // 0 - trax, 1-dual-streaming
-	uint scene_id = 0;
-	uint framebuffer_width = 256;
-	uint framebuffer_height = 256;
-	uint traversal_scheme = 0; // 0 - BFS, 1 - DFS
-	uint hit_buffer_size = 128 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
-	bool use_early = 0;
-	bool hit_delay = 0;
-	bool use_secondary_rays = false; // 0-primary ray, 1-secondary ray
-	bool allow_wait = false;
-	uint valid_secondary_rays = 0;
-	uint weight_scheme = 1;
-	SceneConfig scene_config;
+	rtm::vec3 position;
+	rtm::vec3 target;
+	float focal_length;
 };
 
-bool readCmd = true;
-std::vector<rtm::Ray> secondary_rays;
-std::vector<rtm::Hit> primary_hits;
+static const CameraConfig camera_configs[SCENES::NUMBER] =
+{
+	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //SPONZA
+	{rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
+	{rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
+	{rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f}, //LIVING_ROOM
+};
+
+class GlobalConfig
+{
+public:
+	//simulator config
+	uint simulator = 1; //0-trax, 1-dual-streaming
+	uint logging_interval = 32 * 1024;
+
+	//workload config
+	uint scene_id = 0;
+	uint framebuffer_width = 512;
+	uint framebuffer_height = 512;
+	CameraConfig camera_config;
+	bool pregen_rays = 1;
+	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
+
+	//dual streaming
+	bool use_scene_buffer = 0;
+	bool rays_on_chip = 1;
+	bool use_early = 1;
+	bool hit_delay = 0;
+	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
+	uint traversal_scheme = 1; // 0-BFS, 1-DFS
+	uint weight_scheme = 1; // 0 total, 1 average, 2 none
+
+public:
+	GlobalConfig(int argc, char* argv[])
+	{
+		auto ParseCommand = [&](char* argv)
+		{
+			std::string s(argv);
+			size_t pos = s.find("=");
+			if(pos == std::string::npos)
+			{
+				return;
+			}
+			// -Dxxx=yyy
+			auto key = s.substr(2, pos - 2);
+			auto value = s.substr(pos + 1, s.size() - (pos + 1));
+
+			if(key == "simulator")
+			{
+				simulator = std::stoi(value);
+			}
+			if(key == "scene_name")
+			{
+				for(int i = 0; i < Arches::scene_names.size(); i++)
+				{
+					if(Arches::scene_names[i] == value)
+					{
+						scene_id = i;
+					}
+				}
+			}
+			if(key == "framebuffer_width")
+			{
+				framebuffer_width = std::stoi(value);
+			}
+			if(key == "framebuffer_height")
+			{
+				framebuffer_height = std::stoi(value);
+			}
+			if(key == "traversal_scheme")
+			{
+				traversal_scheme = std::stoi(value);
+			}
+			if(key == "hit_buuffer_size")
+			{
+				hit_buffer_size = std::stoi(value);
+			}
+			if(key == "use_scene_buffer")
+			{
+				use_scene_buffer = std::stoi(value);
+			}
+			if(key == "rays_on_chip")
+			{
+				rays_on_chip = std::stoi(value);
+			}
+			if(key == "use_early")
+			{
+				use_early = std::stoi(value);
+			}
+			if(key == "hit_delay")
+			{
+				hit_delay = std::stoi(value);
+			}
+			if(key == "pregen_rays")
+			{
+				pregen_rays = std::stoi(value);
+			}
+			if(key == "pregen_bounce")
+			{
+				pregen_bounce = std::stoi(value);
+			}
+			if(key == "weight_scheme")
+			{
+				weight_scheme = std::stoi(value);
+			}
+			if(key == "logging_interval")
+			{
+				logging_interval = std::stoi(value);
+			}
+			std::cout << key << ' ' << value << '\n';
+		};
+
+		// 0 is .exe
+		for(int i = 1; i < argc; i++)
+			ParseCommand(argv[i]);
+
+		camera_config = camera_configs[scene_id];
+	}
+};
 }

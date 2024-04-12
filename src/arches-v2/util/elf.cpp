@@ -218,7 +218,7 @@ ELF::ELF(std::string const& path) {
 			if (elem.p_type==ProgramHeader::ArrayElement::P_TYPE::PT_LOAD) {
 				LoadableSegment* seg = _new LoadableSegment(elf_header);
 				elem.segment = seg;
-				segments.emplace_back(seg);
+				segments_intersected.emplace_back(seg);
 
 				if (elf_header->e_ident.ei_class==ELF_Header::E_IDENT::EI_CLASS::ELFCLASS32) {
 					seg->vaddr = elem.p_vaddr.u32;
@@ -250,7 +250,7 @@ ELF::ELF(std::string const& path) {
 	}
 }
 ELF::~ELF() {
-	for (LoadableSegment* seg : segments) {
+	for (LoadableSegment* seg : segments_intersected) {
 		delete seg;
 	}
 	delete program_header;

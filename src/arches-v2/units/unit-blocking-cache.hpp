@@ -3,7 +3,8 @@
 
 #include "unit-cache-base.hpp"
 
-namespace Arches { namespace Units {
+namespace Arches {
+namespace Units {
 
 class UnitBlockingCache : public UnitCacheBase
 {
@@ -24,6 +25,15 @@ public:
 		UnitMemoryBase* mem_higher{nullptr};
 		uint            mem_higher_port_offset{0};
 		uint            mem_higher_port_stride{1};
+	};
+
+	struct PowerConfig
+	{
+		//Energy is joules, power in watts, and time in seconds
+		float tag_energy{0.0f};
+		float read_energy{0.0f};
+		float write_energy{0.0f};
+		float leakage_power{0.0f};
 	};
 
 	UnitBlockingCache(Configuration config);
@@ -71,11 +81,14 @@ public:
 	class Log
 	{
 	public:
+
+
+		const static uint NUM_COUNTERS = 8;
 		union
 		{
 			struct
 			{
-				uint64_t total;
+				uint64_t requests;
 				uint64_t hits;
 				uint64_t misses;
 				uint64_t uncached_writes;
@@ -84,20 +97,21 @@ public:
 				uint64_t data_array_reads;
 				uint64_t data_array_writes;
 			};
-			uint64_t counters[8];
+			uint64_t counters[NUM_COUNTERS];
 		};
 
+	public:
 		Log() { reset(); }
 
 		void reset()
 		{
-			for(uint i = 0; i < 8; ++i)
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] = 0;
 		}
 
 		void accumulate(const Log& other)
 		{
-			for(uint i = 0; i < 8; ++i)
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] += other.counters[i];
 		}
 
@@ -107,21 +121,39 @@ public:
 		void print(cycles_t cycles, uint units = 1)
 		{
 			uint64_t total = get_total();
-			float ft = total / 100.0f;
 
-			uint64_t da_total = get_total_data_array_accesses();
+			printf("Read Bandwidth: %.1f bytes/cycle\n", (double)bytes_read / units / cycles);
 
+			printf("\n");
 			printf("Total: %lld\n", total / units);
-			printf("Hits: %lld(%.2f%%)\n", hits / units, hits / ft);
-			printf("Misses: %lld(%.2f%%)\n", misses / units, misses / ft);
-			printf("Tag Array Total: %lld\n", tag_array_access);
-			printf("Data Array Total: %lld\n", da_total);
+			printf("Hits: %lld(%.2f%%)\n", hits / units, 100.0f * hits / total);
+			printf("Misses: %lld(%.2f%%)\n", misses / units, 100.0f * misses / total);
+
+			printf("\n");
+			printf("Tag Array Access: %lld\n", tag_array_access);
 			printf("Data Array Reads: %lld\n", data_array_reads);
 			printf("Data Array Writes: %lld\n", data_array_writes);
-			printf("Data Array Writes: %lld\n", data_array_writes);
-			printf("Bandwidth: %.2f Bytes/Cycle\n", (double)bytes_read / units / cycles);
 		}
-	}log;
+
+		float print_power(PowerConfig power_config, float time_delta, uint units = 1)
+		{
+			float read_energy = data_array_reads * power_config.read_energy / units;
+			float write_energy = data_array_writes * power_config.write_energy / units;
+			float tag_energy = tag_array_access * power_config.tag_energy / units;
+			float leakage_energy = time_delta * power_config.leakage_power / units;
+
+			float total_energy = read_energy + write_energy + tag_energy + leakage_energy;
+			float total_power = total_energy / time_delta;
+
+			printf("\n");
+			printf("Total Energy: %.2f mJ\n", total_energy * 1000.0f);
+			printf("Total Power: %.2f W\n", total_power);
+
+			return total_power;
+		}
+	}
+	log;
 };
 
-}}
+}
+}

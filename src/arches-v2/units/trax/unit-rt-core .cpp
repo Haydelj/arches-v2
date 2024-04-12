@@ -67,6 +67,7 @@ void UnitRTCore::_read_requests()
 		ray_state.dst = request.dst;
 		ray_state.port = request.port;
 
+		ray_state.phase = RayState::Phase::SCHEDULER;
 		_ray_scheduling_queue.push(ray_id);
 
 		log.rays++;
@@ -90,7 +91,10 @@ void UnitRTCore::_read_returns()
 
 			buffer.bytes_filled += ret.size;
 			if(buffer.bytes_filled == sizeof(rtm::Triangle))
+			{
+				_ray_states[ray_id].phase = RayState::Phase::TRI_ISECT;
 				_tri_isect_queue.push(ray_id);
+			}
 		}
 		else
 		{
@@ -100,6 +104,7 @@ void UnitRTCore::_read_returns()
 			buffer.ray_id = ray_id;
 			std::memcpy(&buffer.node, ret.data, ret.size);
 
+			_ray_states[ray_id].phase = RayState::Phase::NODE_ISECT;
 			_node_isect_queue.push(buffer);
 		}
 	}
@@ -128,6 +133,8 @@ void UnitRTCore::_schedule_ray()
 				{
 					if(_try_queue_tri(ray_id, entry.data.tri_index))
 					{
+						ray_state.phase = RayState::Phase::TRI_FETCH;
+
 						if(ENABLE_RT_DEBUG_PRINTS)
 							printf("Tri: %d:%d\n", entry.data.tri_index, entry.data.num_tri + 1);
 
@@ -150,6 +157,8 @@ void UnitRTCore::_schedule_ray()
 				{
 					if(_try_queue_node(ray_id, entry.data.child_index))
 					{
+						ray_state.phase = RayState::Phase::NODE_FETCH;
+
 						if(ENABLE_RT_DEBUG_PRINTS)
 							printf("Node: %d\n", entry.data.child_index);
 
@@ -172,6 +181,8 @@ void UnitRTCore::_schedule_ray()
 			//stack empty or anyhit found return the hit
 			if(ENABLE_RT_DEBUG_PRINTS)
 				printf("Ret: %d\n", ray_state.hit.id);
+
+			ray_state.phase = RayState::Phase::HIT_RETURN;
 			_ray_return_queue.push(ray_id);
 		}
 	}
@@ -213,7 +224,10 @@ void UnitRTCore::_simualte_intersectors()
 	{
 		uint ray_id = _box_pipline.read();
 		if(ray_id != ~0u)
+		{
+			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+		}
 
 		log.nodes += 2;
 	}
@@ -242,7 +256,10 @@ void UnitRTCore::_simualte_intersectors()
 	{
 		uint ray_id = _tri_pipline.read();
 		if(ray_id != ~0u)
+		{
+			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+		}
 
 		log.tris++;
 	}
@@ -269,7 +286,7 @@ void UnitRTCore::_issue_returns()
 	if(!_ray_return_queue.empty())
 	{
 		uint ray_id = _ray_return_queue.front();
-		const RayState& ray_state = _ray_states[ray_id];
+		RayState& ray_state = _ray_states[ray_id];
 
 		if(_return_network.is_write_valid(0))
 		{
@@ -282,6 +299,7 @@ void UnitRTCore::_issue_returns()
 			std::memcpy(ret.data, &ray_state.hit, sizeof(rtm::Hit));
 			_return_network.write(ret, 0);
 
+			ray_state.phase = RayState::Phase::NONE;
 			_free_ray_ids.insert(ray_id);
 			_ray_return_queue.pop();
 		}

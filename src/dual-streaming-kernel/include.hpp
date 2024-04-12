@@ -12,14 +12,9 @@ struct DualStreamingKernelArgs
 	uint32_t framebuffer_height;
 	uint32_t framebuffer_size;
 
-	uint32_t samples_per_pixel;
-	float inverse_samples_per_pixel;
-	uint32_t max_path_depth;
-
 	bool use_early;
 	bool hit_delay;
-	bool use_secondary_rays;
-	uint weight_scheme;
+	bool pregen_rays;
 
 	rtm::Camera camera;
 	rtm::vec3 light_dir;
@@ -28,6 +23,7 @@ struct DualStreamingKernelArgs
 	uint32_t* framebuffer;
 	rtm::Hit* hit_records;
 	rtm::PackedTreelet* treelets;
-	rtm::Triangle* triangles;
-	rtm::Ray* secondary_rays;
+	rtm::Triangle* tris;
+	rtm::Ray* rays;
+	uint64_t num_treelets;
 };

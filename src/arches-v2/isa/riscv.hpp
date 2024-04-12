@@ -321,6 +321,7 @@ public:
 		uint32_t data;
 	};
 	
+	Instruction() = default;
 	Instruction(uint32_t data) : data(data) {}
 	
 	//use this to get the info for a given instruction

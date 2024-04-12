@@ -86,6 +86,7 @@ public:
 			else if(req.type == MemoryRequest::Type::STORE)
 			{
 				log.stores++;
+				log.bytes_written += req.size;
 
 				//Masked write
 				for(uint i = 0; i < req.size; ++i)
@@ -140,6 +141,7 @@ public:
 				uint64_t loads;
 				uint64_t stores;
 				uint64_t bytes_read;
+				uint64_t bytes_written;
 			};
 			uint64_t counters[8];
 		};
@@ -163,10 +165,14 @@ public:
 			uint64_t total = loads + stores;
 			float ft = total / 100.0f;
 
+			printf("Read Bandwidth: %.2f bytes/cycle\n", (double)bytes_read / units / cycles);
+			printf("Write Bandwidth: %.2f bytes/cycle\n", (double)bytes_written / units / cycles);
+			printf("\n");
+
 			printf("Total: %lld\n", total / units);
 			printf("Loads: %lld\n", loads / units);
 			printf("Stores: %lld\n", stores / units);
-			printf("Bandwidth: %.2f Bytes/Cycle\n", (double)bytes_read / units / cycles);
+			printf("\n");
 		}
 	}
 	log;
