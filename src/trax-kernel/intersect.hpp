@@ -133,7 +133,7 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 	POP_SKIP:
 		if(!current_entry.data.is_leaf)
 		{
-			uint child_index = current_entry.data.fst_chld_ind;
+			uint child_index = current_entry.data.child_index;
 			float t0 = _intersect(nodes[child_index + 0].aabb, ray, inv_d);
 			float t1 = _intersect(nodes[child_index + 1].aabb, ray, inv_d);
 			if(t0 < hit.t || t1 < hit.t)
@@ -153,9 +153,9 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 		}
 		else
 		{
-			for(uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; ++i)
+			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
 			{
-				uint32_t id = current_entry.data.fst_chld_ind + i;
+				uint32_t id = current_entry.data.prim_index + i;
 				if(_intersect(tris[id], ray, hit))
 				{
 					hit.id = id;
@@ -169,14 +169,14 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 	return found_hit;
 }
 
-inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+inline bool intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::PackedBVH2::Node::Data data;
+		rtm::PackedBVH2::NodePack::Data data;
 	};
 
 	NodeStackEntry node_stack[32];
@@ -214,9 +214,9 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 		}
 		else
 		{
-			for(uint32_t i = 0; i <= current_entry.data.num_tri; ++i)
+			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
 			{
-				uint32_t id = current_entry.data.tri_index + i;
+				uint32_t id = current_entry.data.prim_index + i;
 				if(_intersect(tris[id], ray, hit))
 				{
 					hit.id = id;
@@ -283,10 +283,10 @@ inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray&
 		}
 		else
 		{
-			rtm::Treelet::Triangle* tris = (rtm::Treelet::Triangle*)(&treelet.bytes[current_entry.data.tri_offset]);
+			rtm::PackedTreelet::Triangle* tris = (rtm::PackedTreelet::Triangle*)(&treelet.bytes[current_entry.data.tri_offset]);
 			for(uint i = 0; i <= current_entry.data.num_tri; ++i)
 			{
-				rtm::Treelet::Triangle tri = tris[i];
+				rtm::PackedTreelet::Triangle tri = tris[i];
 				if(rtm::intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;
@@ -331,7 +331,8 @@ bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 #ifndef __riscv 
 inline void pregen_rays(const TRaXKernelArgs& args, uint bounce, std::vector<rtm::Ray>& rays)
 {
-	printf("Generating rays...\n");
+	printf("Generating bounce %d rays from %d path\n", bounce, args.framebuffer_size);
+	uint num_rays = args.framebuffer_size;
 	for(int index = 0; index < args.framebuffer_size; index++)
 	{
 		uint32_t x = index % args.framebuffer_width;
@@ -351,11 +352,13 @@ inline void pregen_rays(const TRaXKernelArgs& args, uint bounce, std::vector<rtm
 			}
 			else
 			{
+				num_rays--;
 				ray.t_max = ray.t_min;
 				break;
 			}
 		}
 		rays[index] = ray;
 	}
+	printf("Generated %d rays\n", num_rays);
 }
 #endif

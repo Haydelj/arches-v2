@@ -13,11 +13,10 @@
 
 namespace rtm {
 
-#define PACK_SIZE 2
-
 struct PackedTreelet
 {
-	const static uint size = 7 * 8 * 1024;
+	const static uint PACK_SIZE = 2;
+	const static uint SIZE = 1 * (4 * 1024);
 
 	struct alignas(32 * PACK_SIZE) Header
 	{
@@ -61,9 +60,9 @@ struct PackedTreelet
 		struct
 		{
 			Header header;
-			Node   nodes[(size - sizeof(Header)) / sizeof(Node)];
+			Node   nodes[(SIZE - sizeof(Header)) / sizeof(Node)];
 		};
-		uint8_t bytes[size];
+		uint8_t bytes[SIZE];
 	};
 
 	PackedTreelet() {}
@@ -78,22 +77,21 @@ public:
 	PackedTreeletBVH(){}
 	PackedTreeletBVH(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
 	{
-		printf("Packed Treelet BVH Building\n");
-		build_treelet(bvh, mesh);
-		printf("Packed Treelet BVH Built\n");
+		build(bvh, mesh);
 	}
 
 	uint get_node_size(uint node, const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
 	{
 		uint node_size = sizeof(PackedTreelet::Node);
-		for(uint i = 0; i < PACK_SIZE; ++i)
+		for(uint i = 0; i < PackedTreelet::PACK_SIZE; ++i)
 			if (bvh.nodes[node].data[i].is_leaf)
-				node_size += sizeof(PackedTreelet::Triangle) * (bvh.nodes[node].data[i].num_tri + 1);
+				node_size += sizeof(PackedTreelet::Triangle) * (bvh.nodes[node].data[i].num_prims + 1);
 		return node_size;
 	}
 
-	void build_treelet(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
+	void build(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
+		printf("Building Packed Treelet BVH\n");
 		size_t usable_space = sizeof(PackedTreelet) - sizeof(PackedTreelet::Header);
 
 		//Phase 0 setup
@@ -107,7 +105,7 @@ public:
 			total_footprint += footprint.back();
 
 			AABB aabb;
-			for(uint j = 0; j < PACK_SIZE; ++j)
+			for(uint j = 0; j < PackedTreelet::PACK_SIZE; ++j)
 				aabb.add(bvh.nodes[i].aabb[j]);
 
 			area.push_back(aabb.surface_area());
@@ -123,7 +121,7 @@ public:
 			uint node = pre_stack.top();
 			pre_stack.pop();
 
-			for(uint i = 0; i < PACK_SIZE; ++i)
+			for(uint i = 0; i < PackedTreelet::PACK_SIZE; ++i)
 				if (!bvh.nodes[node].data[i].is_leaf)
 					pre_stack.push(bvh.nodes[node].data[i].child_index);
 
@@ -142,7 +140,7 @@ public:
 
 			subtree_footprint[root_node] = footprint[root_node];
 			
-			for(uint i = 0; i < PACK_SIZE; ++i)
+			for(uint i = 0; i < PackedTreelet::PACK_SIZE; ++i)
 				if (!bvh.nodes[root_node].data[i].is_leaf)
 					subtree_footprint[root_node] += subtree_footprint[bvh.nodes[root_node].data[i].child_index];
 
@@ -170,7 +168,7 @@ public:
 				if (best_node == ~0u) break;
 
 				cut.erase(best_node);
-				for(uint i = 0; i < PACK_SIZE; ++i)
+				for(uint i = 0; i < PackedTreelet::PACK_SIZE; ++i)
 					if (!bvh.nodes[best_node].data[i].is_leaf)
 						cut.insert(bvh.nodes[best_node].data[i].child_index);
 
@@ -241,7 +239,7 @@ public:
 				cut.erase(cut.begin() + best_index);
 
 				uint j = 0;
-				for(uint i = 0; i < PACK_SIZE; ++i)
+				for(uint i = 0; i < PackedTreelet::PACK_SIZE; ++i)
 					if (!bvh.nodes[best_node].data[i].is_leaf)
 						cut.insert(cut.begin() + best_index + j++, bvh.nodes[best_node].data[i].child_index);
 
@@ -292,25 +290,25 @@ public:
 			for (uint i = 0; i < treelet_assignments[treelet_index].size(); ++i)
 			{
 				uint node_id = treelet_assignments[treelet_index][i];
-				const rtm::PackedBVH2::Node& node = bvh.nodes[node_id];
+				const rtm::PackedBVH2::NodePack& node = bvh.nodes[node_id];
 
 				assert(node_map.find(node_id) != node_map.end());
 				uint tnode_id = node_map[node_id];
 				PackedTreelet::Node& tnode = treelets[treelet_index].nodes[tnode_id];
 
-				for(uint j = 0; j < PACK_SIZE; ++j)
+				for(uint j = 0; j < PackedTreelet::PACK_SIZE; ++j)
 				{
 					tnode.data[j].is_leaf = node.data[j].is_leaf;
 					tnode.aabb[j] = node.aabb[j];
 					if (node.data[j].is_leaf)
 					{
-						tnode.data[j].num_tri = node.data[j].num_tri;
+						tnode.data[j].num_tri = node.data[j].num_prims;
 						tnode.data[j].tri_offset = primative_start;
 
 						PackedTreelet::Triangle* tris = (PackedTreelet::Triangle*)(&treelet.bytes[primative_start]);
-						for (uint k = 0; k <= node.data[j].num_tri; ++k)
+						for (uint k = 0; k <= node.data[j].num_prims; ++k)
 						{
-							tris[k].id = node.data[j].tri_index + k;
+							tris[k].id = node.data[j].prim_index + k;
 							tris[k].tri = mesh.get_triangle(tris[k].id);
 							primative_start += sizeof(PackedTreelet::Triangle);
 						}
@@ -333,6 +331,7 @@ public:
 			}
 		}
 
+		printf("Built Packed Treelet BVH\n");
 		printf("Treelets: %zu\n", treelets.size());
 		printf("PackedTreelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);
 	}

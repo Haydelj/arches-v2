@@ -87,42 +87,24 @@ class GlobalConfig
 {
 public:
 	//simulator config
-	uint simulator = 1; //0-trax, 1-dual-streaming
+	uint simulator = 0; //0-trax, 1-dual-streaming
 	uint logging_interval = 32 * 1024;
 
 	//workload config
-	uint scene_id = 0;
+	uint scene_id = 1;
 	uint framebuffer_width = 512;
 	uint framebuffer_height = 512;
 	CameraConfig camera_config;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
 
 	//dual streaming
-<<<<<<< HEAD
-<<<<<<< HEAD
 	bool use_scene_buffer = 0;
 	bool rays_on_chip = 1;
-	bool use_early = 1;
-	bool hit_delay = 0;
-	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
-	uint traversal_scheme = 1; // 0-BFS, 1-DFS
-=======
-	bool use_scene_buffer = 1;
-	bool rays_on_chip = 0;
 	bool use_early = 0;
 	bool hit_delay = 0;
 	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
 	uint traversal_scheme = 0; // 0-BFS, 1-DFS
->>>>>>> 78af85a (Interval Logging)
-=======
-	bool use_scene_buffer = 0;
-	bool rays_on_chip = 1;
-	bool use_early = 1;
-	bool hit_delay = 0;
-	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
-	uint traversal_scheme = 1; // 0-BFS, 1-DFS
->>>>>>> da09a4d (Updated parser)
 	uint weight_scheme = 1; // 0 total, 1 average, 2 none
 
 public:

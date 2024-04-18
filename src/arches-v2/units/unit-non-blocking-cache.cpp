@@ -3,9 +3,9 @@
 namespace Arches {namespace Units {
 
 UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) : 
-	UnitCacheBase(config.size, config.associativity),
-	_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask),
-	_return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width)
+	UnitCacheBase(config.size, config.block_size, config.associativity),
+	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
+	_return_cross_bar(config.num_ports, config.num_banks)
 {
 	_use_lfb = config.use_lfb;
 
@@ -138,7 +138,7 @@ bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 				if(mshr.block_addr == ret.paddr)
 				{
 					_assert(mshr.state == MSHR::State::MISSED);
-					std::memcpy(mshr.block_data.bytes, ret.data, CACHE_BLOCK_SIZE);
+					std::memcpy(mshr.block_data, ret.data, _block_size);
 					mshr.state = MSHR::State::FILLED;
 					bank.mshr_return_queue.push(i);
 					break;
@@ -175,7 +175,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		uint mshr_index = _fetch_or_allocate_mshr(bank_index, block_addr, MSHR::Type::READ);
 
 		//In parallel access the tag array to check for the line
-		BlockData* block_data = _get_block(block_addr);
+		uint8_t* block_data = _get_block(block_addr);
 		log.tag_array_access++;
 
 		//If the data array access is zero cycle then that means we did it in parallel with th tag lookup
@@ -193,7 +193,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 			{
 				if(block_data)
 				{
-					std::memcpy(mshr.block_data.bytes, block_data, CACHE_BLOCK_SIZE);
+					std::memcpy(mshr.block_data, block_data, _block_size);
 
 					//Copy line from data array to LFB
 					if(bank.data_array_pipline.lantecy() == 0)
@@ -250,10 +250,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 			if(lfb_index != ~0)
 			{
 				MSHR& lfb = bank.mshrs[lfb_index];
-				lfb.write_mask |= request.write_mask << block_offset;
-				for(uint i = 0; i < request.size; ++i)
-					if((request.write_mask >> i) & 0x1)                                                                          
-						lfb.block_data.bytes[block_offset + i] = request.data[i];
+				lfb.write_mask |= generate_nbit_mask(request.size) << block_offset;
 
 				if(lfb.state == MSHR::State::EMPTY)
 				{
@@ -294,7 +291,7 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::LOAD;
-		outgoing_request.size = CACHE_BLOCK_SIZE;
+		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = mshr.block_addr;
 		mem_higher->write_request(outgoing_request);
@@ -308,13 +305,13 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 	{
 		_assert(mshr.state == MSHR::State::FILLED);
 
+		//TODO fix this:
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::STORE;
-		outgoing_request.size = CACHE_BLOCK_SIZE;
+		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
-		outgoing_request.write_mask = mshr.write_mask;
 		outgoing_request.paddr = mshr.block_addr;
-		std::memcpy(outgoing_request.data, mshr.block_data.bytes, CACHE_BLOCK_SIZE);
+		std::memcpy(outgoing_request.data, mshr.block_data, _block_size);
 		mem_higher->write_request(outgoing_request);
 
 		mshr.state = MSHR::State::INVALID;
@@ -354,7 +351,7 @@ void UnitNonBlockingCache::_try_return_lfb(uint bank_index)
 	//select the next subentry and copy return to interconnect
 	MemoryRequest req = _pop_request(mshr);
 	uint block_offset = _get_block_offset(req.paddr);
-	MemoryReturn ret(req, mshr.block_data.bytes + block_offset);
+	MemoryReturn ret(req, mshr.block_data + block_offset);
 
 	_return_cross_bar.write(ret, bank_index);
 	log.bytes_read += ret.size;

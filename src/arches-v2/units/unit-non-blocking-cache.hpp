@@ -14,13 +14,14 @@ public:
 	struct Configuration
 	{
 		uint size{1024};
+		uint block_size{CACHE_BLOCK_SIZE};
 		uint associativity{1};
 
 		uint latency{1};
+		uint cycle_time{1};
 
 		uint num_ports{1};
 		uint num_banks{1};
-		uint cross_bar_width{1};
 		uint64_t bank_select_mask{0};
 
 		uint num_mshr{1};
@@ -89,8 +90,8 @@ protected:
 		State state{State::INVALID};
 
 		uint8_t lru{0u};  //This is used for LFB (Line Fill Buffer) mode
-		uint64_t write_mask{0x0}; //This is used for LFB mode
-		BlockData block_data; //This is used for LFB mode
+		uint128_t write_mask{0x0}; //This is used for LFB mode
+		uint8_t block_data[128]; //This is used for LFB mode
 
 		MSHR() = default;
 

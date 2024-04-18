@@ -19,6 +19,9 @@ public:
 		uint latency{1};
 		uint num_ports{1};
 		uint num_banks{1};
+		uint num_channels{1};
+		uint row_size{1};
+		uint block_size{1};
 		paddr_t bank_select_mask{0};
 
 		size_t  segment_size{0};
@@ -37,8 +40,18 @@ public:
 		float leakage_power{0.0f};
 	};
 
-	FIFO<uint> prefetch_sideband; //clock rise
-	FIFO<uint> retire_sideband; //clock rise
+	struct Command
+	{
+		enum class Type
+		{
+			PREFETCH,
+			RETIRE,
+		}
+		type;
+		uint segment_id;
+	};
+
+	FIFO<Command> command_sideband; //clock rise
 	FIFO<uint> prefetch_complete_sideband; 	//clock fall
 
 private:
@@ -150,6 +163,7 @@ private:
 		uint bytes_returned = 0;
 	};
 
+	uint64_t _row_size, _block_size;
 	std::vector<uint8_t> _data_u8;
 	std::vector<Bank> _banks;
 	std::vector<Channel> _channels;
@@ -167,12 +181,13 @@ public:
 	UnitSceneBuffer(Configuration config) :
 		_address_translator(config.segment_start, config.segment_size, config.size / config.segment_size),
 		_request_network(config.num_ports, config.num_banks, config.bank_select_mask, _address_translator),
-		_return_network(config.num_ports, config.num_banks, config.num_banks), 
-		prefetch_sideband(16), retire_sideband(16), prefetch_complete_sideband(16),
+		_return_network(config.num_ports, config.num_banks),
+		command_sideband(16), prefetch_complete_sideband(16),
+		_row_size(config.row_size), _block_size(config.block_size),
 		_main_memory(config.main_mem), _main_mem_port_stride(config.main_mem_port_stride), _main_mem_port_offset(config.main_mem_port_offset)
 	{
 		_banks.resize(config.num_banks, config.latency);
-		_channels.resize(NUM_DRAM_CHANNELS);
+		_channels.resize(config.num_channels);
 		_data_u8.resize(config.size);
 	}
 
@@ -205,8 +220,7 @@ public:
 	}
 
 private:
-	void process_finish();
-	void process_prefetch();
+	void process_commands();
 	void process_requests(uint bank_index);
 	void process_returns(uint channel_index);
 	void issue_requests(uint channel_index);

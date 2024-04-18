@@ -17,7 +17,7 @@ public:
 		uint64_t mask;
 
 	public:
-		RequestCrossBar(uint ports, uint banks, uint cross_bar_width, uint64_t bank_select_mask) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest>(ports, banks, cross_bar_width) {}
+		RequestCrossBar(uint ports, uint banks, uint64_t bank_select_mask) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest>(ports, banks) {}
 
 		uint get_sink(const MemoryRequest& request) override
 		{
@@ -30,7 +30,7 @@ public:
 	class ReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
 	{
 	public:
-		ReturnCrossBar(uint ports, uint banks, uint cross_bar_width) : CasscadedCrossBar<MemoryReturn>(banks, ports, cross_bar_width) {}
+		ReturnCrossBar(uint ports, uint banks) : CasscadedCrossBar<MemoryReturn>(banks, ports) {}
 
 		uint get_sink(const MemoryReturn& ret) override
 		{

@@ -12,6 +12,7 @@ public:
 	struct Configuration
 	{
 		uint size{1024};
+		uint block_size{CACHE_BLOCK_SIZE};
 		uint associativity{1};
 
 		uint latency{1};
@@ -19,7 +20,6 @@ public:
 
 		uint num_ports{1};
 		uint num_banks{1};
-		uint cross_bar_width{1};
 		uint64_t bank_select_mask{0};
 
 		UnitMemoryBase* mem_higher{nullptr};

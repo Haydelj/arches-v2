@@ -3,9 +3,9 @@
 namespace Arches {namespace Units {
 
 UnitBlockingCache::UnitBlockingCache(Configuration config) : 
-	UnitCacheBase(config.size, config.associativity),
-	_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask),
-	_return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width),
+	UnitCacheBase(config.size, config.block_size, config.associativity),
+	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
+	_return_cross_bar(config.num_ports, config.num_banks),
 	_banks(config.num_banks, {config.latency, config.cycle_time})
 {
 	_mem_higher = config.mem_higher;
@@ -34,12 +34,12 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		{
 			paddr_t block_addr = _get_block_addr(bank.current_request.paddr);
 			uint block_offset = _get_block_offset(bank.current_request.paddr);
-			BlockData* block_data = _get_block(block_addr);
+			uint8_t* block_data = _get_block(block_addr);
 			log.tag_array_access++;
 
 			if(block_data)
 			{
-				MemoryReturn ret(bank.current_request, block_data->bytes + block_offset);
+				MemoryReturn ret(bank.current_request, &block_data[block_offset]);
 				bank.data_array_pipline.write(ret);
 				bank.state = Bank::State::IDLE;
 				log.hits++;
@@ -91,7 +91,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 			{
 				MemoryRequest request;
 				request.type = MemoryRequest::Type::LOAD;
-				request.size = CACHE_BLOCK_SIZE;
+				request.size = _block_size;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
 				_mem_higher->write_request(request);
@@ -100,9 +100,6 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 			else if(bank.current_request.type == MemoryRequest::Type::STORE)
 			{
 				MemoryRequest request = bank.current_request;
-				//req.paddr = _get_block_addr(bank.current_request.paddr);
-				//req.write_mask = req.write_mask << _get_block_offset(bank.current_request.paddr);
-				//req.size = CACHE_BLOCK_SIZE;
 				request.port = mem_higher_port_index;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::IDLE;

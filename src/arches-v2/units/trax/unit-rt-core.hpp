@@ -45,7 +45,7 @@ private:
 		struct StackEntry
 		{
 			float t;
-			rtm::PackedBVH2::Node::Data data;
+			rtm::PackedBVH2::NodePack::Data data;
 		};
 
 		enum class Phase
@@ -77,7 +77,7 @@ private:
 
 	struct NodeStagingBuffer
 	{
-		rtm::PackedBVH2::Node node;
+		rtm::PackedBVH2::NodePack node;
 		uint16_t ray_id;
 
 		NodeStagingBuffer() {};
