@@ -287,6 +287,10 @@ public:
 
 		void print(cycles_t cycles, uint num_units = 1)
 		{
+			printf("Rays: %lld\n", rays);
+			printf("Nodes: %lld\n", nodes);
+			printf("Tris: %lld\n", tris);
+			printf("\n");
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
 			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);

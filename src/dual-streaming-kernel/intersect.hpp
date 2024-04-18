@@ -235,10 +235,10 @@ inline bool intersect_treelet(const rtm::PackedTreelet& treelet, const rtm::Ray&
 		}
 		else
 		{
-			rtm::Treelet::Triangle* tris = (rtm::Treelet::Triangle*)(&treelet.bytes[current_entry.data.tri_offset]);
+			rtm::PackedTreelet::Triangle* tris = (rtm::PackedTreelet::Triangle*)(&treelet.bytes[current_entry.data.tri_offset]);
 			for(uint i = 0; i <= current_entry.data.num_tri; ++i)
 			{
-				rtm::Treelet::Triangle tri = tris[i];
+				rtm::PackedTreelet::Triangle tri = tris[i];
 				if(_intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;

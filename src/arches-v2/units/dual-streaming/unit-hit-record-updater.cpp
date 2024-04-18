@@ -82,7 +82,6 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 						MemoryRequest write_req;
 						write_req.type = MemoryRequest::Type::STORE;
 						write_req.size = sizeof(rtm::Hit);
-						write_req.write_mask = generate_nbit_mask(sizeof(rtm::Hit));
 						write_req.paddr = hit_info_replaced.hit_address;
 						std::memcpy(write_req.data, &hit_info_replaced.hit, sizeof(rtm::Hit));
 						channel.write_queue.push(write_req);
@@ -125,7 +124,7 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 					MemoryRequest write_req;
 					write_req.type = MemoryRequest::Type::STORE;
 					write_req.size = sizeof(rtm::Hit);
-					write_req.write_mask = generate_nbit_mask(sizeof(rtm::Hit));
+					//write_req.write_mask = generate_nbit_mask(sizeof(rtm::Hit));
 					write_req.paddr = hit_info_replaced.hit_address;
 					std::memcpy(write_req.data, &hit_info_replaced.hit, sizeof(rtm::Hit));
 					channel.write_queue.push(write_req);

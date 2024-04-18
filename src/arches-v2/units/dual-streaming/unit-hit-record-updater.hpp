@@ -45,6 +45,7 @@ public:
 		uint associativity;
 
 		uint num_tms;
+		uint num_channels;
 
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{0};
@@ -65,6 +66,7 @@ public:
 			LOAD_FROM_DRAM,
 			EMPTY,
 		};
+
 	private:
 		struct CacheElement
 		{
@@ -76,6 +78,7 @@ public:
 		uint cache_size; // How many hit records
 		uint associativity;
 		uint num_set;
+
 	public:
 		HitRecordCache(uint _cache_size, uint _associativity) : cache_size(_cache_size), associativity(_associativity), num_set(_cache_size / _associativity)
 		{
@@ -264,12 +267,11 @@ private:
 	FIFOArray<MemoryReturn> return_network;
 
 	std::vector<Channel> channels;
-	UnitMemoryBase* main_memory;
-	uint                main_mem_port_offset{0};
-	uint                main_mem_port_stride{1};
+	UnitMemoryBase*      main_memory;
+	uint                 main_mem_port_offset{0};
+	uint                 main_mem_port_stride{1};
 
 	uint busy = 0;
-
 
 private:
 	void process_requests(uint channel_index);
@@ -281,9 +283,9 @@ private:
 	void issue_returns(uint channel_index);
 
 public:
-	UnitHitRecordUpdater(Configuration config) : request_network(config.num_tms, NUM_DRAM_CHANNELS, config.hit_record_start), main_memory(config.main_mem), return_network(config.num_tms), main_mem_port_offset(config.main_mem_port_offset), main_mem_port_stride(config.main_mem_port_stride), hit_record_start_address(config.hit_record_start)
+	UnitHitRecordUpdater(Configuration config) : request_network(config.num_tms, config.num_channels, config.hit_record_start), main_memory(config.main_mem), return_network(config.num_tms), main_mem_port_offset(config.main_mem_port_offset), main_mem_port_stride(config.main_mem_port_stride), hit_record_start_address(config.hit_record_start)
 	{
-		for(int i = 0; i < NUM_DRAM_CHANNELS; i++)
+		for(int i = 0; i < config.num_channels; i++)
 		{
 			channels.push_back({HitRecordCache(config.cache_size, config.associativity)});
 		}

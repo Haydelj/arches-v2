@@ -387,6 +387,8 @@ reqInsertRet_t insert_write(const dram_address_t &dram_address,
 //                            const long long int instruction_pc);
 
 int numDramChannels();
+int rowSize();
+int blockSize();
 dram_address_t calcDramAddr(Arches::paddr_t physical_address);
 void registerUsimmListener(UsimmListener* listener);
 

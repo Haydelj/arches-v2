@@ -26,11 +26,15 @@ inline static void kernel(const TRaXKernelArgs& args)
 		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
 
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
-	#if defined(__riscv) &&  defined(USE_RT_CORE)
-		_traceray<0x0u>(index, ray, hit);
-	#else
-		intersect(args.nodes, args.tris, ray, hit);
-	#endif
+		if(ray.t_min < ray.t_max)
+		{
+		#if defined(__riscv) &&  defined(USE_RT_CORE)
+			_traceray<0x0u>(index, ray, hit);
+		#else
+			intersect(args.nodes, args.strips, ray, hit);
+		#endif
+		}
+
 		if(hit.id != ~0u)
 		{
 			args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
@@ -63,7 +67,7 @@ int main(int argc, char* argv[])
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.pregen_rays = true;
+	args.pregen_rays = false;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
@@ -75,19 +79,19 @@ int main(int argc, char* argv[])
 	for (uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
 
-	rtm::BVH2 bvh;
-	bvh.build(build_objects);
+	rtm::BVH2 bvh2("../../datasets/cache/sponza_bvh.cache", build_objects, 2);
 	mesh.reorder(build_objects);
+
+	rtm::PackedBVH2 packed_bvh2(bvh2, mesh);
+	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 
-	rtm::PackedBVH2 packed_bvh(bvh);
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
-
-	args.nodes = packed_bvh.nodes.data();
-	args.tris = tris.data();
+	args.nodes = packed_bvh2.nodes.data();
+	args.strips = packed_bvh2.strips.data();
 	args.treelets = treelet_bvh.treelets.data();
+	args.tris = tris.data();
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)

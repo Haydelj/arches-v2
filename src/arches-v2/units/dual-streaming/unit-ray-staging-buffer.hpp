@@ -22,7 +22,7 @@ struct RayBucketBuffer
 
 	RayBucketBuffer()
 	{
-		ray_bucket.num_rays = 0;
+		ray_bucket.header.num_rays = 0;
 	}
 };
 
@@ -94,8 +94,8 @@ private:
 			{
 				//termination condition
 				ray_buffer[filling_buffer_id].bytes_returned = RAY_BUCKET_SIZE;
-				ray_buffer[filling_buffer_id].ray_bucket.segment_id = INVALID_SEGMENT_ID;
-				ray_buffer[filling_buffer_id].ray_bucket.num_rays = num_tp;
+				ray_buffer[filling_buffer_id].ray_bucket.header.segment_id = INVALID_SEGMENT_ID;
+				ray_buffer[filling_buffer_id].ray_bucket.header.num_rays = num_tp;
 			}
 			else
 			{
@@ -108,7 +108,7 @@ private:
 
 	void issue_requests()
 	{
-		if(ray_buffer[(front_buffer_id + 1) % BUFFER_NUMBER].bytes_returned == RAY_BUCKET_SIZE && ray_buffer[front_buffer_id].next_ray >= ray_buffer[front_buffer_id].ray_bucket.num_rays)
+		if(ray_buffer[(front_buffer_id + 1) % BUFFER_NUMBER].bytes_returned == RAY_BUCKET_SIZE && ray_buffer[front_buffer_id].next_ray >= ray_buffer[front_buffer_id].ray_bucket.header.num_rays)
 		{
 			//reset back buffer to empty state
 			ray_buffer[front_buffer_id].bytes_returned = 0;
@@ -244,14 +244,15 @@ private:
 		}
 
 		//if we have a filled bucket pop a ray from it
-		if(!thread_workitem_request_queue.empty() && ray_buffer[front_buffer_id].next_ray < ray_buffer[front_buffer_id].ray_bucket.num_rays && _return_network.is_write_valid(request.port))
+		if(!thread_workitem_request_queue.empty() && ray_buffer[front_buffer_id].next_ray < ray_buffer[front_buffer_id].ray_bucket.header.num_rays && _return_network.is_write_valid(request.port))
 		{
 			auto [port, dst] = thread_workitem_request_queue.front();
 			thread_workitem_request_queue.pop();
 
 			WorkItem wi;
 			wi.bray = ray_buffer[front_buffer_id].ray_bucket.bucket_rays[ray_buffer[front_buffer_id].next_ray];
-			wi.segment_id = ray_buffer[front_buffer_id].ray_bucket.segment_id;
+			wi.segment_id = ray_buffer[front_buffer_id].ray_bucket.header.segment_id;
+			wi.use_scene_buffer = ray_buffer[front_buffer_id].ray_bucket.header.use_scene_buffer;
 
 			MemoryReturn ret;
 			ret.size = sizeof(WorkItem);
@@ -264,7 +265,7 @@ private:
 			if(ray_buffer[front_buffer_id].next_ray == 0)
 			{
 				segment_state_map[wi.segment_id].active_buckets++;
-				segment_state_map[wi.segment_id].active_rays += ray_buffer[front_buffer_id].ray_bucket.num_rays;
+				segment_state_map[wi.segment_id].active_rays += ray_buffer[front_buffer_id].ray_bucket.header.num_rays;
 			}
 
 			//segment_executing_on_tp[ret.port] = wi.segment;

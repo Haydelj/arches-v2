@@ -147,7 +147,7 @@
 #ifndef _DEBUG
 inline void _assert(bool x)
 {
-	//if(!x) __debugbreak();
+	if(!x) __debugbreak();
 }
 #else
 inline void _assert(bool x)
@@ -178,6 +178,7 @@ typedef  uint64_t  int48_t;
 
 static_assert(sizeof(float)==4&&sizeof(double)==8,"Not Implemented!");
 
-#define ARCHES_LOGGING
+#define CACHE_BLOCK_SIZE 64
+#define DRAM_ROW_SIZE (4 * 1024)
 
 }

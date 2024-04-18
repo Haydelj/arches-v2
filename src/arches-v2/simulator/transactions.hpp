@@ -7,9 +7,6 @@
 
 namespace Arches {
 
-#define CACHE_BLOCK_SIZE 64
-#define ROW_BUFFER_SIZE (8 * 1024)
-
 struct MemoryRequest
 {
 public:
@@ -31,7 +28,7 @@ public:
 		AMO_MAXU,
 	};
 
-#define SCENE_BUFFER_FLAG 0x1
+	const static uint MAX_SIZE = CACHE_BLOCK_SIZE;
 
 	//meta data 
 	Type     type;
@@ -39,8 +36,6 @@ public:
 	uint16_t flags;
 	uint16_t dst;
 	uint16_t port;
-
-	uint64_t write_mask;
 
 	union
 	{
@@ -50,7 +45,7 @@ public:
 
 	union
 	{
-		uint8_t  data[CACHE_BLOCK_SIZE];
+		uint8_t  data[MAX_SIZE];
 		uint8_t  data_u8;
 		uint16_t data_u16;
 		uint32_t data_u32;
@@ -62,19 +57,20 @@ public:
 
 	MemoryRequest(const MemoryRequest& other)
 	{
+		_assert(other.size <= MAX_SIZE);
 		*this = other;
 	}
 
 	MemoryRequest& operator=(const MemoryRequest& other)
 	{
+		_assert(other.size <= MAX_SIZE);
 		type = other.type;
 		size = other.size;
 		flags = other.flags;
 		dst = other.dst;
 		port = other.port;
-		write_mask = other.write_mask;
 		paddr = other.paddr;
-		std::memcpy(data, other.data, size);
+		std::memcpy(data, other.data, other.size);
 		return *this;
 	}
 };
@@ -95,7 +91,7 @@ public:
 
 	union
 	{
-		uint8_t  data[CACHE_BLOCK_SIZE];
+		uint8_t  data[MemoryRequest::MAX_SIZE];
 		uint8_t  data_u8;
 		uint16_t data_u16;
 		uint32_t data_u32;
@@ -107,16 +103,19 @@ public:
 
 	MemoryReturn(const MemoryReturn& other)
 	{
+		_assert(other.size <= MemoryRequest::MAX_SIZE);
 		*this = other;
 	}
 
 	MemoryReturn(const MemoryRequest& request, const void* data) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
 	{
+		_assert(request.size <= MemoryRequest::MAX_SIZE);
 		std::memcpy(this->data, data, request.size);
 	}
 
 	MemoryReturn& operator=(const MemoryReturn& other)
 	{
+		_assert(other.size <= MemoryRequest::MAX_SIZE);
 		size = other.size;
 		dst = other.dst;
 		port = other.port;

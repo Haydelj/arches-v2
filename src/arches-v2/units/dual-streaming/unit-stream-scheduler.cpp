@@ -30,7 +30,7 @@ void UnitStreamScheduler::_update_scheduler()
 
 		//if there is no state entry initilize it
 		if(state.total_buckets == 0)
-			_scheduler.segment_state_map[segment_index].next_channel = segment_index % NUM_DRAM_CHANNELS;
+			_scheduler.segment_state_map[segment_index].next_channel = segment_index % _channels.size();
 
 		//increment total buckets
 		state.total_buckets++;
@@ -72,7 +72,7 @@ void UnitStreamScheduler::_update_scheduler()
 			if(_scene_buffer)
 			{
 				_scheduler.concurent_prefetches++;
-				_scheduler.prefetch_queue.push(candidate_segment);
+				_scheduler.scene_buffer_command_queue.push({UnitSceneBuffer::Command::Type::PREFETCH, candidate_segment});
 			}
 			else
 			{
@@ -96,9 +96,6 @@ void UnitStreamScheduler::_update_scheduler()
 			// remove segment from candidate set
 			_scheduler.candidate_segments.erase(_scheduler.candidate_segments.begin() + i--);
 
-			//free the segment state
-			_scheduler.segment_state_map.erase(candidate_segment);
-
 			//for all children segments
 			rtm::PackedTreelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
 			for(uint i = 0; i < header.num_children; ++i)
@@ -117,7 +114,7 @@ void UnitStreamScheduler::_update_scheduler()
 			if(state.prefetch_issued)
 			{
 				if(_scene_buffer)
-					_scheduler.retire_queue.push(candidate_segment);
+					_scheduler.scene_buffer_command_queue.push({UnitSceneBuffer::Command::Type::RETIRE, candidate_segment});
 
 				_scheduler.active_segments--;
 				if(STREAM_SCHEDULER_DEBUG_PRINTS)
@@ -130,6 +127,9 @@ void UnitStreamScheduler::_update_scheduler()
 				if(STREAM_SCHEDULER_DEBUG_PRINTS)
 					printf("Segment %d culled\n", candidate_segment);
 			}
+
+			//free the segment state
+			_scheduler.segment_state_map.erase(candidate_segment);
 
 			break;
 		}
@@ -288,7 +288,7 @@ void UnitStreamScheduler::_update_scheduler()
 	if(_scheduler.bucket_write_cascade.is_read_valid(0))
 	{
 		const RayBucket& bucket = _scheduler.bucket_write_cascade.peek(0);
-		uint segment_index = bucket.segment_id;
+		uint segment_index = bucket.header.segment_id;
 		SegmentState& state = _scheduler.segment_state_map[segment_index];
 
 		uint channel_index = state.next_channel;
@@ -305,7 +305,7 @@ void UnitStreamScheduler::_update_scheduler()
 		Channel& channel = _channels[channel_index];
 		channel.work_queue.push(channel_work_item);
 
-		if(++state.next_channel >= NUM_DRAM_CHANNELS)
+		if(++state.next_channel >= _channels.size())
 			state.next_channel = 0;
 
 		log.buckets_generated++;
@@ -351,16 +351,13 @@ void UnitStreamScheduler::clock_fall()
 		_issue_return(i);
 	}
 
-	if(!_scheduler.prefetch_queue.empty() && _scene_buffer->prefetch_sideband.is_write_valid())
+	if(_scene_buffer && _scene_buffer->command_sideband.is_write_valid())
 	{
-		_scene_buffer->prefetch_sideband.write(_scheduler.prefetch_queue.front());
-		_scheduler.prefetch_queue.pop();
-	}
-
-	if(!_scheduler.retire_queue.empty() && _scene_buffer->retire_sideband.is_write_valid())
-	{
-		_scene_buffer->retire_sideband.write(_scheduler.retire_queue.front());
-		_scheduler.retire_queue.pop();
+		if(!_scheduler.scene_buffer_command_queue.empty())
+		{
+			_scene_buffer->command_sideband.write(_scheduler.scene_buffer_command_queue.front());
+			_scheduler.scene_buffer_command_queue.pop();
+		}
 	}
 
 	_return_network.clock();
@@ -406,7 +403,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 				if(bank.ray_coalescer.count(segment_index) == 0)
 				{
 					_scheduler.bucket_allocated_queue.push(segment_index);
-					bank.ray_coalescer[segment_index].segment_id = segment_index;
+					bank.ray_coalescer[segment_index].header.segment_id = segment_index;
 				}
 
 				bank.ray_coalescer[segment_index].write_ray(req.swi.bray);
@@ -474,13 +471,13 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
-		req.size = CACHE_BLOCK_SIZE;
+		req.size = _block_size;
 		req.port = mem_higher_port_index;
 		req.dst = dst_tm;
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
 		_main_mem->write_request(req);
 
-		channel.bytes_requested += CACHE_BLOCK_SIZE;
+		channel.bytes_requested += _block_size;
 		if(channel.bytes_requested == sizeof(RayBucket))
 		{
 			channel.bytes_requested = 0;
@@ -492,32 +489,14 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		RayBucket& bucket = channel.work_queue.front().bucket;
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::STORE;
-		req.size = CACHE_BLOCK_SIZE;
+		req.size = _block_size;
 		req.port = mem_higher_port_index;
-		req.write_mask = generate_nbit_mask(CACHE_BLOCK_SIZE);
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
-		std::memcpy(req.data, ((uint8_t*)&bucket) + channel.bytes_requested, CACHE_BLOCK_SIZE);
+		std::memcpy(req.data, ((uint8_t*)&bucket) + channel.bytes_requested, _block_size);
 		_main_mem->write_request(req);
 
-		channel.bytes_requested += CACHE_BLOCK_SIZE;
+		channel.bytes_requested += _block_size;
 		if(channel.bytes_requested == sizeof(RayBucket))
-		{
-			channel.bytes_requested = 0;
-			channel.work_queue.pop();
-		}
-	}
-	else if(channel.work_queue.front().type == Channel::WorkItem::Type::READ_SEGMENT)
-	{
-		MemoryRequest req;
-		req.type = MemoryRequest::Type::LOAD;
-		req.size = CACHE_BLOCK_SIZE;
-		req.port = mem_higher_port_index;
-		req.dst = _return_network.num_sinks();
-		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
-		_main_mem->write_request(req);
-
-		channel.bytes_requested += CACHE_BLOCK_SIZE;
-		if(channel.bytes_requested == ROW_BUFFER_SIZE)
 		{
 			channel.bytes_requested = 0;
 			channel.work_queue.pop();

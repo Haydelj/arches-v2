@@ -2,29 +2,32 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
-void UnitSceneBuffer::process_finish()
+void UnitSceneBuffer::process_commands()
 {
-	if(retire_sideband.is_read_valid())
+	if(command_sideband.is_read_valid())
 	{
-		uint segment_id = retire_sideband.read();
-		_address_translator.unmap(segment_id);
-		_segment_states.erase(segment_id);
-	}
-}
-
-void UnitSceneBuffer::process_prefetch()
-{
-	if (prefetch_sideband.is_read_valid() && _address_translator.num_free_slots())
-	{
-		uint segment_id = prefetch_sideband.read();
-		uint slot = _address_translator.map(segment_id);
-		paddr_t segment_addr = _address_translator.get_segment_address(segment_id);
-		_segment_states[segment_id] = SegmentState();
-
-		for(uint i = 0; i < _address_translator.segment_size; i += ROW_BUFFER_SIZE)
+		const Command& command = command_sideband.peek();
+		if(command.type == Command::Type::PREFETCH)
 		{
-			uint channel_index = ((segment_addr + i) / ROW_BUFFER_SIZE) % NUM_DRAM_CHANNELS;
-			_channels[channel_index].prefetch_queue.emplace(segment_addr + i);
+			_assert(_address_translator.num_free_slots() > 0);
+
+			uint slot = _address_translator.map(command.segment_id);
+			paddr_t segment_addr = _address_translator.get_segment_address(command.segment_id);
+			_segment_states[command.segment_id] = SegmentState();
+
+			for(uint i = 0; i < _address_translator.segment_size; i += _row_size)
+			{
+				uint channel_index = ((segment_addr + i) / _row_size) % _channels.size();
+				_channels[channel_index].prefetch_queue.emplace(segment_addr + i);
+			}
+
+			command_sideband.read();
+		}
+		else if(command.type == Command::Type::RETIRE)
+		{
+			_address_translator.unmap(command.segment_id);
+			_segment_states.erase(command.segment_id);
+			command_sideband.read();
 		}
 	}
 }
@@ -73,14 +76,14 @@ void UnitSceneBuffer::issue_requests(uint channel_index)
 		paddr_t base_address = channel.prefetch_queue.front();
 
 		MemoryRequest req;
-		req.size = CACHE_BLOCK_SIZE;
+		req.size = _block_size;
 		req.paddr = base_address + channel.byte_requested;
 		req.type = MemoryRequest::Type::LOAD;
 		req.port = port_in_dram;
 		_main_memory->write_request(req);
 		channel.byte_requested += req.size;
 
-		if (channel.byte_requested == ROW_BUFFER_SIZE)
+		if (channel.byte_requested == _row_size)
 		{
 			channel.byte_requested = 0;
 			channel.prefetch_queue.pop();
@@ -102,8 +105,7 @@ void UnitSceneBuffer::clock_rise()
 {
 	_request_network.clock();
 
-	process_prefetch();
-	process_finish();
+	process_commands();
 	
 	for (uint i = 0; i < _banks.size(); ++i)
 		process_requests(i);

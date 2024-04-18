@@ -3,13 +3,14 @@
 
 #include "unit-memory-base.hpp"
 #include "util/bit-manipulation.hpp"
+#include "util/alignment-allocator.hpp"
 
 namespace Arches { namespace Units {
 
 class UnitCacheBase : public UnitMemoryBase
 {
 public:
-	UnitCacheBase(size_t size, uint associativity);
+	UnitCacheBase(size_t size, uint block_size, uint associativity);
 	virtual ~UnitCacheBase();
 
 protected:
@@ -25,20 +26,15 @@ protected:
 		}
 	};
 
-	struct alignas(CACHE_BLOCK_SIZE) BlockData
-	{
-		uint8_t bytes[CACHE_BLOCK_SIZE];
-	};
-
 	uint64_t _set_index_mask, _tag_mask, _block_offset_mask;
 	uint _set_index_offset, _tag_offset;
 
-	uint _associativity;
-	std::vector<BlockMetaData> _tag_array;
-	std::vector<BlockData> _data_array;
+	uint _associativity, _block_size;
+	std::vector<BlockMetaData, AlignmentAllocator<BlockMetaData, 64>> _tag_array;
+	std::vector<uint8_t, AlignmentAllocator<uint8_t, 64>> _data_array;
 
-	BlockData* _get_block(paddr_t paddr);
-	BlockData* _insert_block(paddr_t paddr, const uint8_t* data);
+	uint8_t* _get_block(paddr_t paddr);
+	uint8_t* _insert_block(paddr_t paddr, const uint8_t* data);
 
 	paddr_t _get_block_offset(paddr_t paddr) { return  (paddr >> 0) & _block_offset_mask; }
 	paddr_t _get_block_addr(paddr_t paddr) { return paddr & ~_block_offset_mask; }
