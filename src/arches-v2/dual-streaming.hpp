@@ -302,11 +302,9 @@ void print_header(std::string string, uint header_length = 80)
 static void run_sim_dual_streaming(const GlobalConfig& global_config)
 {
 	//hardware spec
-	double clock_rate = 2'000'000'000.0;
+	double clock_rate = 2.0e9;
 	
 #if 1 //Modern config
-
-	//Compute
 	uint num_threads_per_tp = 4;
 	uint num_tps_per_tm = 64;
 	uint num_tms = 64;
@@ -766,6 +764,45 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	print_header("Simulation Summary");
 	printf("Simulation rate: %.2f KHz\n", frame_cycles / simulation_time / 1000.0);
 	printf("Simulation time: %.0f s\n", simulation_time);
+
+	uint treelet_counts[16];
+	std::map<uint, uint64_t> treelet_histos[16];
+
+	for(uint i = 0; i < 16; ++i)
+		treelet_counts[i] = 0;
+
+	for(auto& a : l1d_log.profile_counters)
+	{
+		if(a.first >= treelet_range.first && a.first < treelet_range.second)
+		{
+			uint treelet_id = (a.first - (paddr_t)kernel_args.treelets) / rtm::PackedTreelet::SIZE;
+			paddr_t treelet_addr = (paddr_t)kernel_args.treelets + treelet_id * rtm::PackedTreelet::SIZE;
+			rtm::PackedTreelet::Header header;
+			dram.direct_read(&header, sizeof(rtm::PackedTreelet::Header), treelet_addr);
+			uint offset = a.first - treelet_addr;
+
+			treelet_histos[header.depth][offset] += a.second;
+
+			if(offset == 64)
+				treelet_counts[header.depth]++;
+		}
+	}
+
+	for(uint i = 0; i < 16; ++i)
+	{
+		if(treelet_counts[i])
+		{
+			printf("Depth %d (%d)\n", i, treelet_counts[i]);
+			uint64_t total = 0;
+			total += treelet_histos[i][64];
+
+			for(auto& a : treelet_histos[i])
+			{
+				printf("\t%04d:%.2f(%.2f%%)\n", a.first / 64, (double)a.second / treelet_counts[i], 100.0 * a.second / total);
+			}
+			printf("\n");
+		}
+	}
 
 	stbi_flip_vertically_on_write(true);
 	dram.dump_as_png_uint8((paddr_t)kernel_args.framebuffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "out.png");

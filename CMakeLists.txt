@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(Arches-v2 LANGUAGES CXX)
+project(arches-v2 LANGUAGES CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 

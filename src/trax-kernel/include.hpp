@@ -20,6 +20,6 @@ struct TRaXKernelArgs
 	rtm::Ray* rays;
 
 	rtm::PackedBVH2::NodePack* nodes;
-	rtm::PackedTreelet* treelets;
 	rtm::Triangle* tris;
+	void* treelets;
 };

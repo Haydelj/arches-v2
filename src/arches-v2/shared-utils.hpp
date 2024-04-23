@@ -87,7 +87,7 @@ class GlobalConfig
 {
 public:
 	//simulator config
-	uint simulator = 0; //0-trax, 1-dual-streaming
+	uint simulator = 1; //0-trax, 1-dual-streaming
 	uint logging_interval = 32 * 1024;
 
 	//workload config
@@ -99,7 +99,7 @@ public:
 	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
 
 	//dual streaming
-	bool use_scene_buffer = 0;
+	bool use_scene_buffer = 1;
 	bool rays_on_chip = 1;
 	bool use_early = 0;
 	bool hit_delay = 0;
