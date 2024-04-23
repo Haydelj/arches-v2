@@ -13,18 +13,6 @@
 
 namespace Arches { namespace Units { namespace TRaX {
 
-const static std::string phase_names[] =
-{
-	"NONE",
-	"SCHEDULER",
-	"HIT_RETURN",
-	"NODE_FETCH",
-	"TRI_FETCH",
-	"NODE_ISECT",
-	"TRI_ISECT",
-	"NUM_PHASES",
-};
-
 class UnitRTCore : public UnitMemoryBase
 {
 public:
@@ -237,6 +225,18 @@ public:
 
 		void print(cycles_t cycles, uint num_units = 1)
 		{
+			const static std::string phase_names[] =
+			{
+				"NONE",
+				"SCHEDULER",
+				"HIT_RETURN",
+				"NODE_FETCH",
+				"TRI_FETCH",
+				"NODE_ISECT",
+				"TRI_ISECT",
+				"NUM_PHASES",
+			};
+
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
 			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);

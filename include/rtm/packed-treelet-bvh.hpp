@@ -16,7 +16,7 @@ namespace rtm {
 struct PackedTreelet
 {
 	const static uint PACK_SIZE = 2;
-	const static uint SIZE = 1 * (4 * 1024);
+	const static uint SIZE = 15 * (4 * 1024);
 
 	struct alignas(32 * PACK_SIZE) Header
 	{
@@ -92,7 +92,7 @@ public:
 	void build(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
 		printf("Building Packed Treelet BVH\n");
-		size_t usable_space = sizeof(PackedTreelet) - sizeof(PackedTreelet::Header);
+		size_t usable_space = PackedTreelet::SIZE - sizeof(PackedTreelet::Header);
 
 		//Phase 0 setup
 		uint total_footprint = 0;
@@ -333,7 +333,8 @@ public:
 
 		printf("Built Packed Treelet BVH\n");
 		printf("Treelets: %zu\n", treelets.size());
-		printf("PackedTreelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);
+		printf("Treelet Size: %d\n", PackedTreelet::SIZE);
+		printf("Treelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);
 	}
 };
 #endif

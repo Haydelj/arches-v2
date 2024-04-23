@@ -2,6 +2,7 @@
 #include "shared-utils.hpp"
 #include "units/trax/unit-tp.hpp"
 #include "units/trax/unit-rt-core.hpp"
+#include "units/trax/unit-treelet-rt-core.hpp"
 namespace Arches {
 
 namespace ISA {
@@ -184,9 +185,9 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);
-	args.treelets = write_vector(main_memory, DRAM_ROW_SIZE, treelet_bvh.treelets, heap_address);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
+	args.treelets = write_vector(main_memory, DRAM_ROW_SIZE, treelet_bvh.treelets, heap_address);
 
 	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), KERNEL_ARGS_ADDRESS);
 	return args;
@@ -300,7 +301,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
-	std::vector<Units::TRaX::UnitRTCore*> rtcs;
+	std::vector<Units::TRaX::UnitTreeletRTCore*> rtcs;
 
 	std::vector<Units::UnitNonBlockingCache*> l1ds;
 	std::vector<Units::UnitBlockingCache*> l1is;
@@ -366,14 +367,15 @@ static void run_sim_trax(GlobalConfig global_config)
 		}
 
 	#ifdef USE_RT_CORE
-		Units::TRaX::UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 128;
+		Units::TRaX::UnitTreeletRTCore::Configuration rtc_config;
+		rtc_config.max_rays = 64;
 		rtc_config.num_tp = num_tps_per_tm;
-		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
-		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
+		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
+		//rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
+		//rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
 		rtc_config.cache = l1ds.back();
 
-		rtcs.push_back(_new  Units::TRaX::UnitRTCore(rtc_config));
+		rtcs.push_back(_new  Units::TRaX::UnitTreeletRTCore(rtc_config));
 		simulator.register_unit(rtcs.back());
 		mem_list.push_back(rtcs.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
@@ -446,7 +448,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
-	Units::TRaX::UnitRTCore::Log rtc_log;
+	Units::TRaX::UnitTreeletRTCore::Log rtc_log;
 
 	uint delta = global_config.logging_interval;
 	auto start = std::chrono::high_resolution_clock::now();

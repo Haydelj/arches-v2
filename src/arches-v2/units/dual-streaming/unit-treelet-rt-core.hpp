@@ -13,20 +13,6 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
-const static std::string phase_names[] =
-{
-	"NONE",
-	"SCHEDULER",
-	"RAY_FETCH",
-	"HIT_FETCH",
-	"HIT_UPDATE",
-	"NODE_FETCH",
-	"TRI_FETCH",
-	"NODE_ISECT",
-	"TRI_ISECT",
-	"NUM_PHASES",
-};
-
 class UnitTreeletRTCore : public UnitMemoryBase
 {
 public:
@@ -287,6 +273,20 @@ public:
 
 		void print(cycles_t cycles, uint num_units = 1)
 		{
+			const static std::string phase_names[] =
+			{
+				"NONE",
+				"SCHEDULER",
+				"RAY_FETCH",
+				"HIT_FETCH",
+				"HIT_UPDATE",
+				"NODE_FETCH",
+				"TRI_FETCH",
+				"NODE_ISECT",
+				"TRI_ISECT",
+				"NUM_PHASES",
+			};
+
 			printf("Rays: %lld\n", rays);
 			printf("Nodes: %lld\n", nodes);
 			printf("Tris: %lld\n", tris);

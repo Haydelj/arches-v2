@@ -161,6 +161,7 @@ public:
 			};
 			uint64_t counters[NUM_COUNTERS];
 		};
+		std::map<paddr_t, uint64_t> profile_counters;
 
 	public:
 		Log() { reset(); }
@@ -169,12 +170,17 @@ public:
 		{
 			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] = 0;
+
+			profile_counters.clear();
 		}
 
 		void accumulate(const Log& other)
 		{
 			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] += other.counters[i];
+
+			for(auto& a : other.profile_counters)
+				profile_counters[a.first] += a.second;
 		}
 
 		uint64_t get_total() { return hits + misses; }

@@ -31,7 +31,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 		#if defined(__riscv) &&  defined(USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-			intersect(args.nodes, args.strips, ray, hit);
+			intersect(args.nodes, args.tris, ray, hit);
 		#endif
 		}
 
@@ -76,20 +76,18 @@ int main(int argc, char* argv[])
 
 	rtm::Mesh mesh("../../datasets/sponza.obj");
 	std::vector<rtm::BVH2::BuildObject> build_objects;
-	for (uint i = 0; i < mesh.size(); ++i)
-		build_objects.push_back(mesh.get_build_object(i));
+	mesh.get_build_objects(build_objects);
 
 	rtm::BVH2 bvh2("../../datasets/cache/sponza_bvh.cache", build_objects, 2);
 	mesh.reorder(build_objects);
 
-	rtm::PackedBVH2 packed_bvh2(bvh2, mesh);
+	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 
 	args.nodes = packed_bvh2.nodes.data();
-	args.strips = packed_bvh2.strips.data();
 	args.treelets = treelet_bvh.treelets.data();
 	args.tris = tris.data();
 

@@ -167,7 +167,6 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 	const MemoryRequest& request = _request_cross_bar.peek(bank_index);
 	paddr_t block_addr = _get_block_addr(request.paddr);
 	paddr_t block_offset = _get_block_offset(request.paddr);
-	log.requests++;
 
 	if(request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFECTH)
 	{
@@ -188,6 +187,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		{
 			MSHR& mshr = bank.mshrs[mshr_index];
 			_push_request(mshr, request);
+			log.profile_counters[block_addr]++;
 
 			if(mshr.state == MSHR::State::EMPTY)
 			{
@@ -236,7 +236,8 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 				log.hits++;
 				log.lfb_hits++;
 			}
-
+			
+			log.requests++;
 			_request_cross_bar.read(bank_index);
 		}
 		else log.mshr_stalls++;
@@ -258,12 +259,14 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 					bank.mshr_request_queue.push(lfb_index);
 				}
 
+				log.requests++;
 				_request_cross_bar.read(bank_index);
 			}
 		}
 		else
 		{
 			bank.uncached_write_queue.push(request);
+			log.requests++;
 			_request_cross_bar.read(bank_index);
 		}
 	}

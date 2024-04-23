@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-set(PROJECT_NAME "Dual-streaming-kernel")
+set(PROJECT_NAME "dual-streaming-kernel")
 
 file(GLOB FILES *.hpp *.cpp)
 add_executable(${PROJECT_NAME} ${FILES})

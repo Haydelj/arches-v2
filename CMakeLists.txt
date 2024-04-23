@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(Arches-v2 LANGUAGES CXX)
+project(arches-v2 LANGUAGES CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -8,7 +8,3 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory("src")
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/datasets)
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/datasets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-endif()
