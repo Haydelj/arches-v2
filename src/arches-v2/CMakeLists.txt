@@ -55,12 +55,17 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT D
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 target_link_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/libraries/tbb)
 target_link_libraries(${PROJECT_NAME} tbb12.lib)
+target_link_libraries(${PROJECT_NAME} yaml-cpp::yaml-cpp)
 #set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR})
 #set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${PROJECT_NAME})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/usimm/config-files)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/usimm/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/ramulator/config-files)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/ramulator/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 file(GLOB TBB_DLLS ${PROJECT_SOURCE_DIR}/libraries/tbb/*)
