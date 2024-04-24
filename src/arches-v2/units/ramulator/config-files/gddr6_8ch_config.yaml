@@ -1,0 +1,34 @@
+Frontend:
+  impl: ARCHESv2
+  clock_ratio: 1
+  num_expected_insts: 500000
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+              
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: GDDR6
+    org:
+      preset: GDDR6_32Gb_x16_8ch
+      channel_width: 32
+    timing:
+      preset: GDDR6_16000_1350mV_quad 
+
+  Controller:
+    impl: Generic
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    wr_low_watermark: 0.3
+    wr_high_watermark: 0.7
+    plugins:
+
+  AddrMapper:
+    impl: RoRaBaChCo
