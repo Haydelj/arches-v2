@@ -84,7 +84,7 @@ public:
 
 		uint look_up(HitInfo hit_info)
 		{
-			uint set_id = hit_info.hit_address % num_set;
+			uint set_id = (hit_info.hit_address >> 4) % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			_assert(end_index <= cache_size);
 			uint found_index = ~0;
@@ -110,7 +110,7 @@ public:
 		void compare_replace(HitInfo hit_info)
 		{
 			// This must come from a write request
-			uint set_id = hit_info.hit_address % num_set;
+			uint set_id = (hit_info.hit_address >> 4) % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			_assert(end_index <= cache_size);
 			uint found_index = ~0;
@@ -144,7 +144,7 @@ public:
 		*/
 		uint process_dram_hit(HitInfo hit_info)
 		{
-			uint set_id = hit_info.hit_address % num_set;
+			uint set_id = (hit_info.hit_address >> 4) % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			_assert(end_index <= cache_size);
 			uint found_index = ~0;
@@ -170,7 +170,7 @@ public:
 
 		uint try_insert(HitInfo hit_info)
 		{
-			uint set_id = hit_info.hit_address % num_set;
+			uint set_id = (hit_info.hit_address >> 4) % num_set;
 			uint start_index = set_id * associativity, end_index = start_index + associativity;
 			_assert(end_index <= cache_size);
 			uint found_index = ~0;

@@ -234,22 +234,21 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 
 	std::string filename = current_folder_path + "../../../../datasets/" + scene_name + ".obj";
-	std::string treelet_filename = current_folder_path + "../../../../datasets/cache/" + scene_name + "_treelets.cache";
+	std::string bvh_filename = current_folder_path + "../../../../datasets/cache/" + scene_name + "_bvh.cache";
 	std::string triangle_filename = current_folder_path + "../../../../datasets/cache/" + scene_name + "_triangles.cache";
 
-	std::ifstream inputTreelets(treelet_filename, std::ios::binary);
+	std::ifstream inputBVH(bvh_filename, std::ios::binary);
 	std::ifstream inputTriangles(triangle_filename, std::ios::binary);
-
-	rtm::PackedTreeletBVH treelet_bvh;
+	rtm::BVH2 bvh;
 	std::vector<rtm::Triangle> tris;
-	if(inputTreelets.is_open() && inputTriangles.is_open())
+	if(inputBVH.is_open() && inputTriangles.is_open())
 	{
 		// Do not need to rebuild treelets every time
-		printf("Loading packed treelets from %s\n", treelet_filename.c_str());
-		rtm::PackedTreelet curr_tree;
-		while(inputTreelets.read(reinterpret_cast<char*>(&curr_tree), sizeof(rtm::PackedTreelet)))
-			treelet_bvh.treelets.push_back(curr_tree);
-		printf("Loaded %zd packed treelets\n", treelet_bvh.treelets.size());
+		printf("Loading BVH from %s\n", bvh_filename.c_str());
+		rtm::BVH2::Node node;
+		while (inputBVH.read(reinterpret_cast<char*>(&node), sizeof(node)))
+			bvh.nodes.emplace_back(node);
+		printf("Loaded %zd BVH nodes\n", bvh.nodes.size());
 
 		printf("Loading triangles from %s\n", triangle_filename.c_str());
 		rtm::Triangle cur_tri;
@@ -260,7 +259,6 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	else
 	{
 		rtm::Mesh mesh(filename);
-		rtm::BVH2 bvh;
 		std::vector<rtm::BVH2::BuildObject> build_objects;
 		for(uint i = 0; i < mesh.size(); ++i)
 			build_objects.push_back(mesh.get_build_object(i));
@@ -268,19 +266,18 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 		mesh.reorder(build_objects);
 		mesh.get_triangles(tris);
 
-		rtm::PackedTreeletBVH treelet_bvh(bvh, mesh);
-
-		std::ofstream outputTreelets(treelet_filename, std::ios::binary);
+		std::ofstream outputTreelets(bvh_filename, std::ios::binary);
 		std::ofstream outputTriangles(triangle_filename, std::ios::binary);
-
-		printf("Writing %zd packed treelets to %s\n", treelet_bvh.treelets.size(), treelet_filename.c_str());
-		for(auto& t : treelet_bvh.treelets)
-			outputTreelets.write(reinterpret_cast<const char*>(&t), sizeof(rtm::PackedTreelet));
+		printf("Writing %zd bvh nodes to %s\n", bvh.nodes.size(), bvh_filename.c_str());
+		for(auto& t : bvh.nodes)
+			outputTreelets.write(reinterpret_cast<const char*>(&t), sizeof(t));
 
 		printf("Writing %zd triangles to %s\n", tris.size(), triangle_filename.c_str());
 		for(auto& tt : tris)
-			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(rtm::Triangle));
+			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(tt));
 	}
+	rtm::PackedBVH2 packed_bvh(bvh);
+	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, tris);
 
 	DualStreamingKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;

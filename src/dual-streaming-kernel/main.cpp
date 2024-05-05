@@ -29,7 +29,6 @@ inline static void kernel(const DualStreamingKernelArgs& args)
 	{
 		uint x = index % args.framebuffer_width;
 		uint y = index / args.framebuffer_width;
-
 		WorkItem wi;
 		wi.bray.ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
 		wi.bray.id = index;

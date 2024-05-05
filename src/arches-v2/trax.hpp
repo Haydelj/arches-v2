@@ -142,26 +142,17 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	std::string filename = current_folder_path + "../../../../datasets/" + s + ".obj";
 	std::string bvh_filename = current_folder_path + "../../../../datasets/cache/" + s + "_bvh.cache";
 	std::string triangle_filename = current_folder_path + "../../../../datasets/cache/" + s + "_triangles.cache";
-	std::string treelet_filename = current_folder_path + "../../../../datasets/cache/" + s + "_treelets.cache";
 	std::ifstream inputBVH(bvh_filename, std::ios::binary);
 	std::ifstream inputTriangles(triangle_filename, std::ios::binary);
-	std::ifstream inputTreelets(triangle_filename, std::ios::binary);
-	rtm::PackedBVH2 packed_bvh;
 	std::vector<rtm::Triangle> tris;
-	rtm::PackedTreeletBVH treelet_bvh;
-	if(inputTreelets.is_open() && inputBVH.is_open() && inputTriangles.is_open())
+	rtm::BVH2 bvh;
+	if(inputBVH.is_open() && inputTriangles.is_open())
 	{
-		printf("Loading packed bvh from %s\n", bvh_filename.c_str());
-		rtm::PackedBVH2::Node curr_node;
-		while(inputBVH.read(reinterpret_cast<char*>(&curr_node), sizeof(rtm::PackedBVH2::Node)))
-			packed_bvh.nodes.push_back(curr_node);
-		printf("Loaded %zd packed bvh nodes\n", packed_bvh.nodes.size());
-
-		printf("Loading packed treelets from %s\n", treelet_filename.c_str());
-		rtm::PackedTreelet curr_tree;
-		while(inputTreelets.read(reinterpret_cast<char*>(&curr_tree), sizeof(rtm::PackedTreelet)))
-			treelet_bvh.treelets.push_back(curr_tree);
-		printf("Loaded %zd packed treelets\n", treelet_bvh.treelets.size());
+		printf("Loading bvh from %s\n", bvh_filename.c_str());
+		rtm::BVH2::Node curr_node;
+		while(inputBVH.read(reinterpret_cast<char*>(&curr_node), sizeof(curr_node)))
+			bvh.nodes.push_back(curr_node);
+		printf("Loaded %zd packed bvh nodes\n", bvh.nodes.size());
 
 		printf("Loading triangles from %s\n", triangle_filename.c_str());
 		rtm::Triangle cur_tri;
@@ -172,21 +163,16 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	else
 	{
 		rtm::Mesh mesh(filename);
-		rtm::BVH2 bvh;
 		std::vector<rtm::BVH2::BuildObject> build_objects;
 		for(uint i = 0; i < mesh.size(); ++i)
 			build_objects.push_back(mesh.get_build_object(i));
 		bvh.build(build_objects);
 		mesh.reorder(build_objects);
 		mesh.get_triangles(tris);
-
-		packed_bvh = rtm::PackedBVH2(bvh);
-		treelet_bvh = rtm::PackedTreeletBVH(packed_bvh, mesh);
 		std::ofstream outputBVH(bvh_filename, std::ios::binary);
 		std::ofstream outputTriangles(triangle_filename, std::ios::binary);
-		std::ofstream outputTreelets(treelet_filename, std::ios::binary);
-		printf("Writing %zd packed bvh nodes to %s, %zd treelets to %s\n", packed_bvh.nodes.size(), bvh_filename.c_str(), treelet_bvh.treelets.size(), treelet_filename.c_str());
-		for(auto& t : packed_bvh.nodes)
+		printf("Writing %zd bvh nodes to %s\n", bvh.nodes.size(), bvh_filename.c_str());
+		for(auto& t : bvh.nodes)
 		{
 			outputBVH.write(reinterpret_cast<const char*>(&t), sizeof(t));
 		}
@@ -194,12 +180,9 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 		{
 			outputTriangles.write(reinterpret_cast<const char*>(&tt), sizeof(tt));
 		}
-		for(auto& treelet : treelet_bvh.treelets)
-		{
-			outputTreelets.write(reinterpret_cast<const char*>(&treelet), sizeof(treelet));
-		}
 	}
-
+	rtm::PackedBVH2 packed_bvh = rtm::PackedBVH2(bvh);
+	rtm::PackedTreeletBVH treelet_bvh = rtm::PackedTreeletBVH(packed_bvh, tris);
 	TRaXKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;
 	args.framebuffer_height = global_config.framebuffer_height;

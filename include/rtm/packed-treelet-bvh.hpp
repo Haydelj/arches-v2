@@ -17,7 +17,7 @@ namespace rtm {
 
 struct PackedTreelet
 {
-	const static uint size = 7 * 8 * 1024;
+	const static uint size = 32 * 1024 * 1024; // 16 MB
 
 	struct alignas(32 * PACK_SIZE) Header
 	{
@@ -76,14 +76,14 @@ public:
 	std::vector<PackedTreelet> treelets;
 
 	PackedTreeletBVH(){}
-	PackedTreeletBVH(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
+	PackedTreeletBVH(const rtm::PackedBVH2& bvh, const std::vector<Triangle>& triangles)
 	{
 		printf("Packed Treelet BVH Building\n");
-		build_treelet(bvh, mesh);
+		build_treelet(bvh, triangles);
 		printf("Packed Treelet BVH Built\n");
 	}
 
-	uint get_node_size(uint node, const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh)
+	uint get_node_size(uint node, const rtm::PackedBVH2& bvh)
 	{
 		uint node_size = sizeof(PackedTreelet::Node);
 		for(uint i = 0; i < PACK_SIZE; ++i)
@@ -92,7 +92,7 @@ public:
 		return node_size;
 	}
 
-	void build_treelet(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
+	void build_treelet(const rtm::PackedBVH2& bvh, const std::vector<Triangle>& triangles, uint max_cut_size = 1024)
 	{
 		size_t usable_space = sizeof(PackedTreelet) - sizeof(PackedTreelet::Header);
 
@@ -103,7 +103,7 @@ public:
 		std::vector<float> best_cost;
 		for (uint i = 0; i < bvh.nodes.size(); ++i)
 		{
-			footprint.push_back(get_node_size(i, bvh, mesh));
+			footprint.push_back(get_node_size(i, bvh));
 			total_footprint += footprint.back();
 
 			AABB aabb;
@@ -311,7 +311,7 @@ public:
 						for (uint k = 0; k <= node.data[j].num_tri; ++k)
 						{
 							tris[k].id = node.data[j].tri_index + k;
-							tris[k].tri = mesh.get_triangle(tris[k].id);
+							tris[k].tri = triangles[tris[k].id];
 							primative_start += sizeof(PackedTreelet::Triangle);
 						}
 					}

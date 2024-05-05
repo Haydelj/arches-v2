@@ -91,12 +91,12 @@ public:
 	uint logging_interval = 32 * 1024;
 
 	//workload config
-	uint scene_id = 0;
-	uint framebuffer_width = 512;
-	uint framebuffer_height = 512;
+	uint scene_id = 1;
+	uint framebuffer_width = 32;
+	uint framebuffer_height = 32;
 	CameraConfig camera_config;
-	bool pregen_rays = 1;
-	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
+	bool pregen_rays = 0;
+	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;
@@ -148,7 +148,7 @@ public:
 			{
 				traversal_scheme = std::stoi(value);
 			}
-			if(key == "hit_buuffer_size")
+			if(key == "hit_buffer_size")
 			{
 				hit_buffer_size = std::stoi(value);
 			}

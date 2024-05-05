@@ -178,7 +178,7 @@ void UnitRTCore::_schedule_ray()
 		}
 		else
 		{
-			//stack empty or anyhit found return the hit
+			//stack empty and anyhit found return the hit
 			if(ENABLE_RT_DEBUG_PRINTS)
 				printf("Ret: %d\n", ray_state.hit.id);
 

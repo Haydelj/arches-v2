@@ -86,7 +86,7 @@ private:
 		bool hit_found;
 		bool lhit_returned;
 
-		NodeStackEntry nstack[16];
+		NodeStackEntry nstack[1024];
 		uint nstack_size;
 
 		TreeletStackEntry tqueue[16];
@@ -95,7 +95,9 @@ private:
 
 		uint order_hint;
 
-		RayState() : phase(Phase::NONE) {};
+		RayState() : phase(Phase::NONE) {
+			nstack_size = 0;
+		};
 
 		RayState(const WorkItem& wi)
 		{

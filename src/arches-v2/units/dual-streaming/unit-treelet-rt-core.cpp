@@ -106,6 +106,7 @@ void UnitTreeletRTCore::_read_returns()
 				ray_state.phase = RayState::Phase::NONE;
 				--_active_ray_slots;
 			}
+			
 		}
 		else if(ret.size == sizeof(rtm::Hit))
 		{
@@ -114,7 +115,6 @@ void UnitTreeletRTCore::_read_returns()
 				//update hit record for dst
 				uint ray_id = ret.dst & ~(0x1 << 15);
 				RayState& ray_state = _ray_states[ray_id];
-
 				rtm::Hit hit;
 				std::memcpy(&hit, ret.data, ret.size);
 				if(hit.t < ray_state.hit.t)
@@ -161,6 +161,8 @@ void UnitTreeletRTCore::_read_returns()
 			NodeStagingBuffer buffer;
 			buffer.ray_id = ray_id;
 			std::memcpy(&buffer.node, ret.data, ret.size);
+
+			assert(_ray_states[ray_id].phase == RayState::Phase::NODE_FETCH);
 
 			_ray_states[ray_id].phase = RayState::Phase::NODE_ISECT;
 			_node_isect_queue.push(buffer);
@@ -240,21 +242,6 @@ void UnitTreeletRTCore::_schedule_ray()
 				_ray_scheduling_queue.push(ray_id);
 			}
 		}
-		else if(ray_state.tqueue_head < ray_state.tqueue_tail)
-		{
-			RayState::TreeletStackEntry& entry = ray_state.tqueue[ray_state.tqueue_head++];
-			if(entry.t < ray_state.hit.t)
-			{
-				WorkItem work_item;
-				work_item.bray.ray = ray_state.ray;
-				work_item.bray.ray.t_max = rtm::min(ray_state.ray.t_max, ray_state.hit.t);
-				work_item.bray.id = ray_state.global_ray_id;
-				work_item.segment_id = entry.index;
-				work_item.order_hint = ray_state.order_hint++;
-				_work_item_store_queue.push(work_item);
-			}
-			_ray_scheduling_queue.push(ray_id);
-		}
 		else
 		{
 			if(ray_state.hit_found)
@@ -296,7 +283,6 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			if(hit_ts[0] < hit.t) ray_state.nstack[ray_state.nstack_size++] = {hit_ts[0], node.data[0]};
 			if(hit_ts[1] < hit.t) ray_state.nstack[ray_state.nstack_size++] = {hit_ts[1], node.data[1]};
 		}
-
 		_box_pipline.write(ray_id);
 		_node_isect_queue.pop();
 	}
