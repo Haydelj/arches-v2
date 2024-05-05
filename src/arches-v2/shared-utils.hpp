@@ -92,8 +92,8 @@ public:
 
 	//workload config
 	uint scene_id = 1;
-	uint framebuffer_width = 32;
-	uint framebuffer_height = 32;
+	uint framebuffer_width = 1024;
+	uint framebuffer_height = 1024;
 	CameraConfig camera_config;
 	bool pregen_rays = 0;
 	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.

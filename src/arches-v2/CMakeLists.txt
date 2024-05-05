@@ -64,7 +64,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/usimm/config-files)
 endif()
 
 file(GLOB TBB_DLLS ${PROJECT_SOURCE_DIR}/libraries/tbb/*)
-set(RELEASE_DIR ${CMAKE_BINARY_DIR}/Release)
+set(RELEASE_DIR ${CMAKE_CURRENT_BINARY_DIR}/Release)
 # Check if the destination directory exists, and if not, create it
 file(MAKE_DIRECTORY ${RELEASE_DIR})
 file(COPY ${TBB_DLLS} DESTINATION ${RELEASE_DIR})

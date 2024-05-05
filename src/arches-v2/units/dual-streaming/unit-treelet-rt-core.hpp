@@ -86,7 +86,7 @@ private:
 		bool hit_found;
 		bool lhit_returned;
 
-		NodeStackEntry nstack[1024];
+		NodeStackEntry nstack[32];
 		uint nstack_size;
 
 		TreeletStackEntry tqueue[16];
