@@ -24,6 +24,9 @@ public:
 		size_t  segment_size{0};
 		paddr_t segment_start{0};
 
+		bool dynamic_prefetch{ 0 };
+		uint prefetch_block{ 2 };
+
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{ 0 };
 		uint                main_mem_port_stride{ 1 };
@@ -141,6 +144,7 @@ private:
 
 	struct Channel
 	{
+		std::queue<std::pair<paddr_t, uint>> dynamic_prefetch_queue;
 		std::queue<paddr_t> prefetch_queue;
 		uint byte_requested = 0;
 	};
@@ -149,6 +153,10 @@ private:
 	{
 		uint bytes_returned = 0;
 	};
+
+	std::vector<int> _block_status; // 0: not in the buffer, 1: fetching, 2: in the buffer, it's pretty cheap to maintain this, only need SCENE_BUFFER_SIZE / 64 / 4 bytes
+	bool _dynamic_prefetch{ false };
+	uint _prefetch_block = 2; // blocks
 
 	std::vector<uint8_t> _data_u8;
 	std::vector<Bank> _banks;
@@ -169,11 +177,12 @@ public:
 		_request_network(config.num_ports, config.num_banks, config.bank_select_mask, _address_translator),
 		_return_network(config.num_ports, config.num_banks, config.num_banks), 
 		prefetch_sideband(16), retire_sideband(16), prefetch_complete_sideband(16),
-		_main_memory(config.main_mem), _main_mem_port_stride(config.main_mem_port_stride), _main_mem_port_offset(config.main_mem_port_offset)
+		_main_memory(config.main_mem), _main_mem_port_stride(config.main_mem_port_stride), _main_mem_port_offset(config.main_mem_port_offset), _dynamic_prefetch(config.dynamic_prefetch), _prefetch_block(config.prefetch_block)
 	{
 		_banks.resize(config.num_banks, config.latency);
 		_channels.resize(NUM_DRAM_CHANNELS);
 		_data_u8.resize(config.size);
+		_block_status.resize(config.size / CACHE_BLOCK_SIZE, 0);
 	}
 
 	void clock_rise() override;
@@ -216,7 +225,7 @@ public:
 	class alignas(64) Log
 	{
 	public:
-		const static uint NUM_COUNTERS = 4;
+		const static uint NUM_COUNTERS = 5;
 		union
 		{
 			struct
@@ -225,6 +234,7 @@ public:
 				uint64_t stores;
 				uint64_t bytes_read;
 				uint64_t bytes_written;
+				uint64_t read_misses;
 			};
 			uint64_t counters[NUM_COUNTERS];
 		};
@@ -254,6 +264,7 @@ public:
 			printf("Total: %lld\n", total / units);
 			printf("Loads: %lld\n", loads / units);
 			printf("Stores: %lld\n", stores / units);
+			printf("Hit Rate: %.2f%%\n", 100.0 * (loads - read_misses) / loads);
 		}
 
 		bool print_power(PowerConfig power_config, float time_delta, uint units = 1)

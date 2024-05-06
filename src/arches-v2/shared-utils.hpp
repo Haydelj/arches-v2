@@ -91,16 +91,19 @@ public:
 	uint logging_interval = 32 * 1024;
 
 	//workload config
-	uint scene_id = 1;
-	uint framebuffer_width = 1024;
-	uint framebuffer_height = 1024;
+	uint scene_id = 0;
+	uint framebuffer_width = 512;
+	uint framebuffer_height = 512;
 	CameraConfig camera_config;
 	bool pregen_rays = 0;
 	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
 
 	//dual streaming
-	bool use_scene_buffer = 0;
-	bool rays_on_chip = 1;
+	const uint treelet_size = 7 * 8 * 1024; // 56 KB
+	bool dynamic_prefetch = 1;
+	uint prefetch_block = 8; // 2 blocks every time
+	bool use_scene_buffer = 1;
+	bool rays_on_chip = 0;
 	bool use_early = 1;
 	bool hit_delay = 0;
 	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
@@ -183,6 +186,14 @@ public:
 			if(key == "logging_interval")
 			{
 				logging_interval = std::stoi(value);
+			}
+			if(key == "dynamic_prefetch")
+			{
+				dynamic_prefetch = std::stoi(value);
+			}
+			if(key == "prefetch_block")
+			{
+				prefetch_block = std::stoi(value);
 			}
 			std::cout << key << ' ' << value << '\n';
 		};

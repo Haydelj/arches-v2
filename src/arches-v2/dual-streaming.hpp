@@ -348,10 +348,12 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	//Scene buffer
 	Units::DualStreaming::UnitSceneBuffer::Configuration scene_buffer_config;
-	scene_buffer_config.size = 4 * 1024 * 1024; // 4MB
+	scene_buffer_config.size = 32 * 1024 * 1024; // 4MB
 	scene_buffer_config.latency = 4;
 	scene_buffer_config.num_banks = 32;
 	scene_buffer_config.bank_select_mask = generate_nbit_mask(log2i(scene_buffer_config.num_banks)) << log2i(CACHE_BLOCK_SIZE);
+	scene_buffer_config.prefetch_block = global_config.prefetch_block;
+	scene_buffer_config.dynamic_prefetch = global_config.dynamic_prefetch;
 
 	Units::DualStreaming::UnitSceneBuffer::PowerConfig scene_buffer_power_config;
 	scene_buffer_power_config.leakage_power = 53.7192e-3f * scene_buffer_config.num_banks;
@@ -546,7 +548,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	hit_record_updater_config.num_tms = num_tms;
 	hit_record_updater_config.hit_record_start = *(paddr_t*)&kernel_args.hit_records;
 	hit_record_updater_config.cache_size = global_config.hit_buffer_size; // 128 * 16 = 2048B = 2KB
-	hit_record_updater_config.associativity = 8;
+	hit_record_updater_config.associativity = 16;
 	hit_record_updater_config.main_mem = &dram;
 	hit_record_updater_config.main_mem_port_stride = dram_ports_per_channel;
 	hit_record_updater_config.main_mem_port_offset = *unused_dram_ports.begin();

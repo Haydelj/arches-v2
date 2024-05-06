@@ -90,8 +90,8 @@ int main(int argc, char* argv[])
 	
 	
 	args.light_dir = rtm::normalize(rtm::vec3(4.5, 42.5, 5.0));
-	//rtm::Mesh mesh("../../datasets/sponza.obj"); args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	rtm::Mesh mesh("../../datasets/san-miguel.obj"); args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
+	rtm::Mesh mesh("../../datasets/sponza.obj"); args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	//rtm::Mesh mesh("../../datasets/san-miguel.obj"); args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 	// args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(6.37319, -5.62511, 1.53861), rtm::vec3(0.72299, 0.68257, 0.10671));
 
 	rtm::BVH2 bvh;
@@ -103,7 +103,8 @@ int main(int argc, char* argv[])
 	mesh.reorder(build_objects);
 	mesh.get_triangles(tris);
 	std::cout << tris.size() << '\n';
-	rtm::PackedTreeletBVH treelet_bvh(bvh, mesh);
+	rtm::PackedBVH2 packed_bvh(bvh);
+	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, tris);
 	std::vector<rtm::Ray> ray_buffer(args.framebuffer_size);
 	std::vector<rtm::Hit> hit_buffer(args.framebuffer_size);
 

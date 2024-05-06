@@ -19,12 +19,13 @@ default_config["hit_delay"] = 0
 default_config["hit_buffer_size"] = 1024 * 1024
 default_config["traversal_scheme"] = 0
 default_config["weight_scheme"] = 1
+default_config["dynamic_prefetch"] = 0
 
 # 1
 scenes = ["sponza", "san-miguel"]
 # scenes = ["san-miguel"]
 simulators = [1]
-bounces = [0]
+dynamic_prefetchs = [0, 1]
 
 def get_command(config: dict):
     cmd = EXE_PATH
@@ -39,7 +40,7 @@ def run_config(config: dict, os_run: bool = True):
     else:
         print("Can not find the exe file")
     cmd = get_command(config)
-    test_name = config["scene_name"] + "-" + str(config["framebuffer_height"]) + "-" + str(config["pregen_bounce"]) + "-" + ("trax" if config["simulator"] == 0 else "ds");
+    test_name = config["scene_name"] + "-" + str(config["framebuffer_height"]) + "-" + str(config["dynamic_prefetch"]) + "-" + ("trax" if config["simulator"] == 0 else "ds")
     if os_run:
         os.system(cmd)
     else:
@@ -56,10 +57,10 @@ def run_config(config: dict, os_run: bool = True):
 
 if __name__ == "__main__":
     for scene in scenes:
-        for bounce in bounces:
+        for dynamic_prefetch in dynamic_prefetchs:
              for simulator in simulators:
                 config = default_config
                 config["scene_name"] = scene
-                config["pregen_bounce"] = bounce
+                config["dynamic_prefetch"] = dynamic_prefetch
                 config["simulator"] = simulator
                 run_config(config, os_run=False)

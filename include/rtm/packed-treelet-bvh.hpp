@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <stack>
 #include <queue>
+#include <functional>
 #endif
 
 namespace rtm {
@@ -17,8 +18,8 @@ namespace rtm {
 
 struct PackedTreelet
 {
-	const static uint size = 16 * 1024 * 1024; // 16 MB
-
+	const static uint size = 7 * 16 * 1024; // 112 KB
+	//const static uint size = 16 * 1024 * 1024;
 	struct alignas(32 * PACK_SIZE) Header
 	{
 		uint first_child;
@@ -279,7 +280,6 @@ public:
 
 		//Phase 3 construct treelets in memeory
 		treelets.resize(treelet_assignments.size());
-
 		for (uint treelet_index = 0; treelet_index < treelets.size(); ++treelet_index)
 		{
 			uint nodes_mapped = 0;
@@ -289,7 +289,57 @@ public:
 			PackedTreelet& treelet = treelets[treelet_index];
 			treelet.header = treelet_headers[treelet_index];
 			uint primative_start = treelet_assignments[treelet_index].size() * sizeof(PackedTreelet::Node) + sizeof(PackedTreelet::Header);
-			for (uint i = 0; i < treelet_assignments[treelet_index].size(); ++i)
+
+			// In this way, a subtree is a continuous memory inside the treelet, which is benefitial for cache performance and prefetching
+			std::function<void(uint)> dfs_construct = [&](uint node_id){
+				uint tnode_id = node_map[node_id];
+				PackedTreelet::Node& tnode = treelets[treelet_index].nodes[tnode_id];
+				assert(node_map.find(node_id) != node_map.end());
+				rtm::PackedBVH2::Node node = bvh.nodes[node_id];
+				
+				// Surface area heuristic
+				if (node.aabb[0].surface_area() < node.aabb[1].surface_area())
+				{
+					std::swap(node.data[0], node.data[1]);
+					std::swap(node.aabb[0], node.aabb[1]);
+				}
+
+				for (uint j = 0; j < PACK_SIZE; ++j)
+				{
+					tnode.data[j].is_leaf = node.data[j].is_leaf;
+					tnode.aabb[j] = node.aabb[j];
+					if (node.data[j].is_leaf)
+					{
+						tnode.data[j].num_tri = node.data[j].num_tri;
+						tnode.data[j].tri_offset = primative_start;
+
+						PackedTreelet::Triangle* tris = (PackedTreelet::Triangle*)(&treelet.bytes[primative_start]);
+						for (uint k = 0; k <= node.data[j].num_tri; ++k)
+						{
+							tris[k].id = node.data[j].tri_index + k;
+							tris[k].tri = triangles[tris[k].id];
+							primative_start += sizeof(PackedTreelet::Triangle);
+						}
+					}
+					else
+					{
+						uint child_node_id = node.data[j].child_index;
+						if (root_node_treelet.find(child_node_id) != root_node_treelet.end())
+						{
+							tnode.data[j].is_child_treelet = 1;
+							tnode.data[j].child_index = root_node_treelet[child_node_id];
+						}
+						else
+						{
+							tnode.data[j].is_child_treelet = 0;
+							tnode.data[j].child_index = node_map[child_node_id] = nodes_mapped++;
+							dfs_construct(child_node_id);
+						}
+					}
+				}
+			};
+			dfs_construct(treelet_assignments[treelet_index][0]);
+			/*for (uint i = 0; i < treelet_assignments[treelet_index].size(); ++i)
 			{
 				uint node_id = treelet_assignments[treelet_index][i];
 				const rtm::PackedBVH2::Node& node = bvh.nodes[node_id];
@@ -330,7 +380,7 @@ public:
 						}
 					}
 				}
-			}
+			}*/
 		}
 
 		printf("Treelets: %zu\n", treelets.size());
