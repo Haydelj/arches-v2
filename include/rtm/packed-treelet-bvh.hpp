@@ -18,7 +18,8 @@ namespace rtm {
 
 struct PackedTreelet
 {
-	const static uint size = 7 * 16 * 1024; // 112 KB
+	//const static uint size = 7 * 8 * 1024; // 56 KB
+	const static uint size = 16 * 1024 * 1024; // 16MB
 	//const static uint size = 16 * 1024 * 1024;
 	struct alignas(32 * PACK_SIZE) Header
 	{

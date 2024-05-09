@@ -209,21 +209,29 @@ void UnitTreeletRTCore::_schedule_ray()
 				{
 					if(entry.data.is_child_treelet)
 					{
-					#if 1
-						WorkItem work_item;
-						work_item.bray.ray = ray_state.ray;
-						work_item.bray.ray.t_max = rtm::min(ray_state.ray.t_max, ray_state.hit.t);
-						work_item.bray.id = ray_state.global_ray_id;
-						work_item.segment_id = entry.data.child_index;
-						work_item.order_hint = ray_state.order_hint++;
-						_work_item_store_queue.push(work_item);
-					#else
-						//this is needed for post traversal early termination
-						ray_state.tqueue[ray_state.tqueue_tail++] = {entry.t, entry.data.child_index};
-					#endif
+						if (_in_scene_buffer.count(entry.data.child_index))
+						{
+							// If it is in scene buffer, we can continue traversing this ray without duplications
 
-						ray_state.nstack_size--;
-						_ray_scheduling_queue.push(ray_id);
+						}
+						else
+						{
+#if 1
+							WorkItem work_item;
+							work_item.bray.ray = ray_state.ray;
+							work_item.bray.ray.t_max = rtm::min(ray_state.ray.t_max, ray_state.hit.t);
+							work_item.bray.id = ray_state.global_ray_id;
+							work_item.segment_id = entry.data.child_index;
+							work_item.order_hint = ray_state.order_hint++;
+							_work_item_store_queue.push(work_item);
+#else
+							//this is needed for post traversal early termination
+							ray_state.tqueue[ray_state.tqueue_tail++] = { entry.t, entry.data.child_index };
+#endif
+
+							ray_state.nstack_size--;
+							_ray_scheduling_queue.push(ray_id);
+						}
 					}
 					else
 					{

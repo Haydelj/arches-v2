@@ -88,23 +88,22 @@ class GlobalConfig
 public:
 	//simulator config
 	uint simulator = 1; //0-trax, 1-dual-streaming
-	uint logging_interval = 32 * 1024;
+	uint logging_interval = 1024;
 
 	//workload config
 	uint scene_id = 0;
 	uint framebuffer_width = 512;
 	uint framebuffer_height = 512;
 	CameraConfig camera_config;
-	bool pregen_rays = 0;
-	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
+	bool pregen_rays = 1;
+	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
 
 	//dual streaming
-	const uint treelet_size = 7 * 8 * 1024; // 56 KB
 	bool dynamic_prefetch = 1;
 	uint prefetch_block = 8; // 2 blocks every time
-	bool use_scene_buffer = 1;
+	bool use_scene_buffer = 0;
 	bool rays_on_chip = 0;
-	bool use_early = 1;
+	bool use_early = 0;
 	bool hit_delay = 0;
 	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
 	uint traversal_scheme = 1; // 0-BFS, 1-DFS
@@ -201,7 +200,6 @@ public:
 		// 0 is .exe
 		for(int i = 1; i < argc; i++)
 			ParseCommand(argv[i]);
-
 		camera_config = camera_configs[scene_id];
 	}
 };

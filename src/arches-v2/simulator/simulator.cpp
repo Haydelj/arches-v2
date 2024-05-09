@@ -60,6 +60,7 @@ void Simulator::execute(uint delta, std::function<void()> interval_logger)
 		_clock_fall();
 
 		current_cycle++;
+		if (current_cycle > 10000000) exit(0);
 		if(delta != 0 && current_cycle % delta == 0)
 			interval_logger();
 	}

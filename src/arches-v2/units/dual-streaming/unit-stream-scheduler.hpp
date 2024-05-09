@@ -167,7 +167,7 @@ public:
 		std::stack<uint> traversal_stack; //for DFS
 		std::queue<uint> traversal_queue; //for BFS
 
-		std::queue<uint> prefetch_queue;
+		std::queue<std::pair<uint, float>> prefetch_queue;
 		std::queue<uint> retire_queue;
 
 		uint root_rays_counter;

@@ -142,6 +142,10 @@ private:
 		uint16_t dst;
 	};
 
+
+	// treelet status
+	std::map<uint, bool> _in_scene_buffer;
+
 	//interconnects
 	RequestCascade _request_network;
 	ReturnCascade _return_network;

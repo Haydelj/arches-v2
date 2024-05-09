@@ -72,7 +72,7 @@ void UnitStreamScheduler::_update_scheduler()
 			if(_scene_buffer)
 			{
 				_scheduler.concurent_prefetches++;
-				_scheduler.prefetch_queue.push(candidate_segment);
+				_scheduler.prefetch_queue.push(std::make_pair(candidate_segment, 1.0 * state.num_rays / _scheduler.root_rays_counter));
 			}
 			else
 			{

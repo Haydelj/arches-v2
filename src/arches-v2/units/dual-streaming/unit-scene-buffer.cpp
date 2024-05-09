@@ -26,7 +26,7 @@ void UnitSceneBuffer::process_prefetch()
 {
 	if (prefetch_sideband.is_read_valid() && _address_translator.num_free_slots())
 	{
-		uint segment_id = prefetch_sideband.read();
+		auto [segment_id, ratio] = prefetch_sideband.read();
 		uint slot = _address_translator.map(segment_id);
 		paddr_t segment_addr = _address_translator.get_segment_address(segment_id);
 		_segment_states[segment_id] = SegmentState();
@@ -37,8 +37,20 @@ void UnitSceneBuffer::process_prefetch()
 			uint block_id = buffer_addr / CACHE_BLOCK_SIZE;
 			// Start prefetching from 0
 			assert(!_block_status[block_id]);
-			uint channel_index = (segment_addr / ROW_BUFFER_SIZE) % NUM_DRAM_CHANNELS;
-			_channels[channel_index].dynamic_prefetch_queue.push(std::make_pair(segment_addr, _prefetch_block));
+
+			// Based on the ray ratio
+			uint bytes_to_prefetch = ratio * _address_translator.segment_size;
+			uint num_blocks = bytes_to_prefetch / CACHE_BLOCK_SIZE;
+			uint block_per_channel = ROW_BUFFER_SIZE / CACHE_BLOCK_SIZE;
+			paddr_t start_addr = segment_addr;
+			while (num_blocks > 0)
+			{
+				uint block_to_fetch = std::min(num_blocks, block_per_channel);
+				uint channel_index = (start_addr / ROW_BUFFER_SIZE) % NUM_DRAM_CHANNELS;
+				_channels[channel_index].dynamic_prefetch_queue.push(std::make_pair(start_addr, block_to_fetch));
+				num_blocks -= block_to_fetch;
+				start_addr += block_to_fetch * CACHE_BLOCK_SIZE;
+			}
 			_prefetch_complete_queue.push(segment_id); // SS can start issuing rays
 		}
 		else 

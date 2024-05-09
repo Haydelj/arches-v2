@@ -40,7 +40,7 @@ public:
 		float leakage_power{0.0f};
 	};
 
-	FIFO<uint> prefetch_sideband; //clock rise
+	FIFO<std::pair<uint, uint>> prefetch_sideband; //clock rise
 	FIFO<uint> retire_sideband; //clock rise
 	FIFO<uint> prefetch_complete_sideband; 	//clock fall
 

@@ -221,9 +221,9 @@ namespace DualStreaming {
 #include "dual-streaming-kernel/intersect.hpp"
 static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config)
 {
-	std::cerr << "Dual Streaming:: Initializing buffers...\n";
 	//std::string s = "san-miguel";
 	//std::string s = "sponza";
+	DualStreamingKernelArgs args;
 	std::string scene_name = scene_names[global_config.scene_id];
 
 	TCHAR exePath[MAX_PATH];
@@ -279,7 +279,6 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	rtm::PackedBVH2 packed_bvh(bvh);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, tris);
 
-	DualStreamingKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;
 	args.framebuffer_height = global_config.framebuffer_height;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
@@ -299,7 +298,6 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 		args.tris = tris.data();
 		pregen_rays(args, global_config.pregen_bounce, rays);
 	}
-
 	std::vector<rtm::Hit> hits(args.framebuffer_size);
 	for(auto& hit : hits)
 		hit.t = T_MAX;
@@ -348,7 +346,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	//Scene buffer
 	Units::DualStreaming::UnitSceneBuffer::Configuration scene_buffer_config;
-	scene_buffer_config.size = 32 * 1024 * 1024; // 4MB
+	scene_buffer_config.size = 4 * 1024 * 1024; // 4MB
 	scene_buffer_config.latency = 4;
 	scene_buffer_config.num_banks = 32;
 	scene_buffer_config.bank_select_mask = generate_nbit_mask(log2i(scene_buffer_config.num_banks)) << log2i(CACHE_BLOCK_SIZE);
@@ -486,8 +484,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 	ELF elf(current_folder_path + "../../dual-streaming-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
-
 	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config);
+
 	std::pair<paddr_t, paddr_t> treelet_range = {0, 0};
 	if(global_config.use_scene_buffer)
 		treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(rtm::PackedTreelet)};

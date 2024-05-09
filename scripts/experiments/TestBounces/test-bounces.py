@@ -7,12 +7,12 @@ default_config["simulator"] = 0
 default_config["logging_interval"] = 1 * 1024
 
 default_config["scene_name"] = "sponza"
-default_config["framebuffer_width"] = 512
-default_config["framebuffer_height"] = 512
-default_config["pregen_rays"] = 0
+default_config["framebuffer_width"] = 1024
+default_config["framebuffer_height"] = 1024
+default_config["pregen_rays"] = 1
 default_config["pregen_bounce"] = 0
 
-default_config["use_scene_buffer"] = 1
+default_config["use_scene_buffer"] = 0
 default_config["rays_on_chip"] = 0
 default_config["use_early"] = 0
 default_config["hit_delay"] = 0
@@ -22,9 +22,9 @@ default_config["weight_scheme"] = 1
 
 # 1
 scenes = ["sponza", "san-miguel"]
-# scenes = ["san-miguel"]
+#scenes = ["san-miguel"]
 simulators = [1]
-bounces = [0]
+bounces = [0, 1, 2]
 
 def get_command(config: dict):
     cmd = EXE_PATH
@@ -45,7 +45,9 @@ def run_config(config: dict, os_run: bool = True):
     else:
         result = run(cmd, stdout=PIPE, stderr=PIPE,
                  universal_newlines=True, shell=True)
-        log_str = result.stdout     
+        log_str = result.stdout
+        err_str = result.stderr
+        
         with open('{}.log'.format(test_name), 'w') as file:
             file.write(log_str)
             file.close()

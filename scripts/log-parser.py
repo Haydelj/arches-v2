@@ -19,8 +19,9 @@ for key in keys:
     data.append([])
 
 # log_file_name = sys.argv[1]
-log_file_name = "C:\\ExperimentEnvs\\arches-main\\scripts\\experiments\\TestBounces\\san-miguel-512-0-ds.log"
-# log_file_name = "C:\\ExperimentEnvs\\arches-main\\scripts\\experiments\\TestBounces\\sponza-512-0-ds.log"
+# log_file_name = "C:\\ExperimentEnvs\\arches-main\\scripts\\experiments\\TestBounces\\san-miguel-512-0-ds.log"
+# log_file_name = "C:\\ExperimentEnvs\\arches-main\\scripts\\experiments\\TestDynamic\\spongza-1024-0-ds.log"
+log_file_name = "C:\\ExperimentEnvs\\arches-main\\scripts\\experiments\\TestBounces\\spongza-1024-0-ds.log"
 # log_file_name = "C:\\ExperimentEnvs\\arches-main\\scripts\\experiments\\TestBounces\\san-miguel-512-0-trax.log"
 print("Parsing: " + log_file_name)
 with open(log_file_name) as f:
