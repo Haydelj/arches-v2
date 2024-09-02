@@ -298,10 +298,10 @@ public:
 
 		for (uint32_t i = 0; i < indices.size(); ++i)
 		{
-			vertex_indices[i] = tmp_vrt_inds[indices[i]];
-			normal_indices[i] = tmp_nrml_inds[indices[i]];
-			tex_coord_indices[i] = tmp_txcd_inds[indices[i]];
-			material_indices[i] = tmp_mat_inds[indices[i]];
+			vertex_indices[i] =		tmp_vrt_inds[indices[i]];
+			normal_indices[i] =		tmp_nrml_inds[indices[i]];
+			tex_coord_indices[i] =  tmp_txcd_inds[indices[i]];
+			material_indices[i] =	tmp_mat_inds [indices[i]];
 		}
 	}
 

@@ -75,7 +75,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 					_traceray<0x0u>(index, ray, hit);
 				#else
 					#if defined(WIDE_BVH)
-						intersect(args.nodes, args.indices, args.tris, ray, hit);
+						intersect(args.nodes, args.tris, ray, hit);
 					#else
 						intersect(args.nodes, args.tris, ray, hit);
 					#endif
@@ -88,6 +88,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 						normal = normal * 0.5f + 0.5f;
 						output = normal;
 						break;
+						/*
 						float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
 						if(ndotl > 0.0f)
 						{
@@ -100,7 +101,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 							_traceray<0x1u>(index, sray, shit);
 						#else
 							#if defined(WIDE_BVH)
-								intersect(args.nodes, args.indices,args.tris, sray, shit);
+							//	intersect(args.nodes, args.indices,args.tris, sray, shit);
+								intersect(args.nodes, args.tris, sray, shit);
 							#else
 								intersect(args.nodes, args.tris, sray, shit);
 							#endif
@@ -109,7 +111,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 								ndotl = 0.0f;
 						}
 						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
-						
+						*/
 
 					//	output += rtm::vec3(hit.id, hit.id, hit.id);
 					}
@@ -176,7 +178,6 @@ int main(int argc, char* argv[])
 
 	args.samples_per_pixel = 1;
 	args.max_depth = 1;
-
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
@@ -195,16 +196,24 @@ int main(int argc, char* argv[])
 	for (uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
 	bvh.build(build_objects);
-	wbvh.build(bvh);
+	//wbvh.build(bvh);
+	wbvh.buildUncompressed(bvh);
+
 	
-	mesh.reorder(build_objects);
+#ifdef WIDE_BVH
 	mesh.reorder(wbvh.indices);
+#else
+	mesh.reorder(build_objects);
+#endif
+
 	mesh.get_triangles(tris);
+	
 	rtm::PackedBVH2 packed_bvh(bvh);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
 
 #if defined(WIDE_BVH)
-	args.nodes = wbvh.getNodes();
+	//args.nodes = wbvh.getNodes();
+	args.nodes = wbvh.getUncompressedNodes();
 	args.indices = wbvh.getIndices();
 #else
 	args.nodes = packed_bvh.nodes.data();
@@ -212,9 +221,10 @@ int main(int argc, char* argv[])
 	
 	args.tris = tris.data();
 	args.treelets = treelet_bvh.treelets.data();
+
 	if (args.use_secondary_rays == 1)
 	{
-		std::cout << "generating secondray rays..." << '\n';
+		std::cout << "Generating secondary rays..." << '\n';
 		// If the secondary hits already exist in the disk, we don't need to generate it 
 		// Considering it's running on CPU, it's acceptible
 
@@ -228,17 +238,15 @@ int main(int argc, char* argv[])
 			primary_hit.t = ray.t_max;
 			primary_hit.id = ~0u;
 
-#if defined(WIDE_BVH)
-			intersect(args.nodes, args.indices, args.tris, ray, primary_hit);
-#else
+
 			intersect(args.nodes, args.tris, ray, primary_hit);
-#endif
+
 			primary_hits[index] = primary_hit;
 			if (primary_hit.id != ~0u)
 			{
 				rtm::vec3 normal = tris[primary_hit.id].normal();
 				ray.o = ray.o + ray.d * primary_hit.t;
-				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondray rays
+				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondary rays
 				ray.t_max = 1;
 				secondary_rays[index] = ray;
 			}

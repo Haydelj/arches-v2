@@ -21,7 +21,8 @@ struct TRaXKernelArgs
 
 	rtm::vec3 light_dir;
 #ifdef WIDE_BVH
-	rtm::WideBVH::WideBVHNode* nodes;
+//	rtm::WideBVH::WideBVHNode* nodes;
+	rtm::WideBVH::WideBVHNodeUncompressed* nodes;
 	int* indices;
 #else
 	rtm::PackedBVH2::Node* nodes;

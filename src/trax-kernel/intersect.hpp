@@ -203,6 +203,7 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 			uint child_index = current_entry.data.child_index;
 			float t0 = _intersect(nodes[child_index].aabb[0], ray, inv_d);
 			float t1 = _intersect(nodes[child_index].aabb[1], ray, inv_d);
+
 			if(t0 < hit.t || t1 < hit.t)
 			{
 				if(t0 < t1)
@@ -232,6 +233,7 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 				}
 			}
 		}
+
 	} while(node_stack_size);
 
 	return found_hit;
@@ -287,6 +289,74 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 			{
 				uint32_t triID = current_entry.data.fst_chld_ind + i;
 			
+				if (_intersect(tris[triID], ray, hit))
+				{
+					hit.id = triID;
+					if (first_hit)	return true;
+					else			found_hit = true;
+				}
+			}
+		}
+	} while (node_stack_size);
+
+	return found_hit;
+}
+
+
+inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8, 
+	const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::BVH::Node::Data data;
+		int node_index;
+		int child_count;
+	};
+
+	NodeStackEntry node_stack[T_STACK_SZ];
+	uint32_t node_stack_size = 1u;
+
+	//Decompress and insert nodes
+	node_stack[0].t = ray.t_min;
+	node_stack[0].data.is_leaf = false;
+	node_stack[0].node_index = 0;
+	node_stack[0].child_count = 8;
+
+	bool found_hit = false;
+
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+
+		if (current_entry.t >= hit.t) continue; //if node out of ray interval, skip and continue 
+
+		if (!current_entry.data.is_leaf)
+		{
+			
+			for (int i = 0; i < current_entry.child_count; i++)
+			{
+				
+					float t = _intersect(bvh8[current_entry.node_index].nodeArray[i].aabb, ray, inv_d); //intersects children
+
+					if (t < hit.t) //if valid interval distance then push onto traversal stack
+					{
+						node_stack[node_stack_size].t = t;
+						node_stack[node_stack_size].node_index = bvh8[current_entry.node_index].base_index_child + i;
+						node_stack[node_stack_size].child_count = bvh8[node_stack[node_stack_size].node_index].childCount;
+						node_stack[node_stack_size++].data = bvh8[current_entry.node_index].nodeArray[i].data;
+					}
+			}
+		}
+		else
+		{
+
+			for (int i = 0; i <= current_entry.data.lst_chld_ofst; i++)
+			{
+				uint32_t triID = current_entry.data.fst_chld_ind + i;
+
 				if (_intersect(tris[triID], ray, hit))
 				{
 					hit.id = triID;

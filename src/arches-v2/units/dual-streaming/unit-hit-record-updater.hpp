@@ -5,8 +5,6 @@
 #include "simulator/interconnects.hpp"
 #include "units/unit-dram.hpp"
 
-
-
 namespace Arches { namespace Units { namespace DualStreaming {
 
 struct HitInfo
