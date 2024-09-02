@@ -343,8 +343,9 @@ inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
 
 					if (t < hit.t) //if valid interval distance then push onto traversal stack
 					{
+						
 						node_stack[node_stack_size].t = t;
-						node_stack[node_stack_size].node_index = bvh8[current_entry.node_index].base_index_child + i;
+						node_stack[node_stack_size].node_index = bvh8[current_entry.node_index].base_index_child + i;           
 						node_stack[node_stack_size].child_count = bvh8[node_stack[node_stack_size].node_index].childCount;
 						node_stack[node_stack_size++].data = bvh8[current_entry.node_index].nodeArray[i].data;
 					}

@@ -336,7 +336,7 @@ namespace rtm
 			}
 
 
-			//recursive count of triangles in a subtree
+			//Recursive count of triangles in a subtree
 			int count_primitives(int node_index, const rtm::BVH& bvh2)
 			{
 				const rtm::BVH::Node bvh2node = bvh2.nodes[node_index];
@@ -345,7 +345,6 @@ namespace rtm
 				{
 					int count = bvh2node.data.lst_chld_ofst + 1;
 					assert(count == 1);
-
 
 					for (uint32_t i = 0; i < count; i++)
 					{

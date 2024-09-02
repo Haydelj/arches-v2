@@ -75,12 +75,19 @@ inline static void kernel(const TRaXKernelArgs& args)
 					_traceray<0x0u>(index, ray, hit);
 				#else
 					#if defined(WIDE_BVH)
-						intersect(args.nodes, args.tris, ray, hit);
+					if (intersect(args.nodes, args.tris, ray, hit , true))
+					{
+						output = rtm::vec3(1.0f, 0.0f, 0.0f);
+					}
 					#else
-						intersect(args.nodes, args.tris, ray, hit);
+					if (intersect(args.nodes, args.tris, ray, hit))
+					{
+						output = rtm::vec3(1.0f, 0.0f, 0.0f);
+					}
 					#endif
 				#endif
 
+						/*
 					if(hit.id != ~0u)
 					{
 						
@@ -114,11 +121,11 @@ inline static void kernel(const TRaXKernelArgs& args)
 						*/
 
 					//	output += rtm::vec3(hit.id, hit.id, hit.id);
-					}
-					else
-					{
-						output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
-					}
+					//}
+					//else
+					//{
+					//	output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
+					//}*/
 				}
 				break;
 			}
