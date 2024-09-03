@@ -22,5 +22,6 @@
 
 typedef unsigned int uint;
 
+#define WIDE_BVH_COMPRESSED
 //#define WIDE_BVH
-#define T_STACK_SZ 128
+#define T_STACK_SZ 256

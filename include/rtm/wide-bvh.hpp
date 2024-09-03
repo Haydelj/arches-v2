@@ -18,7 +18,7 @@
 namespace rtm
 {
 
-#define n_ary_sz 8 // max tree width
+#define n_ary_sz 8 //branching factor
 #define max_forst_sz (n_ary_sz-1) //max forest size
 #define p_max 3 // max allowed leaf node size for wide BVH
 #define INVALID _FINITE
@@ -108,58 +108,67 @@ namespace rtm
 			void decompress(rtm::BVH::Node* dnodes, int& childCount) const
 			{
 				childCount = 0;
-				
+				int num_internal_nodes = 0;
+				int index = 0;
+
 				for (int i = 0; i < n_ary_sz; i++)
 				{
 					//check for non-empty child slot
 					if (meta[i])
 					{
 
-						childCount++; //found child
-
-						if (imask & (1 << i)) //if internal node
+					
+						if (imask & uint8_t(1u << i)) //if internal node
 						{
 							
-							dnodes[i].data.is_leaf = false;
-							dnodes[i].data.fst_chld_ind = base_index_child + i;
+							dnodes[index].data.is_leaf = false;
+							dnodes[index].data.fst_chld_ind = base_index_child + num_internal_nodes++;
 
 							uint32_t e0, e1, e2;
 							float e0_f, e1_f, e2_f;
 
-							e0 = uint32_t(e[0]) << 23;
-							e1 = uint32_t(e[1]) << 23;
-							e2 = uint32_t(e[2]) << 23;
+							e0 = uint32_t(e[0]) << 23u;
+							e1 = uint32_t(e[1]) << 23u;
+							e2 = uint32_t(e[2]) << 23u;
 							
 							memcpy(&e0_f, &e0, sizeof(uint32_t));
 							memcpy(&e1_f, &e1, sizeof(uint32_t));
 							memcpy(&e2_f, &e2, sizeof(uint32_t));
 
-							dnodes[i].aabb.min.x = p.x + e0_f * float(q_min_x[i]);
-							dnodes[i].aabb.min.y = p.y + e1_f * float(q_min_y[i]);
-							dnodes[i].aabb.min.z = p.z + e2_f * float(q_min_z[i]);
-							dnodes[i].aabb.max.x = p.x + e0_f * float(q_max_x[i]);
-							dnodes[i].aabb.max.y = p.y + e1_f * float(q_max_y[i]);
-							dnodes[i].aabb.max.z = p.z + e2_f * float(q_max_z[i]);
+							dnodes[index].aabb.min.x = p.x + e0_f * float(q_min_x[i]);
+							dnodes[index].aabb.min.y = p.y + e1_f * float(q_min_y[i]);
+							dnodes[index].aabb.min.z = p.z + e2_f * float(q_min_z[i]);
+							dnodes[index].aabb.max.x = p.x + e0_f * float(q_max_x[i]);
+							dnodes[index].aabb.max.y = p.y + e1_f * float(q_max_y[i]);
+							dnodes[index].aabb.max.z = p.z + e2_f * float(q_max_z[i]);
 						}
 						else //is leaf
 						{
 
-							dnodes[i].data.is_leaf = true;
-							dnodes[i].data.fst_chld_ind = base_index_triangle + (meta[i] & 0b00011111);
+							dnodes[index].data.is_leaf = true;
+							dnodes[index].data.fst_chld_ind = base_index_triangle + uint32_t(meta[i] & 0b00011111); // & 0b00011111
 
-							int num_set_bits = 0;
+							uint32_t num_set_bits = 0;
 							for (int j = 0; j < p_max; j++)
 							{
-								if (meta[i] & (1 << (j + 5))) //if triangle present
+								if (meta[i] & uint8_t(1u << (j + 5))) //if triangle present
 								{
 									num_set_bits++;
 								}
 							}
-							dnodes[i].data.lst_chld_ofst = num_set_bits - 1;
+						
+							dnodes[index].data.lst_chld_ofst = num_set_bits - 1;
+						
 						}
+
+						index++;
 					}
 				}
+
+				childCount = index; //store the activated index positions which represent the count of children
 			}
+
+
 		};
 
 		struct WideBVHNodeUncompressed
@@ -355,7 +364,7 @@ namespace rtm
 				}
 
 				return
-					count_primitives(bvh2node.data.fst_chld_ind, bvh2) +
+					count_primitives(bvh2node.data.fst_chld_ind,     bvh2) +
 					count_primitives(bvh2node.data.fst_chld_ind + 1, bvh2);
 			}
 
@@ -400,7 +409,7 @@ namespace rtm
 			//Each internal node has a distributed forest associated with it
 			void collapse(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
 			{
-
+			
 				WideBVHNode& node = nodes.at(node_index_wbvh);
 				const rtm::AABB aabb = bvh2.nodes.at(node_index_bvh2).aabb;
 
@@ -429,9 +438,9 @@ namespace rtm
 				assert((u_ez & 0b10000000011111111111111111111111) == 0);
 
 				//Store Only 8 bit exponent
-				node.e[0] = u_ex >> 23;
-				node.e[1] = u_ey >> 23;
-				node.e[2] = u_ez >> 23;
+				node.e[0] = u_ex >> 23u;
+				node.e[1] = u_ey >> 23u;
+				node.e[2] = u_ez >> 23u;
 
 				int child_count = 0;
 				int children[n_ary_sz];
@@ -460,9 +469,9 @@ namespace rtm
 					node.q_min_x[i] = uint8_t(floorf((child_aabb.min.x - node.p.x) * one_over_e.x));
 					node.q_min_y[i] = uint8_t(floorf((child_aabb.min.y - node.p.y) * one_over_e.y));
 					node.q_min_z[i] = uint8_t(floorf((child_aabb.min.z - node.p.z) * one_over_e.z));
-					node.q_max_x[i] = uint8_t(ceilf((child_aabb.max.x - node.p.x) * one_over_e.x));
-					node.q_max_y[i] = uint8_t(ceilf((child_aabb.max.y - node.p.y) * one_over_e.y));
-					node.q_max_z[i] = uint8_t(ceilf((child_aabb.max.z - node.p.z) * one_over_e.z));
+					node.q_max_x[i] = uint8_t(ceilf ((child_aabb.max.x - node.p.x) * one_over_e.x));
+					node.q_max_y[i] = uint8_t(ceilf ((child_aabb.max.y - node.p.y) * one_over_e.y));
+					node.q_max_z[i] = uint8_t(ceilf ((child_aabb.max.z - node.p.z) * one_over_e.z));
 
 					switch (decisions[child_index * max_forst_sz].type)
 					{
@@ -473,7 +482,7 @@ namespace rtm
 							//Three highest bits contain unary representation of triangle count
 							for (int j = 0; j < triangle_count; j++)
 							{
-								node.meta[i] |= (1 << (j + 5));
+								node.meta[i] |= uint8_t(1u << (j + 5));
 							}
 							node.meta[i] |= num_triangles;
 							num_triangles += triangle_count;
@@ -483,11 +492,12 @@ namespace rtm
 
 						case Decision::Type::INTERNAL:
 						{
-							node.meta[i] = (i + 24) | 0b00100000;
-							node.imask |= (1 << i);
+							node.meta[i] = uint8_t(i + 24) | 0b00100000;// OR 32
+							node.imask |= uint8_t(1u << i);
 							num_internal_nodes++;
 							break;
 						}
+
 						default:
 							//unreachable
 							assert(false);
@@ -500,7 +510,6 @@ namespace rtm
 					nodes.emplace_back();
 				}
 
-			
 				assert((nodes.at(node_index_wbvh).base_index_child + num_internal_nodes) == nodes.size());
 				assert((nodes.at(node_index_wbvh).base_index_triangle + num_triangles) == indices.size());
 
@@ -508,11 +517,9 @@ namespace rtm
 				uint32_t offset = 0;
 				for (int i = 0; i < n_ary_sz; i++)
 				{
-					
 					int child_index = children[i];
 					if (child_index == INVALID) continue;
-
-					if (nodes.at(node_index_wbvh).imask & (1 << i))
+					if (nodes.at(node_index_wbvh).imask & (1u << i))
 					{
 						collapse(bvh2, nodes.at(node_index_wbvh).base_index_child + offset++, child_index);
 					}
@@ -534,7 +541,7 @@ namespace rtm
 				get_children(node_index_bvh2, bvh2, children, child_count, 0);
 				assert(child_count <= n_ary_sz);
 
-				int num_internal_nodes = 0;
+				uint32_t num_internal_nodes = 0;
 				int index = 0;
 
 				for(int i = 0; i < n_ary_sz; i++)
@@ -544,31 +551,32 @@ namespace rtm
 					int child_index = children[i];
 					if (child_index == INVALID) continue;
 					switch(decisions[child_index * max_forst_sz].type)
-					{
+					{ 
 						//Caution: This wide bvh leaf node might have more than 1 leaf node
 						case Decision::Type::LEAF:
 							first_child_index = indices.size();
 							num_triangles = count_primitives(child_index, bvh2);
-							bvh8Node.nodeArray[index].data.is_leaf = 1; //make it leaf node
-							bvh8Node.nodeArray[index].data.fst_chld_ind  = first_child_index;
-							bvh8Node.nodeArray[index].data.lst_chld_ofst = num_triangles - 1;
+							bvh8Node.nodeArray[index].data.is_leaf = 1;							//make it leaf node
+							bvh8Node.nodeArray[index].data.fst_chld_ind = first_child_index;
+							bvh8Node.nodeArray[index].data.lst_chld_ofst = num_triangles -1 ;
 							bvh8Node.nodeArray[index].aabb = bvh2.nodes[child_index].aabb;
-
 							index++;
 							break;
 						case Decision::Type::INTERNAL:
-							bvh8Node.nodeArray[index] = bvh2.nodes[child_index];
+							bvh8Node.nodeArray[index].aabb = bvh2.nodes[child_index].aabb;
+							bvh8Node.nodeArray[index].data.is_leaf = 0;
+							bvh8Node.nodeArray[index].data.fst_chld_ind = num_internal_nodes; //save node entry index in umcompressedNode array
+							bvh8Node.nodeArray[index].data.lst_chld_ofst = 0;
 							num_internal_nodes++;
 							index++;
 							break;
 						default:
-							assert(true);
+							assert(false);
 							break; 
 					}
 				}
 
-				
-				bvh8Node.childCount = num_internal_nodes; //save the active node count 
+				bvh8Node.childCount = index;
 
 				for(int i =0; i < num_internal_nodes; i++)
 				{

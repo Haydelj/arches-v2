@@ -74,28 +74,25 @@ inline static void kernel(const TRaXKernelArgs& args)
 				#if defined(__riscv) &&  defined(USE_RT_CORE)
 					_traceray<0x0u>(index, ray, hit);
 				#else
-					#if defined(WIDE_BVH)
-					if (intersect(args.nodes, args.tris, ray, hit , true))
-					{
-						output = rtm::vec3(1.0f, 0.0f, 0.0f);
-					}
+					#if defined(WIDE_BVH_COMPRESSED)
+						intersect(args.nodes, args.indices, args.tris, ray, hit);
+					#elif defined(WIDE_BVH)
+						intersect(args.nodes, args.tris, ray, hit);
 					#else
-					if (intersect(args.nodes, args.tris, ray, hit))
-					{
-						output = rtm::vec3(1.0f, 0.0f, 0.0f);
-					}
+						intersect(args.nodes, args.tris, ray, hit);
 					#endif
 				#endif
 
-						/*
 					if(hit.id != ~0u)
 					{
-						
+					
+						//output = rtm::vec3(1.0f, 0.0f, 0.0f);
+						//break;
 						normal = args.tris[hit.id].normal();
 						normal = normal * 0.5f + 0.5f;
 						output = normal;
 						break;
-						/*
+						
 						float ndotl = rtm::max(0.0f, rtm::dot(normal, args.light_dir));
 						if(ndotl > 0.0f)
 						{
@@ -107,25 +104,27 @@ inline static void kernel(const TRaXKernelArgs& args)
 						#if defined(__riscv) &&  defined(USE_RT_CORE)
 							_traceray<0x1u>(index, sray, shit);
 						#else
-							#if defined(WIDE_BVH)
-							//	intersect(args.nodes, args.indices,args.tris, sray, shit);
+							#if defined(WIDE_BVH_COMPRESSED)
+								intersect(args.nodes, args.indices,args.tris, sray, shit);
+							#elif defined(WIDE_BVH)
 								intersect(args.nodes, args.tris, sray, shit);
-							#else
+							#else		
 								intersect(args.nodes, args.tris, sray, shit);
 							#endif
 						#endif
+
 							if(shit.id != ~0u)
 								ndotl = 0.0f;
 						}
 						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
-						*/
+						
 
-					//	output += rtm::vec3(hit.id, hit.id, hit.id);
-					//}
-					//else
-					//{
-					//	output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
-					//}*/
+						output += rtm::vec3(hit.id, hit.id, hit.id);
+					}
+					else
+					{
+						output += attenuation * rtm::vec3(0.5f, 0.7f, 0.9f);
+					}
 				}
 				break;
 			}
@@ -202,30 +201,34 @@ int main(int argc, char* argv[])
 	std::vector<rtm::BVH::BuildObject> build_objects;
 	for (uint i = 0; i < mesh.size(); ++i)
 		build_objects.push_back(mesh.get_build_object(i));
-	bvh.build(build_objects);
-	//wbvh.build(bvh);
-	wbvh.buildUncompressed(bvh);
 
-	
-#ifdef WIDE_BVH
-	mesh.reorder(wbvh.indices);
-#else
-	mesh.reorder(build_objects);
+	bvh.build(build_objects);
+
+#if defined (WIDE_BVH)
+	wbvh.buildUncompressed(bvh);
+#elif defined(WIDE_BVH_COMPRESSED)
+	wbvh.build(bvh);
 #endif
 
+	mesh.reorder(build_objects);
+	mesh.reorder(wbvh.indices);
+
 	mesh.get_triangles(tris);
-	
 	rtm::PackedBVH2 packed_bvh(bvh);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
 
 #if defined(WIDE_BVH)
-	//args.nodes = wbvh.getNodes();
-	args.nodes = wbvh.getUncompressedNodes();
 	args.indices = wbvh.getIndices();
+	args.nodes = wbvh.getUncompressedNodes();
+
+#elif defined(WIDE_BVH_COMPRESSED)
+	args.indices = wbvh.getIndices();
+	args.nodes = wbvh.getNodes();
 #else
 	args.nodes = packed_bvh.nodes.data();
 #endif
 	
+
 	args.tris = tris.data();
 	args.treelets = treelet_bvh.treelets.data();
 
@@ -245,9 +248,14 @@ int main(int argc, char* argv[])
 			primary_hit.t = ray.t_max;
 			primary_hit.id = ~0u;
 
-
-			intersect(args.nodes, args.tris, ray, primary_hit);
-
+			#if defined WIDE_BVH
+				intersect(args.nodes,args.tris, ray, primary_hit);
+			#elif defined WIDE_BVH_COMPRESSED
+				intersect(args.nodes, args.indices, args.tris, ray, primary_hit);
+			#else
+				intersect(args.nodes, args.tris, ray, primary_hit);
+			#endif
+		
 			primary_hits[index] = primary_hit;
 			if (primary_hit.id != ~0u)
 			{
