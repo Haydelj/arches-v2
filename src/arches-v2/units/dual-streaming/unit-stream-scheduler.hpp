@@ -66,7 +66,9 @@ public:
 		uint weight_scheme{0}; //If weight scheme = 2, we use the default DFS order
 		uint max_active_segments{1024 * 1024};
 
-		UnitSceneBuffer* scene_buffer{nullptr};
+		uint                l2_cache_port{0};
+		UnitMemoryBase*     l2_cache{nullptr};
+		UnitSceneBuffer*    scene_buffer{nullptr};
 		UnitMainMemoryBase* main_mem{nullptr};
 		uint                main_mem_port_offset{0};
 		uint                main_mem_port_stride{1};
@@ -261,6 +263,10 @@ public:
 	uint                _main_mem_port_offset;
 	uint                _main_mem_port_stride;
 
+	UnitMemoryBase* _l2_cache;
+	std::queue<paddr_t> _l2_cache_prefetch_queue;
+	uint _l2_cache_port;
+
 	//request flow from _request_network -> bank -> scheduler -> channel
 	StreamSchedulerRequestCrossbar _request_network;
 	std::vector<Bank> _banks;
@@ -272,8 +278,9 @@ public:
 	UnitStreamScheduler(const Configuration& config) : 
 		_request_network(config.num_tms, config.num_banks), 
 		_banks(config.num_banks), _scheduler(config), _channels(config.num_channels), 
-		_return_network(config.num_tms, config.num_channels), 
-		_scene_buffer(config.scene_buffer), _block_size(config.block_size)
+		_return_network(config.num_channels, config.num_tms),
+		_scene_buffer(config.scene_buffer), _block_size(config.block_size),
+		_l2_cache(config.l2_cache), _l2_cache_port(config.l2_cache_port)
 	{
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;

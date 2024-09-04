@@ -181,7 +181,7 @@ public:
 	UnitSceneBuffer(Configuration config) :
 		_address_translator(config.segment_start, config.segment_size, config.size / config.segment_size),
 		_request_network(config.num_ports, config.num_banks, config.bank_select_mask, _address_translator),
-		_return_network(config.num_ports, config.num_banks),
+		_return_network(config.num_banks, config.num_ports),
 		command_sideband(16), prefetch_complete_sideband(16),
 		_row_size(config.row_size), _block_size(config.block_size),
 		_main_memory(config.main_mem), _main_mem_port_stride(config.main_mem_port_stride), _main_mem_port_offset(config.main_mem_port_offset)

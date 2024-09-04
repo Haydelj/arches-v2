@@ -140,6 +140,7 @@
 #include <iostream>
 #include <new>
 #include <functional>
+#include <bitset>
 
 #include <intrin.h>
 #include <xmmintrin.h>

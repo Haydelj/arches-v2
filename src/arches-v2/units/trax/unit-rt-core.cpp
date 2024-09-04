@@ -4,8 +4,8 @@ namespace Arches { namespace Units { namespace TRaX {
 
 UnitRTCore::UnitRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
-	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(config.num_tp, 1),
-	_box_pipline(3, 1), _tri_pipline(22, 8)
+	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
+	_box_pipline(3, 1), _tri_pipline(22, 1)
 {
 	_tri_staging_buffers.resize(config.max_rays);
 	_ray_states.resize(config.max_rays);

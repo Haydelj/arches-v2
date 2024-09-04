@@ -27,10 +27,31 @@ public:
 		}
 	};
 
+	class WeightedRequestCrossBar : public CasscadedCrossBar<MemoryRequest, WeightedRobinArbiter<uint64_t>>
+	{
+	private:
+		uint64_t mask;
+
+	public:
+		WeightedRequestCrossBar(uint ports, uint banks, uint64_t bank_select_mask, const uint8_t* weight_table) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest, WeightedRobinArbiter<uint64_t>>(ports, banks)
+		{
+			for(auto& arb : _crossbar_arbiters)
+				arb._weight_table = weight_table;
+		}
+
+		uint get_sink(const MemoryRequest& request) override
+		{
+			uint bank = pext(request.paddr, mask);
+			_assert(bank < num_sinks());
+			return bank;
+		}
+	};
+
+
 	class ReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
 	{
 	public:
-		ReturnCrossBar(uint ports, uint banks) : CasscadedCrossBar<MemoryReturn>(banks, ports) {}
+		ReturnCrossBar(uint banks, uint ports) : CasscadedCrossBar<MemoryReturn>(banks, ports) {}
 
 		uint get_sink(const MemoryReturn& ret) override
 		{
@@ -47,7 +68,7 @@ public:
 	class ReturnCascade : public Decascade<MemoryReturn>
 	{
 	public:
-		ReturnCascade(uint ports, uint banks) : Decascade<MemoryReturn>(banks, ports) {}
+		ReturnCascade(uint banks, uint ports) : Decascade<MemoryReturn>(banks, ports) {}
 
 		uint get_sink(const MemoryReturn& ret) override
 		{

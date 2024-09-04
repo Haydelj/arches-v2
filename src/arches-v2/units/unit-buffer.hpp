@@ -36,7 +36,7 @@ private:
 public:
 	UnitBuffer(Configuration config) : UnitMainMemoryBase(config.size),
 		_request_network(config.num_ports, config.num_banks), 
-		_return_network(config.num_ports, config.num_banks), 
+		_return_network(config.num_banks, config.num_ports),
 		_banks(config.num_banks, config.latency)
 	{
 		_buffer_address_mask = generate_nbit_mask(log2i(config.size));

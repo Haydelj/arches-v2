@@ -57,6 +57,24 @@ public:
 
 		return ray;
 	}
+
+	Frustum generate_frustum_for_tile(uint i, uint j) const
+	{
+		rtm::vec2 uv((float)i, (float)j);
+		uv += rtm::vec2(0.5f);
+		uv *= _recip_res;
+		uv -= rtm::vec2(0.5f);
+
+		Frustum ray_packet;
+		ray_packet.d = (_x * uv.x + _y * uv.y - _z);
+		ray_packet.t_min = T_MIN;
+		ray_packet.o = _position;
+		ray_packet.t_max = T_MAX;
+		ray_packet.dx = _x * _recip_res.x;
+		ray_packet.dy = _y * _recip_res.y;
+
+		return ray_packet;
+	}
 };
 
 }

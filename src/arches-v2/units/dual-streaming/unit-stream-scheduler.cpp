@@ -77,6 +77,31 @@ void UnitStreamScheduler::_update_scheduler()
 			else
 			{
 				state.prefetch_complete = true;
+
+				if(_l2_cache)
+				{
+					//while(!_l2_cache_prefetch_queue.empty()) _l2_cache_prefetch_queue.pop();
+
+					paddr_t base_addr = _scheduler.treelet_addr + candidate_segment * rtm::PackedTreelet::SIZE;
+					uint rays = candidate_segment == 0 ? _scheduler.num_root_rays : state.num_rays;
+					printf("Prefetching %d to l2 with %d rays:", candidate_segment, rays);
+					for(uint i = 0; i < 8; ++i)
+					{
+						float median_sah = _scheduler.cheat_treelets[candidate_segment].header.median_page_sah[i];
+						float num_accesses = rays * median_sah * 0.5f;
+						float first_access_chance = rtm::min(1.0, num_accesses);
+
+						float dram_stream_cost = 16;
+						float dram_random_cost = 64;
+						float cost_diff = dram_stream_cost - first_access_chance * dram_random_cost;
+						printf("%f, ", cost_diff);
+
+						if(cost_diff < 0.0f)
+							for(uint j = 0; j < rtm::PackedTreelet::PREFETCH_BLOCK_SIZE; j += _block_size)
+								_l2_cache_prefetch_queue.push(base_addr + j);
+					}
+					printf("\n");
+				}
 			}
 
 			log.segments_launched++;
@@ -135,6 +160,105 @@ void UnitStreamScheduler::_update_scheduler()
 		}
 	}
 
+	uint buckets_ready = 0;
+	for(uint segment : _scheduler.candidate_segments)
+	{
+		SegmentState& state = _scheduler.segment_state_map[segment];
+		buckets_ready += state.bucket_address_queue.size();
+	}
+
+	//schedule new segments
+	if(_scheduler.traversal_scheme == 0) //BFS
+	{
+		if(buckets_ready < 16
+			&& _scheduler.root_rays_counter == _scheduler.num_root_rays
+			&& _scheduler.candidate_segments.size() < _scheduler.max_active_segments)
+		{
+			SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
+			if(!last_segment_state.child_order_generated)
+			{
+				if(!last_segment_state.parent_finished || last_segment_state.total_buckets > 0)
+				{
+					rtm::PackedTreelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
+					for(uint i = 0; i < header.num_children; ++i)
+					{
+						uint child_id = header.first_child + i;
+						SegmentState& child_state = _scheduler.segment_state_map[child_id];
+						child_state.depth = last_segment_state.depth + 1;
+						_scheduler.traversal_queue.push(child_id);
+					}
+				}
+				last_segment_state.child_order_generated = true;
+			}
+
+			if(!_scheduler.traversal_queue.empty())
+			{
+				uint next_segment = _scheduler.traversal_queue.front();
+				_scheduler.traversal_queue.pop();
+
+				SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
+				_scheduler.candidate_segments.push_back(next_segment);
+				_scheduler.last_segment_activated = next_segment;
+				if(STREAM_SCHEDULER_DEBUG_PRINTS)
+					printf("Segment %d scheduled\n", next_segment);
+			}
+		}
+	}
+	else if(_scheduler.traversal_scheme == 1) //DFS
+	{
+		//if we fall bellow the low water mark try to expand the candidate set
+		if(buckets_ready < 16
+			&& _scheduler.root_rays_counter == _scheduler.num_root_rays
+			//&& _scheduler.active_segments < _scheduler.max_active_segments)
+			&& _scheduler.candidate_segments.size() < _scheduler.max_active_segments)
+		{
+			SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
+			if(!last_segment_state.child_order_generated)
+			{
+				rtm::PackedTreelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
+				std::vector<uint64_t> child_weights(header.num_children);
+				std::vector<uint> child_offsets(header.num_children);
+				std::iota(child_offsets.begin(), child_offsets.end(), 0);
+				for(uint i = 0; i < header.num_children; ++i)
+				{
+					uint child_id = header.first_child + i;
+					SegmentState& child_state = _scheduler.segment_state_map[child_id];
+					child_state.depth = last_segment_state.depth + 1;
+					if(_scheduler.weight_scheme == 0)      child_weights[i] = child_state.weight; // based on total weight
+					else if(_scheduler.weight_scheme == 1) child_weights[i] = child_state.weight / std::max(1ull, child_state.num_rays); // based on average ray weight
+					else                                   child_weights[i] = 0.0f; //falls back to order in memory
+					child_state.scheduled_weight = child_weights[i];
+				}
+
+				std::sort(child_offsets.begin(), child_offsets.end(), [&](const uint& x, const uint& y)
+				{
+					return child_weights[x] < child_weights[y];
+				});
+
+				for(const uint& child_offset : child_offsets)
+				{
+					uint child_id = header.first_child + child_offset;
+					_scheduler.traversal_stack.push(child_id);
+				}
+
+				last_segment_state.child_order_generated = true;
+			}
+
+			//try to expand working set
+			if(!_scheduler.traversal_stack.empty())
+			{
+				uint next_segment = _scheduler.traversal_stack.top();
+				_scheduler.traversal_stack.pop();
+
+				SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
+				_scheduler.candidate_segments.push_back(next_segment);
+				_scheduler.last_segment_activated = next_segment;
+				if(STREAM_SCHEDULER_DEBUG_PRINTS)
+					printf("Segment %d scheduled, weight %llu\n", next_segment, next_segment_state.scheduled_weight);
+			}
+		}
+	}
+
 	//schedule bucket read requests
 	if(!_scheduler.bucket_request_queue.empty())
 	{
@@ -181,105 +305,6 @@ void UnitStreamScheduler::_update_scheduler()
 			Channel& channel = _channels[channel_index];
 			channel.work_queue.push(channel_work_item);
 			log.buckets_launched++;
-		}
-
-
-
-		//schedule new segments
-		if(_scheduler.traversal_scheme == 0) //BFS
-		{
-			if(_scheduler.candidate_segments.size() < _scheduler.max_active_segments)
-			{
-				SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
-				if(!last_segment_state.child_order_generated)
-				{
-					if(!last_segment_state.parent_finished || last_segment_state.total_buckets > 0)
-					{
-						rtm::PackedTreelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
-						for(uint i = 0; i < header.num_children; ++i)
-						{
-							uint child_id = header.first_child + i;
-							SegmentState& child_state = _scheduler.segment_state_map[child_id];
-							child_state.depth = last_segment_state.depth + 1;
-							_scheduler.traversal_queue.push(child_id);
-						}
-					}
-					last_segment_state.child_order_generated = true;
-				}
-
-				if(!_scheduler.traversal_queue.empty())
-				{
-					uint next_segment = _scheduler.traversal_queue.front();
-					_scheduler.traversal_queue.pop();
-
-					SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
-					_scheduler.candidate_segments.push_back(next_segment);
-					_scheduler.last_segment_activated = next_segment;
-					if(STREAM_SCHEDULER_DEBUG_PRINTS)
-						printf("Segment %d scheduled\n", next_segment);
-				}
-			}
-		}
-		else if(_scheduler.traversal_scheme == 1) //DFS
-		{
-			uint buckets_ready = 0;
-			for(uint segment : _scheduler.candidate_segments)
-			{
-				SegmentState& state = _scheduler.segment_state_map[segment];
-				buckets_ready += state.bucket_address_queue.size();
-			}
-
-			//if we fall bellow the low water mark try to expand the candidate set
-			if(buckets_ready < 16
-				&& _scheduler.root_rays_counter == _scheduler.num_root_rays
-				//&& _scheduler.active_segments < _scheduler.max_active_segments)
-				&& _scheduler.candidate_segments.size() < _scheduler.max_active_segments)
-			{
-				SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
-				if(!last_segment_state.child_order_generated)
-				{
-					rtm::PackedTreelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
-					std::vector<uint64_t> child_weights(header.num_children);
-					std::vector<uint> child_offsets(header.num_children);
-					std::iota(child_offsets.begin(), child_offsets.end(), 0);
-					for(uint i = 0; i < header.num_children; ++i)
-					{
-						uint child_id = header.first_child + i;
-						SegmentState& child_state = _scheduler.segment_state_map[child_id];
-						child_state.depth = last_segment_state.depth + 1;
-						if(_scheduler.weight_scheme == 0)      child_weights[i] = child_state.weight; // based on total weight
-						else if(_scheduler.weight_scheme == 1) child_weights[i] = child_state.weight / std::max(1ull, child_state.num_rays); // based on average ray weight
-						else                                   child_weights[i] = 0.0f; //falls back to order in memory
-						child_state.scheduled_weight = child_weights[i];
-					}
-
-					std::sort(child_offsets.begin(), child_offsets.end(), [&](const uint& x, const uint& y)
-						{
-							return child_weights[x] < child_weights[y];
-						});
-
-					for(const uint& child_offset : child_offsets)
-					{
-						uint child_id = header.first_child + child_offset;
-						_scheduler.traversal_stack.push(child_id);
-					}
-
-					last_segment_state.child_order_generated = true;
-				}
-
-				//try to expand working set
-				if(!_scheduler.traversal_stack.empty())
-				{
-					uint next_segment = _scheduler.traversal_stack.top();
-					_scheduler.traversal_stack.pop();
-
-					SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
-					_scheduler.candidate_segments.push_back(next_segment);
-					_scheduler.last_segment_activated = next_segment;
-					if(STREAM_SCHEDULER_DEBUG_PRINTS)
-						printf("Segment %d scheduled, weight %llu\n", next_segment, next_segment_state.scheduled_weight);
-				}
-			}
 		}
 	}
 
@@ -351,13 +376,25 @@ void UnitStreamScheduler::clock_fall()
 		_issue_return(i);
 	}
 
-	if(_scene_buffer && _scene_buffer->command_sideband.is_write_valid())
+	if(!_scheduler.scene_buffer_command_queue.empty()
+		&& _scene_buffer && _scene_buffer->command_sideband.is_write_valid()
+)
 	{
-		if(!_scheduler.scene_buffer_command_queue.empty())
-		{
-			_scene_buffer->command_sideband.write(_scheduler.scene_buffer_command_queue.front());
-			_scheduler.scene_buffer_command_queue.pop();
-		}
+		_scene_buffer->command_sideband.write(_scheduler.scene_buffer_command_queue.front());
+		_scheduler.scene_buffer_command_queue.pop();
+	}
+
+	if(!_l2_cache_prefetch_queue.empty()
+		&& _l2_cache && _l2_cache->request_port_write_valid(_l2_cache_port))
+	{
+		MemoryRequest request;
+		request.type = MemoryRequest::Type::PREFECTH;
+		request.paddr = _l2_cache_prefetch_queue.front();
+		request.port = _l2_cache_port;
+		request.size = _block_size;
+
+		_l2_cache->write_request(request);
+		_l2_cache_prefetch_queue.pop();
 	}
 
 	_return_network.clock();

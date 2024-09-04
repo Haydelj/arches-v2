@@ -215,7 +215,11 @@ private:
 }
 }
 
+
 namespace DualStreaming {
+
+typedef Units::UnitNonBlockingCache UnitL1Cache;
+typedef Units::UnitNonBlockingCache UnitL2Cache;
 
 #include "dual-streaming-kernel/include.hpp"
 #include "dual-streaming-kernel/intersect.hpp"
@@ -312,7 +316,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	//DRAM
 	uint dram_ports_per_channel = 8;
-	uint64_t mem_size = 1ull << 32; //4GB
+	uint64_t mem_size =1ull << 32; //4GB
 	Units::UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
 	Units::UnitDRAM dram(dram_ports_per_channel * Units::UnitDRAM::num_channels(), mem_size);
 	uint num_channels = dram.num_channels();
@@ -336,17 +340,18 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	scene_buffer_power_config.write_energy = 0.118977e-9f;
 
 	//L2$
-	Units::UnitBlockingCache::Configuration l2_config;
+	UnitL2Cache::Configuration l2_config;
 	l2_config.size = 32ull * 1024 * 1024; //32MB
 	l2_config.block_size = block_size;
 	l2_config.associativity = 8;
+	l2_config.num_mshr = 16;
 	l2_config.latency = 10;
 	l2_config.cycle_time = 4;
 	l2_config.num_banks = 64;
 	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
 		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
 
-	Units::UnitBlockingCache::PowerConfig l2_power_config;
+	UnitL2Cache::PowerConfig l2_power_config;
 	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
 	l2_power_config.tag_energy = 0.00756563e-9f;
 	l2_power_config.read_energy = 0.378808e-9f - l2_power_config.tag_energy;
@@ -354,7 +359,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	//L1d$
 	uint num_mshr = 256;
-	Units::UnitNonBlockingCache::Configuration l1d_config;
+	UnitL1Cache::Configuration l1d_config;
 	l1d_config.size = 128ull * 1024;
 	l1d_config.block_size = block_size;
 	l1d_config.associativity = 4;
@@ -363,8 +368,19 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
 	l1d_config.use_lfb = false;
+	l1d_config.num_ports = num_tps_per_tm;
+	uint8_t l1_weight_table[128];
+	l1d_config.weight_table = l1_weight_table;
+	for(uint i = 0; i < l1d_config.num_ports; ++i)
+		l1_weight_table[i] = 1;
 
-	Units::UnitNonBlockingCache::PowerConfig l1d_power_config;
+#ifdef USE_RT_CORE
+	l1_weight_table[l1d_config.num_ports] = l1d_config.num_ports;
+	l1d_config.num_ports += 1; //add extra port for RT core
+#endif
+
+
+	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
 	l1d_power_config.tag_energy = 0.000663943e-9f;
 	l1d_power_config.read_energy = 0.0310981e-9f - l1d_power_config.tag_energy;
@@ -374,7 +390,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	uint num_icache_per_tm = l1d_config.num_banks;
 	Units::UnitBlockingCache::Configuration l1i_config;
 	l1i_config.size = 4 * 1024;
-	l1d_config.block_size = block_size;
+	l1i_config.block_size = block_size;
 	l1i_config.associativity = 4;
 	l1i_config.latency = 1;
 	l1i_config.cycle_time = 1;
@@ -443,22 +459,21 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	paddr_t heap_address = dram.write_elf(elf);
 
 	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config);
-	std::pair<paddr_t, paddr_t> treelet_range = {0, 0};
-	if(global_config.use_scene_buffer)
-		treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(rtm::PackedTreelet)};
+	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(rtm::PackedTreelet)};
 
 	std::set<uint> unused_dram_ports;
 	for(uint i = 0; i < dram_ports_per_channel; ++i)
 		unused_dram_ports.insert(i);
 
-	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
-	l2_config.mem_higher = &dram;
+	l2_config.num_ports = num_tms * num_l2_ports_per_tm + 1;
+	//l2_config.mem_higher = &dram;
+	l2_config.mem_highers = {&dram};
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = 2;
 	for(uint i = l2_config.mem_higher_port_offset; i < dram_ports_per_channel; i += l2_config.mem_higher_port_stride)
 		unused_dram_ports.erase(i);
 
-	Units::UnitBlockingCache l2(l2_config);
+	UnitL2Cache l2(l2_config);
 	simulator.register_unit(&l2);
 
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
@@ -495,6 +510,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	stream_scheduler_config.main_mem_port_stride = dram_ports_per_channel;
 	stream_scheduler_config.main_mem_port_offset = *unused_dram_ports.begin();
 	unused_dram_ports.erase(*unused_dram_ports.begin());
+
 	if(global_config.use_scene_buffer)
 	{
 		stream_scheduler_config.max_active_segments = scene_buffer_config.size / sizeof(rtm::PackedTreelet);
@@ -502,12 +518,13 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	}
 	else
 	{
+		stream_scheduler_config.l2_cache_port = l2_config.num_ports - 1;
+		stream_scheduler_config.l2_cache = nullptr; // &l2;
 		stream_scheduler_config.max_active_segments = num_tms * 2;
 	}
 	if(global_config.rays_on_chip)
 	{
 		stream_scheduler_config.main_mem = &sram;
-		stream_scheduler_config.heap_addr = 0;
 	}
 
 	Units::DualStreaming::UnitStreamScheduler stream_scheduler(stream_scheduler_config);
@@ -523,6 +540,16 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	hit_record_updater_config.main_mem_port_stride = dram_ports_per_channel;
 	hit_record_updater_config.main_mem_port_offset = *unused_dram_ports.begin();
 	unused_dram_ports.erase(*unused_dram_ports.begin());
+
+	if(global_config.hits_on_chip)
+	{
+		std::vector<rtm::Hit> hits(kernel_args.framebuffer_size);
+		for(auto& hit : hits) hit.t = T_MAX;
+		paddr_t address = *(paddr_t*)&kernel_args.hit_records;
+		write_vector(&sram, DRAM_ROW_SIZE, hits, address);
+		hit_record_updater_config.main_mem = &sram;
+	}
+
 	Units::DualStreaming::UnitHitRecordUpdater hit_record_updater(hit_record_updater_config);
 	simulator.register_unit(&hit_record_updater);
 
@@ -532,15 +559,12 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		std::vector<Units::UnitBase*> unit_table((uint)ISA::RISCV::InstrType::NUM_TYPES, nullptr);
 
 		std::vector<Units::UnitMemoryBase*> mem_list;
-		l1d_config.num_ports = num_tps_per_tm;
-	#ifdef USE_RT_CORE
-		l1d_config.num_ports += 1; //add extra port for RT core
-	#endif
+
 		l1d_config.mem_highers = {&l2, &scene_buffer};
 		l1d_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index;
 		l1d_config.mem_higher_port_stride = 2;
 
-		l1ds.push_back(_new Units::DualStreaming::L1Cache(l1d_config, treelet_range));
+		l1ds.push_back(_new Units::DualStreaming::L1Cache(l1d_config, global_config.use_scene_buffer ? treelet_range : std::pair<paddr_t, paddr_t>(0ull, 0ull)));
 		simulator.register_unit(l1ds.back());
 		mem_list.push_back(l1ds.back());
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
@@ -585,7 +609,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rsbs.back(); //LHIT
 	#endif
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 32));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::ATOMIC] = thread_schedulers.back();
@@ -649,8 +673,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	//master logs
 	Units::UnitBuffer::Log sram_log;
 	Units::UnitDRAM::Log dram_log;
-	Units::UnitBlockingCache::Log l2_log;
-	Units::UnitNonBlockingCache::Log l1d_log;
+	UnitL2Cache::Log l2_log;
+	UnitL1Cache::Log l1d_log;
 	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
@@ -666,8 +690,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 		Units::UnitBuffer::Log sram_delta_log = delta_log(sram_log, sram);
 		Units::UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
-		Units::UnitBlockingCache::Log l2_delta_log = delta_log(l2_log, l2);
-		Units::UnitNonBlockingCache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
+		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
+		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
 
 		Units::DualStreaming::UnitTreeletRTCore::Log rtc_delta_log = delta_log(rtc_log, rtcs);
 		Units::DualStreaming::UnitSceneBuffer::Log sb_delta_log = delta_log(sb_log, scene_buffer);
@@ -678,6 +702,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		printf("Threads Launched: %d         \n", atomic_regs.iregs[0] * 64);
 		printf("Buckets Launched: %lld       \n", ss_log.buckets_launched);
 		printf("Segments Launched: %lld      \n", ss_log.segments_launched);
+		printf("Prefetch queue size: %lld    \n", stream_scheduler._l2_cache_prefetch_queue.size());
 		printf("                             \n");
 		printf(" Ray Total: %8.1f bytes/cycle\n", (float)(ss_delta_log.buckets_generated + ss_delta_log.buckets_launched) * RAY_BUCKET_SIZE / delta);
 		printf(" Ray Write: %8.1f bytes/cycle\n", (float)ss_delta_log.buckets_generated * RAY_BUCKET_SIZE / delta);
@@ -693,6 +718,9 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		printf(" DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf("  L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf(" L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
+		printf("                             \n");
+		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total());
+		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total());
 		printf("                             \n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
@@ -765,6 +793,9 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	printf("Simulation rate: %.2f KHz\n", frame_cycles / simulation_time / 1000.0);
 	printf("Simulation time: %.0f s\n", simulation_time);
 
+	print_header("Treelet Histogram");
+
+#if 0
 	uint treelet_counts[16];
 	std::map<uint, uint64_t> treelet_histos[16];
 
@@ -795,15 +826,14 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 			printf("Depth %d (%d)\n", i, treelet_counts[i]);
 			uint64_t total = 0;
 			total += treelet_histos[i][64];
-
 			for(auto& a : treelet_histos[i])
 			{
-				printf("\t%04d:%.2f(%.2f%%)\n", a.first / 64, (double)a.second / treelet_counts[i], 100.0 * a.second / total);
+				printf("\t%6d:%.2f(%.2f%%)\n", a.first / 64, (double)a.second / treelet_counts[i], 100.0 * a.second / total);
 			}
 			printf("\n");
 		}
 	}
-
+#endif
 	stbi_flip_vertically_on_write(true);
 	dram.dump_as_png_uint8((paddr_t)kernel_args.framebuffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "out.png");
 

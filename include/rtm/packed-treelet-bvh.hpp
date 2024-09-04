@@ -16,7 +16,8 @@ namespace rtm {
 struct PackedTreelet
 {
 	const static uint PACK_SIZE = 2;
-	const static uint SIZE = 15 * (4 * 1024);
+	const static uint SIZE = (8 * 1024 - 1) * (4 * 1024);
+	const static uint PREFETCH_BLOCK_SIZE = 1 * (4 * 1024);
 
 	struct alignas(32 * PACK_SIZE) Header
 	{
@@ -24,6 +25,9 @@ struct PackedTreelet
 		uint num_children;
 		uint subtree_size;
 		uint depth;
+		uint num_nodes;
+
+		float median_page_sah[8];
 	};
 
 	struct alignas(32 * PACK_SIZE) Node
@@ -87,6 +91,68 @@ public:
 			if (bvh.nodes[node].data[i].is_leaf)
 				node_size += sizeof(PackedTreelet::Triangle) * (bvh.nodes[node].data[i].num_prims + 1);
 		return node_size;
+	}
+
+	float static get_node_sa(const rtm::PackedTreelet::Node& node)
+	{
+		AABB aabb;
+		for(uint i = 0; i < 2; ++i)
+			aabb.add(node.aabb[i]);
+		return aabb.surface_area();
+	}
+
+	static void compute_node_prefetch_costs(const PackedTreelet& treelet)
+	{
+		float l1_cost = 1;
+		float l2_cost = 4;
+		float dram_stream_cost = 16;
+		float dram_random_cost = 128;
+
+		float l1_lines = 2 * 1024;
+		float l2_lines = 512 * 1024;
+
+		float root_sa = get_node_sa(treelet.nodes[0]);
+		float treelet_sa = 0.0;
+		for(uint i = 0; i < treelet.header.num_nodes; ++i)
+			treelet_sa += get_node_sa(treelet.nodes[i]);
+
+		for(uint i = 0; i < treelet.header.num_nodes; ++i)
+		{
+			float node_sa = get_node_sa(treelet.nodes[i]);
+			float node_sah = node_sa / root_sa;
+
+			float l1_miss_rate = powf((1.0 - node_sa / treelet_sa), l1_lines); //chance of being in last 2K requests assuming random access propotional to surface area
+			float l2_miss_rate = powf((1.0 - node_sa / treelet_sa), l2_lines); //chance of being in last 512K requests assuming random access propotional to surface area
+			float access_cost = l1_cost + l1_miss_rate * (l2_cost + l2_miss_rate * dram_random_cost);
+
+			float num_accesses = 1024 * node_sa / root_sa;
+			float first_access_chance = rtm::min(1.0, num_accesses);
+			float subsequent_accesses = num_accesses - first_access_chance;
+			float cost = first_access_chance * (l1_cost + l2_cost + dram_random_cost) + subsequent_accesses * access_cost;
+			float cost_with_prefetch = dram_stream_cost + first_access_chance * (l1_cost + l2_cost) + subsequent_accesses * access_cost;
+
+			float cost_diff = dram_stream_cost + dram_random_cost * l2_miss_rate - first_access_chance * dram_random_cost;
+			printf("%d: (%f)\n", i, cost_diff);
+		}
+	}
+
+	static void fill_page_median_sah(PackedTreelet& treelet)
+	{
+		float root_sah = get_node_sa(treelet.nodes[0]);
+		for(uint i = 0; i < 8; ++i)
+		{
+			uint median_node_index = (i * 2 + 1) * PackedTreelet::PREFETCH_BLOCK_SIZE / sizeof(PackedBVH2::NodePack) / 2;
+			if(median_node_index < treelet.header.num_nodes)
+			{
+				treelet.header.median_page_sah[i] = get_node_sa(treelet.nodes[median_node_index]) / root_sah;
+			}
+			else
+			{
+				treelet.header.median_page_sah[i] = 0.0f;
+			}
+			printf("%f,", treelet.header.median_page_sah[i]);
+		}
+		printf("\n");
 	}
 
 	void build(const rtm::PackedBVH2& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
@@ -280,13 +346,26 @@ public:
 
 		for (uint treelet_index = 0; treelet_index < treelets.size(); ++treelet_index)
 		{
-			uint nodes_mapped = 0;
+			std::vector<uint> odered_nodes(treelet_assignments[treelet_index]);
+			std::sort(odered_nodes.begin(), odered_nodes.end(), [&](uint a, uint b) -> bool
+			{
+				AABB aabb_a, aabb_b;
+				for(uint j = 0; j < PackedTreelet::PACK_SIZE; ++j)
+				{
+					aabb_a.add(bvh.nodes[a].aabb[j]);
+					aabb_b.add(bvh.nodes[b].aabb[j]);
+				};
+
+				return aabb_a.surface_area() > aabb_b.surface_area();
+			});
+
 			std::unordered_map<uint, uint> node_map;
-			node_map[treelet_assignments[treelet_index][0]] = nodes_mapped++;
+			for(uint i = 0; i < odered_nodes.size(); ++i)
+				node_map[odered_nodes[i]] = i;
 
 			PackedTreelet& treelet = treelets[treelet_index];
 			treelet.header = treelet_headers[treelet_index];
-			uint primative_start = treelet_assignments[treelet_index].size() * sizeof(PackedTreelet::Node) + sizeof(PackedTreelet::Header);
+			uint primatives_offset = PackedTreelet::SIZE;
 			for (uint i = 0; i < treelet_assignments[treelet_index].size(); ++i)
 			{
 				uint node_id = treelet_assignments[treelet_index][i];
@@ -303,14 +382,14 @@ public:
 					if (node.data[j].is_leaf)
 					{
 						tnode.data[j].num_tri = node.data[j].num_prims;
-						tnode.data[j].tri_offset = primative_start;
+						primatives_offset -= (tnode.data[j].num_tri + 1) * sizeof(PackedTreelet::Triangle);
+						tnode.data[j].tri_offset = primatives_offset;
 
-						PackedTreelet::Triangle* tris = (PackedTreelet::Triangle*)(&treelet.bytes[primative_start]);
+						PackedTreelet::Triangle* tris = (PackedTreelet::Triangle*)(&treelet.bytes[primatives_offset]);
 						for (uint k = 0; k <= node.data[j].num_prims; ++k)
 						{
 							tris[k].id = node.data[j].prim_index + k;
 							tris[k].tri = mesh.get_triangle(tris[k].id);
-							primative_start += sizeof(PackedTreelet::Triangle);
 						}
 					}
 					else
@@ -324,11 +403,14 @@ public:
 						else
 						{
 							tnode.data[j].is_child_treelet = 0;
-							tnode.data[j].child_index = node_map[child_node_id] = nodes_mapped++;
+							tnode.data[j].child_index = node_map[child_node_id];
 						}
 					}
 				}
 			}
+
+			treelet.header.num_nodes = odered_nodes.size();
+			fill_page_median_sah(treelet);
 		}
 
 		printf("Built Packed Treelet BVH\n");

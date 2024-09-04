@@ -243,7 +243,7 @@ public:
 	class ReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
 	{
 	public:
-		ReturnCrossBar(uint ports, uint banks) : CasscadedCrossBar<MemoryReturn>(banks, ports, banks) {}
+		ReturnCrossBar(uint banks, uint ports) : CasscadedCrossBar<MemoryReturn>(banks, ports, banks) {}
 
 		uint get_sink(const MemoryReturn& ret) override
 		{

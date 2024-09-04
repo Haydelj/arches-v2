@@ -128,6 +128,10 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom
 }
 
 namespace TRaX {
+
+typedef Units::UnitNonBlockingCache UnitL1Cache;
+typedef Units::UnitNonBlockingCache UnitL2Cache;
+
 #include "trax-kernel/include.hpp"
 #include "trax-kernel/intersect.hpp"
 static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config)
@@ -231,9 +235,10 @@ static void run_sim_trax(GlobalConfig global_config)
 	_assert(row_size == DRAM_ROW_SIZE);
 
 	//L2$
-	Units::UnitBlockingCache::Configuration l2_config;
+	UnitL2Cache::Configuration l2_config;
 	l2_config.size = 32ull * 1024 * 1024; //32MB
 	l2_config.block_size = block_size;
+	l2_config.num_mshr = 64;
 	l2_config.associativity = 8;
 	l2_config.latency = 10;
 	l2_config.cycle_time = 4;
@@ -241,7 +246,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
 		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
 
-	Units::UnitBlockingCache::PowerConfig l2_power_config;
+	UnitL2Cache::PowerConfig l2_power_config;
 	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
 	l2_power_config.tag_energy = 0.00756563e-9f;
 	l2_power_config.read_energy = 0.378808e-9f - l2_power_config.tag_energy;
@@ -249,7 +254,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//L1d$
 	uint num_mshr = 256;
-	Units::UnitNonBlockingCache::Configuration l1d_config;
+	UnitL1Cache::Configuration l1d_config;
 	l1d_config.size = 128ull * 1024;
 	l1d_config.block_size = block_size;
 	l1d_config.associativity = 4;
@@ -259,7 +264,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
 	l1d_config.use_lfb = false;
 
-	Units::UnitNonBlockingCache::PowerConfig l1d_power_config;
+	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
 	l1d_power_config.tag_energy = 0.000663943e-9f;
 	l1d_power_config.read_energy = 0.0310981e-9f - l1d_power_config.tag_energy;
@@ -301,9 +306,9 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
-	std::vector<Units::TRaX::UnitTreeletRTCore*> rtcs;
+	std::vector<Units::TRaX::UnitRTCore*> rtcs;
 
-	std::vector<Units::UnitNonBlockingCache*> l1ds;
+	std::vector<UnitL1Cache*> l1ds;
 	std::vector<Units::UnitBlockingCache*> l1is;
 
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
@@ -324,11 +329,11 @@ static void run_sim_trax(GlobalConfig global_config)
 	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config);
 
 	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
-	l2_config.mem_higher = &dram;
+	l2_config.mem_highers = {&dram};
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = 1;
 
-	Units::UnitBlockingCache l2(l2_config);
+	UnitL2Cache l2(l2_config);
 	simulator.register_unit(&l2);
 
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
@@ -349,7 +354,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		l1d_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index;
 		l1d_config.mem_higher_port_stride = 2;
 
-		l1ds.push_back(new Units::UnitNonBlockingCache(l1d_config));
+		l1ds.push_back(new UnitL1Cache(l1d_config));
 		simulator.register_unit(l1ds.back());
 		mem_list.push_back(l1ds.back());
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
@@ -367,21 +372,21 @@ static void run_sim_trax(GlobalConfig global_config)
 		}
 
 	#ifdef USE_RT_CORE
-		Units::TRaX::UnitTreeletRTCore::Configuration rtc_config;
+		Units::TRaX::UnitRTCore::Configuration rtc_config;
 		rtc_config.max_rays = 64;
 		rtc_config.num_tp = num_tps_per_tm;
-		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
-		//rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
-		//rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
+		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
+		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
+		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
 		rtc_config.cache = l1ds.back();
 
-		rtcs.push_back(_new  Units::TRaX::UnitTreeletRTCore(rtc_config));
+		rtcs.push_back(_new  Units::TRaX::UnitRTCore(rtc_config));
 		simulator.register_unit(rtcs.back());
 		mem_list.push_back(rtcs.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
 	#endif
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, kernel_args.framebuffer_width, kernel_args.framebuffer_height, 8, 8));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 32));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
@@ -443,12 +448,12 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//master logs
 	Units::UnitDRAM::Log dram_log;
-	Units::UnitBlockingCache::Log l2_log;
-	Units::UnitNonBlockingCache::Log l1d_log;
+	UnitL2Cache::Log l2_log;
+	UnitL1Cache::Log l1d_log;
 	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
-	Units::TRaX::UnitTreeletRTCore::Log rtc_log;
+	Units::TRaX::UnitRTCore::Log rtc_log;
 
 	uint delta = global_config.logging_interval;
 	auto start = std::chrono::high_resolution_clock::now();
@@ -457,8 +462,8 @@ static void run_sim_trax(GlobalConfig global_config)
 		float epsilon_ns = delta / (clock_rate / 1'000'000'000);
 
 		Units::UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
-		Units::UnitBlockingCache::Log l2_delta_log = delta_log(l2_log, l2);
-		Units::UnitNonBlockingCache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
+		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
+		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
 
 		printf("                            \n");
 		printf("Cycle: %lld                 \n", simulator.current_cycle);
@@ -468,6 +473,9 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("                            \n");
+		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total());
+		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total());
+		printf("                             \n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
 

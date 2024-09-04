@@ -5,7 +5,7 @@ namespace Arches {namespace Units {
 UnitBlockingCache::UnitBlockingCache(Configuration config) : 
 	UnitCacheBase(config.size, config.block_size, config.associativity),
 	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
-	_return_cross_bar(config.num_ports, config.num_banks),
+	_return_cross_bar(config.num_banks, config.num_ports),
 	_banks(config.num_banks, {config.latency, config.cycle_time})
 {
 	_mem_higher = config.mem_higher;
@@ -30,7 +30,8 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		if(!bank.tag_array_pipline.is_read_valid() || !bank.data_array_pipline.is_write_valid()) return;
 		bank.current_request = bank.tag_array_pipline.read();
 
-		if(bank.current_request.type == MemoryRequest::Type::LOAD)
+		if(bank.current_request.type == MemoryRequest::Type::LOAD
+			|| bank.current_request.type == MemoryRequest::Type::PREFECTH)
 		{
 			paddr_t block_addr = _get_block_addr(bank.current_request.paddr);
 			uint block_offset = _get_block_offset(bank.current_request.paddr);
@@ -39,16 +40,20 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 
 			if(block_data)
 			{
-				MemoryReturn ret(bank.current_request, &block_data[block_offset]);
-				bank.data_array_pipline.write(ret);
+				if(bank.current_request.type == MemoryRequest::Type::LOAD)
+				{
+					MemoryReturn ret(bank.current_request, &block_data[block_offset]);
+					bank.data_array_pipline.write(ret);
+					log.data_array_reads++;
+					log.hits++;
+				}
 				bank.state = Bank::State::IDLE;
-				log.hits++;
-				log.data_array_reads++;
 			}
 			else
 			{
+				if(bank.current_request.type == MemoryRequest::Type::LOAD) 
+					log.misses++;
 				bank.state = Bank::State::MISSED;
-				log.misses++;
 			}
 		}
 		else if(bank.current_request.type == MemoryRequest::Type::STORE)
@@ -72,7 +77,10 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		uint block_offset = _get_block_offset(bank.current_request.paddr);
 		std::memcpy(bank.current_request.data, &ret.data[block_offset], bank.current_request.size);
 
-		bank.state = Bank::State::FILLED;	
+		bank.state = Bank::State::FILLED;
+
+		if(bank.current_request.type == MemoryRequest::Type::PREFECTH)
+			bank.state = Bank::State::IDLE;	
 	}
 }
 
@@ -94,6 +102,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.size = _block_size;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
+				request.dst = 0;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}
@@ -104,9 +113,20 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::IDLE;
 			}
+			else if(bank.current_request.type == MemoryRequest::Type::PREFECTH)
+			{
+				MemoryRequest request;
+				request.type = MemoryRequest::Type::LOAD;
+				request.size = _block_size;
+				request.paddr = _get_block_addr(bank.current_request.paddr);
+				request.port = mem_higher_port_index;
+				request.dst = (uint16_t)~0;
+				_mem_higher->write_request(request);
+				bank.state = Bank::State::ISSUED;
+			}
 		}
 	}
-	else if(bank.state == Bank::State::FILLED)
+	if(bank.state == Bank::State::FILLED)
 	{
 		if(bank.data_array_pipline.empty() && _return_cross_bar.is_write_valid(bank_index))
 		{

@@ -25,19 +25,15 @@ private:
 	uint _num_tp;
 	uint _tm_index;
 
-	uint _width;
-	uint _height;
-	uint _tile_width;
-	uint _tile_height;
-	uint _tile_size;
-	uint _current_tile;
+	uint _block_size;
+	uint _current_block;
 	uint _current_offset;
 
 public:
-	UnitThreadScheduler(uint num_tp, uint tm_index, UnitAtomicRegfile* atomic_regs, uint width, uint height, uint tile_width = 8, uint tile_height = 8) : UnitMemoryBase(),
-		_width(width), _height(height), _tile_width(tile_width), _tile_height(tile_height), _tile_size(tile_width* tile_height), _request_network(num_tp, 1), _return_network(num_tp), _num_tp(num_tp), _tm_index(tm_index), _atomic_regs(atomic_regs)
+	UnitThreadScheduler(uint num_tp, uint tm_index, UnitAtomicRegfile* atomic_regs, uint block_size) : UnitMemoryBase(),
+		_block_size(block_size), _request_network(num_tp, 1), _return_network(num_tp), _num_tp(num_tp), _tm_index(tm_index), _atomic_regs(atomic_regs)
 	{
-		_current_offset = _tile_size;
+		_current_offset = _block_size;
 	}
 
 	void clock_rise() override
@@ -49,7 +45,7 @@ public:
 			if (_atomic_regs->return_port_read_valid(_tm_index))
 			{
 				const MemoryReturn ret = _atomic_regs->read_return(_tm_index);
-				_current_tile = ret.data_u32;
+				_current_block = ret.data_u32;
 				_current_offset = 0;
 
 				_stalled_for_atomic_reg = false;
@@ -66,7 +62,7 @@ public:
 	{
 		if (!_stalled_for_atomic_reg && _current_request_valid)
 		{
-			if (_current_offset == _tile_size)
+			if (_current_offset == _block_size)
 			{
 				if (_atomic_regs->request_port_write_valid(_tm_index))
 				{
@@ -84,14 +80,14 @@ public:
 			{
 				//uint tile_x = pext(_current_offset, 0x5555);
 				//uint tile_y = pext(_current_offset, 0xaaaa);
-				uint tile_x = (_current_offset % _tile_width);
-				uint tile_y = (_current_offset / _tile_width);
-				uint x = (_current_tile % (_width / _tile_width)) * _tile_width + tile_x;
-				uint y = (_current_tile / (_width / _tile_width)) * _tile_height + tile_y;
-				uint32_t index = y * _width + x;
+				//uint tile_x = (_current_offset % _tile_width);
+				//uint tile_y = (_current_offset / _tile_width);
+				//uint x = (_current_tile % (_width / _tile_width)) * _tile_width + tile_x;
+				//uint y = (_current_tile / (_width / _tile_width)) * _tile_height + tile_y;
+				uint32_t index = _current_block * _block_size + _current_offset;
 				MemoryReturn ret(_current_request, &index);
 
-				if(index == 60250)
+				if(index == 0)
 				{
 					//__debugbreak();
 				}

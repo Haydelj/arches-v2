@@ -280,13 +280,13 @@ public:
 };
 
 
-template<typename T>
+template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
 class Cascade : public InterconnectionNetwork<T>
 {
 private:
 	FIFOArray<T> _source_fifos;
-	size_t                                    _cascade_ratio;
-	std::vector<RoundRobinArbiter<uint128_t>> _arbiters;
+	size_t _cascade_ratio;
+	std::vector<ARB> _arbiters;
 	FIFOArray<T> _sink_fifos;
 
 public:
@@ -378,12 +378,12 @@ public:
 	void write(const T& transaction, uint source_index) override { _source_fifos.write(transaction, source_index); }
 };
 
-template<typename T>
+template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
 class CrossBar : public InterconnectionNetwork<T>
 {
 private:
 	FIFOArray<T> _source_fifos;
-	std::vector<RoundRobinArbiter<uint64_t>> _arbiters;
+	std::vector<ARB> _arbiters;
 	FIFOArray<T> _sink_fifos;
 
 public:
@@ -427,16 +427,16 @@ public:
 	void write(const T& transaction, uint source_index) override { _source_fifos.write(transaction, source_index); }
 };
 
-template<typename T>
+template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
 class CasscadedCrossBar : public InterconnectionNetwork<T>
 {
-private:
+protected:
 	uint _source_crossbar_width, _sink_crossbar_width;
 	FIFOArray<T> _source_fifos;
-	size_t                         _input_cascade_ratio;
+	size_t _input_cascade_ratio;
 	std::vector<RoundRobinArbiter<uint64_t>> _cascade_arbiters;
-	std::vector<RoundRobinArbiter<uint64_t>> _crossbar_arbiters;
-	size_t                         _output_cascade_ratio;
+	std::vector<ARB> _crossbar_arbiters;
+	size_t _output_cascade_ratio;
 	FIFOArray<T> _sink_fifos;
 
 public:

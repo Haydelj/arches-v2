@@ -23,6 +23,7 @@ public:
 		uint num_ports{1};
 		uint num_banks{1};
 		uint64_t bank_select_mask{0};
+		const uint8_t* weight_table = _default_weight_table;
 
 		uint num_mshr{1};
 		bool use_lfb{false};
@@ -113,7 +114,7 @@ protected:
 
 	bool _use_lfb;
 	std::vector<Bank> _banks;
-	RequestCrossBar _request_cross_bar;
+	WeightedRequestCrossBar _request_cross_bar;
 	ReturnCrossBar _return_cross_bar;
 
 	std::vector<UnitMemoryBase*> _mem_highers;

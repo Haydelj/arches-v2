@@ -21,6 +21,8 @@ inline Arches::paddr_t align_to(size_t alignment, Arches::paddr_t paddr)
 
 inline uint ctz(uint64_t mask)
 {
+
+
 	return _tzcnt_u64(mask);
 }
 
@@ -43,6 +45,8 @@ inline uint64_t pext(uint64_t data, uint64_t mask)
 {
 	return _pext_u64(data, mask);
 }
+
+
 
 class alignas(16) uint128_t 
 {
@@ -147,6 +151,3 @@ inline uint128_t rotr(uint128_t mask, uint n)
 		return {(mask.lo >> n) | (mask.hi << (64 - n)), (mask.hi >> n) | (mask.lo << (64 - n))};
 	}
 }
-
-
-

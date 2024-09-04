@@ -34,9 +34,9 @@ inline void _traceray(uint id, const rtm::Ray& ray, rtm::Hit& hit)
 	hit.bc.y = dst2;
 	hit.id = *(uint*)&_dst3;
 #else
+	assert(false);
 #endif
 }
-
 
 inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
@@ -167,6 +167,101 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 	} while(node_stack_size);
 
 	return found_hit;
+}
+
+constexpr uint PACKET_SIZE = 16;
+inline uint64_t intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangle* tris, const rtm::Frustum& ray_packet, rtm::Hit hit_buffer[PACKET_SIZE])
+{
+
+	struct NodeStackEntry
+	{
+		uint64_t mask;
+		rtm::PackedBVH2::NodePack::Data data;
+	};
+
+	NodeStackEntry node_stack[32];
+	uint32_t node_stack_size = 1u;
+	node_stack[0].mask = ~0;
+	node_stack[0].data.is_leaf = 0;
+	node_stack[0].data.child_index = 0;
+	
+	uint64_t hit_mask = 0;
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+
+	POP_SKIP:
+		if(!current_entry.data.is_leaf)
+		{
+			uint child_index = current_entry.data.child_index;
+
+			uint64_t mask0 = 0;
+			uint64_t mask1 = 0;
+			float t0 = ray_packet.t_max;
+			float t1 = ray_packet.t_max;
+			for(uint i = 0; i < PACKET_SIZE; ++i)
+			{
+				if((current_entry.mask >> i) & 0x1ull)
+				{
+					rtm::Ray ray{ray_packet.o, ray_packet.t_min, ray_packet.d, ray_packet.t_max};
+					ray.d += ray_packet.dx * (i % 4) + ray_packet.dy * (i / 4);
+					rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+					float _t0 = _intersect(nodes[child_index].aabb[0], ray, inv_d);
+					if(_t0 < hit_buffer[i].t) 
+					{
+						t0 = rtm::min(t0, _t0);
+						mask0 |= 0x1ull << i;
+					}
+
+					float _t1 = _intersect(nodes[child_index].aabb[1], ray, inv_d);
+					if(_t1 < hit_buffer[i].t) 
+					{
+						t1 = rtm::min(t1, _t1);
+						mask1 |= 0x1ull << i;
+					}
+				}
+			}
+
+			if(mask0 || mask1)
+			{
+				if(t0 < t1)
+				{
+					current_entry = {mask0, nodes[child_index].data[0]};
+					if(mask1) node_stack[node_stack_size++] = {mask1, nodes[child_index].data[1]};
+				}
+				else
+				{
+					current_entry = {mask1, nodes[child_index].data[1]};
+					if(mask0) node_stack[node_stack_size++] = {mask0, nodes[child_index].data[0]};
+				}
+				goto POP_SKIP;
+			}
+		}
+		else
+		{
+			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
+			{
+				uint32_t id = current_entry.data.prim_index + i;
+				for(uint i = 0; i < PACKET_SIZE; ++i)
+				{
+					if((current_entry.mask >> i) & 0x1ull)
+					{
+						rtm::Ray ray{ray_packet.o, ray_packet.t_min, ray_packet.d, ray_packet.t_max};
+						ray.d += ray_packet.dx * (i % 4) + ray_packet.dy * (i / 4);
+						if(_intersect(tris[id], ray, hit_buffer[i]))
+						{
+							hit_buffer[i].id = id;
+							hit_mask |= 0x1ull << i;
+						}
+					}
+				}
+			}
+		}
+	} 
+	while(node_stack_size);
+
+	return hit_mask;
 }
 
 inline bool intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)

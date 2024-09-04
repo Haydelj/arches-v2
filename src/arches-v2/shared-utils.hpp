@@ -60,13 +60,14 @@ inline static L delta_log(L& master_log, T& unit)
 enum SCENES
 {
 	SPONZA = 0,
+	INTEL_SPONZA,
 	SAN_MIGUEL,
 	HAIRBALL,
 	LIVING_ROOM,
 	NUMBER
 };
 
-std::vector<std::string> scene_names = { "sponza", "san-miguel", "hairball", "living_room" };
+std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "living_room" };
 
 struct CameraConfig
 {
@@ -77,7 +78,8 @@ struct CameraConfig
 
 static const CameraConfig camera_configs[SCENES::NUMBER] =
 {
-	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //SPONZA
+	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
+	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
 	{rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
 	{rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
 	{rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f}, //LIVING_ROOM
@@ -87,24 +89,25 @@ class GlobalConfig
 {
 public:
 	//simulator config
-	uint simulator = 1; //0-trax, 1-dual-streaming
+	uint simulator = 0; //0-trax, 1-dual-streaming
 	uint logging_interval = 32 * 1024;
 
 	//workload config
 	uint scene_id = 1;
-	uint framebuffer_width = 512;
-	uint framebuffer_height = 512;
+	uint framebuffer_width = 1024;
+	uint framebuffer_height = 1024;
 	CameraConfig camera_config;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
 
 	//dual streaming
-	bool use_scene_buffer = 1;
-	bool rays_on_chip = 1;
-	bool use_early = 0;
+	bool use_scene_buffer = 0;
+	bool rays_on_chip = 0;
+	bool hits_on_chip = 1;
+	bool use_early = 1;
 	bool hit_delay = 0;
-	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
-	uint traversal_scheme = 0; // 0-BFS, 1-DFS
+	uint hit_buffer_size = 64 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
+	uint traversal_scheme = 1; // 0-BFS, 1-DFS
 	uint weight_scheme = 1; // 0 total, 1 average, 2 none
 
 public:
@@ -160,6 +163,10 @@ public:
 			{
 				rays_on_chip = std::stoi(value);
 			}
+			if(key == "hits_on_chip")
+			{
+				hits_on_chip = std::stoi(value);
+			}
 			if(key == "use_early")
 			{
 				use_early = std::stoi(value);
@@ -184,6 +191,12 @@ public:
 			{
 				logging_interval = std::stoi(value);
 			}
+			if(key == "buffer")
+			{
+				if(std::stoi(value) == 0)
+					setvbuf(stdout, (char*)NULL, _IONBF, 0);
+			}
+
 			std::cout << key << ' ' << value << '\n';
 		};
 

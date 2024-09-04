@@ -18,7 +18,7 @@ if len(sys.argv) > 2:
     elif sys.argv[2] == 'streams':
         keys += ['Scene Fill', 'Ray Write', 'Ray Read']
 else:
-    keys +=  ['L1d$ Read', 'L2$ Read', 'DRAM Read']
+    keys +=  ['L2$ Hit Rate']
 
 colors = list(mcolors.TABLEAU_COLORS)
 cycles = []
