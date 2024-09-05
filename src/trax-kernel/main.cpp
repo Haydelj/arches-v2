@@ -86,8 +86,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 					if(hit.id != ~0u)
 					{
 					
-						//output = rtm::vec3(1.0f, 0.0f, 0.0f);
-						//break;
+						output = rtm::vec3(1.0f, 0.0f, 0.0f);
+						break;
 						normal = args.tris[hit.id].normal();
 						normal = normal * 0.5f + 0.5f;
 						output = normal;
@@ -105,7 +105,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 							_traceray<0x1u>(index, sray, shit);
 						#else
 							#if defined(WIDE_BVH_COMPRESSED)
-								intersect(args.nodes, args.indices,args.tris, sray, shit);
+								intersect(args.nodes, args.indices, args.tris, sray, shit);
 							#elif defined(WIDE_BVH)
 								intersect(args.nodes, args.tris, sray, shit);
 							#else		
@@ -203,14 +203,16 @@ int main(int argc, char* argv[])
 		build_objects.push_back(mesh.get_build_object(i));
 
 	bvh.build(build_objects);
+	mesh.reorder(build_objects);
 
 #if defined (WIDE_BVH)
 	wbvh.buildUncompressed(bvh);
 #elif defined(WIDE_BVH_COMPRESSED)
-	wbvh.build(bvh);
+	//wbvh.buildUncompressed(bvh);
+	//wbvh.build(bvh);
+	wbvh.buildFromWide(bvh);
 #endif
 
-	mesh.reorder(build_objects);
 	mesh.reorder(wbvh.indices);
 
 	mesh.get_triangles(tris);

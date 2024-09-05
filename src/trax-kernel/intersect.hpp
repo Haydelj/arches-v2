@@ -238,6 +238,8 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 
 	return found_hit;
 }
+
+
 inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
@@ -265,30 +267,28 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 		{
 			rtm::BVH::Node dnodes[n_ary_sz];
 			int childCount;
+			
+
+			assert(nodes[current_entry.data.fst_chld_ind].imask != 0);
 			nodes[current_entry.data.fst_chld_ind].decompress(dnodes, childCount);
 
 			for (int i = 0; i < childCount; i++)
 			{
-				//if its the leaf node do not intersect, its invalid as we directly store the triangles within the leaf node and aabb is unitialized
-				if (dnodes[i].data.is_leaf)
-				{
-					node_stack[node_stack_size].t = ray.t_min;
-					node_stack[node_stack_size++].data = dnodes[i].data;
-				}
-				else
-				{
+
 					float t = _intersect(dnodes[i].aabb, ray, inv_d);
 					if (t < hit.t)
 					{
 						node_stack[node_stack_size].t = t;
-						node_stack[node_stack_size++].data = dnodes[i].data;
+						node_stack[node_stack_size].data.fst_chld_ind = dnodes[i].data.fst_chld_ind;
+						node_stack[node_stack_size].data.lst_chld_ofst = dnodes[i].data.lst_chld_ofst;
+						node_stack[node_stack_size++].data.is_leaf = dnodes[i].data.is_leaf;
 					}
-				}
 			}
 		}
 		else
 		{
-			for (int i = 0; i <= current_entry.data.lst_chld_ofst; i++)
+
+			for (uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; i++)
 			{
 				uint32_t triID = current_entry.data.fst_chld_ind + i;
 			
@@ -301,7 +301,6 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 			}
 		}
 	} while (node_stack_size);
-
 	return found_hit;
 }
 
