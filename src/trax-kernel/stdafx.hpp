@@ -18,10 +18,11 @@
 #include <cfloat>
 #include <cstdint>
 
-#include "rtm/rtm.hpp"
 
-typedef unsigned int uint;
 
 #define T_STACK_SZ 64
 #define WIDE_COMPRESSED_BVH 1
-#define SHADE_NORMALS 1
+
+#include "rtm/rtm.hpp"
+
+typedef unsigned int uint;

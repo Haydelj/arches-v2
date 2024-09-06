@@ -38,13 +38,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 	#endif
 		if(hit.id != ~0u)
 		{
-#if defined (SHADE_NORMALS)
-			
-			args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
-
-#else
-			args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
-#endif
+			args.framebuffer[index] = encode_pixel(rtm::vec3(1.0f, 0.0f, 0.0f));// rtm::RNG::hash(hit.id) | 0xff000000;
 		}
 		else
 		{

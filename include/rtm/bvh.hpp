@@ -16,8 +16,13 @@ namespace rtm {
 #else
 #define BUILD_QUALITY 2
 #endif
+	
 
-constexpr uint max_children = 8;
+#if defined(WIDE_COMPRESSED_BVH)
+	constexpr uint max_children = 1;
+#else
+	constexpr uint max_children = 8;
+#endif
 
 class BVH2
 {
