@@ -23,5 +23,6 @@
 #include "packed-bvh.hpp"
 #include "treelet-bvh.hpp"
 #include "packed-treelet-bvh.hpp"
+#include "wide_bvh.hpp"
 
 #include "intersect.hpp"
