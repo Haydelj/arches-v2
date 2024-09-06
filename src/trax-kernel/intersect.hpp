@@ -268,8 +268,6 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 			rtm::BVH::Node dnodes[n_ary_sz];
 			int childCount;
 			
-
-			assert(nodes[current_entry.data.fst_chld_ind].imask != 0);
 			nodes[current_entry.data.fst_chld_ind].decompress(dnodes, childCount);
 
 			for (int i = 0; i < childCount; i++)
@@ -287,7 +285,6 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices
 		}
 		else
 		{
-
 			for (uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; i++)
 			{
 				uint32_t triID = current_entry.data.fst_chld_ind + i;

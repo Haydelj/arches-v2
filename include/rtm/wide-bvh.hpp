@@ -118,7 +118,7 @@ namespace rtm
 					if (meta[i])
 					{
 						
-						if (imask & uint8_t(1u << i)) //if internal node
+						if (imask & (1 << i)) //if internal node
 						{
 
 							dnodes[index].data.is_leaf = false;
@@ -170,6 +170,7 @@ namespace rtm
 		{
 			rtm::BVH::Node nodeArray[n_ary_sz];
 			uint32_t base_index_child;
+			uint32_t base_tri_index;
 			uint32_t childCount;
 			rtm::AABB aabb;
 		};
@@ -544,6 +545,7 @@ namespace rtm
 			bvh8Node.aabb = bvh2Node.aabb;
 
 			bvh8Node.base_index_child = uncompressedNodes.size();
+			bvh8Node.base_tri_index = indices.size();
 
 			int child_count = 0;
 			int children[n_ary_sz];
@@ -552,6 +554,8 @@ namespace rtm
 			//Get child nodes for this node based on the decision array costs
 			get_children(node_index_bvh2, bvh2, children, child_count, 0);
 			assert(child_count <= n_ary_sz);
+
+			bvh8Node.childCount = child_count;
 
 			uint32_t num_internal_nodes = 0;
 			int index = 0;
@@ -588,7 +592,6 @@ namespace rtm
 				}
 			}
 
-			bvh8Node.childCount = index;
 
 			for (int i = 0; i < num_internal_nodes; i++)
 			{
@@ -609,7 +612,6 @@ namespace rtm
 				}
 			}
 		}
-
 		void collapseFromUncompressedWideBVH(uint32_t node_index_cwbvh, uint32_t node_index_wbvh)
 		{
 			WideBVHNode& cwnode = nodes.at(node_index_cwbvh);
@@ -648,13 +650,11 @@ namespace rtm
 
 			cwnode.imask = 0;
 			cwnode.base_index_child = nodes.size();
-			
-			bool first_leaf_found = false;
-			bool first_internal_found = false;
+			cwnode.base_index_triangle = wnode.base_tri_index;
+			uint32_t wide_base_index_child = wnode.base_index_child;
 
 			uint32_t num_triangles = 0;
 			uint32_t num_internal_nodes = 0;
-			uint32_t wide_base_index_child = wnode.base_index_child;
 
 
 			//Loop over all the uncompressed child nodes
@@ -675,29 +675,20 @@ namespace rtm
 				{
 					uint32_t triangle_count = childNode.data.lst_chld_ofst + 1;
 					
-					if (!first_leaf_found)
+					for (uint32_t j = 0; j < triangle_count; j++)
 					{
-						cwnode.base_index_triangle = uint32_t(childNode.data.fst_chld_ind);
-						first_leaf_found = true;
-					}
-
-					for (int j = 0; j < triangle_count; j++)
-					{
-						cwnode.meta[i] |= uint8_t(1u << (j + 5));
+						cwnode.meta[i] |= (1 << (j + 5));
 					}
 					cwnode.meta[i] |= num_triangles; //base index relative to triangle
 					num_triangles += triangle_count;
-					
 				}
 				else
 				{
-
 					cwnode.meta[i] = (i + 24) | 0b00100000; // 32
-					cwnode.imask |= (1u << i);
+					cwnode.imask |= (1 << i);
 					num_internal_nodes++;
 				}
 			}
-
 
 			for (int ii = 0; ii < num_internal_nodes; ii++)
 			{
@@ -717,6 +708,5 @@ namespace rtm
 				}
 			}
 		}
-
 		};
 }

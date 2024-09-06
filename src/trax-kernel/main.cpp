@@ -86,8 +86,6 @@ inline static void kernel(const TRaXKernelArgs& args)
 					if(hit.id != ~0u)
 					{
 					
-						output = rtm::vec3(1.0f, 0.0f, 0.0f);
-						break;
 						normal = args.tris[hit.id].normal();
 						normal = normal * 0.5f + 0.5f;
 						output = normal;
@@ -208,7 +206,6 @@ int main(int argc, char* argv[])
 #if defined (WIDE_BVH)
 	wbvh.buildUncompressed(bvh);
 #elif defined(WIDE_BVH_COMPRESSED)
-	//wbvh.buildUncompressed(bvh);
 	//wbvh.build(bvh);
 	wbvh.buildFromWide(bvh);
 #endif
