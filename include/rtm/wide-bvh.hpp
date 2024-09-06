@@ -175,47 +175,22 @@ namespace rtm
 			rtm::AABB aabb;
 		};
 
-		static void swap_dnodes(DecompressedNodeData& d1, DecompressedNodeData& d2)
+		void buildWideCompressedBVH(const rtm::BVH& bvh2)
 		{
-			DecompressedNodeData temp;
-
-			temp = d2;
-			d2 = d1;
-			d1 = temp;
+			buildWideBVHfromBVH2(bvh2);
+			
+			nodes.emplace_back();
+			compressWideBVH(0,0);
 		}
 
-		void build(const rtm::BVH& bvh2)
-		{
-			std::cout << "WideBVH building ... " << std::endl;
-			//each node may have max forest size number of cost permutations
-			decisions.resize(bvh2.nodes.size() * max_forst_sz);
-			nodes.emplace_back(); //default init root node
-			calculate_cost(0, bvh2.nodes[0].aabb.surface_area(), bvh2);	//fill in cost table using dynamic programming (bottom up) 
-			collapse(bvh2, 0, 0);										//collapse SBVH into WideBVH using the cost table
-			std::cout << "WideBVH build complete " << std::endl;
-
-		}
-
-		void buildFromWide(const rtm::BVH& bvh2)
+		void buildWideBVHfromBVH2(const rtm::BVH& bvh2)
 		{
 			decisions.resize(bvh2.nodes.size() * max_forst_sz);
 			uncompressedNodes.emplace_back();
 			calculate_cost(0, bvh2.nodes[0].aabb.surface_area(), bvh2);
-			collapseUncompressed(bvh2, 0, 0);
-
-			//compress
-			nodes.emplace_back();
-			collapseFromUncompressedWideBVH(0,0);
+			collapseUncompressedWideBVH(bvh2, 0, 0);
 		}
 
-		void buildUncompressed(const rtm::BVH& bvh)
-		{
-			decisions.resize(bvh.nodes.size() * max_forst_sz);
-			uncompressedNodes.emplace_back();
-			calculate_cost(0, bvh.nodes[0].aabb.surface_area(), bvh);
-			collapseUncompressed(bvh, 0, 0);
-
-		}
 
 		WideBVHNode* getNodes()
 		{
@@ -235,7 +210,7 @@ namespace rtm
 
 		std::vector<Decision> decisions; // array to store cost and meta data for the collapse algorithm
 		std::vector<WideBVHNode> nodes;  // Linearized nodes buffer for wide bvh
-		std::vector<WideBVHNodeUncompressed> uncompressedNodes;
+		std::vector<WideBVHNodeUncompressed> uncompressedNodes; //intermediate node representation for wide bvh
 
 		int calculate_cost(int node_index, float root_surface_area, const rtm::BVH& bvh2)
 		{
@@ -272,9 +247,9 @@ namespace rtm
 				//use min(Cprim, Cinternal)
 				{
 					float cost_leaf = num_primitives <= p_max ? node.aabb.surface_area() * float(num_primitives) : INFINITY;
-					float cost_distribute = INFINITY;
-					char distribute_left = INVALID;
-					char distribute_right = INVALID;
+					float cost_distribute  = INFINITY;
+					char  distribute_left  = INVALID;
+					char  distribute_right = INVALID;
 
 					//Pick min from permutation of costs from left and right subtree
 					for (int k = 0; k < max_forst_sz; k++)
@@ -375,7 +350,7 @@ namespace rtm
 				count_primitives(bvh2node.data.fst_chld_ind, bvh2) +
 				count_primitives(bvh2node.data.fst_chld_ind + 1, bvh2);
 		}
-
+		//Get potential child nodes based on decision tree
 		void get_children(int node_index, const rtm::BVH& bvh2, int children[n_ary_sz], int& child_count, int i)
 		{
 			const rtm::BVH::Node& bvh2node = bvh2.nodes[node_index];
@@ -412,9 +387,7 @@ namespace rtm
 				children[child_count++] = bvh2node.data.fst_chld_ind + 1;
 			}
 		}
-
-		//MAP n_ary_nodes to each interior node for wide bvh.
-		//Each internal node has a distributed forest associated with it
+		/*
 		void collapse(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
 		{
 
@@ -537,7 +510,9 @@ namespace rtm
 				}
 			}
 		}
-		void collapseUncompressed(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
+		*/
+		//generate a n-ary-sz branch factor wide bvh from a bvh2
+		void collapseUncompressedWideBVH(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
 		{
 			WideBVHNodeUncompressed& bvh8Node = uncompressedNodes[node_index_wbvh];
 			const BVH::Node& bvh2Node = bvh2.nodes[node_index_bvh2];
@@ -608,11 +583,12 @@ namespace rtm
 				if (child_index == INVALID) continue;
 				if (uncompressedNodes[node_index_wbvh].nodeArray[index++].data.is_leaf == 0)
 				{
-					collapseUncompressed(bvh2, uncompressedNodes[node_index_wbvh].base_index_child + offset++, child_index);
+					collapseUncompressedWideBVH(bvh2, uncompressedNodes[node_index_wbvh].base_index_child + offset++, child_index);
 				}
 			}
 		}
-		void collapseFromUncompressedWideBVH(uint32_t node_index_cwbvh, uint32_t node_index_wbvh)
+		//compress the wide bvh to nbvh
+		void compressWideBVH(uint32_t node_index_cwbvh, uint32_t node_index_wbvh)
 		{
 			WideBVHNode& cwnode = nodes.at(node_index_cwbvh);
 			WideBVHNodeUncompressed& wnode = uncompressedNodes.at(node_index_wbvh);
@@ -703,7 +679,7 @@ namespace rtm
 			{
 				if (!wnode.nodeArray[i].data.is_leaf)
 				{
-					collapseFromUncompressedWideBVH(nodes.at(node_index_cwbvh).base_index_child + offset, wide_base_index_child + offset);
+					compressWideBVH(nodes.at(node_index_cwbvh).base_index_child + offset, wide_base_index_child + offset);
 					offset++;
 				}
 			}

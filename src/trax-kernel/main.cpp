@@ -57,7 +57,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 				rtm::Ray ray; rtm::Hit hit; rtm::vec3 normal;
 
 				if (args.samples_per_pixel > 1)  ray = args.camera.generate_ray_through_pixel(x, y, &rng);
-				else                            ray = args.camera.generate_ray_through_pixel(x, y);
+				else                             ray = args.camera.generate_ray_through_pixel(x, y);
 
 				rtm::vec3 attenuation(1.0f);
 				for (uint j = 0; j < args.max_depth; ++j)
@@ -75,9 +75,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 					_traceray<0x0u>(index, ray, hit);
 				#else
 					#if defined(WIDE_BVH_COMPRESSED)
-						intersect(args.nodes, args.indices, args.tris, ray, hit);
-					#elif defined(WIDE_BVH)
-						intersect(args.nodes, args.tris, ray, hit);
+						intersect(args.nodes,args.tris, ray, hit);
 					#else
 						intersect(args.nodes, args.tris, ray, hit);
 					#endif
@@ -103,9 +101,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 							_traceray<0x1u>(index, sray, shit);
 						#else
 							#if defined(WIDE_BVH_COMPRESSED)
-								intersect(args.nodes, args.indices, args.tris, sray, shit);
-							#elif defined(WIDE_BVH)
-								intersect(args.nodes, args.tris, sray, shit);
+								intersect(args.nodes,args.tris, sray, shit);
 							#else		
 								intersect(args.nodes, args.tris, sray, shit);
 							#endif
@@ -115,8 +111,6 @@ inline static void kernel(const TRaXKernelArgs& args)
 								ndotl = 0.0f;
 						}
 						output += attenuation * ndotl * 0.8f * rtm::vec3(1.0f, 0.9f, 0.8f);
-						
-
 						output += rtm::vec3(hit.id, hit.id, hit.id);
 					}
 					else
@@ -126,10 +120,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 				}
 				break;
 			}
-
 			args.framebuffer[index] = encode_pixel(output * (1.0f / args.samples_per_pixel));
 		}
-
 		printf("\n");
 	}
 
@@ -184,14 +176,17 @@ int main(int argc, char* argv[])
 	args.max_depth = 1;
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
+	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 
 	args.use_secondary_rays = false;
 	uint framebuffer_size = args.framebuffer_size;
 	std::vector<rtm::Ray> secondary_rays(framebuffer_size);
 	std::vector<rtm::Hit> primary_hits(framebuffer_size);
 	rtm::Mesh mesh("../../datasets/sponza.obj");
+//	rtm::Mesh mesh("../../datasets/san-miguel.obj");
+
 	rtm::BVH bvh;
 	rtm::WideBVH wbvh;
 
@@ -203,11 +198,8 @@ int main(int argc, char* argv[])
 	bvh.build(build_objects);
 	mesh.reorder(build_objects);
 
-#if defined (WIDE_BVH)
-	wbvh.buildUncompressed(bvh);
-#elif defined(WIDE_BVH_COMPRESSED)
-	//wbvh.build(bvh);
-	wbvh.buildFromWide(bvh);
+#if defined(WIDE_BVH_COMPRESSED)
+	wbvh.buildWideCompressedBVH(bvh);
 #endif
 
 	mesh.reorder(wbvh.indices);
@@ -247,10 +239,8 @@ int main(int argc, char* argv[])
 			primary_hit.t = ray.t_max;
 			primary_hit.id = ~0u;
 
-			#if defined WIDE_BVH
-				intersect(args.nodes,args.tris, ray, primary_hit);
-			#elif defined WIDE_BVH_COMPRESSED
-				intersect(args.nodes, args.indices, args.tris, ray, primary_hit);
+			#if defined WIDE_BVH_COMPRESSED
+				intersect(args.nodes, args.tris, ray, primary_hit);
 			#else
 				intersect(args.nodes, args.tris, ray, primary_hit);
 			#endif

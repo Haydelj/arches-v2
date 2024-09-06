@@ -239,8 +239,7 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 	return found_hit;
 }
 
-
-inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const int* indices, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
