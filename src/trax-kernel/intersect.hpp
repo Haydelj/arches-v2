@@ -197,6 +197,7 @@ inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* t
 			uint child_index = current_entry.data.child_index;
 			float t0 = _intersect(nodes[child_index].aabb[0], ray, inv_d);
 			float t1 = _intersect(nodes[child_index].aabb[1], ray, inv_d);
+
 			if(t0 < hit.t || t1 < hit.t)
 			{
 				if(t0 < t1)

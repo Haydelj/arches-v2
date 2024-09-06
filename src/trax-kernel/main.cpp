@@ -29,16 +29,11 @@ inline static void kernel(const TRaXKernelArgs& args)
 	#if defined(__riscv) &&  defined(USE_RT_CORE)
 		_traceray<0x0u>(index, ray, hit);
 	#else
-#if defined(WIDE_COMPRESSED_BVH)
-		intersect(args.cwnodes, args.tris, ray, hit);
-#else
 		intersect(args.nodes, args.tris, ray, hit);
-
-#endif	
 	#endif
 		if(hit.id != ~0u)
 		{
-			args.framebuffer[index] = encode_pixel(rtm::vec3(1.0f, 0.0f, 0.0f));// rtm::RNG::hash(hit.id) | 0xff000000;
+			args.framebuffer[index] =  rtm::RNG::hash(hit.id) | 0xff000000;
 		}
 		else
 		{
@@ -83,24 +78,29 @@ int main(int argc, char* argv[])
 	rtm::BVH2 bvh;
 	bvh.build(build_objects);
 	mesh.reorder(build_objects);
-	 
-#if defined(WIDE_COMPRESSED_BVH)
-	rtm::WideBVH cwbvh;
-	cwbvh.buildWideCompressedBVH(bvh);
-	mesh.reorder(cwbvh.indices);
-	args.cwnodes = cwbvh.getNodes();
-#endif
-
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
+
+
+#if defined(WIDE_COMPRESSED_BVH)
+
+	rtm::WideBVH cwbvh;
+	cwbvh.buildWideCompressedBVH(bvh);
+	mesh.reorder(cwbvh.indices);
+	args.nodes = cwbvh.getNodes();
+#else
 
 	rtm::PackedBVH2 packed_bvh(bvh);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh, mesh);
 
 	args.nodes = packed_bvh.nodes.data();
-	args.tris = tris.data();
+	
 	args.treelets = treelet_bvh.treelets.data();
+
+#endif
+
+	args.tris = tris.data();
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
