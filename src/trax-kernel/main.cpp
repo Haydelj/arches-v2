@@ -29,11 +29,22 @@ inline static void kernel(const TRaXKernelArgs& args)
 	#if defined(__riscv) &&  defined(USE_RT_CORE)
 		_traceray<0x0u>(index, ray, hit);
 	#else
+#if defined(WIDE_COMPRESSED_BVH)
+		intersect(args.cwnodes, args.tris, ray, hit);
+#else
 		intersect(args.nodes, args.tris, ray, hit);
+
+#endif	
 	#endif
 		if(hit.id != ~0u)
 		{
+#if defined (SHADE_NORMALS)
+			
 			args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
+
+#else
+			args.framebuffer[index] = rtm::RNG::hash(hit.id) | 0xff000000;
+#endif
 		}
 		else
 		{
@@ -78,7 +89,13 @@ int main(int argc, char* argv[])
 	rtm::BVH2 bvh;
 	bvh.build(build_objects);
 	mesh.reorder(build_objects);
-
+	 
+#if defined(WIDE_COMPRESSED_BVH)
+	rtm::WideBVH cwbvh;
+	cwbvh.buildWideCompressedBVH(bvh);
+	mesh.reorder(cwbvh.indices);
+	args.cwnodes = cwbvh.getNodes();
+#endif
 
 
 	std::vector<rtm::Triangle> tris;

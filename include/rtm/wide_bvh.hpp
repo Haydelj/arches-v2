@@ -28,12 +28,13 @@ namespace rtm
 	/// class to build n-ary wide-bvh using bvh2
 	/// Phase 1 : Cost computation in bottom up fashion
 	/// Phase 2 : Collapse BVH2 to BVH8
+	/// Phase 3 : Compress BVH8
 	/// </summary>
 	class WideBVH
 	{
 	public:
-		WideBVH::WideBVH() = default;
-		WideBVH::~WideBVH() = default;
+		WideBVH() = default;
+		~WideBVH() = default;
 
 	private:
 
@@ -57,7 +58,7 @@ namespace rtm
 		{
 			bool is_leaf;
 			uint32_t nodeIndex;
-			rtm::AABB aabb;
+			AABB aabb;
 			int triIndices[p_max];
 
 			DecompressedNodeData() : is_leaf(false), nodeIndex(0), aabb(), triIndices{ INVALID,INVALID,INVALID } {}
@@ -77,7 +78,7 @@ namespace rtm
 
 		struct WideBVHNode
 		{
-			rtm::vec3 p;						//anchor point 
+			vec3 p;						//anchor point 
 			uint8_t  e[3];						//exponent power of 2 for local grid scale
 			uint8_t  imask;						//internal node flag
 			uint32_t base_index_child;			//base offset in streamlined child node array
@@ -106,7 +107,7 @@ namespace rtm
 
 			~WideBVHNode() = default;
 
-			void decompress(rtm::BVH::Node* dnodes, int& childCount) const
+			void decompress(BVH2::Node* dnodes, int& childCount) const
 			{
 				childCount = 0;
 				int num_internal_nodes = 0;
@@ -168,14 +169,14 @@ namespace rtm
 
 		struct WideBVHNodeUncompressed
 		{
-			rtm::BVH::Node nodeArray[n_ary_sz];
+			BVH2::Node nodeArray[n_ary_sz];
 			uint32_t base_index_child;
 			uint32_t base_tri_index;
 			uint32_t childCount;
-			rtm::AABB aabb;
+			AABB aabb;
 		};
 
-		void buildWideCompressedBVH(const rtm::BVH& bvh2)
+		void buildWideCompressedBVH(const BVH2& bvh2)
 		{
 			buildWideBVHfromBVH2(bvh2);
 			
@@ -183,7 +184,7 @@ namespace rtm
 			compressWideBVH(0,0);
 		}
 
-		void buildWideBVHfromBVH2(const rtm::BVH& bvh2)
+		void buildWideBVHfromBVH2(const BVH2& bvh2)
 		{
 			decisions.resize(bvh2.nodes.size() * max_forst_sz);
 			uncompressedNodes.emplace_back();
@@ -212,10 +213,10 @@ namespace rtm
 		std::vector<WideBVHNode> nodes;  // Linearized nodes buffer for wide bvh
 		std::vector<WideBVHNodeUncompressed> uncompressedNodes; //intermediate node representation for wide bvh
 
-		int calculate_cost(int node_index, float root_surface_area, const rtm::BVH& bvh2)
+		int calculate_cost(int node_index, float root_surface_area, const BVH2& bvh2)
 		{
 			///starts with root node for SBVH 
-			const rtm::BVH::Node& node = bvh2.nodes[node_index];
+			const BVH2::Node& node = bvh2.nodes[node_index];
 			int num_primitives = 0;
 
 			if (node.data.is_leaf)
@@ -329,9 +330,9 @@ namespace rtm
 
 
 		//Recursive count of triangles in a subtree
-		int count_primitives(int node_index, const rtm::BVH& bvh2)
+		int count_primitives(int node_index, const BVH2& bvh2)
 		{
-			const rtm::BVH::Node bvh2node = bvh2.nodes[node_index];
+			const BVH2::Node bvh2node = bvh2.nodes[node_index];
 
 			if (bvh2node.data.is_leaf)
 			{
@@ -351,9 +352,9 @@ namespace rtm
 				count_primitives(bvh2node.data.fst_chld_ind + 1, bvh2);
 		}
 		//Get potential child nodes based on decision tree
-		void get_children(int node_index, const rtm::BVH& bvh2, int children[n_ary_sz], int& child_count, int i)
+		void get_children(int node_index, const BVH2& bvh2, int children[n_ary_sz], int& child_count, int i)
 		{
-			const rtm::BVH::Node& bvh2node = bvh2.nodes[node_index];
+			const BVH2::Node& bvh2node = bvh2.nodes[node_index];
 
 			if (bvh2node.data.is_leaf)
 			{
@@ -388,22 +389,22 @@ namespace rtm
 			}
 		}
 		/*
-		void collapse(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
+		void collapse(const BVH2& bvh2, int node_index_wbvh, int node_index_bvh2)
 		{
 
 			WideBVHNode& node = nodes.at(node_index_wbvh);
-			const rtm::AABB aabb = bvh2.nodes.at(node_index_bvh2).aabb;
+			const AABB aabb = bvh2.nodes.at(node_index_bvh2).aabb;
 
 			node.p = aabb.min;
 			constexpr int Nq = 8;		  // 8 Bits Per Plane
 			constexpr float denom = 1.0f / float((1 << Nq) - 1);
 
-			rtm::vec3 e(
+			vec3 e(
 				exp2f(ceilf(log2f((aabb.max.x - aabb.min.x) * denom))),
 				exp2f(ceilf(log2f((aabb.max.y - aabb.min.y) * denom))),
 				exp2f(ceilf(log2f((aabb.max.z - aabb.min.z) * denom))));
 
-			rtm::vec3 one_over_e = (1.0f / e.x, 1.0f / e.y, 1.0f / e.z);
+			vec3 one_over_e = (1.0f / e.x, 1.0f / e.y, 1.0f / e.z);
 
 			uint32_t u_ex = {};
 			uint32_t u_ey = {};
@@ -512,10 +513,10 @@ namespace rtm
 		}
 		*/
 		//generate a n-ary-sz branch factor wide bvh from a bvh2
-		void collapseUncompressedWideBVH(const rtm::BVH& bvh2, int node_index_wbvh, int node_index_bvh2)
+		void collapseUncompressedWideBVH(const BVH2& bvh2, int node_index_wbvh, int node_index_bvh2)
 		{
 			WideBVHNodeUncompressed& bvh8Node = uncompressedNodes[node_index_wbvh];
-			const BVH::Node& bvh2Node = bvh2.nodes[node_index_bvh2];
+			const BVH2::Node& bvh2Node = bvh2.nodes[node_index_bvh2];
 
 			bvh8Node.aabb = bvh2Node.aabb;
 
@@ -592,20 +593,20 @@ namespace rtm
 		{
 			WideBVHNode& cwnode = nodes.at(node_index_cwbvh);
 			WideBVHNodeUncompressed& wnode = uncompressedNodes.at(node_index_wbvh);
-
-			const rtm::AABB aabb = wnode.aabb;
+			 
+			const AABB aabb = wnode.aabb;
 
 			cwnode.p = aabb.min;
 			constexpr int Nq = 8;
 			constexpr float denom = 1.0f / float((1 << Nq) - 1);
 
-			rtm::vec3 e(
+			vec3 e(
 				exp2f(ceilf(log2f((aabb.max.x - aabb.min.x) * denom))),
 				exp2f(ceilf(log2f((aabb.max.y - aabb.min.y) * denom))),
 				exp2f(ceilf(log2f((aabb.max.z - aabb.min.z) * denom)))
 			);
 
-			rtm::vec3 one_over_e = rtm::vec3(1.0f / e.x, 1.0f / e.y, 1.0f / e.z);
+			vec3 one_over_e = vec3(1.0f / e.x, 1.0f / e.y, 1.0f / e.z);
 
 			uint32_t u_ex = {};
 			uint32_t u_ey = {};
@@ -637,7 +638,7 @@ namespace rtm
 			for (int i = 0; i < wnode.childCount; i++)
 			{
 				
-				rtm::BVH::Node childNode = wnode.nodeArray[i];
+				BVH2::Node childNode = wnode.nodeArray[i];
 
 				cwnode.q_min_x[i] = uint8_t(floorf((childNode.aabb.min.x - cwnode.p.x) * one_over_e.x));
 				cwnode.q_min_y[i] = uint8_t(floorf((childNode.aabb.min.y - cwnode.p.y) * one_over_e.y));

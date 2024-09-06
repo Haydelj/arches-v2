@@ -288,6 +288,24 @@ public:
 		}
 	}
 
+
+	void reorder(std::vector<int>& indices)
+	{
+		assert(indices.size() == vertex_indices.size());
+		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);
+		std::vector<rtm::uvec3> tmp_nrml_inds(normal_indices);
+		std::vector<rtm::uvec3> tmp_txcd_inds(tex_coord_indices);
+		std::vector<uint>       tmp_mat_inds(material_indices);
+
+		for (uint32_t i = 0; i < indices.size(); ++i)
+		{
+			vertex_indices[i] = tmp_vrt_inds[indices[i]];
+			normal_indices[i] = tmp_nrml_inds[indices[i]];
+			tex_coord_indices[i] = tmp_txcd_inds[indices[i]];
+			material_indices[i] = tmp_mat_inds[indices[i]];
+		}
+	}
+
 	Triangle get_triangle(uint32_t index) const
 	{
 		return {vertices[vertex_indices[index][0]], vertices[vertex_indices[index][1]], vertices[vertex_indices[index][2]]};

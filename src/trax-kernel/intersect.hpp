@@ -328,6 +328,141 @@ bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 	return is_hit;
 }
 
+inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::BVH2::Node::Data data;
+	};
+
+	NodeStackEntry node_stack[T_STACK_SZ];
+	uint32_t node_stack_size = 1u;
+
+	//Decompress and insert nodes
+	node_stack[0].t = ray.t_min;
+	node_stack[0].data.is_leaf = false;
+	node_stack[0].data.fst_chld_ind = 0;
+	bool found_hit = false;
+
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if (current_entry.t >= hit.t) continue;
+		if (!current_entry.data.is_leaf)
+		{
+			rtm::BVH2::Node dnodes[n_ary_sz];
+			int childCount;
+
+			nodes[current_entry.data.fst_chld_ind].decompress(dnodes, childCount);
+
+			for (int i = 0; i < childCount; i++)
+			{
+
+				float t = _intersect(dnodes[i].aabb, ray, inv_d);
+				if (t < hit.t)
+				{
+					node_stack[node_stack_size].t = t;
+					node_stack[node_stack_size].data.fst_chld_ind = dnodes[i].data.fst_chld_ind;
+					node_stack[node_stack_size].data.lst_chld_ofst = dnodes[i].data.lst_chld_ofst;
+					node_stack[node_stack_size++].data.is_leaf = dnodes[i].data.is_leaf;
+				}
+			}
+		}
+		else
+		{
+			for (uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; i++)
+			{
+				uint32_t triID = current_entry.data.fst_chld_ind + i;
+
+				if (_intersect(tris[triID], ray, hit))
+				{
+					hit.id = triID;
+					if (first_hit)	return true;
+					else			found_hit = true;
+				}
+			}
+		}
+	} while (node_stack_size);
+	return found_hit;
+}
+
+inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
+	const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::BVH2::Node::Data data;
+		int node_index;
+		int child_count;
+	};
+
+	NodeStackEntry node_stack[T_STACK_SZ];
+	uint32_t node_stack_size = 1u;
+
+	//Decompress and insert nodes
+	node_stack[0].t = ray.t_min;
+	node_stack[0].data.is_leaf = false;
+	node_stack[0].node_index = 0;
+	node_stack[0].child_count = n_ary_sz;
+
+	bool found_hit = false;
+
+
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if (current_entry.t >= hit.t) continue;		//if node out of ray interval, skip and continue 
+
+		if (!current_entry.data.is_leaf)
+		{
+			rtm::WideBVH::WideBVHNodeUncompressed current_node8 = bvh8[current_entry.node_index];
+
+			for (int i = 0; i < current_entry.child_count; i++)
+			{
+				rtm::BVH2::Node childNode = current_node8.nodeArray[i];
+				float t = _intersect(childNode.aabb, ray, inv_d);		//intersects children
+				if (t < hit.t)											//If valid interval distance then push onto traversal stack
+				{
+
+					node_stack[node_stack_size].t = t;
+					node_stack[node_stack_size].node_index = current_node8.base_index_child + childNode.data.fst_chld_ind; //hack to store child nodes index in global node array
+
+					if (!childNode.data.is_leaf)
+					{
+						node_stack[node_stack_size].child_count = bvh8[node_stack[node_stack_size].node_index].childCount;
+					}
+					node_stack[node_stack_size++].data = childNode.data;
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i <= current_entry.data.lst_chld_ofst; i++)
+			{
+				uint32_t triID = current_entry.data.fst_chld_ind + i;
+				if (_intersect(tris[triID], ray, hit))
+				{
+
+					hit.id = triID;
+
+					if (first_hit)	return true;
+					else			found_hit = true;
+
+				}
+			}
+		}
+	} while (node_stack_size);
+
+	return found_hit;
+}
+
+
 #ifndef __riscv 
 inline void pregen_rays(const TRaXKernelArgs& args, uint bounce, std::vector<rtm::Ray>& rays)
 {

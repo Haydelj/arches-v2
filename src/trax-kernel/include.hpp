@@ -17,7 +17,8 @@ struct TRaXKernelArgs
 
 	rtm::Camera camera;
 	rtm::vec3 light_dir;
-
+	
+	rtm::WideBVH::WideBVHNode* cwnodes;
 	rtm::PackedBVH2::Node* nodes;
 	rtm::Triangle* tris;
 	rtm::PackedTreelet* treelets;
