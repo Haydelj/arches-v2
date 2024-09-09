@@ -390,6 +390,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangl
 	return found_hit;
 }
 
+#ifndef __riscv
 inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
 	const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
@@ -463,6 +464,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
 	return found_hit;
 }
 
+#endif
 
 #ifndef __riscv 
 inline void pregen_rays(const TRaXKernelArgs& args, uint bounce, std::vector<rtm::Ray>& rays)

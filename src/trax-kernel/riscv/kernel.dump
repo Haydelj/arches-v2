@@ -7,7 +7,7 @@ start address 0x00000000000100b0
 
 Program Header:
 0x70000003 off    0x000000000000129b vaddr 0x0000000000000000 paddr 0x0000000000000000 align 2**0
-         filesz 0x000000000000003d memsz 0x0000000000000000 flags r--
+         filesz 0x0000000000000050 memsz 0x0000000000000000 flags r--
     LOAD off    0x0000000000000000 vaddr 0x0000000000010000 paddr 0x0000000000010000 align 2**12
          filesz 0x0000000000001280 memsz 0x0000000000001280 flags r-x
 
@@ -21,7 +21,7 @@ Idx Name          Size      VMA               LMA               File off  Algn
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   3 .comment      0000001b  0000000000000000  0000000000000000  00001280  2**0
                   CONTENTS, READONLY
-  4 .riscv.attributes 0000003d  0000000000000000  0000000000000000  0000129b  2**0
+  4 .riscv.attributes 00000050  0000000000000000  0000000000000000  0000129b  2**0
                   CONTENTS, READONLY
 SYMBOL TABLE:
 00000000000100b0 l    d  .text	0000000000000000 .text
@@ -61,10 +61,10 @@ Disassembly of section .text:
    100e8:	fff00813          	li	a6,-1
    100ec:	ff000337          	lui	t1,0xff000
    100f0:	ff000537          	lui	a0,0xff000
-   100f4:	02079713          	sll	a4,a5,0x20
-   100f8:	02075713          	srl	a4,a4,0x20
+   100f4:	02079713          	slli	a4,a5,0x20
+   100f8:	02075713          	srli	a4,a4,0x20
    100fc:	10002603          	lw	a2,256(zero) # 100 <main-0xffb0>
-   10100:	00571693          	sll	a3,a4,0x5
+   10100:	00571693          	slli	a3,a4,0x5
    10104:	0a088c63          	beqz	a7,101bc <main+0x10c>
    10108:	18003783          	ld	a5,384(zero) # 180 <main-0xff30>
    1010c:	00d787b3          	add	a5,a5,a3
@@ -78,18 +78,18 @@ Disassembly of section .text:
    1012c:	01c7a387          	flw	ft7,28(a5)
    10130:	00005e0b          	traceray	ft8,ft0,0
    10134:	e00f87d3          	fmv.x.w	a5,ft11
-   10138:	00271713          	sll	a4,a4,0x2
+   10138:	00271713          	slli	a4,a4,0x2
    1013c:	00e58e33          	add	t3,a1,a4
    10140:	0007879b          	sext.w	a5,a5
-   10144:	00a7969b          	sllw	a3,a5,0xa
+   10144:	00a7969b          	slliw	a3,a5,0xa
    10148:	00f686bb          	addw	a3,a3,a5
-   1014c:	0066d61b          	srlw	a2,a3,0x6
+   1014c:	0066d61b          	srliw	a2,a3,0x6
    10150:	00d64633          	xor	a2,a2,a3
-   10154:	0036169b          	sllw	a3,a2,0x3
+   10154:	0036169b          	slliw	a3,a2,0x3
    10158:	00c686bb          	addw	a3,a3,a2
-   1015c:	00b6d61b          	srlw	a2,a3,0xb
+   1015c:	00b6d61b          	srliw	a2,a3,0xb
    10160:	00d64633          	xor	a2,a2,a3
-   10164:	00f6169b          	sllw	a3,a2,0xf
+   10164:	00f6169b          	slliw	a3,a2,0xf
    10168:	00c686bb          	addw	a3,a3,a2
    1016c:	00a6e6b3          	or	a3,a3,a0
    10170:	03078063          	beq	a5,a6,10190 <main+0xe0>
@@ -106,10 +106,10 @@ Disassembly of section .text:
    1019c:	10802703          	lw	a4,264(zero) # 108 <main-0xffa8>
    101a0:	0007879b          	sext.w	a5,a5
    101a4:	fee7f2e3          	bgeu	a5,a4,10188 <main+0xd8>
-   101a8:	02079713          	sll	a4,a5,0x20
-   101ac:	02075713          	srl	a4,a4,0x20
+   101a8:	02079713          	slli	a4,a5,0x20
+   101ac:	02075713          	srli	a4,a4,0x20
    101b0:	10002603          	lw	a2,256(zero) # 100 <main-0xffb0>
-   101b4:	00571693          	sll	a3,a4,0x5
+   101b4:	00571693          	slli	a3,a4,0x5
    101b8:	f40898e3          	bnez	a7,10108 <main+0x58>
    101bc:	02c7d6bb          	divuw	a3,a5,a2
    101c0:	12402507          	flw	fa0,292(zero) # 124 <main-0xff8c>

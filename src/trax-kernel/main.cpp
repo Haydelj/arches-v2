@@ -79,9 +79,7 @@ int main(int argc, char* argv[])
 	bvh.build(build_objects);
 	mesh.reorder(build_objects);
 
-	std::vector<rtm::Triangle> tris;
-	mesh.get_triangles(tris);
-
+	
 
 #if defined(WIDE_COMPRESSED_BVH)
 
@@ -99,6 +97,10 @@ int main(int argc, char* argv[])
 	args.treelets = treelet_bvh.treelets.data();
 
 #endif
+
+
+	std::vector<rtm::Triangle> tris;
+	mesh.get_triangles(tris);
 
 	args.tris = tris.data();
 

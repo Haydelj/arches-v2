@@ -21,7 +21,7 @@ namespace rtm
 #define n_ary_sz 8 //branching factor
 #define max_forst_sz (n_ary_sz-1) //max forest size
 #define p_max 3 // max allowed leaf node size for wide BVH
-#define INVALID _FINITE
+#define INVALID_NODE -1
 
 
 	/// <summary>
@@ -36,8 +36,6 @@ namespace rtm
 		WideBVH() = default;
 		~WideBVH() = default;
 
-	private:
-
 		struct Decision
 		{
 			enum struct Type : char {
@@ -51,9 +49,6 @@ namespace rtm
 			float cost;
 		};
 
-
-	public:
-
 		struct DecompressedNodeData
 		{
 			bool is_leaf;
@@ -61,7 +56,7 @@ namespace rtm
 			AABB aabb;
 			int triIndices[p_max];
 
-			DecompressedNodeData() : is_leaf(false), nodeIndex(0), aabb(), triIndices{ INVALID,INVALID,INVALID } {}
+			DecompressedNodeData() : is_leaf(false), nodeIndex(0), aabb(), triIndices{ INVALID_NODE,INVALID_NODE,INVALID_NODE} {}
 			~DecompressedNodeData() {}
 
 			DecompressedNodeData& operator=(const DecompressedNodeData& rhs) {
@@ -105,6 +100,7 @@ namespace rtm
 				}
 			};
 
+
 			~WideBVHNode() = default;
 
 			void decompress(BVH2::Node* dnodes, int& childCount) const
@@ -133,9 +129,13 @@ namespace rtm
 							e1 = uint32_t(e[1]) << 23;
 							e2 = uint32_t(e[2]) << 23;
 
-							memcpy(&e0_f, &e0, sizeof(uint32_t));
+                            e0_f = *reinterpret_cast<float*>(&e0);
+                            e1_f = *reinterpret_cast<float*>(&e1);
+                            e2_f = *reinterpret_cast<float*>(&e2);
+                            
+							/*memcpy(&e0_f, &e0, sizeof(uint32_t));
 							memcpy(&e1_f, &e1, sizeof(uint32_t));
-							memcpy(&e2_f, &e2, sizeof(uint32_t));
+							memcpy(&e2_f, &e2, sizeof(uint32_t));*/
 
 							dnodes[index].aabb.min.x = p.x + e0_f * float(q_min_x[i]);
 							dnodes[index].aabb.min.y = p.y + e1_f * float(q_min_y[i]);
@@ -165,7 +165,11 @@ namespace rtm
 				}
 				childCount = index; //store the activated index positions which represent the count of children
 			}
+
 		};
+
+#ifndef __riscv
+
 
 		struct WideBVHNodeUncompressed
 		{
@@ -175,6 +179,7 @@ namespace rtm
 			uint32_t childCount;
 			AABB aabb;
 		};
+
 
 		void buildWideCompressedBVH(const BVH2& bvh2)
 		{
@@ -249,8 +254,8 @@ namespace rtm
 				{
 					float cost_leaf = num_primitives <= p_max ? node.aabb.surface_area() * float(num_primitives) : INFINITY;
 					float cost_distribute  = INFINITY;
-					char  distribute_left  = INVALID;
-					char  distribute_right = INVALID;
+					char  distribute_left  = INVALID_NODE;
+					char  distribute_right = INVALID_NODE;
 
 					//Pick min from permutation of costs from left and right subtree
 					for (int k = 0; k < max_forst_sz; k++)
@@ -294,8 +299,8 @@ namespace rtm
 					{
 						//propagate cheapest option
 						float cost_distribute = decisions[node_index * max_forst_sz + (i - 1)].cost;
-						char distribute_left = INVALID;
-						char distribute_right = INVALID;
+						char distribute_left = INVALID_NODE;
+						char distribute_right = INVALID_NODE;
 
 						for (int k = 0; k < i; k++)
 						{
@@ -312,7 +317,7 @@ namespace rtm
 
 						decisions[node_index * max_forst_sz + i].cost = cost_distribute;
 
-						if (distribute_left != INVALID)
+						if (distribute_left != INVALID_NODE)
 						{
 							decisions[node_index * max_forst_sz + i].type = Decision::Type::DISTRIBUTE;
 							decisions[node_index * max_forst_sz + i].distribute_left = distribute_left;
@@ -327,7 +332,6 @@ namespace rtm
 			}
 			return num_primitives;
 		}
-
 
 		//Recursive count of triangles in a subtree
 		int count_primitives(int node_index, const BVH2& bvh2)
@@ -426,7 +430,7 @@ namespace rtm
 
 			int child_count = 0;
 			int children[n_ary_sz];
-			for (int i = 0; i < n_ary_sz; i++) { children[i] = INVALID; }
+			for (int i = 0; i < n_ary_sz; i++) { children[i] = INVALID_NODE; }
 
 			//Get child nodes for this node based on the decision array costs
 			get_children(node_index_bvh2, bvh2, children, child_count, 0);
@@ -444,7 +448,7 @@ namespace rtm
 			for (uint32_t i = 0; i < n_ary_sz; i++)
 			{
 				int child_index = children[i];
-				if (child_index == INVALID) continue;
+				if (child_index == INVALID_NODE) continue;
 				const AABB& child_aabb = bvh2.nodes[child_index].aabb;
 
 				//Store the compressed child node
@@ -504,7 +508,7 @@ namespace rtm
 			for (int i = 0; i < n_ary_sz; i++)
 			{
 				int child_index = children[i];
-				if (child_index == INVALID) continue;
+				if (child_index == INVALID_NODE) continue;
 				if (nodes.at(node_index_wbvh).imask & (1u << i))
 				{
 					collapse(bvh2, nodes.at(node_index_wbvh).base_index_child + offset++, child_index);
@@ -525,7 +529,7 @@ namespace rtm
 
 			int child_count = 0;
 			int children[n_ary_sz];
-			for (int i = 0; i < n_ary_sz; i++) { children[i] = INVALID; }
+			for (int i = 0; i < n_ary_sz; i++) { children[i] = INVALID_NODE; }
 
 			//Get child nodes for this node based on the decision array costs
 			get_children(node_index_bvh2, bvh2, children, child_count, 0);
@@ -541,7 +545,7 @@ namespace rtm
 				int num_triangles = 0;
 				int first_child_index = 0;
 				int child_index = children[i];
-				if (child_index == INVALID) continue;
+				if (child_index == INVALID_NODE) continue;
 				switch (decisions[child_index * max_forst_sz].type)
 				{
 					//Caution: This wide bvh leaf node might have more than 1 leaf node
@@ -581,7 +585,7 @@ namespace rtm
 			for (int i = 0; i < n_ary_sz; i++)
 			{
 				int child_index = children[i];
-				if (child_index == INVALID) continue;
+				if (child_index == INVALID_NODE) continue;
 				if (uncompressedNodes[node_index_wbvh].nodeArray[index++].data.is_leaf == 0)
 				{
 					collapseUncompressedWideBVH(bvh2, uncompressedNodes[node_index_wbvh].base_index_child + offset++, child_index);
@@ -685,5 +689,10 @@ namespace rtm
 				}
 			}
 		}
-		};
+
+#endif
+
+
+	};
+
 }
