@@ -293,7 +293,7 @@ void UnitStreamScheduler::_update_scheduler()
 			paddr_t bucket_adddress = state.bucket_address_queue.front();
 			state.bucket_address_queue.pop();
 
-			uint channel_index = calcDramAddr(bucket_adddress).channel;
+			uint channel_index = _scheduler.memory_managers[0].get_channel(bucket_adddress);
 			MemoryManager& memory_manager = _scheduler.memory_managers[channel_index];
 			memory_manager.free_bucket(bucket_adddress);
 

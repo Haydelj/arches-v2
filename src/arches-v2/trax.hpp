@@ -134,7 +134,7 @@ typedef Units::UnitNonBlockingCache UnitL2Cache;
 
 #include "trax-kernel/include.hpp"
 #include "trax-kernel/intersect.hpp"
-static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config)
+static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
 	std::string scene_name = scene_names[global_config.scene_id];
 
@@ -160,7 +160,7 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 
 	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
+	//rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
@@ -184,14 +184,14 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 		pregen_rays(args, global_config.pregen_bounce, rays);
 	}
 
-	heap_address = align_to(DRAM_ROW_SIZE, heap_address);
+	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
-	args.treelets = write_vector(main_memory, DRAM_ROW_SIZE, treelet_bvh.treelets, heap_address);
+	//args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
 
 	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), KERNEL_ARGS_ADDRESS);
 	return args;
@@ -224,21 +224,29 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//DRAM
 	uint64_t mem_size = 1ull << 32; //4GB
-	Units::UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
-	Units::UnitDRAM dram(64, mem_size);
-	uint num_channels = dram.num_channels();
-	uint64_t row_size = dram.row_size();
-	uint64_t block_size = dram.block_size();
+
+#if 1
+	typedef Units::UnitDRAMRamulator UnitDRAM;
+	UnitDRAM dram(64, mem_size); dram.clear();
+#else
+	typedef Units::UnitDRAM UnitDRAM;
+	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
+	UnitDRAM dram(64, mem_size);
+#endif
+
+	uint num_channels = 8;// dram.num_channels();
+	uint64_t row_size = 8 * 1024; // dram.row_size();
+	uint64_t block_size = 64; // dram.block_size();
 
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
-	_assert(row_size == DRAM_ROW_SIZE);
+	//_assert(row_size == DRAM_ROW_SIZE);
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
 	l2_config.size = 32ull * 1024 * 1024; //32MB
 	l2_config.block_size = block_size;
-	l2_config.num_mshr = 64;
+	l2_config.num_mshr = 128;
 	l2_config.associativity = 8;
 	l2_config.latency = 10;
 	l2_config.cycle_time = 4;
@@ -255,7 +263,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	//L1d$
 	uint num_mshr = 256;
 	UnitL1Cache::Configuration l1d_config;
-	l1d_config.size = 128ull * 1024;
+	l1d_config.size = 128ull * 1024; //128KB
 	l1d_config.block_size = block_size;
 	l1d_config.associativity = 4;
 	l1d_config.latency = 1;
@@ -326,7 +334,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	ELF elf(current_folder_path + "../../trax-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
 
-	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config);
+	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size);
 
 	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
 	l2_config.mem_highers = {&dram};
@@ -373,7 +381,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	#ifdef USE_RT_CORE
 		Units::TRaX::UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 64;
+		rtc_config.max_rays = 128;
 		rtc_config.num_tp = num_tps_per_tm;
 		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
@@ -386,7 +394,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
 	#endif
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 32));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 64));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
@@ -447,7 +455,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		tp->set_entry_point(elf.elf_header->e_entry.u64);
 
 	//master logs
-	Units::UnitDRAM::Log dram_log;
+	UnitDRAM::Log dram_log;
 	UnitL2Cache::Log l2_log;
 	UnitL1Cache::Log l1d_log;
 	Units::UnitBlockingCache::Log l1i_log;
@@ -461,7 +469,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	{
 		float epsilon_ns = delta / (clock_rate / 1'000'000'000);
 
-		Units::UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
+		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
 		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
 		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
 
@@ -486,7 +494,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	tp_log.print_profile(dram._data_u8);
 
-	dram.print_usimm_stats(4, frame_cycles);
+	dram.print_stats(4, frame_cycles);
 	print_header("DRAM");
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);

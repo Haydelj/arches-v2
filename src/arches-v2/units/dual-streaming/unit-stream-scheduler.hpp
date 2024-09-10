@@ -2,7 +2,6 @@
 #include "stdafx.hpp"
 
 #include "units/unit-base.hpp"
-#include "units/unit-dram.hpp"
 #include "units/unit-buffer.hpp"
 
 #include "dual-streaming-kernel/include.hpp"
@@ -129,6 +128,11 @@ public:
 				_next_bucket_addr += (_num_channels - 1) * _row_size;
 
 			return bucket_address;
+		}
+
+		uint get_channel(paddr_t address) const
+		{
+			return (address / _row_size) % _num_channels;
 		}
 
 		void free_bucket(paddr_t bucket_address)

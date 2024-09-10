@@ -17,15 +17,19 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 
 inline static void kernel(const TRaXKernelArgs& args)
 {
+	constexpr uint TILE_X = 8;
+	constexpr uint TILE_Y = 8;
+	constexpr uint TILE_SIZE = TILE_X * TILE_Y;
+	
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
-		uint tile_id = index / 16;
-		uint32_t tile_x = tile_id % (args.framebuffer_width / 4);
-		uint32_t tile_y = tile_id / (args.framebuffer_width / 4);
+		uint tile_id = index / TILE_SIZE;
+		uint32_t tile_x = tile_id % (args.framebuffer_width / TILE_X);
+		uint32_t tile_y = tile_id / (args.framebuffer_width / TILE_X);
 
-		uint thread_id = index % 16;
-		uint32_t x = tile_x * 4 + thread_id % 4;
-		uint32_t y = tile_y * 4 + thread_id / 4;
+		uint thread_id = index % TILE_SIZE;
+		uint32_t x = tile_x * TILE_X + thread_id % TILE_X;
+		uint32_t y = tile_y * TILE_Y + thread_id / TILE_X;
 
 		uint fb_index = y * args.framebuffer_width + x;
 		rtm::RNG rng(fb_index);
@@ -50,6 +54,15 @@ inline static void kernel(const TRaXKernelArgs& args)
 		{
 			args.framebuffer[fb_index] = 0xff000000;
 		}
+	}
+}
+
+inline static void kernel3(const TRaXKernelArgs& args)
+{
+	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	{
+		rtm::Ray ray = args.rays[index];
+		args.framebuffer[index] = encode_pixel(ray.d * 0.5f + 0.5f);
 	}
 }
 
@@ -104,7 +117,7 @@ int main(int argc, char* argv[])
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.pregen_rays = false;
+	args.pregen_rays = true;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
@@ -137,8 +150,8 @@ int main(int argc, char* argv[])
 
 	std::vector<std::thread> threads;
 	uint thread_count = std::max(std::thread::hardware_concurrency() - 2u, 0u);
-	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel2, args);
-	kernel2(args);
+	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel3, args);
+	kernel3(args);
 	for (uint i = 0; i < thread_count; ++i) threads[i].join();
 
 	auto stop = std::chrono::high_resolution_clock::now();

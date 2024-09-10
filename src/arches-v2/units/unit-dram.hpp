@@ -66,7 +66,7 @@ public:
 	const MemoryReturn read_return(uint port_index) override;
 
 	bool usimm_busy();
-	void print_usimm_stats(uint32_t const word_size, cycles_t cycle_count);
+	void print_stats(uint32_t const word_size, cycles_t cycle_count);
 	float total_power();
 
 	virtual void UsimmNotifyEvent(cycles_t write_cycle, const arches_request_t& req);

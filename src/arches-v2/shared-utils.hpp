@@ -2,6 +2,7 @@
 #include "simulator/simulator.hpp"
 
 #include "units/unit-dram.hpp"
+#include "units/unit-dram-ramulator.hpp"
 #include "units/unit-blocking-cache.hpp"
 #include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-buffer.hpp"
@@ -93,18 +94,18 @@ public:
 	uint logging_interval = 32 * 1024;
 
 	//workload config
-	uint scene_id = 1;
+	uint scene_id = 2;
 	uint framebuffer_width = 1024;
 	uint framebuffer_height = 1024;
 	CameraConfig camera_config;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;
 	bool rays_on_chip = 0;
 	bool hits_on_chip = 1;
-	bool use_early = 1;
+	bool use_early = 0;
 	bool hit_delay = 0;
 	uint hit_buffer_size = 64 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
 	uint traversal_scheme = 1; // 0-BFS, 1-DFS

@@ -15,11 +15,9 @@ class ARCHESv2 : public IFrontEnd, public Implementation {
     void init() override { };
     void tick() override { };
 
-    bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, unsigned int return_id, std::function<void(Request&)> callback) override {
-      return m_memory_system->send({addr, req_type_id, source_id, return_id, callback});
-    }
-    bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, unsigned int return_id, unsigned int arches_channel, std::function<void(Request&)> callback) override {
-        return m_memory_system->send({ addr, req_type_id, source_id, return_id, arches_channel, callback });
+    bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, std::function<void(Request&)> callback) override
+    {
+        return m_memory_system->send({addr, req_type_id, source_id, callback});
     }
 
   private:

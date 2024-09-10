@@ -223,7 +223,7 @@ typedef Units::UnitNonBlockingCache UnitL2Cache;
 
 #include "dual-streaming-kernel/include.hpp"
 #include "dual-streaming-kernel/intersect.hpp"
-static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config)
+static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
 	std::string scene_name = scene_names[global_config.scene_id];
 
@@ -276,12 +276,12 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	for(auto& hit : hits)
 		hit.t = T_MAX;
 
-	heap_address = align_to(DRAM_ROW_SIZE, heap_address);
+	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
-	args.hit_records = write_vector(main_memory, DRAM_ROW_SIZE, hits, heap_address);
-	args.treelets = write_vector(main_memory, DRAM_ROW_SIZE, treelet_bvh.treelets, heap_address);
+	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
+	args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 
@@ -315,24 +315,32 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	uint64_t stack_size = 1ull << 10; //1KB
 
 	//DRAM
-	uint dram_ports_per_channel = 8;
+	uint dram_ports_per_channel = 16;
 	uint64_t mem_size =1ull << 32; //4GB
-	Units::UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
-	Units::UnitDRAM dram(dram_ports_per_channel * Units::UnitDRAM::num_channels(), mem_size);
-	uint num_channels = dram.num_channels();
-	uint64_t row_size = dram.row_size();
-	uint64_t block_size = dram.block_size();
+
+#if 1
+	typedef Units::UnitDRAMRamulator UnitDRAM;
+	UnitDRAM dram(dram_ports_per_channel * NUM_DRAM_CHANNELS, mem_size); dram.clear();
+#else
+	typedef Units::UnitDRAM UnitDRAM;
+	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
+	UnitDRAM dram(dram_ports_per_channel * NUM_DRAM_CHANNELS, mem_size);
+#endif
+
+	uint num_channels = 8;// dram.num_channels();
+	uint64_t row_size = 8 * 1024; // dram.row_size();
+	uint64_t block_size = CACHE_BLOCK_SIZE; // dram.block_size();
 
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
-	_assert(row_size == DRAM_ROW_SIZE);
+	//_assert(row_size == DRAM_ROW_SIZE);
 
 	//Scene buffer
 	Units::DualStreaming::UnitSceneBuffer::Configuration scene_buffer_config;
 	scene_buffer_config.size = 4 * 1024 * 1024; // 4MB
 	scene_buffer_config.latency = 4;
 	scene_buffer_config.num_banks = 32;
-	scene_buffer_config.bank_select_mask = generate_nbit_mask(log2i(scene_buffer_config.num_banks)) << log2i(dram.block_size());
+	scene_buffer_config.bank_select_mask = generate_nbit_mask(log2i(scene_buffer_config.num_banks)) << log2i(block_size);
 
 	Units::DualStreaming::UnitSceneBuffer::PowerConfig scene_buffer_power_config;
 	scene_buffer_power_config.leakage_power = 53.7192e-3f * scene_buffer_config.num_banks;
@@ -378,7 +386,6 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	l1_weight_table[l1d_config.num_ports] = l1d_config.num_ports;
 	l1d_config.num_ports += 1; //add extra port for RT core
 #endif
-
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
@@ -458,7 +465,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	ELF elf(current_folder_path + "../../dual-streaming-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
 
-	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config);
+	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config, row_size);
+	heap_address = align_to(row_size * num_channels, heap_address);
 	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(rtm::PackedTreelet)};
 
 	std::set<uint> unused_dram_ports;
@@ -535,6 +543,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	hit_record_updater_config.hit_record_start = *(paddr_t*)&kernel_args.hit_records;
 	hit_record_updater_config.cache_size = global_config.hit_buffer_size; // 128 * 16 = 2048B = 2KB
 	hit_record_updater_config.associativity = 8;
+	hit_record_updater_config.row_size = row_size;
 	hit_record_updater_config.num_channels = num_channels;
 	hit_record_updater_config.main_mem = &dram;
 	hit_record_updater_config.main_mem_port_stride = dram_ports_per_channel;
@@ -546,7 +555,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		std::vector<rtm::Hit> hits(kernel_args.framebuffer_size);
 		for(auto& hit : hits) hit.t = T_MAX;
 		paddr_t address = *(paddr_t*)&kernel_args.hit_records;
-		write_vector(&sram, DRAM_ROW_SIZE, hits, address);
+		write_vector(&sram, row_size, hits, address);
 		hit_record_updater_config.main_mem = &sram;
 	}
 
@@ -609,7 +618,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rsbs.back(); //LHIT
 	#endif
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 32));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 64));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::ATOMIC] = thread_schedulers.back();
@@ -672,7 +681,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	//master logs
 	Units::UnitBuffer::Log sram_log;
-	Units::UnitDRAM::Log dram_log;
+	UnitDRAM::Log dram_log;
 	UnitL2Cache::Log l2_log;
 	UnitL1Cache::Log l1d_log;
 	Units::UnitBlockingCache::Log l1i_log;
@@ -689,7 +698,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		float delta_us = delta / (clock_rate / 1'000'000);
 
 		Units::UnitBuffer::Log sram_delta_log = delta_log(sram_log, sram);
-		Units::UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
+		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
 		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
 		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
 
@@ -715,6 +724,10 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		printf("DRAM Total: %8.1f bytes/cycle\n", (float)(dram_delta_log.bytes_read + dram_delta_log.bytes_written) / delta);
 		printf("DRAM Write: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_written / delta);
 		printf("                             \n");
+		printf("SRAM Total: %8.1f bytes/cycle\n", (float)(sram_delta_log.bytes_read + sram_delta_log.bytes_written) / delta);
+		printf("SRAM Write: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_written / delta);
+		printf("SRAM  Read: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_read / delta);
+		printf("                             \n");
 		printf(" DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf("  L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf(" L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
@@ -732,7 +745,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	tp_log.print_profile(dram._data_u8);
 
-	dram.print_usimm_stats(4, frame_cycles);
+	dram.print_stats(4, frame_cycles);
 	print_header("DRAM");
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);

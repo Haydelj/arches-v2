@@ -64,7 +64,7 @@ private:
 	}
 
 public:
-	UnitDRAMRamulator(uint num_clients, uint64_t size, Simulator* simulator);
+	UnitDRAMRamulator(uint num_clients, uint64_t size);
 	virtual ~UnitDRAMRamulator() override;
 
 	bool request_port_write_valid(uint port_index) override;
@@ -77,7 +77,7 @@ public:
 	void clock_rise() override;
 	void clock_fall() override;
 
-	void print_ramulator_stats(uint32_t const L2_line_size, uint32_t const word_size, cycles_t cycle_count);
+	void print_stats(uint32_t const word_size, cycles_t cycle_count);
 	float total_power();
 
 	class Log

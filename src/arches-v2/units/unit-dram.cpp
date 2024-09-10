@@ -73,7 +73,7 @@ bool UnitDRAM::usimm_busy() {
 	return usimmIsBusy();
 }
 
-void UnitDRAM::print_usimm_stats(
+void UnitDRAM::print_stats(
 	uint32_t const word_size,
 	cycles_t cycle_count)
 {

@@ -14,44 +14,6 @@ public:
 
 //Uses a nbit integer and BM2 extension to implement a computational and stoarge efficent arbiter for up to 64 clients
 template<typename MASK_T = uint64_t>
-class PriorityArbiter : public Arbiter
-{
-protected:
-	MASK_T _pending{0};
-
-public:
-	PriorityArbiter(uint size = sizeof(MASK_T) * 8) : { _assert(size <= sizeof(MASK_T) * 8); }
-
-	uint size() override { return _size; }
-
-	uint num_pending() override
-	{
-		return popcnt(_pending);
-	}
-
-	void add(uint index) override
-	{
-		_pending |= MASK_T(1) << index;
-	}
-
-	void remove(uint index) override
-	{
-		_pending &= ~(MASK_T(1) << index);
-	}
-
-	uint get_index() override
-	{
-		if(num_pending() == 0)
-			return ~0u;
-
-		uint grant_index = ctz(rot_mask); //count the number of 0s till the next 1
-		_priority_index = grant_index; //make the grant bit the highest priority bit so that it will continue to be granted until removed
-		return grant_index;
-	}
-};
-
-//Uses a nbit integer and BM2 extension to implement a computational and stoarge efficent arbiter for up to 64 clients
-template<typename MASK_T = uint64_t>
 class RoundRobinArbiter : public Arbiter
 {
 protected:
