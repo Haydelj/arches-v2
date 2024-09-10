@@ -119,8 +119,8 @@ namespace rtm
 						{
 
 							dnodes[index].data.is_leaf = false;
-							dnodes[index].data.fst_chld_ind = base_index_child + num_internal_nodes++;
-							dnodes[index].data.lst_chld_ofst = 0;
+							dnodes[index].data.child_index = base_index_child + num_internal_nodes++;
+							dnodes[index].data.num_prims = 0;
 
 							uint32_t e0, e1, e2;
 							float e0_f, e1_f, e2_f;
@@ -148,7 +148,7 @@ namespace rtm
 						else //is leaf
 						{
 							dnodes[index].data.is_leaf = true;
-							dnodes[index].data.fst_chld_ind = base_index_triangle + ( meta[i] & 0b00011111); // & 0b00011111
+							dnodes[index].data.child_index = base_index_triangle + ( meta[i] & 0b00011111); // & 0b00011111
 
 							uint32_t num_set_bits = 0;
 							for (int j = 0; j < p_max; j++)
@@ -158,7 +158,7 @@ namespace rtm
 									num_set_bits++;
 								}
 							}
-							dnodes[index].data.lst_chld_ofst = num_set_bits - 1;
+							dnodes[index].data.num_prims = num_set_bits - 1;
 						}
 						index++;
 					}
@@ -226,7 +226,7 @@ namespace rtm
 
 			if (node.data.is_leaf)
 			{
-				num_primitives = node.data.lst_chld_ofst + 1;
+				num_primitives = node.data.child_index + 1;
 				assert(num_primitives == 1); //for wide bvh collapse the bvh2 should be constrained to 1 primitive per leaf node
 
 				//SAH cost for leaf
@@ -244,10 +244,10 @@ namespace rtm
 				//post order recursive traverse to calculate total primitives in this subtree
 				num_primitives =
 					//recurse left child
-					calculate_cost(node.data.fst_chld_ind, node.aabb.surface_area(), bvh2)
+					calculate_cost(node.data.child_index, node.aabb.surface_area(), bvh2)
 					+
 					//recurse right child
-					calculate_cost(node.data.fst_chld_ind + 1, node.aabb.surface_area(), bvh2);
+					calculate_cost(node.data.child_index + 1, node.aabb.surface_area(), bvh2);
 
 				//Case for choosing a single node (i == 1 from paper)
 				//use min(Cprim, Cinternal)
@@ -261,8 +261,8 @@ namespace rtm
 					for (int k = 0; k < max_forst_sz; k++)
 					{
 						float cost =
-							decisions[(node.data.fst_chld_ind) * max_forst_sz + k].cost +
-							decisions[(node.data.fst_chld_ind + 1) * max_forst_sz + (max_forst_sz - 1) - k].cost;
+							decisions[(node.data.child_index) * max_forst_sz + k].cost +
+							decisions[(node.data.child_index + 1) * max_forst_sz + (max_forst_sz - 1) - k].cost;
 
 						if (cost < cost_distribute)
 						{
@@ -304,8 +304,8 @@ namespace rtm
 
 						for (int k = 0; k < i; k++)
 						{
-							float cost = decisions[(node.data.fst_chld_ind) * max_forst_sz + k].cost +
-								decisions[(node.data.fst_chld_ind + 1) * max_forst_sz + i - k - 1].cost;
+							float cost = decisions[(node.data.child_index) * max_forst_sz + k].cost +
+								decisions[(node.data.child_index + 1) * max_forst_sz + i - k - 1].cost;
 
 							if (cost < cost_distribute)
 							{
@@ -340,20 +340,20 @@ namespace rtm
 
 			if (bvh2node.data.is_leaf)
 			{
-				int count = bvh2node.data.lst_chld_ofst + 1;
+				int count = bvh2node.data.num_prims + 1;
 				assert(count == 1);
 
 				for (uint32_t i = 0; i < count; i++)
 				{
-					indices.push_back(bvh2node.data.fst_chld_ind + i);
+					indices.push_back(bvh2node.data.child_index + i);
 				}
 
 				return count;
 			}
 
 			return
-				count_primitives(bvh2node.data.fst_chld_ind, bvh2) +
-				count_primitives(bvh2node.data.fst_chld_ind + 1, bvh2);
+				count_primitives(bvh2node.data.child_index, bvh2) +
+				count_primitives(bvh2node.data.child_index + 1, bvh2);
 		}
 		//Get potential child nodes based on decision tree
 		void get_children(int node_index, const BVH2& bvh2, int children[n_ary_sz], int& child_count, int i)
@@ -373,23 +373,23 @@ namespace rtm
 			assert(distribute_right >= 0 && distribute_right < max_forst_sz);
 
 			//Recurse on left child if it needs to distribute
-			if (decisions[bvh2node.data.fst_chld_ind * max_forst_sz + distribute_left].type == Decision::Type::DISTRIBUTE)
+			if (decisions[bvh2node.data.child_index * max_forst_sz + distribute_left].type == Decision::Type::DISTRIBUTE)
 			{
-				get_children(bvh2node.data.fst_chld_ind, bvh2, children, child_count, distribute_left);
+				get_children(bvh2node.data.child_index, bvh2, children, child_count, distribute_left);
 			}
 			else
 			{
-				children[child_count++] = bvh2node.data.fst_chld_ind;
+				children[child_count++] = bvh2node.data.child_index;
 			}
 
 			//Recurse on right child if it needs to distribute
-			if (decisions[(bvh2node.data.fst_chld_ind + 1) * max_forst_sz + distribute_right].type == Decision::Type::DISTRIBUTE)
+			if (decisions[(bvh2node.data.child_index + 1) * max_forst_sz + distribute_right].type == Decision::Type::DISTRIBUTE)
 			{
-				get_children(bvh2node.data.fst_chld_ind + 1, bvh2, children, child_count, distribute_right);
+				get_children(bvh2node.data.child_index + 1, bvh2, children, child_count, distribute_right);
 			}
 			else
 			{
-				children[child_count++] = bvh2node.data.fst_chld_ind + 1;
+				children[child_count++] = bvh2node.data.child_index + 1;
 			}
 		}
 		/*
@@ -553,16 +553,16 @@ namespace rtm
 					first_child_index = indices.size();
 					num_triangles = count_primitives(child_index, bvh2);
 					bvh8Node.nodeArray[index].data.is_leaf = 1;							//make it leaf node
-					bvh8Node.nodeArray[index].data.fst_chld_ind = first_child_index;
-					bvh8Node.nodeArray[index].data.lst_chld_ofst = num_triangles - 1;
+					bvh8Node.nodeArray[index].data.child_index = first_child_index;
+					bvh8Node.nodeArray[index].data.num_prims = num_triangles - 1;
 					bvh8Node.nodeArray[index].aabb = bvh2.nodes[child_index].aabb;
 					index++;
 					break;
 				case Decision::Type::INTERNAL:
 					bvh8Node.nodeArray[index].aabb = bvh2.nodes[child_index].aabb;
 					bvh8Node.nodeArray[index].data.is_leaf = 0;
-					bvh8Node.nodeArray[index].data.fst_chld_ind = num_internal_nodes; //save node entry index in umcompressedNode array
-					bvh8Node.nodeArray[index].data.lst_chld_ofst = 0;
+					bvh8Node.nodeArray[index].data.child_index = num_internal_nodes; //save node entry index in umcompressedNode array
+					bvh8Node.nodeArray[index].data.num_prims = 0;
 					num_internal_nodes++;
 					index++;
 					break;
@@ -654,7 +654,7 @@ namespace rtm
 
 				if (childNode.data.is_leaf)
 				{
-					uint32_t triangle_count = childNode.data.lst_chld_ofst + 1;
+					uint32_t triangle_count = childNode.data.num_prims + 1;
 					
 					for (uint32_t j = 0; j < triangle_count; j++)
 					{

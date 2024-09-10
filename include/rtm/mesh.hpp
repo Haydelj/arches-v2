@@ -325,17 +325,6 @@ public:
 		}
 	}
 
-	Triangle get_triangle(uint32_t index) const
-	{
-		return {vertices[vertex_indices[index][0]], vertices[vertex_indices[index][1]], vertices[vertex_indices[index][2]]};
-	}
-
-	void get_triangles(std::vector<Triangle>& triangles) const
-	{
-		triangles.clear();
-		for (uint32_t i = 0; i < vertex_indices.size(); ++i)
-			triangles.emplace_back(get_triangle(i));
-	}
 };
 
 }

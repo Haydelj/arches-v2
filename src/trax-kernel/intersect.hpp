@@ -440,7 +440,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangl
 	//Decompress and insert nodes
 	node_stack[0].t = ray.t_min;
 	node_stack[0].data.is_leaf = false;
-	node_stack[0].data.fst_chld_ind = 0;
+	node_stack[0].data.child_index = 0;
 	bool found_hit = false;
 
 	do
@@ -452,7 +452,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangl
 			rtm::BVH2::Node dnodes[n_ary_sz];
 			int childCount;
 
-			nodes[current_entry.data.fst_chld_ind].decompress(dnodes, childCount);
+			nodes[current_entry.data.child_index].decompress(dnodes, childCount);
 
 			for (int i = 0; i < childCount; i++)
 			{
@@ -461,17 +461,17 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangl
 				if (t < hit.t)
 				{
 					node_stack[node_stack_size].t = t;
-					node_stack[node_stack_size].data.fst_chld_ind = dnodes[i].data.fst_chld_ind;
-					node_stack[node_stack_size].data.lst_chld_ofst = dnodes[i].data.lst_chld_ofst;
+					node_stack[node_stack_size].data.child_index = dnodes[i].data.child_index;
+					node_stack[node_stack_size].data.num_prims = dnodes[i].data.num_prims;
 					node_stack[node_stack_size++].data.is_leaf = dnodes[i].data.is_leaf;
 				}
 			}
 		}
 		else
 		{
-			for (uint32_t i = 0; i <= current_entry.data.lst_chld_ofst; i++)
+			for (uint32_t i = 0; i <= current_entry.data.num_prims; i++)
 			{
-				uint32_t triID = current_entry.data.fst_chld_ind + i;
+				uint32_t triID = current_entry.data.child_index + i;
 
 				if (_intersect(tris[triID], ray, hit))
 				{
@@ -528,7 +528,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
 				{
 
 					node_stack[node_stack_size].t = t;
-					node_stack[node_stack_size].node_index = current_node8.base_index_child + childNode.data.fst_chld_ind; //hack to store child nodes index in global node array
+					node_stack[node_stack_size].node_index = current_node8.base_index_child + childNode.data.child_index; //hack to store child nodes index in global node array
 
 					if (!childNode.data.is_leaf)
 					{
@@ -540,9 +540,9 @@ inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
 		}
 		else
 		{
-			for (int i = 0; i <= current_entry.data.lst_chld_ofst; i++)
+			for (int i = 0; i <= current_entry.data.num_prims; i++)
 			{
-				uint32_t triID = current_entry.data.fst_chld_ind + i;
+				uint32_t triID = current_entry.data.child_index + i;
 				if (_intersect(tris[triID], ray, hit))
 				{
 
