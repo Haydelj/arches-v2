@@ -7,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <cassert>
+#include <fstream>
 #endif
 
 namespace rtm {
@@ -27,6 +28,9 @@ namespace rtm {
 class BVH2
 {
 public:
+	const static uint32_t VERSION = 2395794617; //random number used to validate the cache
+	const static uint MAX_PRIMS = 8;
+
 	struct BuildObject
 	{
 		AABB  aabb{};
@@ -39,9 +43,17 @@ public:
 	{
 		struct Data
 		{
-			uint32_t is_leaf : 1;
-			uint32_t lst_chld_ofst : 3;
-			uint32_t fst_chld_ind : 28;
+			struct
+			{
+				uint32_t is_leaf    : 1;
+				uint32_t num_prims  : 3; //num prim - 1
+				uint32_t prim_index : 28; //first prim
+			};
+			struct
+			{
+				uint32_t             : 1;
+				uint32_t child_index : 31; //left child
+			};
 		};
 
 		AABB       aabb;
@@ -50,7 +62,7 @@ public:
 	};
 
 #ifndef __riscv
-	float cost{0.0f};
+	float sah_cost{0.0f};
 	std::vector<Node> nodes;
 
 private:
@@ -60,18 +72,24 @@ private:
 		uint end;
 		uint node_index;
 
-		uint split_build_objects(AABB aabb, BuildObject* build_objects)
+		uint split_build_objects(AABB aabb, BuildObject* build_objects, uint quality)
 		{
 			uint size = end - start;
 			if(size <= 1) return ~0u;
 
-		#if BUILD_QUALITY == 0
-			if(size > max_children)
+			if(quality == 0 && size > MAX_PRIMS)
 				return split_build_objects_radix(aabb, build_objects);
-		#elif BUILD_QUALITY == 1
-			if(size > 64)
+
+			if(quality == 1 && size > 64)
 				return split_build_objects_radix(aabb, build_objects);
-		#endif
+
+			return split_build_objects_sah(aabb, build_objects);
+		}
+
+		uint split_build_objects_sah(AABB aabb, BuildObject* build_objects)
+		{
+			uint size = end - start;
+			if(size <= 1) return ~0u;
 
 			uint best_axis = 0;
 			uint best_spliting_index = 0;
@@ -81,9 +99,7 @@ private:
 			float inv_aabb_sa = 1.0f / aabb_sa;
 
 			uint axis = aabb.longest_axis();
-		#if BUILD_QUALITY > 0
 			for(axis = 0; axis < 3; ++axis)
-		#endif
 			{
 				std::sort(build_objects + start, build_objects + end, [&](const BuildObject& a, const BuildObject& b)
 				{
@@ -139,8 +155,8 @@ private:
 
 			if(best_spliting_index == start)
 			{
-				if(size <= max_children) return ~0;
-				else                     return (start + end) / 2;
+				if(size <= MAX_PRIMS) return ~0;
+				else                  return (start + end) / 2;
 			}
 
 			return best_spliting_index;
@@ -162,8 +178,8 @@ private:
 			//All keys are identical. An arbitrary split
 			if(common_prefix_size == 64)
 			{
-				if(size <= max_children) return ~0u;
-				else                     return (start + end) / 2;
+				if(size <= MAX_PRIMS) return ~0u;
+				else                  return (start + end) / 2;
 			}
 
 			uint64_t sort_bit_mask = 1ull << (63 - common_prefix_size);
@@ -191,10 +207,86 @@ private:
 		}
 	};
 
-public:
-	void build(std::vector<BuildObject>& build_objects)
+	struct FileHeader
 	{
-		printf("BVH2 Building\n");
+		uint32_t version;
+		uint8_t  quality;
+		float    sah_cost;
+		uint32_t num_nodes;
+		uint32_t num_build_objects;
+	};
+
+public:
+	BVH2() = default;
+
+	BVH2(std::vector<BuildObject>& build_objects, uint quality = 2)
+	{
+		build(build_objects, quality);
+	}
+
+	BVH2(std::string cache, std::vector<BuildObject>& build_objects, uint quality = 2)
+	{
+		if(!deserialize(cache, build_objects, quality))
+		{
+			build(build_objects, quality);
+			serialize(cache, build_objects, quality);
+		}
+	}
+
+	void serialize(std::string file_path, const std::vector<BuildObject>& build_objects, uint quality)
+	{
+		std::ofstream file_stream(file_path, std::ios::binary);
+
+		FileHeader header;
+		header.version = VERSION;
+		header.quality = quality;
+		header.sah_cost = sah_cost;
+		header.num_nodes = nodes.size();
+		header.num_build_objects = build_objects.size();
+
+		file_stream.write((char*)&header, sizeof(FileHeader));
+		file_stream.write((char*)nodes.data(), sizeof(Node) * nodes.size());
+		file_stream.write((char*)build_objects.data(), sizeof(BuildObject) * build_objects.size());
+	}
+
+	bool deserialize(std::string file_path, std::vector<BuildObject>& build_objects, uint quality = ~0u)
+	{
+		printf("Loading BVH2: %s\n", file_path.c_str());
+
+		bool succeeded = false;
+		std::ifstream file_stream(file_path, std::ios::binary);
+		if(file_stream.is_open())
+		{
+			FileHeader header;
+			file_stream.read((char*)&header, sizeof(FileHeader));
+
+			if(header.version == VERSION
+				&& (header.num_build_objects == build_objects.size())
+				&& (quality == ~0u || header.quality == quality))
+			{
+				nodes.resize(header.num_nodes);
+				file_stream.read((char*)nodes.data(), sizeof(Node) * nodes.size());
+				file_stream.read((char*)build_objects.data(), sizeof(BuildObject) * build_objects.size());
+				sah_cost = header.sah_cost;
+
+				succeeded = true;
+				printf("Loaded BVH2: %s\n", file_path.c_str());
+				printf("Quality: %d\n", header.quality);
+				printf("Cost: %f\n", header.sah_cost);
+				printf("Nodes: %d\n", header.num_nodes);
+				printf("Objects: %d\n", header.num_build_objects);
+			}
+		}
+
+		if(!succeeded)
+			printf("Failed\n");
+
+		return succeeded;
+	}
+
+	void build(std::vector<BuildObject>& build_objects, uint quality = 2)
+	{
+		printf("Building BVH2\n");
 		nodes.clear();
 
 		//Build morton codes for build objects
@@ -232,13 +324,12 @@ public:
 			for(uint i = current_build_event.start; i < current_build_event.end; ++i)
 				aabb.add(build_objects[i].aabb);
 
-			uint splitting_index = current_build_event.split_build_objects(aabb, build_objects.data());
+			uint splitting_index = current_build_event.split_build_objects(aabb, build_objects.data(), quality);
 			if(splitting_index != ~0)
 			{
 				nodes[current_build_event.node_index].aabb = aabb;
 				nodes[current_build_event.node_index].data.is_leaf = 0;
-				nodes[current_build_event.node_index].data.lst_chld_ofst = 1;
-				nodes[current_build_event.node_index].data.fst_chld_ind = nodes.size();
+				nodes[current_build_event.node_index].data.child_index = nodes.size();
 
 				for(uint i = 0; i < 2; ++i)
 					nodes.emplace_back();
@@ -250,12 +341,12 @@ public:
 			{
 				//didn't do any splitting meaning this build event can become a leaf node
 				uint size = current_build_event.end - current_build_event.start;
-				assert(size <= max_children && size >= 1);
+				assert(size <= MAX_PRIMS && size >= 1);
 
 				nodes[current_build_event.node_index].aabb = aabb;
 				nodes[current_build_event.node_index].data.is_leaf = 1;
-				nodes[current_build_event.node_index].data.lst_chld_ofst = size - 1;
-				nodes[current_build_event.node_index].data.fst_chld_ind = current_build_event.start;
+				nodes[current_build_event.node_index].data.num_prims = size - 1;
+				nodes[current_build_event.node_index].data.prim_index = current_build_event.start;
 			}
 		}
 
@@ -266,25 +357,29 @@ public:
 			costs[i] = 0.0f;
 			if(nodes[i].data.is_leaf)
 			{
-				for(uint j = 0; j <= nodes[i].data.lst_chld_ofst; ++j)
-					costs[i] += build_objects[nodes[i].data.fst_chld_ind + j].cost;
+				for(uint j = 0; j <= nodes[i].data.num_prims; ++j)
+					costs[i] += build_objects[nodes[i].data.prim_index + j].cost;
 			}
 			else
 			{
 				float sa = nodes[i].aabb.surface_area();
 				if(sa > 0.0f)
 				{
-					for(uint j = 0; j <= nodes[i].data.lst_chld_ofst; ++j)
+					for(uint j = 0; j < 2; ++j)
 					{
-						uint ci = nodes[i].data.fst_chld_ind + j;
-						costs[i] +=  AABB::cost() + costs[ci] * std::max(nodes[ci].aabb.surface_area(), 0.0f) / sa;
+						uint ci = nodes[i].data.child_index + j;
+						costs[i] += AABB::cost() + costs[ci] * std::max(nodes[ci].aabb.surface_area(), 0.0f) / sa;
 					}
 				}
 			}
 		}
-		cost = costs[0];
+		sah_cost = costs[0];
 
-		printf("BVH2 Built: %.2f\n", cost);
+		printf("Built BVH2\n");
+		printf("Quality: %d\n", quality);
+		printf("Cost: %f\n", sah_cost);
+		printf("Nodes: %d\n", (uint)nodes.size());
+		printf("Objects: %d\n", (uint)build_objects.size());
 	}
 #endif
 };

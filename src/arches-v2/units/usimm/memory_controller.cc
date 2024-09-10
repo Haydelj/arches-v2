@@ -424,6 +424,16 @@ int numDramChannels()
     return NUM_CHANNELS;
 }
 
+int rowSize()
+{
+    return NUM_COLUMNS * CACHE_LINE_SIZE;
+}
+
+int blockSize()
+{
+    return CACHE_LINE_SIZE;
+}
+
 // Function to decompose the incoming DRAM address into the
 // constituent channel, rank, bank, row and column ids. 
 // Note : This version does not return a pointer (save calls to malloc/free)

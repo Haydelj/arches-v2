@@ -3,16 +3,14 @@
 namespace Arches {
 namespace Units {
 
-UnitCacheBase::UnitCacheBase(size_t size, uint associativity) : UnitMemoryBase()
+UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity) : _tag_array(size / block_size), _data_array(size), UnitMemoryBase()
 {
-	_tag_array.resize(size / CACHE_BLOCK_SIZE);
-	_data_array.resize(size / CACHE_BLOCK_SIZE);
-
+	_block_size = block_size;
 	_associativity = associativity;
 
-	uint num_sets = size / (CACHE_BLOCK_SIZE * associativity);
+	uint num_sets = size / (block_size * associativity);
 
-	uint offset_bits = log2i(CACHE_BLOCK_SIZE);
+	uint offset_bits = log2i(block_size);
 	uint set_index_bits = log2i(num_sets);
 	uint tag_bits = static_cast<uint>(sizeof(paddr_t) * 8) - (set_index_bits + offset_bits);
 
@@ -30,7 +28,7 @@ UnitCacheBase::~UnitCacheBase()
 }
 
 //update lru and returns data pointer to cache line
-UnitCacheBase::BlockData* UnitCacheBase::_get_block(paddr_t paddr)
+uint8_t* UnitCacheBase::_get_block(paddr_t paddr)
 {
 	uint start = _get_set_index(paddr) * _associativity;
 	uint end = start + _associativity;
@@ -56,11 +54,11 @@ UnitCacheBase::BlockData* UnitCacheBase::_get_block(paddr_t paddr)
 
 	_tag_array[found_index].lru = 0;
 
-	return &_data_array[found_index];
+	return &_data_array[found_index * _block_size];
 }
 
 //inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
-UnitCacheBase::BlockData* UnitCacheBase::_insert_block(paddr_t paddr, const uint8_t* data)
+uint8_t* UnitCacheBase::_insert_block(paddr_t paddr, const uint8_t* data)
 {
 	uint start = _get_set_index(paddr) * _associativity;
 	uint end = start + _associativity;
@@ -89,7 +87,7 @@ UnitCacheBase::BlockData* UnitCacheBase::_insert_block(paddr_t paddr, const uint
 	_tag_array[replacement_index].valid = true;
 	_tag_array[replacement_index].tag = _get_tag(paddr);
 
-	std::memcpy(_data_array[replacement_index].bytes, data, CACHE_BLOCK_SIZE);
+	std::memcpy(&_data_array[replacement_index * _block_size], data, _block_size);
 	return &_data_array[replacement_index];
 }
 

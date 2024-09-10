@@ -5,8 +5,8 @@ namespace Arches { namespace Units {
 
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
-UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint64_t size, Simulator* simulator) : UnitMainMemoryBase(size),
-	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(num_ports, NUM_DRAM_CHANNELS)
+UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint64_t size) : UnitMainMemoryBase(size),
+	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(NUM_DRAM_CHANNELS, num_ports)
 {
 	config_path = "./config-files/gddr6_8ch_config.yaml";
 	YAML::Node config = Ramulator::Config::parse_config_file(config_path, {});
@@ -21,7 +21,6 @@ UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint64_t size, Simulator* s
 	ramulator2_memorysystem->connect_frontend(ramulator2_frontend);
 
 	_channels.resize(NUM_DRAM_CHANNELS);
-
 }
 
 UnitDRAMRamulator::~UnitDRAMRamulator() /*override*/
@@ -54,7 +53,7 @@ const MemoryReturn UnitDRAMRamulator::read_return(uint port_index)
 }
 
 
-void UnitDRAMRamulator::print_ramulator_stats(uint32_t const L2_line_size,
+void UnitDRAMRamulator::print_stats(
 	uint32_t const word_size,
 	cycles_t cycle_count)
 {
@@ -83,16 +82,17 @@ bool UnitDRAMRamulator::_load(const MemoryRequest& request, uint channel_index)
 		return_id = free_return_ids.top();
 		free_return_ids.pop();
 	}
-	bool enqueue_success = ramulator2_frontend->receive_external_requests(0, request.paddr, request.port, return_id, channel_index,
-		[this](Ramulator::Request& req)
-		{	// your read request callback 
-#if ENABLE_DRAM_DEBUG_PRINTS
-			
-#endif
-			//printf("Load: 0x%llx(%d, %d, %d, %d, %d): %d cycles\n", req.addr, req.addr_vec[0], req.addr_vec[1], req.addr_vec[2], req.addr_vec[3], req.addr_vec[4], (req.depart - req.arrive) / clock_ratio);
-			_channels[req.addr_vec[0]].return_queue.push({ req.depart, req.return_id });
 
-		});
+	bool enqueue_success = ramulator2_frontend->receive_external_requests(0, request.paddr, return_id, [this, channel_index](Ramulator::Request& req)
+	{
+		_assert(req.addr_vec[0] == channel_index);
+		
+		// your read request callback 
+#if ENABLE_DRAM_DEBUG_PRINTS
+		printf("Load: 0x%llx(%d, %d, %d, %d, %d): %d cycles\n", req.addr, req.addr_vec[0], req.addr_vec[1], req.addr_vec[2], req.addr_vec[3], req.addr_vec[4], (req.depart - req.arrive) / clock_ratio);
+#endif
+		_channels[channel_index].return_queue.push({ req.depart, (uint)req.source_id });
+	});
 
 	if (enqueue_success)
 	{
@@ -108,23 +108,19 @@ bool UnitDRAMRamulator::_load(const MemoryRequest& request, uint channel_index)
 bool UnitDRAMRamulator::_store(const MemoryRequest& request, uint channel_index)
 {
 	//interface with ramulator
-	bool enqueue_success = ramulator2_frontend->receive_external_requests(1, request.paddr, request.port, ~0, channel_index,
-		[this](Ramulator::Request& req)
-		{	// your read request callback 
+	bool enqueue_success = ramulator2_frontend->receive_external_requests(1,  request.paddr & ~0x3full, -1, [this](Ramulator::Request& req)
+	{	// your read request callback 
 #if ENABLE_DRAM_DEBUG_PRINTS
-			//printf("Load(%d): 0x%llx(%d, %d, %d, %lld, %d)\n", request.port, request.paddr, req.addr_vec[0], req.addr_vec[1], req.addr_vec[2], req.addr_vec[3], req.addr_vec[4]);
+		printf("Load(%d): 0x%llx(%d, %d, %d, %lld, %d)\n", request.port, request.paddr, req.addr_vec[0], req.addr_vec[1], req.addr_vec[2], req.addr_vec[3], req.addr_vec[4]);
 #endif
-
-		});
+	});
 
 	//Masked write
 	if (enqueue_success)
 	{
-		for (uint i = 0; i < request.size; ++i)
-			if ((request.write_mask >> i) & 0x1)
-				_data_u8[request.paddr + i] = request.data[i];
+		std::memcpy(&_data_u8[request.paddr], request.data, request.size);
 		log.stores++;
-		log.bytes_written += popcnt(request.write_mask);
+		log.bytes_written += request.size;
 	}
 
 	return enqueue_success;

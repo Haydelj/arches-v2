@@ -9,10 +9,15 @@
 
 namespace Arches { namespace Units {
 
-#define NUM_DRAM_CHANNELS (16)
-
 class UnitDRAM : public UnitMainMemoryBase, public UsimmListener
 {
+public:
+	struct Configuration
+	{
+		uint num_ports;
+		uint64_t size;
+	};
+
 private:
 	struct USIMMReturn
 	{
@@ -41,8 +46,14 @@ private:
 	std::stack<uint> free_return_ids;
 
 public:
-	UnitDRAM(uint num_clients, uint64_t size, Simulator* simulator);
+	UnitDRAM(uint ports_per_channel, uint64_t size);
 	virtual ~UnitDRAM() override;
+
+	static bool init_usimm(const std::string& config, const std::string& vi);
+	static uint num_channels();
+	static uint64_t row_size();
+	static uint64_t block_size();
+
 	void reset() override;
 	void clock_rise() override;
 	void clock_fall() override;
@@ -55,7 +66,7 @@ public:
 	const MemoryReturn read_return(uint port_index) override;
 
 	bool usimm_busy();
-	void print_usimm_stats(uint32_t const L2_line_size, uint32_t const word_size, cycles_t cycle_count);
+	void print_stats(uint32_t const word_size, cycles_t cycle_count);
 	float total_power();
 
 	virtual void UsimmNotifyEvent(cycles_t write_cycle, const arches_request_t& req);

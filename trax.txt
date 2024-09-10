@@ -1,0 +1,2060 @@
+Initializing usimm memory module.
+---------------------------------------------
+-- USIMM: the Utah SImulated Memory Module --
+--              Version: 1.3               --
+---------------------------------------------
+C:\Users\jcbha\Development\msvc-c++\arches-v2\build\src\arches-v2\RelWithDebInfo\../config-files/gddr5_16ch.cfg
+Reading vi file: ../config-files/1Gb_x16_amd2GHz.vi
+16 Chips per Rank
+----------------------------------------------------------------------------------------
+------------------------
+- SIMULATOR PARAMETERS -
+------------------------
+
+-------------
+- PROCESSOR -
+-------------
+PROCESSOR_CLK_MULTIPLIER:   1
+ROBSIZE:                       160
+MAX_FETCH:                       4
+MAX_RETIRE:                      4
+PIPELINEDEPTH:                  10
+
+---------------
+- DRAM Config -
+---------------
+NUM_CHANNELS:                   16
+NUM_RANKS:                       1
+NUM_BANKS:                      16
+NUM_ROWS:                     8192
+NUM_COLUMNS:                    64
+CACHE_LINE_SIZE:                64
+ADDRESS_BITS:                   33
+
+---------------
+- DRAM Timing -
+---------------
+T_RCD:                          28
+T_RP:                           28
+T_CAS:                          28
+T_RC:                           98
+T_RAS:                          70
+T_RRD:                          13
+T_FAW:                          80
+T_WR:                           30
+T_WTR:                          15
+T_RTP:                          15
+T_CCD:                           4
+T_RFC:                         220
+T_REFI:                      15600
+T_CWD:                          13
+T_RTRS:                          2
+T_PD_MIN:                       10
+T_XP:                           13
+T_XP_DLL:                       50
+T_DATA_TRANS:                    4
+
+---------------------------
+- DRAM Idd Specifications -
+---------------------------
+VDD:                        01.50
+IDD0:                       120.00
+IDD2P0:                     12.00
+IDD2P1:                     45.00
+IDD2N:                      70.00
+IDD3P:                      45.00
+IDD3N:                      67.00
+IDD4R:                      250.00
+IDD4W:                      250.00
+IDD5:                       260.00
+
+-------------------
+- DRAM Controller -
+-------------------
+WQ_CAPACITY:                    96
+ADDRESS_MAPPING:                 1
+WQ_LOOKUP_LATENCY:              10
+
+----------------------------------------------------------------------------------------
+C:\Users\jcbha\Development\msvc-c++\arches-v2\
+Loading: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/san-miguel.obj
+Loaded: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/san-miguel.obj
+Loading BVH2: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/cache/san-miguel_bvh.cache
+Loaded BVH2: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/cache/san-miguel_bvh.cache
+Quality: 2
+Cost: 128.346069
+Nodes: 9109819
+Objects: 9971513
+Building Packed BVH2
+Built Packed BVH2
+Building Packed Treelet BVH
+0.126267,0.033822,0.015897,0.008038,0.004973,0.003469,0.002631,0.002229,
+0.084717,0.025724,0.014595,0.009018,0.006343,0.005029,0.004285,0.003603,
+0.128217,0.037558,0.020268,0.012821,0.008920,0.007043,0.005519,0.004701,
+0.111680,0.037175,0.023116,0.017616,0.013878,0.011827,0.010007,0.008670,
+0.049354,0.011731,0.005265,0.002578,0.001813,0.001362,0.001044,0.000859,
+0.044621,0.012583,0.007291,0.004675,0.003610,0.002875,0.002318,0.001877,
+0.074128,0.025809,0.013093,0.008771,0.006217,0.004649,0.003896,0.003441,
+0.039580,0.014404,0.008693,0.005790,0.004439,0.003378,0.002820,0.002372,
+0.048970,0.020040,0.013279,0.009815,0.007751,0.006627,0.005706,0.004919,
+0.092660,0.045894,0.031603,0.023723,0.020359,0.017728,0.015257,0.013462,
+0.118551,0.046071,0.024245,0.015913,0.011474,0.008950,0.007087,0.005601,
+0.147989,0.050039,0.025941,0.016310,0.010539,0.008195,0.006421,0.005260,
+0.049602,0.018440,0.008925,0.006466,0.005404,0.004445,0.003466,0.002710,
+0.085280,0.022828,0.012563,0.008405,0.006807,0.005808,0.005164,0.004690,
+0.074793,0.017035,0.009515,0.006954,0.005745,0.005102,0.004473,0.003964,
+0.075449,0.033989,0.023293,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.077374,0.037482,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.066520,0.025209,0.017265,0.011882,0.009850,0.008405,0.007545,0.006931,
+0.069984,0.027807,0.018990,0.015106,0.012639,0.010756,0.009915,0.009021,
+0.066756,0.019016,0.009514,0.006724,0.005395,0.004127,0.003432,0.002899,
+0.074201,0.023804,0.013324,0.009968,0.008012,0.006434,0.005377,0.004823,
+0.136599,0.054241,0.028856,0.021031,0.016141,0.013318,0.010616,0.009227,
+0.043630,0.017021,0.010865,0.007999,0.006198,0.005279,0.004420,0.003893,
+0.076631,0.018522,0.008855,0.005405,0.004050,0.003220,0.002760,0.002436,
+0.094672,0.040990,0.026442,0.018967,0.015389,0.012614,0.010830,0.009618,
+0.106735,0.023260,0.013067,0.009040,0.006920,0.005603,0.004775,0.004250,
+0.083725,0.027975,0.018439,0.012916,0.010271,0.008550,0.007607,0.006621,
+0.079486,0.034778,0.023935,0.019055,0.016171,0.014125,0.012272,0.011299,
+0.067539,0.024221,0.015476,0.010012,0.007419,0.006259,0.005417,0.004819,
+0.079650,0.030312,0.018624,0.011088,0.009282,0.007661,0.005902,0.004357,
+0.067764,0.023047,0.014281,0.011261,0.008367,0.006628,0.005550,0.005132,
+0.090822,0.028027,0.017319,0.012312,0.009233,0.007423,0.005880,0.005016,
+0.112635,0.030861,0.017954,0.013422,0.010892,0.009086,0.007590,0.006438,
+0.045920,0.016068,0.009405,0.006450,0.004600,0.003790,0.003006,0.002534,
+0.068573,0.014933,0.008184,0.005508,0.003797,0.002785,0.002313,0.001916,
+0.038849,0.013306,0.007522,0.004881,0.003569,0.002815,0.002400,0.002051,
+0.069213,0.021055,0.012596,0.008810,0.006625,0.005008,0.003922,0.003270,
+0.061885,0.015320,0.008264,0.005599,0.003941,0.003354,0.002715,0.002198,
+0.096218,0.025096,0.014446,0.010202,0.008015,0.006492,0.005229,0.004323,
+0.058612,0.016425,0.009295,0.006534,0.004153,0.003102,0.002430,0.002088,
+0.073586,0.031713,0.019762,0.014941,0.011752,0.009738,0.008463,0.007445,
+0.110913,0.045686,0.026057,0.017212,0.013644,0.012091,0.009960,0.007801,
+0.096936,0.037931,0.022589,0.015129,0.011505,0.009441,0.008261,0.007031,
+0.047303,0.017450,0.010648,0.007892,0.005733,0.004634,0.004005,0.003228,
+0.054566,0.023617,0.015912,0.012611,0.010449,0.009074,0.008059,0.007218,
+0.073483,0.034336,0.023388,0.018067,0.015444,0.012863,0.011381,0.010101,
+0.078158,0.029725,0.017951,0.013734,0.010845,0.009187,0.008120,0.007276,
+0.059693,0.022954,0.015821,0.012222,0.010110,0.008495,0.007484,0.006520,
+0.130056,0.061887,0.044335,0.033434,0.027575,0.024031,0.020887,0.018550,
+0.123156,0.033310,0.016915,0.011239,0.008256,0.006788,0.005720,0.005118,
+0.061985,0.015194,0.009210,0.005721,0.004050,0.003307,0.002861,0.002537,
+0.075257,0.033814,0.022687,0.017457,0.014236,0.012373,0.011099,0.009833,
+0.060809,0.018770,0.010523,0.006996,0.004938,0.004187,0.003403,0.002718,
+0.057587,0.018591,0.010580,0.007108,0.005521,0.004449,0.003696,0.003253,
+0.084629,0.028468,0.018057,0.012452,0.009728,0.007557,0.006204,0.005346,
+0.050529,0.020952,0.013391,0.009790,0.007808,0.006671,0.005768,0.005066,
+0.066778,0.030329,0.019260,0.015476,0.012662,0.010509,0.009182,0.007872,
+0.079558,0.031776,0.021434,0.016694,0.014370,0.012224,0.010567,0.009460,
+0.089288,0.030596,0.016790,0.011555,0.009351,0.007639,0.006526,0.005589,
+0.086974,0.029453,0.016961,0.010766,0.007756,0.006204,0.005119,0.004408,
+0.051644,0.018770,0.012780,0.009602,0.007622,0.006267,0.005419,0.004899,
+0.037220,0.014800,0.009522,0.007001,0.005731,0.004713,0.004186,0.003658,
+0.071435,0.028464,0.015084,0.010484,0.007522,0.006203,0.005214,0.004474,
+0.222741,0.102226,0.065615,0.038229,0.025236,0.017679,0.013722,0.011344,
+0.096166,0.044197,0.029560,0.023662,0.019452,0.016462,0.014593,0.013092,
+0.068868,0.024886,0.011407,0.007317,0.005766,0.004722,0.003628,0.002686,
+0.083146,0.039998,0.024825,0.019563,0.016202,0.013290,0.011633,0.010018,
+0.081654,0.022481,0.013548,0.009098,0.007355,0.006303,0.005330,0.004745,
+0.102113,0.029983,0.016719,0.011345,0.008800,0.007298,0.006179,0.005329,
+0.058209,0.023093,0.011220,0.006877,0.000000,0.000000,0.000000,0.000000,
+0.101079,0.042698,0.029376,0.021598,0.017485,0.015068,0.013483,0.012036,
+Built Packed Treelet BVH
+Treelets: 74
+Treelet Size: 16773120
+Treelet Fill Rate: 55.6%
+Generating bounce 2 rays from 921600 path
+Generated 911010 rays
+
+Cycle: 32768
+Threads Launched: 20480
+
+DRAM Read:     83.6 bytes/cycle
+ L2$ Read:    248.4 bytes/cycle
+L1d$ Read:    650.0 bytes/cycle
+
+ L2$ Hit Rate:     47.0%
+L1d$ Hit Rate:     58.3%
+
+
+Cycle: 65536
+Threads Launched: 24512
+
+DRAM Read:     62.5 bytes/cycle
+ L2$ Read:    201.8 bytes/cycle
+L1d$ Read:    426.3 bytes/cycle
+
+ L2$ Hit Rate:     68.2%
+L1d$ Hit Rate:     59.7%
+
+
+Cycle: 98304
+Threads Launched: 26560
+
+DRAM Read:     52.6 bytes/cycle
+ L2$ Read:    204.2 bytes/cycle
+L1d$ Read:    443.0 bytes/cycle
+
+ L2$ Hit Rate:     74.3%
+L1d$ Hit Rate:     60.5%
+
+
+Cycle: 131072
+Threads Launched: 29952
+
+DRAM Read:     51.3 bytes/cycle
+ L2$ Read:    244.9 bytes/cycle
+L1d$ Read:    524.2 bytes/cycle
+
+ L2$ Hit Rate:     78.8%
+L1d$ Hit Rate:     59.8%
+
+
+Cycle: 163840
+Threads Launched: 34048
+
+DRAM Read:     54.7 bytes/cycle
+ L2$ Read:    298.8 bytes/cycle
+L1d$ Read:    638.6 bytes/cycle
+
+ L2$ Hit Rate:     81.4%
+L1d$ Hit Rate:     59.9%
+
+
+Cycle: 196608
+Threads Launched: 38784
+
+DRAM Read:     60.7 bytes/cycle
+ L2$ Read:    336.1 bytes/cycle
+L1d$ Read:    725.0 bytes/cycle
+
+ L2$ Hit Rate:     81.9%
+L1d$ Hit Rate:     60.4%
+
+
+Cycle: 229376
+Threads Launched: 43200
+
+DRAM Read:     53.0 bytes/cycle
+ L2$ Read:    343.7 bytes/cycle
+L1d$ Read:    722.9 bytes/cycle
+
+ L2$ Hit Rate:     84.5%
+L1d$ Hit Rate:     59.5%
+
+
+Cycle: 262144
+Threads Launched: 48384
+
+DRAM Read:     50.5 bytes/cycle
+ L2$ Read:    375.5 bytes/cycle
+L1d$ Read:    802.3 bytes/cycle
+
+ L2$ Hit Rate:     86.4%
+L1d$ Hit Rate:     59.7%
+
+
+Cycle: 294912
+Threads Launched: 54720
+
+DRAM Read:     58.5 bytes/cycle
+ L2$ Read:    468.5 bytes/cycle
+L1d$ Read:   1007.0 bytes/cycle
+
+ L2$ Hit Rate:     87.5%
+L1d$ Hit Rate:     60.0%
+
+
+Cycle: 327680
+Threads Launched: 60992
+
+DRAM Read:     54.0 bytes/cycle
+ L2$ Read:    448.0 bytes/cycle
+L1d$ Read:    945.8 bytes/cycle
+
+ L2$ Hit Rate:     87.9%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 360448
+Threads Launched: 68032
+
+DRAM Read:     57.5 bytes/cycle
+ L2$ Read:    525.5 bytes/cycle
+L1d$ Read:   1110.6 bytes/cycle
+
+ L2$ Hit Rate:     89.0%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 393216
+Threads Launched: 75200
+
+DRAM Read:     55.2 bytes/cycle
+ L2$ Read:    559.2 bytes/cycle
+L1d$ Read:   1170.8 bytes/cycle
+
+ L2$ Hit Rate:     89.9%
+L1d$ Hit Rate:     59.1%
+
+
+Cycle: 425984
+Threads Launched: 83328
+
+DRAM Read:     60.4 bytes/cycle
+ L2$ Read:    593.5 bytes/cycle
+L1d$ Read:   1256.8 bytes/cycle
+
+ L2$ Hit Rate:     89.8%
+L1d$ Hit Rate:     59.5%
+
+
+Cycle: 458752
+Threads Launched: 92224
+
+DRAM Read:     59.1 bytes/cycle
+ L2$ Read:    631.3 bytes/cycle
+L1d$ Read:   1338.7 bytes/cycle
+
+ L2$ Hit Rate:     90.6%
+L1d$ Hit Rate:     59.5%
+
+
+Cycle: 491520
+Threads Launched: 100288
+
+DRAM Read:     56.0 bytes/cycle
+ L2$ Read:    621.4 bytes/cycle
+L1d$ Read:   1290.4 bytes/cycle
+
+ L2$ Hit Rate:     90.9%
+L1d$ Hit Rate:     58.9%
+
+
+Cycle: 524288
+Threads Launched: 108928
+
+DRAM Read:     56.7 bytes/cycle
+ L2$ Read:    644.5 bytes/cycle
+L1d$ Read:   1383.3 bytes/cycle
+
+ L2$ Hit Rate:     91.1%
+L1d$ Hit Rate:     60.0%
+
+
+Cycle: 557056
+Threads Launched: 117952
+
+DRAM Read:     56.4 bytes/cycle
+ L2$ Read:    662.5 bytes/cycle
+L1d$ Read:   1400.2 bytes/cycle
+
+ L2$ Hit Rate:     91.5%
+L1d$ Hit Rate:     59.5%
+
+
+Cycle: 589824
+Threads Launched: 127104
+
+DRAM Read:     56.6 bytes/cycle
+ L2$ Read:    652.1 bytes/cycle
+L1d$ Read:   1381.1 bytes/cycle
+
+ L2$ Hit Rate:     91.3%
+L1d$ Hit Rate:     59.7%
+
+
+Cycle: 622592
+Threads Launched: 136256
+
+DRAM Read:     57.4 bytes/cycle
+ L2$ Read:    699.0 bytes/cycle
+L1d$ Read:   1493.8 bytes/cycle
+
+ L2$ Hit Rate:     91.7%
+L1d$ Hit Rate:     59.8%
+
+
+Cycle: 655360
+Threads Launched: 145792
+
+DRAM Read:     54.7 bytes/cycle
+ L2$ Read:    696.1 bytes/cycle
+L1d$ Read:   1489.9 bytes/cycle
+
+ L2$ Hit Rate:     92.1%
+L1d$ Hit Rate:     59.9%
+
+
+Cycle: 688128
+Threads Launched: 156544
+
+DRAM Read:     59.9 bytes/cycle
+ L2$ Read:    789.8 bytes/cycle
+L1d$ Read:   1712.5 bytes/cycle
+
+ L2$ Hit Rate:     92.3%
+L1d$ Hit Rate:     60.3%
+
+
+Cycle: 720896
+Threads Launched: 166272
+
+DRAM Read:     57.2 bytes/cycle
+ L2$ Read:    707.3 bytes/cycle
+L1d$ Read:   1529.3 bytes/cycle
+
+ L2$ Hit Rate:     91.9%
+L1d$ Hit Rate:     60.3%
+
+
+Cycle: 753664
+Threads Launched: 176320
+
+DRAM Read:     54.7 bytes/cycle
+ L2$ Read:    702.8 bytes/cycle
+L1d$ Read:   1556.3 bytes/cycle
+
+ L2$ Hit Rate:     92.1%
+L1d$ Hit Rate:     61.1%
+
+
+Cycle: 786432
+Threads Launched: 185920
+
+DRAM Read:     54.7 bytes/cycle
+ L2$ Read:    695.3 bytes/cycle
+L1d$ Read:   1538.6 bytes/cycle
+
+ L2$ Hit Rate:     92.1%
+L1d$ Hit Rate:     61.1%
+
+
+Cycle: 819200
+Threads Launched: 196992
+
+DRAM Read:     60.1 bytes/cycle
+ L2$ Read:    762.9 bytes/cycle
+L1d$ Read:   1682.6 bytes/cycle
+
+ L2$ Hit Rate:     92.1%
+L1d$ Hit Rate:     60.9%
+
+
+Cycle: 851968
+Threads Launched: 206656
+
+DRAM Read:     54.9 bytes/cycle
+ L2$ Read:    704.5 bytes/cycle
+L1d$ Read:   1584.1 bytes/cycle
+
+ L2$ Hit Rate:     92.2%
+L1d$ Hit Rate:     61.6%
+
+
+Cycle: 884736
+Threads Launched: 217472
+
+DRAM Read:     55.8 bytes/cycle
+ L2$ Read:    735.2 bytes/cycle
+L1d$ Read:   1669.3 bytes/cycle
+
+ L2$ Hit Rate:     92.3%
+L1d$ Hit Rate:     61.9%
+
+
+Cycle: 917504
+Threads Launched: 226752
+
+DRAM Read:     54.4 bytes/cycle
+ L2$ Read:    675.2 bytes/cycle
+L1d$ Read:   1533.2 bytes/cycle
+
+ L2$ Hit Rate:     91.9%
+L1d$ Hit Rate:     61.9%
+
+
+Cycle: 950272
+Threads Launched: 237184
+
+DRAM Read:     56.6 bytes/cycle
+ L2$ Read:    729.7 bytes/cycle
+L1d$ Read:   1672.4 bytes/cycle
+
+ L2$ Hit Rate:     92.1%
+L1d$ Hit Rate:     62.2%
+
+
+Cycle: 983040
+Threads Launched: 247232
+
+DRAM Read:     53.3 bytes/cycle
+ L2$ Read:    672.6 bytes/cycle
+L1d$ Read:   1540.0 bytes/cycle
+
+ L2$ Hit Rate:     92.0%
+L1d$ Hit Rate:     62.2%
+
+
+Cycle: 1015808
+Threads Launched: 257664
+
+DRAM Read:     56.0 bytes/cycle
+ L2$ Read:    693.3 bytes/cycle
+L1d$ Read:   1631.6 bytes/cycle
+
+ L2$ Hit Rate:     91.9%
+L1d$ Hit Rate:     63.1%
+
+
+Cycle: 1048576
+Threads Launched: 268480
+
+DRAM Read:     56.6 bytes/cycle
+ L2$ Read:    719.3 bytes/cycle
+L1d$ Read:   1665.3 bytes/cycle
+
+ L2$ Hit Rate:     91.9%
+L1d$ Hit Rate:     62.5%
+
+
+Cycle: 1081344
+Threads Launched: 277440
+
+DRAM Read:     57.3 bytes/cycle
+ L2$ Read:    639.1 bytes/cycle
+L1d$ Read:   1457.9 bytes/cycle
+
+ L2$ Hit Rate:     91.1%
+L1d$ Hit Rate:     62.0%
+
+
+Cycle: 1114112
+Threads Launched: 286720
+
+DRAM Read:     56.1 bytes/cycle
+ L2$ Read:    656.9 bytes/cycle
+L1d$ Read:   1482.7 bytes/cycle
+
+ L2$ Hit Rate:     91.3%
+L1d$ Hit Rate:     61.6%
+
+
+Cycle: 1146880
+Threads Launched: 295680
+
+DRAM Read:     53.3 bytes/cycle
+ L2$ Read:    625.0 bytes/cycle
+L1d$ Read:   1405.7 bytes/cycle
+
+ L2$ Hit Rate:     91.4%
+L1d$ Hit Rate:     61.5%
+
+
+Cycle: 1179648
+Threads Launched: 304704
+
+DRAM Read:     57.8 bytes/cycle
+ L2$ Read:    646.2 bytes/cycle
+L1d$ Read:   1416.0 bytes/cycle
+
+ L2$ Hit Rate:     91.0%
+L1d$ Hit Rate:     60.7%
+
+
+Cycle: 1212416
+Threads Launched: 311616
+
+DRAM Read:     50.2 bytes/cycle
+ L2$ Read:    550.5 bytes/cycle
+L1d$ Read:   1168.9 bytes/cycle
+
+ L2$ Hit Rate:     90.9%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 1245184
+Threads Launched: 320512
+
+DRAM Read:     59.0 bytes/cycle
+ L2$ Read:    675.9 bytes/cycle
+L1d$ Read:   1454.1 bytes/cycle
+
+ L2$ Hit Rate:     91.1%
+L1d$ Hit Rate:     59.9%
+
+
+Cycle: 1277952
+Threads Launched: 327232
+
+DRAM Read:     55.9 bytes/cycle
+ L2$ Read:    559.2 bytes/cycle
+L1d$ Read:   1156.1 bytes/cycle
+
+ L2$ Hit Rate:     90.0%
+L1d$ Hit Rate:     58.4%
+
+
+Cycle: 1310720
+Threads Launched: 334208
+
+DRAM Read:     57.1 bytes/cycle
+ L2$ Read:    588.8 bytes/cycle
+L1d$ Read:   1217.2 bytes/cycle
+
+ L2$ Hit Rate:     90.2%
+L1d$ Hit Rate:     58.5%
+
+
+Cycle: 1343488
+Threads Launched: 340672
+
+DRAM Read:     57.6 bytes/cycle
+ L2$ Read:    548.8 bytes/cycle
+L1d$ Read:   1098.8 bytes/cycle
+
+ L2$ Hit Rate:     89.5%
+L1d$ Hit Rate:     57.2%
+
+
+Cycle: 1376256
+Threads Launched: 346560
+
+DRAM Read:     50.8 bytes/cycle
+ L2$ Read:    518.1 bytes/cycle
+L1d$ Read:   1063.4 bytes/cycle
+
+ L2$ Hit Rate:     90.1%
+L1d$ Hit Rate:     58.1%
+
+
+Cycle: 1409024
+Threads Launched: 354240
+
+DRAM Read:     59.1 bytes/cycle
+ L2$ Read:    621.1 bytes/cycle
+L1d$ Read:   1285.2 bytes/cycle
+
+ L2$ Hit Rate:     90.3%
+L1d$ Hit Rate:     58.3%
+
+
+Cycle: 1441792
+Threads Launched: 359744
+
+DRAM Read:     53.5 bytes/cycle
+ L2$ Read:    512.2 bytes/cycle
+L1d$ Read:   1024.9 bytes/cycle
+
+ L2$ Hit Rate:     89.6%
+L1d$ Hit Rate:     56.9%
+
+
+Cycle: 1474560
+Threads Launched: 366656
+
+DRAM Read:     55.5 bytes/cycle
+ L2$ Read:    549.9 bytes/cycle
+L1d$ Read:   1130.7 bytes/cycle
+
+ L2$ Hit Rate:     89.8%
+L1d$ Hit Rate:     58.2%
+
+
+Cycle: 1507328
+Threads Launched: 371648
+
+DRAM Read:     44.5 bytes/cycle
+ L2$ Read:    404.7 bytes/cycle
+L1d$ Read:    840.9 bytes/cycle
+
+ L2$ Hit Rate:     89.1%
+L1d$ Hit Rate:     58.5%
+
+
+Cycle: 1540096
+Threads Launched: 378880
+
+DRAM Read:     56.0 bytes/cycle
+ L2$ Read:    581.4 bytes/cycle
+L1d$ Read:   1223.0 bytes/cycle
+
+ L2$ Hit Rate:     90.2%
+L1d$ Hit Rate:     58.8%
+
+
+Cycle: 1572864
+Threads Launched: 385344
+
+DRAM Read:     55.3 bytes/cycle
+ L2$ Read:    516.4 bytes/cycle
+L1d$ Read:   1094.2 bytes/cycle
+
+ L2$ Hit Rate:     89.2%
+L1d$ Hit Rate:     59.0%
+
+
+Cycle: 1605632
+Threads Launched: 391680
+
+DRAM Read:     53.2 bytes/cycle
+ L2$ Read:    506.2 bytes/cycle
+L1d$ Read:   1077.8 bytes/cycle
+
+ L2$ Hit Rate:     89.3%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 1638400
+Threads Launched: 398016
+
+DRAM Read:     54.2 bytes/cycle
+ L2$ Read:    491.1 bytes/cycle
+L1d$ Read:   1103.7 bytes/cycle
+
+ L2$ Hit Rate:     89.0%
+L1d$ Hit Rate:     61.1%
+
+
+Cycle: 1671168
+Threads Launched: 404416
+
+DRAM Read:     54.8 bytes/cycle
+ L2$ Read:    472.3 bytes/cycle
+L1d$ Read:   1022.5 bytes/cycle
+
+ L2$ Hit Rate:     88.3%
+L1d$ Hit Rate:     59.9%
+
+
+Cycle: 1703936
+Threads Launched: 410560
+
+DRAM Read:     58.0 bytes/cycle
+ L2$ Read:    502.8 bytes/cycle
+L1d$ Read:   1095.7 bytes/cycle
+
+ L2$ Hit Rate:     88.3%
+L1d$ Hit Rate:     60.0%
+
+
+Cycle: 1736704
+Threads Launched: 416256
+
+DRAM Read:     59.4 bytes/cycle
+ L2$ Read:    440.4 bytes/cycle
+L1d$ Read:    964.8 bytes/cycle
+
+ L2$ Hit Rate:     86.6%
+L1d$ Hit Rate:     60.3%
+
+
+Cycle: 1769472
+Threads Launched: 421568
+
+DRAM Read:     52.6 bytes/cycle
+ L2$ Read:    402.9 bytes/cycle
+L1d$ Read:    862.7 bytes/cycle
+
+ L2$ Hit Rate:     86.8%
+L1d$ Hit Rate:     59.5%
+
+
+Cycle: 1802240
+Threads Launched: 426240
+
+DRAM Read:     53.5 bytes/cycle
+ L2$ Read:    365.3 bytes/cycle
+L1d$ Read:    807.5 bytes/cycle
+
+ L2$ Hit Rate:     85.4%
+L1d$ Hit Rate:     60.7%
+
+
+Cycle: 1835008
+Threads Launched: 431360
+
+DRAM Read:     53.5 bytes/cycle
+ L2$ Read:    383.3 bytes/cycle
+L1d$ Read:    821.4 bytes/cycle
+
+ L2$ Hit Rate:     86.0%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 1867776
+Threads Launched: 436544
+
+DRAM Read:     55.9 bytes/cycle
+ L2$ Read:    407.0 bytes/cycle
+L1d$ Read:    851.3 bytes/cycle
+
+ L2$ Hit Rate:     86.1%
+L1d$ Hit Rate:     58.5%
+
+
+Cycle: 1900544
+Threads Launched: 441216
+
+DRAM Read:     54.8 bytes/cycle
+ L2$ Read:    412.0 bytes/cycle
+L1d$ Read:    882.2 bytes/cycle
+
+ L2$ Hit Rate:     86.6%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 1933312
+Threads Launched: 445632
+
+DRAM Read:     52.5 bytes/cycle
+ L2$ Read:    350.5 bytes/cycle
+L1d$ Read:    709.3 bytes/cycle
+
+ L2$ Hit Rate:     84.9%
+L1d$ Hit Rate:     57.5%
+
+
+Cycle: 1966080
+Threads Launched: 450240
+
+DRAM Read:     53.5 bytes/cycle
+ L2$ Read:    380.5 bytes/cycle
+L1d$ Read:    794.8 bytes/cycle
+
+ L2$ Hit Rate:     86.1%
+L1d$ Hit Rate:     58.6%
+
+
+Cycle: 1998848
+Threads Launched: 454528
+
+DRAM Read:     52.3 bytes/cycle
+ L2$ Read:    363.3 bytes/cycle
+L1d$ Read:    708.6 bytes/cycle
+
+ L2$ Hit Rate:     85.2%
+L1d$ Hit Rate:     55.9%
+
+
+Cycle: 2031616
+Threads Launched: 459264
+
+DRAM Read:     56.3 bytes/cycle
+ L2$ Read:    381.9 bytes/cycle
+L1d$ Read:    830.0 bytes/cycle
+
+ L2$ Hit Rate:     85.3%
+L1d$ Hit Rate:     60.2%
+
+
+Cycle: 2064384
+Threads Launched: 463360
+
+DRAM Read:     58.2 bytes/cycle
+ L2$ Read:    377.3 bytes/cycle
+L1d$ Read:    727.2 bytes/cycle
+
+ L2$ Hit Rate:     84.5%
+L1d$ Hit Rate:     55.9%
+
+
+Cycle: 2097152
+Threads Launched: 468224
+
+DRAM Read:     52.0 bytes/cycle
+ L2$ Read:    347.0 bytes/cycle
+L1d$ Read:    758.4 bytes/cycle
+
+ L2$ Hit Rate:     85.0%
+L1d$ Hit Rate:     60.2%
+
+
+Cycle: 2129920
+Threads Launched: 472320
+
+DRAM Read:     50.8 bytes/cycle
+ L2$ Read:    331.8 bytes/cycle
+L1d$ Read:    707.1 bytes/cycle
+
+ L2$ Hit Rate:     84.5%
+L1d$ Hit Rate:     59.0%
+
+
+Cycle: 2162688
+Threads Launched: 477440
+
+DRAM Read:     58.5 bytes/cycle
+ L2$ Read:    361.3 bytes/cycle
+L1d$ Read:    789.3 bytes/cycle
+
+ L2$ Hit Rate:     83.7%
+L1d$ Hit Rate:     60.1%
+
+
+Cycle: 2195456
+Threads Launched: 482560
+
+DRAM Read:     58.8 bytes/cycle
+ L2$ Read:    387.7 bytes/cycle
+L1d$ Read:    837.1 bytes/cycle
+
+ L2$ Hit Rate:     84.8%
+L1d$ Hit Rate:     59.6%
+
+
+Cycle: 2228224
+Threads Launched: 487040
+
+DRAM Read:     52.6 bytes/cycle
+ L2$ Read:    347.4 bytes/cycle
+L1d$ Read:    755.4 bytes/cycle
+
+ L2$ Hit Rate:     84.9%
+L1d$ Hit Rate:     59.9%
+
+
+Cycle: 2260992
+Threads Launched: 492736
+
+DRAM Read:     51.0 bytes/cycle
+ L2$ Read:    378.6 bytes/cycle
+L1d$ Read:    854.5 bytes/cycle
+
+ L2$ Hit Rate:     86.4%
+L1d$ Hit Rate:     61.1%
+
+
+Cycle: 2293760
+Threads Launched: 498176
+
+DRAM Read:     54.3 bytes/cycle
+ L2$ Read:    400.7 bytes/cycle
+L1d$ Read:    864.2 bytes/cycle
+
+ L2$ Hit Rate:     86.4%
+L1d$ Hit Rate:     59.7%
+
+
+Cycle: 2326528
+Threads Launched: 504000
+
+DRAM Read:     53.5 bytes/cycle
+ L2$ Read:    411.4 bytes/cycle
+L1d$ Read:    917.2 bytes/cycle
+
+ L2$ Hit Rate:     87.0%
+L1d$ Hit Rate:     60.8%
+
+
+Cycle: 2359296
+Threads Launched: 508672
+
+DRAM Read:     48.6 bytes/cycle
+ L2$ Read:    375.9 bytes/cycle
+L1d$ Read:    795.9 bytes/cycle
+
+ L2$ Hit Rate:     86.9%
+L1d$ Hit Rate:     58.7%
+
+
+Cycle: 2392064
+Threads Launched: 514560
+
+DRAM Read:     51.4 bytes/cycle
+ L2$ Read:    418.7 bytes/cycle
+L1d$ Read:    919.5 bytes/cycle
+
+ L2$ Hit Rate:     87.7%
+L1d$ Hit Rate:     60.1%
+
+
+Cycle: 2424832
+Threads Launched: 520768
+
+DRAM Read:     54.9 bytes/cycle
+ L2$ Read:    442.2 bytes/cycle
+L1d$ Read:    954.2 bytes/cycle
+
+ L2$ Hit Rate:     87.6%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 2457600
+Threads Launched: 526016
+
+DRAM Read:     50.3 bytes/cycle
+ L2$ Read:    393.7 bytes/cycle
+L1d$ Read:    788.9 bytes/cycle
+
+ L2$ Hit Rate:     87.1%
+L1d$ Hit Rate:     56.9%
+
+
+Cycle: 2490368
+Threads Launched: 532352
+
+DRAM Read:     55.4 bytes/cycle
+ L2$ Read:    467.3 bytes/cycle
+L1d$ Read:    966.1 bytes/cycle
+
+ L2$ Hit Rate:     88.0%
+L1d$ Hit Rate:     57.8%
+
+
+Cycle: 2523136
+Threads Launched: 537728
+
+DRAM Read:     52.9 bytes/cycle
+ L2$ Read:    428.3 bytes/cycle
+L1d$ Read:    877.5 bytes/cycle
+
+ L2$ Hit Rate:     87.6%
+L1d$ Hit Rate:     57.8%
+
+
+Cycle: 2555904
+Threads Launched: 543808
+
+DRAM Read:     53.2 bytes/cycle
+ L2$ Read:    434.1 bytes/cycle
+L1d$ Read:    935.4 bytes/cycle
+
+ L2$ Hit Rate:     87.7%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 2588672
+Threads Launched: 550272
+
+DRAM Read:     51.2 bytes/cycle
+ L2$ Read:    464.6 bytes/cycle
+L1d$ Read:    961.2 bytes/cycle
+
+ L2$ Hit Rate:     88.8%
+L1d$ Hit Rate:     58.0%
+
+
+Cycle: 2621440
+Threads Launched: 556160
+
+DRAM Read:     53.4 bytes/cycle
+ L2$ Read:    442.5 bytes/cycle
+L1d$ Read:    910.4 bytes/cycle
+
+ L2$ Hit Rate:     88.0%
+L1d$ Hit Rate:     57.8%
+
+
+Cycle: 2654208
+Threads Launched: 562560
+
+DRAM Read:     50.8 bytes/cycle
+ L2$ Read:    432.6 bytes/cycle
+L1d$ Read:    912.1 bytes/cycle
+
+ L2$ Hit Rate:     88.2%
+L1d$ Hit Rate:     58.7%
+
+
+Cycle: 2686976
+Threads Launched: 568896
+
+DRAM Read:     55.3 bytes/cycle
+ L2$ Read:    487.7 bytes/cycle
+L1d$ Read:   1020.2 bytes/cycle
+
+ L2$ Hit Rate:     88.6%
+L1d$ Hit Rate:     58.6%
+
+
+Cycle: 2719744
+Threads Launched: 576128
+
+DRAM Read:     57.1 bytes/cycle
+ L2$ Read:    519.5 bytes/cycle
+L1d$ Read:   1113.4 bytes/cycle
+
+ L2$ Hit Rate:     88.9%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 2752512
+Threads Launched: 582912
+
+DRAM Read:     53.9 bytes/cycle
+ L2$ Read:    476.3 bytes/cycle
+L1d$ Read:   1009.6 bytes/cycle
+
+ L2$ Hit Rate:     88.5%
+L1d$ Hit Rate:     59.0%
+
+
+Cycle: 2785280
+Threads Launched: 588928
+
+DRAM Read:     51.6 bytes/cycle
+ L2$ Read:    441.8 bytes/cycle
+L1d$ Read:    914.1 bytes/cycle
+
+ L2$ Hit Rate:     88.4%
+L1d$ Hit Rate:     58.3%
+
+
+Cycle: 2818048
+Threads Launched: 596032
+
+DRAM Read:     57.4 bytes/cycle
+ L2$ Read:    521.3 bytes/cycle
+L1d$ Read:   1130.4 bytes/cycle
+
+ L2$ Hit Rate:     88.8%
+L1d$ Hit Rate:     59.6%
+
+
+Cycle: 2850816
+Threads Launched: 603072
+
+DRAM Read:     59.7 bytes/cycle
+ L2$ Read:    516.5 bytes/cycle
+L1d$ Read:   1109.4 bytes/cycle
+
+ L2$ Hit Rate:     88.4%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 2883584
+Threads Launched: 609408
+
+DRAM Read:     51.6 bytes/cycle
+ L2$ Read:    424.4 bytes/cycle
+L1d$ Read:    871.4 bytes/cycle
+
+ L2$ Hit Rate:     87.9%
+L1d$ Hit Rate:     58.2%
+
+
+Cycle: 2916352
+Threads Launched: 615808
+
+DRAM Read:     56.4 bytes/cycle
+ L2$ Read:    497.9 bytes/cycle
+L1d$ Read:   1055.1 bytes/cycle
+
+ L2$ Hit Rate:     88.6%
+L1d$ Hit Rate:     58.9%
+
+
+Cycle: 2949120
+Threads Launched: 623424
+
+DRAM Read:     56.9 bytes/cycle
+ L2$ Read:    537.4 bytes/cycle
+L1d$ Read:   1168.2 bytes/cycle
+
+ L2$ Hit Rate:     89.3%
+L1d$ Hit Rate:     59.9%
+
+
+Cycle: 2981888
+Threads Launched: 630144
+
+DRAM Read:     57.1 bytes/cycle
+ L2$ Read:    489.1 bytes/cycle
+L1d$ Read:   1036.2 bytes/cycle
+
+ L2$ Hit Rate:     88.3%
+L1d$ Hit Rate:     59.2%
+
+
+Cycle: 3014656
+Threads Launched: 636544
+
+DRAM Read:     46.9 bytes/cycle
+ L2$ Read:    431.8 bytes/cycle
+L1d$ Read:    938.2 bytes/cycle
+
+ L2$ Hit Rate:     89.1%
+L1d$ Hit Rate:     59.7%
+
+
+Cycle: 3047424
+Threads Launched: 643712
+
+DRAM Read:     53.8 bytes/cycle
+ L2$ Read:    537.5 bytes/cycle
+L1d$ Read:   1146.8 bytes/cycle
+
+ L2$ Hit Rate:     89.9%
+L1d$ Hit Rate:     59.1%
+
+
+Cycle: 3080192
+Threads Launched: 649856
+
+DRAM Read:     52.5 bytes/cycle
+ L2$ Read:    458.9 bytes/cycle
+L1d$ Read:    965.2 bytes/cycle
+
+ L2$ Hit Rate:     88.7%
+L1d$ Hit Rate:     58.7%
+
+
+Cycle: 3112960
+Threads Launched: 656960
+
+DRAM Read:     60.0 bytes/cycle
+ L2$ Read:    507.3 bytes/cycle
+L1d$ Read:   1069.2 bytes/cycle
+
+ L2$ Hit Rate:     88.0%
+L1d$ Hit Rate:     58.4%
+
+
+Cycle: 3145728
+Threads Launched: 662464
+
+DRAM Read:     49.2 bytes/cycle
+ L2$ Read:    399.7 bytes/cycle
+L1d$ Read:    862.8 bytes/cycle
+
+ L2$ Hit Rate:     87.7%
+L1d$ Hit Rate:     59.8%
+
+
+Cycle: 3178496
+Threads Launched: 668032
+
+DRAM Read:     49.2 bytes/cycle
+ L2$ Read:    413.1 bytes/cycle
+L1d$ Read:    870.2 bytes/cycle
+
+ L2$ Hit Rate:     87.9%
+L1d$ Hit Rate:     58.5%
+
+
+Cycle: 3211264
+Threads Launched: 674112
+
+DRAM Read:     53.7 bytes/cycle
+ L2$ Read:    414.7 bytes/cycle
+L1d$ Read:    895.1 bytes/cycle
+
+ L2$ Hit Rate:     87.2%
+L1d$ Hit Rate:     59.6%
+
+
+Cycle: 3244032
+Threads Launched: 680384
+
+DRAM Read:     54.5 bytes/cycle
+ L2$ Read:    439.6 bytes/cycle
+L1d$ Read:    938.6 bytes/cycle
+
+ L2$ Hit Rate:     87.4%
+L1d$ Hit Rate:     58.9%
+
+
+Cycle: 3276800
+Threads Launched: 685632
+
+DRAM Read:     51.6 bytes/cycle
+ L2$ Read:    441.8 bytes/cycle
+L1d$ Read:    923.4 bytes/cycle
+
+ L2$ Hit Rate:     88.3%
+L1d$ Hit Rate:     58.3%
+
+
+Cycle: 3309568
+Threads Launched: 691648
+
+DRAM Read:     53.3 bytes/cycle
+ L2$ Read:    418.5 bytes/cycle
+L1d$ Read:    877.6 bytes/cycle
+
+ L2$ Hit Rate:     87.3%
+L1d$ Hit Rate:     58.7%
+
+
+Cycle: 3342336
+Threads Launched: 697472
+
+DRAM Read:     51.9 bytes/cycle
+ L2$ Read:    426.8 bytes/cycle
+L1d$ Read:    889.5 bytes/cycle
+
+ L2$ Hit Rate:     87.7%
+L1d$ Hit Rate:     58.2%
+
+
+Cycle: 3375104
+Threads Launched: 703616
+
+DRAM Read:     51.2 bytes/cycle
+ L2$ Read:    437.7 bytes/cycle
+L1d$ Read:    904.4 bytes/cycle
+
+ L2$ Hit Rate:     88.3%
+L1d$ Hit Rate:     58.0%
+
+
+Cycle: 3407872
+Threads Launched: 710080
+
+DRAM Read:     51.4 bytes/cycle
+ L2$ Read:    473.6 bytes/cycle
+L1d$ Read:    974.3 bytes/cycle
+
+ L2$ Hit Rate:     88.9%
+L1d$ Hit Rate:     57.7%
+
+
+Cycle: 3440640
+Threads Launched: 715776
+
+DRAM Read:     49.4 bytes/cycle
+ L2$ Read:    415.4 bytes/cycle
+L1d$ Read:    852.3 bytes/cycle
+
+ L2$ Hit Rate:     88.3%
+L1d$ Hit Rate:     57.7%
+
+
+Cycle: 3473408
+Threads Launched: 722240
+
+DRAM Read:     52.2 bytes/cycle
+ L2$ Read:    474.1 bytes/cycle
+L1d$ Read:    979.4 bytes/cycle
+
+ L2$ Hit Rate:     88.9%
+L1d$ Hit Rate:     57.9%
+
+
+Cycle: 3506176
+Threads Launched: 728320
+
+DRAM Read:     49.7 bytes/cycle
+ L2$ Read:    460.0 bytes/cycle
+L1d$ Read:    948.4 bytes/cycle
+
+ L2$ Hit Rate:     89.0%
+L1d$ Hit Rate:     57.9%
+
+
+Cycle: 3538944
+Threads Launched: 735360
+
+DRAM Read:     58.1 bytes/cycle
+ L2$ Read:    526.5 bytes/cycle
+L1d$ Read:   1070.3 bytes/cycle
+
+ L2$ Hit Rate:     88.9%
+L1d$ Hit Rate:     57.3%
+
+
+Cycle: 3571712
+Threads Launched: 741952
+
+DRAM Read:     57.0 bytes/cycle
+ L2$ Read:    501.4 bytes/cycle
+L1d$ Read:   1023.1 bytes/cycle
+
+ L2$ Hit Rate:     88.6%
+L1d$ Hit Rate:     57.7%
+
+
+Cycle: 3604480
+Threads Launched: 747456
+
+DRAM Read:     50.3 bytes/cycle
+ L2$ Read:    438.2 bytes/cycle
+L1d$ Read:    884.9 bytes/cycle
+
+ L2$ Hit Rate:     88.5%
+L1d$ Hit Rate:     57.1%
+
+
+Cycle: 3637248
+Threads Launched: 754048
+
+DRAM Read:     49.5 bytes/cycle
+ L2$ Read:    489.7 bytes/cycle
+L1d$ Read:   1000.5 bytes/cycle
+
+ L2$ Hit Rate:     89.8%
+L1d$ Hit Rate:     57.7%
+
+
+Cycle: 3670016
+Threads Launched: 761344
+
+DRAM Read:     57.4 bytes/cycle
+ L2$ Read:    531.5 bytes/cycle
+L1d$ Read:   1088.4 bytes/cycle
+
+ L2$ Hit Rate:     89.0%
+L1d$ Hit Rate:     57.6%
+
+
+Cycle: 3702784
+Threads Launched: 767936
+
+DRAM Read:     55.2 bytes/cycle
+ L2$ Read:    501.6 bytes/cycle
+L1d$ Read:   1008.8 bytes/cycle
+
+ L2$ Hit Rate:     89.0%
+L1d$ Hit Rate:     57.1%
+
+
+Cycle: 3735552
+Threads Launched: 774912
+
+DRAM Read:     53.8 bytes/cycle
+ L2$ Read:    529.1 bytes/cycle
+L1d$ Read:   1098.6 bytes/cycle
+
+ L2$ Hit Rate:     89.8%
+L1d$ Hit Rate:     58.4%
+
+
+Cycle: 3768320
+Threads Launched: 782272
+
+DRAM Read:     51.9 bytes/cycle
+ L2$ Read:    529.3 bytes/cycle
+L1d$ Read:   1094.9 bytes/cycle
+
+ L2$ Hit Rate:     90.1%
+L1d$ Hit Rate:     58.1%
+
+
+Cycle: 3801088
+Threads Launched: 790784
+
+DRAM Read:     57.0 bytes/cycle
+ L2$ Read:    613.0 bytes/cycle
+L1d$ Read:   1259.0 bytes/cycle
+
+ L2$ Hit Rate:     90.6%
+L1d$ Hit Rate:     57.8%
+
+
+Cycle: 3833856
+Threads Launched: 798272
+
+DRAM Read:     57.4 bytes/cycle
+ L2$ Read:    589.3 bytes/cycle
+L1d$ Read:   1212.1 bytes/cycle
+
+ L2$ Hit Rate:     90.2%
+L1d$ Hit Rate:     57.8%
+
+
+Cycle: 3866624
+Threads Launched: 805248
+
+DRAM Read:     50.9 bytes/cycle
+ L2$ Read:    527.5 bytes/cycle
+L1d$ Read:   1102.2 bytes/cycle
+
+ L2$ Hit Rate:     90.3%
+L1d$ Hit Rate:     58.7%
+
+
+Cycle: 3899392
+Threads Launched: 814208
+
+DRAM Read:     54.7 bytes/cycle
+ L2$ Read:    626.2 bytes/cycle
+L1d$ Read:   1332.2 bytes/cycle
+
+ L2$ Hit Rate:     91.2%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 3932160
+Threads Launched: 823232
+
+DRAM Read:     56.0 bytes/cycle
+ L2$ Read:    626.3 bytes/cycle
+L1d$ Read:   1331.5 bytes/cycle
+
+ L2$ Hit Rate:     91.0%
+L1d$ Hit Rate:     59.2%
+
+
+Cycle: 3964928
+Threads Launched: 831744
+
+DRAM Read:     55.8 bytes/cycle
+ L2$ Read:    617.7 bytes/cycle
+L1d$ Read:   1315.7 bytes/cycle
+
+ L2$ Hit Rate:     90.9%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 3997696
+Threads Launched: 840384
+
+DRAM Read:     50.5 bytes/cycle
+ L2$ Read:    611.3 bytes/cycle
+L1d$ Read:   1322.2 bytes/cycle
+
+ L2$ Hit Rate:     91.6%
+L1d$ Hit Rate:     59.8%
+
+
+Cycle: 4030464
+Threads Launched: 850752
+
+DRAM Read:     60.7 bytes/cycle
+ L2$ Read:    719.0 bytes/cycle
+L1d$ Read:   1569.3 bytes/cycle
+
+ L2$ Hit Rate:     91.6%
+L1d$ Hit Rate:     60.2%
+
+
+Cycle: 4063232
+Threads Launched: 860096
+
+DRAM Read:     56.2 bytes/cycle
+ L2$ Read:    659.0 bytes/cycle
+L1d$ Read:   1411.5 bytes/cycle
+
+ L2$ Hit Rate:     91.5%
+L1d$ Hit Rate:     59.6%
+
+
+Cycle: 4096000
+Threads Launched: 868672
+
+DRAM Read:     54.1 bytes/cycle
+ L2$ Read:    637.4 bytes/cycle
+L1d$ Read:   1351.8 bytes/cycle
+
+ L2$ Hit Rate:     91.4%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 4128768
+Threads Launched: 879488
+
+DRAM Read:     57.7 bytes/cycle
+ L2$ Read:    753.8 bytes/cycle
+L1d$ Read:   1626.7 bytes/cycle
+
+ L2$ Hit Rate:     92.2%
+L1d$ Hit Rate:     59.8%
+
+
+Cycle: 4161536
+Threads Launched: 889856
+
+DRAM Read:     59.1 bytes/cycle
+ L2$ Read:    743.6 bytes/cycle
+L1d$ Read:   1590.1 bytes/cycle
+
+ L2$ Hit Rate:     92.0%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 4194304
+Threads Launched: 899520
+
+DRAM Read:     58.6 bytes/cycle
+ L2$ Read:    693.0 bytes/cycle
+L1d$ Read:   1488.7 bytes/cycle
+
+ L2$ Hit Rate:     91.5%
+L1d$ Hit Rate:     59.6%
+
+
+Cycle: 4227072
+Threads Launched: 909760
+
+DRAM Read:     56.0 bytes/cycle
+ L2$ Read:    695.7 bytes/cycle
+L1d$ Read:   1504.6 bytes/cycle
+
+ L2$ Hit Rate:     91.9%
+L1d$ Hit Rate:     59.7%
+
+
+Cycle: 4259840
+Threads Launched: 918976
+
+DRAM Read:     53.0 bytes/cycle
+ L2$ Read:    643.4 bytes/cycle
+L1d$ Read:   1385.6 bytes/cycle
+
+ L2$ Hit Rate:     91.7%
+L1d$ Hit Rate:     59.8%
+
+
+Cycle: 4292608
+Threads Launched: 930176
+
+DRAM Read:     55.2 bytes/cycle
+ L2$ Read:    815.7 bytes/cycle
+L1d$ Read:   1755.3 bytes/cycle
+
+ L2$ Hit Rate:     93.1%
+L1d$ Hit Rate:     59.3%
+
+
+Cycle: 4325376
+Threads Launched: 937984
+
+DRAM Read:     49.4 bytes/cycle
+ L2$ Read:    599.4 bytes/cycle
+L1d$ Read:   1174.4 bytes/cycle
+
+ L2$ Hit Rate:     91.8%
+L1d$ Hit Rate:     56.6%
+
+
+#-----------------------------Simulated Cycles Break-Up-------------------------------------------
+Note:  1.(Read Cycles + Write Cycles + Read Other + Write Other) should add up to % cycles during which
+          the channel is busy. This should be the same for all Ranks on a Channel
+       2.(PRE_PDN_FAST + PRE_PDN_SLOW + ACT_PDN + ACT_STBY + PRE_STBY) should add up to 100%
+       3.Power Down means Clock Enable, CKE = 0. In Standby mode, CKE = 1
+#---------------------------------------------------------------------------------------------------
+Total Simulation Cycles                          4336267
+----------------------------------------------------------------------------------------------------
+
+PROFILING DISABLED!
+-------------DRAM stats-------------
+Cycles 4336267
+Done: Core 0: Fetched 0 : Committed 0 : At time  : 0
+Sum of execution times for all programs: 0
+Num reads merged:                        0
+Num writes merged:                       0
+-------- Channel 0 Stats-----------
+Total Reads Serviced :          233519
+Total Writes Serviced :         57344
+Average Read Latency :          456.01693
+Average Read Queue Latency :    424.01693
+Average Write Latency :         1932.51557
+Average Write Queue Latency :   1898.51557
+Read Page Hit Rate :            0.25311
+Write Page Hit Rate :           0.90604
+Max write queue length:         49
+Max read queue length:          64
+Average read queue length:      22.888243
+Average column reads per ACT:   1.338893
+Single column reads:            139672
+Single column reads(%):         59.811836
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 1 Stats-----------
+Total Reads Serviced :          232323
+Total Writes Serviced :         57344
+Average Read Latency :          366.88845
+Average Read Queue Latency :    334.88845
+Average Write Latency :         1848.04747
+Average Write Queue Latency :   1814.04747
+Read Page Hit Rate :            0.27303
+Write Page Hit Rate :           0.90243
+Max write queue length:         51
+Max read queue length:          64
+Average read queue length:      17.995804
+Average column reads per ACT:   1.375579
+Single column reads:            132452
+Single column reads(%):         57.012005
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 2 Stats-----------
+Total Reads Serviced :          225555
+Total Writes Serviced :         58368
+Average Read Latency :          291.41938
+Average Read Queue Latency :    259.41938
+Average Write Latency :         1702.25884
+Average Write Queue Latency :   1668.25884
+Read Page Hit Rate :            0.28935
+Write Page Hit Rate :           0.90041
+Max write queue length:         51
+Max read queue length:          64
+Average read queue length:      13.545959
+Average column reads per ACT:   1.407159
+Single column reads:            122753
+Single column reads(%):         54.422646
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 3 Stats-----------
+Total Reads Serviced :          229054
+Total Writes Serviced :         58368
+Average Read Latency :          377.92207
+Average Read Queue Latency :    345.92207
+Average Write Latency :         1807.83561
+Average Write Queue Latency :   1773.83561
+Read Page Hit Rate :            0.27306
+Write Page Hit Rate :           0.89837
+Max write queue length:         52
+Max read queue length:          64
+Average read queue length:      18.325415
+Average column reads per ACT:   1.375625
+Single column reads:            130387
+Single column reads(%):         56.924129
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 4 Stats-----------
+Total Reads Serviced :          232423
+Total Writes Serviced :         58368
+Average Read Latency :          539.58238
+Average Read Queue Latency :    507.58238
+Average Write Latency :         1900.56942
+Average Write Queue Latency :   1866.56942
+Read Page Hit Rate :            0.24669
+Write Page Hit Rate :           0.90635
+Max write queue length:         57
+Max read queue length:          64
+Average read queue length:      27.259909
+Average column reads per ACT:   1.327471
+Single column reads:            142247
+Single column reads(%):         61.201775
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 5 Stats-----------
+Total Reads Serviced :          231170
+Total Writes Serviced :         58368
+Average Read Latency :          374.37342
+Average Read Queue Latency :    342.37342
+Average Write Latency :         1825.80608
+Average Write Queue Latency :   1791.80608
+Read Page Hit Rate :            0.27096
+Write Page Hit Rate :           0.90536
+Max write queue length:         50
+Max read queue length:          64
+Average read queue length:      18.305523
+Average column reads per ACT:   1.371660
+Single column reads:            131978
+Single column reads(%):         57.091320
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 6 Stats-----------
+Total Reads Serviced :          229490
+Total Writes Serviced :         57344
+Average Read Latency :          347.76564
+Average Read Queue Latency :    315.76564
+Average Write Latency :         1784.66051
+Average Write Queue Latency :   1750.66051
+Read Page Hit Rate :            0.27416
+Write Page Hit Rate :           0.90175
+Max write queue length:         52
+Max read queue length:          64
+Average read queue length:      16.764315
+Average column reads per ACT:   1.377706
+Single column reads:            129422
+Single column reads(%):         56.395485
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 7 Stats-----------
+Total Reads Serviced :          228837
+Total Writes Serviced :         57344
+Average Read Latency :          356.17818
+Average Read Queue Latency :    324.17818
+Average Write Latency :         1804.02823
+Average Write Queue Latency :   1770.02823
+Read Page Hit Rate :            0.27687
+Write Page Hit Rate :           0.90201
+Max write queue length:         53
+Max read queue length:          64
+Average read queue length:      17.160566
+Average column reads per ACT:   1.382876
+Single column reads:            128744
+Single column reads(%):         56.260132
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 8 Stats-----------
+Total Reads Serviced :          230827
+Total Writes Serviced :         57344
+Average Read Latency :          463.65142
+Average Read Queue Latency :    431.65142
+Average Write Latency :         1890.28271
+Average Write Queue Latency :   1856.28271
+Read Page Hit Rate :            0.25456
+Write Page Hit Rate :           0.90560
+Max write queue length:         56
+Max read queue length:          64
+Average read queue length:      23.030785
+Average column reads per ACT:   1.341495
+Single column reads:            137816
+Single column reads(%):         59.705322
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 9 Stats-----------
+Total Reads Serviced :          234939
+Total Writes Serviced :         57344
+Average Read Latency :          605.95260
+Average Read Queue Latency :    573.95260
+Average Write Latency :         2032.92386
+Average Write Queue Latency :   1998.92386
+Read Page Hit Rate :            0.23491
+Write Page Hit Rate :           0.90688
+Max write queue length:         50
+Max read queue length:          64
+Average read queue length:      31.150938
+Average column reads per ACT:   1.307039
+Single column reads:            148226
+Single column reads(%):         63.091270
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 10 Stats-----------
+Total Reads Serviced :          232001
+Total Writes Serviced :         57344
+Average Read Latency :          376.95402
+Average Read Queue Latency :    344.95402
+Average Write Latency :         1882.89453
+Average Write Queue Latency :   1848.89453
+Read Page Hit Rate :            0.26945
+Write Page Hit Rate :           0.90349
+Max write queue length:         54
+Max read queue length:          64
+Average read queue length:      18.509396
+Average column reads per ACT:   1.368826
+Single column reads:            132845
+Single column reads(%):         57.260532
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 11 Stats-----------
+Total Reads Serviced :          234009
+Total Writes Serviced :         57344
+Average Read Latency :          472.16396
+Average Read Queue Latency :    440.16396
+Average Write Latency :         1967.85714
+Average Write Queue Latency :   1933.85714
+Read Page Hit Rate :            0.25196
+Write Page Hit Rate :           0.90576
+Max write queue length:         48
+Max read queue length:          64
+Average read queue length:      23.807652
+Average column reads per ACT:   1.336820
+Single column reads:            140710
+Single column reads(%):         60.130165
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 12 Stats-----------
+Total Reads Serviced :          236385
+Total Writes Serviced :         57344
+Average Read Latency :          732.02038
+Average Read Queue Latency :    700.02038
+Average Write Latency :         2109.33330
+Average Write Queue Latency :   2075.33330
+Read Page Hit Rate :            0.21806
+Write Page Hit Rate :           0.91110
+Max write queue length:         49
+Max read queue length:          64
+Average read queue length:      38.215061
+Average column reads per ACT:   1.278863
+Single column reads:            155254
+Single column reads(%):         65.678444
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 13 Stats-----------
+Total Reads Serviced :          231652
+Total Writes Serviced :         57344
+Average Read Latency :          404.63739
+Average Read Queue Latency :    372.63739
+Average Write Latency :         1896.41211
+Average Write Queue Latency :   1862.41211
+Read Page Hit Rate :            0.26055
+Write Page Hit Rate :           0.90487
+Max write queue length:         50
+Max read queue length:          64
+Average read queue length:      19.960451
+Average column reads per ACT:   1.352357
+Single column reads:            135880
+Single column reads(%):         58.656948
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 14 Stats-----------
+Total Reads Serviced :          231553
+Total Writes Serviced :         57344
+Average Read Latency :          415.69350
+Average Read Queue Latency :    383.69350
+Average Write Latency :         1908.75255
+Average Write Queue Latency :   1874.75255
+Read Page Hit Rate :            0.25852
+Write Page Hit Rate :           0.90501
+Max write queue length:         50
+Max read queue length:          64
+Average read queue length:      20.542309
+Average column reads per ACT:   1.348646
+Single column reads:            136679
+Single column reads(%):         59.027092
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 15 Stats-----------
+Total Reads Serviced :          238194
+Total Writes Serviced :         57344
+Average Read Latency :          854.85062
+Average Read Queue Latency :    822.85062
+Average Write Latency :         2186.70836
+Average Write Queue Latency :   2152.70836
+Read Page Hit Rate :            0.20255
+Write Page Hit Rate :           0.91117
+Max write queue length:         51
+Max read queue length:          64
+Average read queue length:      45.254658
+Average column reads per ACT:   1.253996
+Single column reads:            163490
+Single column reads(%):         68.637329
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+
+#-------------------------------------- Power Stats ----------------------------------------------
+Note:  1. termRoth/termWoth is the power dissipated in the ODT resistors when Read/Writes terminate
+          in other ranks on the same channel
+#-------------------------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------------------------
+Total memory system power  = 127.914047 W
+Miscellaneous system power = 10 W  # Processor uncore power, disk, I/O, cooling, etc.
+Processor core power       = 0.000000 W  # Assuming that each core consumes 5 W
+Total system power         = 137.914047 W # Sum of the previous three lines
+Energy Delay product (EDP) = 0.000253245 J.s
+
+--------------------------------------DRAM--------------------------------------
+Read Bandwidth: 54.8 bytes/cycle
+Write Bandwidth: 0.9 bytes/cycle
+
+Total: 4633531
+Loads: 3711931
+Stores: 921600
+
+--------------------------------------L2$---------------------------------------
+Read Bandwidth: 514.2 bytes/cycle
+
+Total: 34686571
+Hits: 30944799 (89.21%)
+Misses: 3741772 (10.79%)
+Half Misses: 29841 (0.09%)
+MSHR Stalls: 46294651
+
+Tag Array Access: 84846111
+Data Array Reads: 30922265
+Data Array Writes: 3711931
+
+Total Energy: 39.06 mJ
+Total Power: 18.01 W
+
+--------------------------------------L1d$--------------------------------------
+Read Bandwidth: 1098.0 bytes/cycle
+
+Total: 96025638
+Hits: 57065195 (59.43%)
+Misses: 38960443 (40.57%)
+Half Misses: 4124488 (4.30%)
+MSHR Stalls: 17035
+
+Tag Array Access: 130878628
+Data Array Reads: 54198281
+Data Array Writes: 34835955
+
+Total Energy: 10.81 mJ
+Total Power: 4.99 W
+
+--------------------------------------L1i$--------------------------------------
+Read Bandwidth: 151.8 bytes/cycle
+
+Total: 10284765
+Hits: 10281191(99.97%)
+Misses: 3574(0.03%)
+
+Tag Array Access: 10284765
+Data Array Reads: 10281191
+Data Array Writes: 3574
+
+Total Energy: 2.01 mJ
+Total Power: 0.93 W
+
+---------------------------------------TP---------------------------------------
+Issue Cycles: 9040 (0.21%)
+        ILOGICAL: 2901 (0.07%)
+        LOAD: 2503 (0.06%)
+        IADD: 1578 (0.04%)
+        BRANCH: 901 (0.02%)
+        MOVE: 246 (0.01%)
+        FCHTHRD: 229 (0.01%)
+        STORE: 225 (0.01%)
+        FCMP: 225 (0.01%)
+        TRACERAY: 222 (0.01%)
+        JUMP: 8 (0.00%)
+
+Data Stall Cycles: 4288826 (99.79%)
+        TRACERAY: 4242914 (98.72%)
+        LOAD: 42506 (0.99%)
+        INSTR_FETCH: 3399 (0.08%)
+        FCHTHRD: 6 (0.00%)
+
+Pipeline Stall Cycles: 0 (0.00%)
+
+------------------------------------RT Core-------------------------------------
+Nodes/Ray: 145.86
+Tris/Ray: 14.15
+Nodes/Tri: 10.31
+
+Stall Cycles: 3028837 (69.85%)
+        NODE_FETCH: 2346613 (54.12%)
+        TRI_FETCH: 644143 (14.85%)
+        TRI_ISECT: 26965 (0.62%)
+        NODE_ISECT: 11115 (0.26%)
+
+------------------------------Performance Summary-------------------------------
+Cycles: 4336267
+Clock rate: 2000 MHz
+Frame time: 2.17 ms
+MRays/s: 420
+
+---------------------------------Power Summary----------------------------------
+Energy: 329.21 mJ
+Power: 151.84 W
+MRays/J: 2.77
+
+-------------------------------Simulation Summary-------------------------------
+Simulation rate: 7.60 KHz
+Simulation time: 571 s
+
+C:\Users\jcbha\Development\msvc-c++\arches-v2\build\src\arches-v2\RelWithDebInfo\arches-v2.exe (process 28996) exited with code 0.
+Press any key to close this window . . .

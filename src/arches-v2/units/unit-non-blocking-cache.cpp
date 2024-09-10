@@ -3,9 +3,9 @@
 namespace Arches {namespace Units {
 
 UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) : 
-	UnitCacheBase(config.size, config.associativity),
-	_request_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width, config.bank_select_mask),
-	_return_cross_bar(config.num_ports, config.num_banks, config.cross_bar_width)
+	UnitCacheBase(config.size, config.block_size, config.associativity),
+	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask, config.weight_table),
+	_return_cross_bar(config.num_banks, config.num_ports)
 {
 	_use_lfb = config.use_lfb;
 
@@ -138,7 +138,7 @@ bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 				if(mshr.block_addr == ret.paddr)
 				{
 					_assert(mshr.state == MSHR::State::MISSED);
-					std::memcpy(mshr.block_data.bytes, ret.data, CACHE_BLOCK_SIZE);
+					std::memcpy(mshr.block_data, ret.data, _block_size);
 					mshr.state = MSHR::State::FILLED;
 					bank.mshr_return_queue.push(i);
 					break;
@@ -167,7 +167,6 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 	const MemoryRequest& request = _request_cross_bar.peek(bank_index);
 	paddr_t block_addr = _get_block_addr(request.paddr);
 	paddr_t block_offset = _get_block_offset(request.paddr);
-	log.requests++;
 
 	if(request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFECTH)
 	{
@@ -175,31 +174,27 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		uint mshr_index = _fetch_or_allocate_mshr(bank_index, block_addr, MSHR::Type::READ);
 
 		//In parallel access the tag array to check for the line
-		BlockData* block_data = _get_block(block_addr);
+		uint8_t* block_data = _get_block(block_addr);
 		log.tag_array_access++;
-
-		//If the data array access is zero cycle then that means we did it in parallel with th tag lookup
-		if(bank.data_array_pipline.lantecy() == 0)
-		{
-			log.data_array_reads++;
-		}
 
 		if(mshr_index != ~0)
 		{
 			MSHR& mshr = bank.mshrs[mshr_index];
 			_push_request(mshr, request);
+			log.profile_counters[block_addr]++;
 
 			if(mshr.state == MSHR::State::EMPTY)
 			{
 				if(block_data)
 				{
-					std::memcpy(mshr.block_data.bytes, block_data, CACHE_BLOCK_SIZE);
+					std::memcpy(mshr.block_data, block_data, _block_size);
 
 					//Copy line from data array to LFB
 					if(bank.data_array_pipline.lantecy() == 0)
 					{
 						mshr.state = MSHR::State::FILLED;
 						bank.mshr_return_queue.push(mshr_index);
+						log.data_array_reads++;
 					}
 					else
 					{
@@ -236,7 +231,8 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 				log.hits++;
 				log.lfb_hits++;
 			}
-
+			
+			log.requests++;
 			_request_cross_bar.read(bank_index);
 		}
 		else log.mshr_stalls++;
@@ -250,10 +246,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 			if(lfb_index != ~0)
 			{
 				MSHR& lfb = bank.mshrs[lfb_index];
-				lfb.write_mask |= request.write_mask << block_offset;
-				for(uint i = 0; i < request.size; ++i)
-					if((request.write_mask >> i) & 0x1)                                                                          
-						lfb.block_data.bytes[block_offset + i] = request.data[i];
+				lfb.write_mask |= generate_nbit_mask(request.size) << block_offset;
 
 				if(lfb.state == MSHR::State::EMPTY)
 				{
@@ -261,12 +254,14 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 					bank.mshr_request_queue.push(lfb_index);
 				}
 
+				log.requests++;
 				_request_cross_bar.read(bank_index);
 			}
 		}
 		else
 		{
 			bank.uncached_write_queue.push(request);
+			log.requests++;
 			_request_cross_bar.read(bank_index);
 		}
 	}
@@ -294,7 +289,7 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::LOAD;
-		outgoing_request.size = CACHE_BLOCK_SIZE;
+		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = mshr.block_addr;
 		mem_higher->write_request(outgoing_request);
@@ -308,13 +303,13 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 	{
 		_assert(mshr.state == MSHR::State::FILLED);
 
+		//TODO fix this:
 		MemoryRequest outgoing_request;
 		outgoing_request.type = MemoryRequest::Type::STORE;
-		outgoing_request.size = CACHE_BLOCK_SIZE;
+		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
-		outgoing_request.write_mask = mshr.write_mask;
 		outgoing_request.paddr = mshr.block_addr;
-		std::memcpy(outgoing_request.data, mshr.block_data.bytes, CACHE_BLOCK_SIZE);
+		std::memcpy(outgoing_request.data, mshr.block_data, _block_size);
 		mem_higher->write_request(outgoing_request);
 
 		mshr.state = MSHR::State::INVALID;
@@ -351,13 +346,16 @@ void UnitNonBlockingCache::_try_return_lfb(uint bank_index)
 
 	MSHR& mshr = bank.mshrs[bank.mshr_return_queue.front()];
 
-	//select the next subentry and copy return to interconnect
-	MemoryRequest req = _pop_request(mshr);
-	uint block_offset = _get_block_offset(req.paddr);
-	MemoryReturn ret(req, mshr.block_data.bytes + block_offset);
+	if(!mshr.sub_entries.empty())
+	{
+		//select the next subentry and copy return to interconnect
+		MemoryRequest req = _pop_request(mshr);
+		uint block_offset = _get_block_offset(req.paddr);
+		MemoryReturn ret(req, mshr.block_data + block_offset);
 
-	_return_cross_bar.write(ret, bank_index);
-	log.bytes_read += ret.size;
+		_return_cross_bar.write(ret, bank_index);
+		log.bytes_read += ret.size;
+	}
 
 	if(mshr.sub_entries.empty())
 	{

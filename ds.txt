@@ -1,0 +1,2966 @@
+Initializing usimm memory module.
+---------------------------------------------
+-- USIMM: the Utah SImulated Memory Module --
+--              Version: 1.3               --
+---------------------------------------------
+C:\Users\jcbha\Development\msvc-c++\arches-v2\build\src\arches-v2\RelWithDebInfo\../config-files/gddr5_16ch.cfg
+Reading vi file: ../config-files/1Gb_x16_amd2GHz.vi
+16 Chips per Rank
+----------------------------------------------------------------------------------------
+------------------------
+- SIMULATOR PARAMETERS -
+------------------------
+
+-------------
+- PROCESSOR -
+-------------
+PROCESSOR_CLK_MULTIPLIER:   1
+ROBSIZE:                       160
+MAX_FETCH:                       4
+MAX_RETIRE:                      4
+PIPELINEDEPTH:                  10
+
+---------------
+- DRAM Config -
+---------------
+NUM_CHANNELS:                   16
+NUM_RANKS:                       1
+NUM_BANKS:                      16
+NUM_ROWS:                     8192
+NUM_COLUMNS:                    64
+CACHE_LINE_SIZE:                64
+ADDRESS_BITS:                   33
+
+---------------
+- DRAM Timing -
+---------------
+T_RCD:                          28
+T_RP:                           28
+T_CAS:                          28
+T_RC:                           98
+T_RAS:                          70
+T_RRD:                          13
+T_FAW:                          80
+T_WR:                           30
+T_WTR:                          15
+T_RTP:                          15
+T_CCD:                           4
+T_RFC:                         220
+T_REFI:                      15600
+T_CWD:                          13
+T_RTRS:                          2
+T_PD_MIN:                       10
+T_XP:                           13
+T_XP_DLL:                       50
+T_DATA_TRANS:                    4
+
+---------------------------
+- DRAM Idd Specifications -
+---------------------------
+VDD:                        01.50
+IDD0:                       120.00
+IDD2P0:                     12.00
+IDD2P1:                     45.00
+IDD2N:                      70.00
+IDD3P:                      45.00
+IDD3N:                      67.00
+IDD4R:                      250.00
+IDD4W:                      250.00
+IDD5:                       260.00
+
+-------------------
+- DRAM Controller -
+-------------------
+WQ_CAPACITY:                    96
+ADDRESS_MAPPING:                 1
+WQ_LOOKUP_LATENCY:              10
+
+----------------------------------------------------------------------------------------
+Loading: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/san-miguel.obj
+Loaded: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/san-miguel.obj
+Loading BVH2: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/cache/san-miguel_bvh.cache
+Loaded BVH2: C:\Users\jcbha\Development\msvc-c++\arches-v2\datasets/cache/san-miguel_bvh.cache
+Quality: 2
+Cost: 128.346069
+Nodes: 9109819
+Objects: 9971513
+Building Packed BVH2
+Built Packed BVH2
+Building Packed Treelet BVH
+0.126267,0.033822,0.015897,0.008038,0.004973,0.003469,0.002631,0.002229,
+0.084717,0.025724,0.014595,0.009018,0.006343,0.005029,0.004285,0.003603,
+0.128217,0.037558,0.020268,0.012821,0.008920,0.007043,0.005519,0.004701,
+0.111680,0.037175,0.023116,0.017616,0.013878,0.011827,0.010007,0.008670,
+0.049354,0.011731,0.005265,0.002578,0.001813,0.001362,0.001044,0.000859,
+0.044621,0.012583,0.007291,0.004675,0.003610,0.002875,0.002318,0.001877,
+0.074128,0.025809,0.013093,0.008771,0.006217,0.004649,0.003896,0.003441,
+0.039580,0.014404,0.008693,0.005790,0.004439,0.003378,0.002820,0.002372,
+0.048970,0.020040,0.013279,0.009815,0.007751,0.006627,0.005706,0.004919,
+0.092660,0.045894,0.031603,0.023723,0.020359,0.017728,0.015257,0.013462,
+0.118551,0.046071,0.024245,0.015913,0.011474,0.008950,0.007087,0.005601,
+0.147989,0.050039,0.025941,0.016310,0.010539,0.008195,0.006421,0.005260,
+0.049602,0.018440,0.008925,0.006466,0.005404,0.004445,0.003466,0.002710,
+0.085280,0.022828,0.012563,0.008405,0.006807,0.005808,0.005164,0.004690,
+0.074793,0.017035,0.009515,0.006954,0.005745,0.005102,0.004473,0.003964,
+0.075449,0.033989,0.023293,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.077374,0.037482,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,
+0.066520,0.025209,0.017265,0.011882,0.009850,0.008405,0.007545,0.006931,
+0.069984,0.027807,0.018990,0.015106,0.012639,0.010756,0.009915,0.009021,
+0.066756,0.019016,0.009514,0.006724,0.005395,0.004127,0.003432,0.002899,
+0.074201,0.023804,0.013324,0.009968,0.008012,0.006434,0.005377,0.004823,
+0.136599,0.054241,0.028856,0.021031,0.016141,0.013318,0.010616,0.009227,
+0.043630,0.017021,0.010865,0.007999,0.006198,0.005279,0.004420,0.003893,
+0.076631,0.018522,0.008855,0.005405,0.004050,0.003220,0.002760,0.002436,
+0.094672,0.040990,0.026442,0.018967,0.015389,0.012614,0.010830,0.009618,
+0.106735,0.023260,0.013067,0.009040,0.006920,0.005603,0.004775,0.004250,
+0.083725,0.027975,0.018439,0.012916,0.010271,0.008550,0.007607,0.006621,
+0.079486,0.034778,0.023935,0.019055,0.016171,0.014125,0.012272,0.011299,
+0.067539,0.024221,0.015476,0.010012,0.007419,0.006259,0.005417,0.004819,
+0.079650,0.030312,0.018624,0.011088,0.009282,0.007661,0.005902,0.004357,
+0.067764,0.023047,0.014281,0.011261,0.008367,0.006628,0.005550,0.005132,
+0.090822,0.028027,0.017319,0.012312,0.009233,0.007423,0.005880,0.005016,
+0.112635,0.030861,0.017954,0.013422,0.010892,0.009086,0.007590,0.006438,
+0.045920,0.016068,0.009405,0.006450,0.004600,0.003790,0.003006,0.002534,
+0.068573,0.014933,0.008184,0.005508,0.003797,0.002785,0.002313,0.001916,
+0.038849,0.013306,0.007522,0.004881,0.003569,0.002815,0.002400,0.002051,
+0.069213,0.021055,0.012596,0.008810,0.006625,0.005008,0.003922,0.003270,
+0.061885,0.015320,0.008264,0.005599,0.003941,0.003354,0.002715,0.002198,
+0.096218,0.025096,0.014446,0.010202,0.008015,0.006492,0.005229,0.004323,
+0.058612,0.016425,0.009295,0.006534,0.004153,0.003102,0.002430,0.002088,
+0.073586,0.031713,0.019762,0.014941,0.011752,0.009738,0.008463,0.007445,
+0.110913,0.045686,0.026057,0.017212,0.013644,0.012091,0.009960,0.007801,
+0.096936,0.037931,0.022589,0.015129,0.011505,0.009441,0.008261,0.007031,
+0.047303,0.017450,0.010648,0.007892,0.005733,0.004634,0.004005,0.003228,
+0.054566,0.023617,0.015912,0.012611,0.010449,0.009074,0.008059,0.007218,
+0.073483,0.034336,0.023388,0.018067,0.015444,0.012863,0.011381,0.010101,
+0.078158,0.029725,0.017951,0.013734,0.010845,0.009187,0.008120,0.007276,
+0.059693,0.022954,0.015821,0.012222,0.010110,0.008495,0.007484,0.006520,
+0.130056,0.061887,0.044335,0.033434,0.027575,0.024031,0.020887,0.018550,
+0.123156,0.033310,0.016915,0.011239,0.008256,0.006788,0.005720,0.005118,
+0.061985,0.015194,0.009210,0.005721,0.004050,0.003307,0.002861,0.002537,
+0.075257,0.033814,0.022687,0.017457,0.014236,0.012373,0.011099,0.009833,
+0.060809,0.018770,0.010523,0.006996,0.004938,0.004187,0.003403,0.002718,
+0.057587,0.018591,0.010580,0.007108,0.005521,0.004449,0.003696,0.003253,
+0.084629,0.028468,0.018057,0.012452,0.009728,0.007557,0.006204,0.005346,
+0.050529,0.020952,0.013391,0.009790,0.007808,0.006671,0.005768,0.005066,
+0.066778,0.030329,0.019260,0.015476,0.012662,0.010509,0.009182,0.007872,
+0.079558,0.031776,0.021434,0.016694,0.014370,0.012224,0.010567,0.009460,
+0.089288,0.030596,0.016790,0.011555,0.009351,0.007639,0.006526,0.005589,
+0.086974,0.029453,0.016961,0.010766,0.007756,0.006204,0.005119,0.004408,
+0.051644,0.018770,0.012780,0.009602,0.007622,0.006267,0.005419,0.004899,
+0.037220,0.014800,0.009522,0.007001,0.005731,0.004713,0.004186,0.003658,
+0.071435,0.028464,0.015084,0.010484,0.007522,0.006203,0.005214,0.004474,
+0.222741,0.102226,0.065615,0.038229,0.025236,0.017679,0.013722,0.011344,
+0.096166,0.044197,0.029560,0.023662,0.019452,0.016462,0.014593,0.013092,
+0.068868,0.024886,0.011407,0.007317,0.005766,0.004722,0.003628,0.002686,
+0.083146,0.039998,0.024825,0.019563,0.016202,0.013290,0.011633,0.010018,
+0.081654,0.022481,0.013548,0.009098,0.007355,0.006303,0.005330,0.004745,
+0.102113,0.029983,0.016719,0.011345,0.008800,0.007298,0.006179,0.005329,
+0.058209,0.023093,0.011220,0.006877,0.000000,0.000000,0.000000,0.000000,
+0.101079,0.042698,0.029376,0.021598,0.017485,0.015068,0.013483,0.012036,
+Built Packed Treelet BVH
+Treelets: 74
+Treelet Size: 16773120
+Treelet Fill Rate: 55.6%
+Generating rays...
+
+Cycle: 32768
+Threads Launched: 268864
+Buckets Launched: 237
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    299.9 bytes/cycle
+ Ray Write:    285.1 bytes/cycle
+  Ray Read:     14.8 bytes/cycle
+  Ray Rate:    810.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:    245.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:    245.8 bytes/cycle
+  L2$ Read:    266.7 bytes/cycle
+ L1d$ Read:    463.8 bytes/cycle
+
+ L2$ Hit Rate:      2.7%
+L1d$ Hit Rate:      4.5%
+
+
+Cycle: 65536
+Threads Launched: 499968
+Buckets Launched: 382
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    281.2 bytes/cycle
+ Ray Write:    272.2 bytes/cycle
+  Ray Read:      9.1 bytes/cycle
+  Ray Rate:    495.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:    242.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:    242.3 bytes/cycle
+  L2$ Read:    308.0 bytes/cycle
+ L1d$ Read:    687.6 bytes/cycle
+
+ L2$ Hit Rate:     16.4%
+L1d$ Hit Rate:      9.6%
+
+
+Cycle: 98304
+Threads Launched: 709184
+Buckets Launched: 521
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    254.2 bytes/cycle
+ Ray Write:    245.5 bytes/cycle
+  Ray Read:      8.7 bytes/cycle
+  Ray Rate:    475.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:    226.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:    226.3 bytes/cycle
+  L2$ Read:    300.0 bytes/cycle
+ L1d$ Read:    610.6 bytes/cycle
+
+ L2$ Hit Rate:     24.1%
+L1d$ Hit Rate:      9.4%
+
+
+Cycle: 131072
+Threads Launched: 901824
+Buckets Launched: 631
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    230.6 bytes/cycle
+ Ray Write:    223.7 bytes/cycle
+  Ray Read:      6.9 bytes/cycle
+  Ray Rate:    376.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:    207.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:    207.6 bytes/cycle
+  L2$ Read:    279.8 bytes/cycle
+ L1d$ Read:    525.2 bytes/cycle
+
+ L2$ Hit Rate:     25.6%
+L1d$ Hit Rate:      8.3%
+
+
+Cycle: 163840
+Threads Launched: 937984
+Buckets Launched: 1090
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    126.4 bytes/cycle
+ Ray Write:     97.8 bytes/cycle
+  Ray Read:     28.7 bytes/cycle
+  Ray Rate:   1568.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     95.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     95.8 bytes/cycle
+  L2$ Read:    425.3 bytes/cycle
+ L1d$ Read:   1751.9 bytes/cycle
+
+ L2$ Hit Rate:     76.8%
+L1d$ Hit Rate:     66.4%
+
+
+Cycle: 196608
+Threads Launched: 937984
+Buckets Launched: 1658
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    103.3 bytes/cycle
+ Ray Write:     67.8 bytes/cycle
+  Ray Read:     35.5 bytes/cycle
+  Ray Rate:   1941.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     62.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     62.3 bytes/cycle
+  L2$ Read:    467.1 bytes/cycle
+ L1d$ Read:   1874.5 bytes/cycle
+
+ L2$ Hit Rate:     86.6%
+L1d$ Hit Rate:     77.7%
+
+
+Cycle: 229376
+Threads Launched: 937984
+Buckets Launched: 2268
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    106.5 bytes/cycle
+ Ray Write:     68.4 bytes/cycle
+  Ray Read:     38.1 bytes/cycle
+  Ray Rate:   2085.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     22.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     22.9 bytes/cycle
+  L2$ Read:    374.2 bytes/cycle
+ L1d$ Read:   1844.5 bytes/cycle
+
+ L2$ Hit Rate:     93.9%
+L1d$ Hit Rate:     81.7%
+
+
+Cycle: 262144
+Threads Launched: 937984
+Buckets Launched: 2870
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    105.1 bytes/cycle
+ Ray Write:     67.4 bytes/cycle
+  Ray Read:     37.6 bytes/cycle
+  Ray Rate:   2057.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     16.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     16.5 bytes/cycle
+  L2$ Read:    349.5 bytes/cycle
+ L1d$ Read:   1783.1 bytes/cycle
+
+ L2$ Hit Rate:     95.3%
+L1d$ Hit Rate:     82.3%
+
+
+Cycle: 294912
+Threads Launched: 937984
+Buckets Launched: 3479
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    105.9 bytes/cycle
+ Ray Write:     67.9 bytes/cycle
+  Ray Read:     38.1 bytes/cycle
+  Ray Rate:   2081.5 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     15.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     15.0 bytes/cycle
+  L2$ Read:    347.9 bytes/cycle
+ L1d$ Read:   1789.5 bytes/cycle
+
+ L2$ Hit Rate:     95.7%
+L1d$ Hit Rate:     82.5%
+
+
+Cycle: 327680
+Threads Launched: 937984
+Buckets Launched: 4082
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    106.8 bytes/cycle
+ Ray Write:     69.1 bytes/cycle
+  Ray Read:     37.7 bytes/cycle
+  Ray Rate:   2061.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     12.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     12.8 bytes/cycle
+  L2$ Read:    345.8 bytes/cycle
+ L1d$ Read:   1764.8 bytes/cycle
+
+ L2$ Hit Rate:     96.3%
+L1d$ Hit Rate:     82.4%
+
+
+Cycle: 360448
+Threads Launched: 937984
+Buckets Launched: 4698
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    107.8 bytes/cycle
+ Ray Write:     69.3 bytes/cycle
+  Ray Read:     38.5 bytes/cycle
+  Ray Rate:   2105.5 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     11.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     11.3 bytes/cycle
+  L2$ Read:    344.5 bytes/cycle
+ L1d$ Read:   1736.9 bytes/cycle
+
+ L2$ Hit Rate:     96.7%
+L1d$ Hit Rate:     82.2%
+
+
+Cycle: 393216
+Threads Launched: 937984
+Buckets Launched: 5321
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    113.1 bytes/cycle
+ Ray Write:     74.1 bytes/cycle
+  Ray Read:     38.9 bytes/cycle
+  Ray Rate:   2129.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     11.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     11.8 bytes/cycle
+  L2$ Read:    406.3 bytes/cycle
+ L1d$ Read:   1872.9 bytes/cycle
+
+ L2$ Hit Rate:     97.1%
+L1d$ Hit Rate:     80.7%
+
+
+Cycle: 425984
+Threads Launched: 937984
+Buckets Launched: 5957
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    115.7 bytes/cycle
+ Ray Write:     75.9 bytes/cycle
+  Ray Read:     39.8 bytes/cycle
+  Ray Rate:   2173.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     10.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     10.5 bytes/cycle
+  L2$ Read:    434.5 bytes/cycle
+ L1d$ Read:   1993.9 bytes/cycle
+
+ L2$ Hit Rate:     97.6%
+L1d$ Hit Rate:     80.7%
+
+
+Cycle: 458752
+Threads Launched: 937984
+Buckets Launched: 6614
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    118.4 bytes/cycle
+ Ray Write:     77.4 bytes/cycle
+  Ray Read:     41.1 bytes/cycle
+  Ray Rate:   2245.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     10.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     10.8 bytes/cycle
+  L2$ Read:    455.7 bytes/cycle
+ L1d$ Read:   2106.1 bytes/cycle
+
+ L2$ Hit Rate:     97.6%
+L1d$ Hit Rate:     80.9%
+
+
+Cycle: 491520
+Threads Launched: 937984
+Buckets Launched: 7314
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    126.9 bytes/cycle
+ Ray Write:     83.1 bytes/cycle
+  Ray Read:     43.8 bytes/cycle
+  Ray Rate:   2392.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     11.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     11.5 bytes/cycle
+  L2$ Read:    489.3 bytes/cycle
+ L1d$ Read:   2242.1 bytes/cycle
+
+ L2$ Hit Rate:     97.6%
+L1d$ Hit Rate:     80.7%
+
+
+Cycle: 524288
+Threads Launched: 937984
+Buckets Launched: 8175
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    162.9 bytes/cycle
+ Ray Write:    109.1 bytes/cycle
+  Ray Read:     53.8 bytes/cycle
+  Ray Rate:   2942.9 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     15.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     15.2 bytes/cycle
+  L2$ Read:    671.8 bytes/cycle
+ L1d$ Read:   2803.6 bytes/cycle
+
+ L2$ Hit Rate:     97.7%
+L1d$ Hit Rate:     79.0%
+
+
+Cycle: 557056
+Threads Launched: 937984
+Buckets Launched: 9221
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    199.7 bytes/cycle
+ Ray Write:    134.3 bytes/cycle
+  Ray Read:     65.4 bytes/cycle
+  Ray Rate:   3575.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     20.4 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     20.4 bytes/cycle
+  L2$ Read:    900.4 bytes/cycle
+ L1d$ Read:   3387.9 bytes/cycle
+
+ L2$ Hit Rate:     97.7%
+L1d$ Hit Rate:     77.0%
+
+
+Cycle: 589824
+Threads Launched: 937984
+Buckets Launched: 10125
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    163.6 bytes/cycle
+ Ray Write:    107.1 bytes/cycle
+  Ray Read:     56.5 bytes/cycle
+  Ray Rate:   3089.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     15.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     15.0 bytes/cycle
+  L2$ Read:   1046.5 bytes/cycle
+ L1d$ Read:   3410.4 bytes/cycle
+
+ L2$ Hit Rate:     98.6%
+L1d$ Hit Rate:     73.5%
+
+
+Cycle: 622592
+Threads Launched: 937984
+Buckets Launched: 10996
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    145.6 bytes/cycle
+ Ray Write:     91.1 bytes/cycle
+  Ray Read:     54.4 bytes/cycle
+  Ray Rate:   2977.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     12.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     12.2 bytes/cycle
+  L2$ Read:   1130.3 bytes/cycle
+ L1d$ Read:   3423.2 bytes/cycle
+
+ L2$ Hit Rate:     98.9%
+L1d$ Hit Rate:     71.5%
+
+
+Cycle: 655360
+Threads Launched: 937984
+Buckets Launched: 11898
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    158.9 bytes/cycle
+ Ray Write:    102.5 bytes/cycle
+  Ray Read:     56.4 bytes/cycle
+  Ray Rate:   3083.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      8.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      8.2 bytes/cycle
+  L2$ Read:   1059.2 bytes/cycle
+ L1d$ Read:   3415.5 bytes/cycle
+
+ L2$ Hit Rate:     99.2%
+L1d$ Hit Rate:     73.2%
+
+
+Cycle: 688128
+Threads Launched: 937984
+Buckets Launched: 12708
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    151.4 bytes/cycle
+ Ray Write:    100.8 bytes/cycle
+  Ray Read:     50.6 bytes/cycle
+  Ray Rate:   2768.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      5.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      5.2 bytes/cycle
+  L2$ Read:    962.3 bytes/cycle
+ L1d$ Read:   3309.4 bytes/cycle
+
+ L2$ Hit Rate:     99.5%
+L1d$ Hit Rate:     74.7%
+
+
+Cycle: 720896
+Threads Launched: 937984
+Buckets Launched: 13416
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    135.1 bytes/cycle
+ Ray Write:     90.8 bytes/cycle
+  Ray Read:     44.2 bytes/cycle
+  Ray Rate:   2419.9 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      3.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      3.9 bytes/cycle
+  L2$ Read:    743.5 bytes/cycle
+ L1d$ Read:   2639.4 bytes/cycle
+
+ L2$ Hit Rate:     99.5%
+L1d$ Hit Rate:     75.1%
+
+
+Cycle: 753664
+Threads Launched: 937984
+Buckets Launched: 14063
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    126.2 bytes/cycle
+ Ray Write:     85.8 bytes/cycle
+  Ray Read:     40.4 bytes/cycle
+  Ray Rate:   2211.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      2.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      2.2 bytes/cycle
+  L2$ Read:    579.3 bytes/cycle
+ L1d$ Read:   2308.9 bytes/cycle
+
+ L2$ Hit Rate:     99.6%
+L1d$ Hit Rate:     77.7%
+
+
+Cycle: 786432
+Threads Launched: 937984
+Buckets Launched: 14689
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    118.8 bytes/cycle
+ Ray Write:     79.6 bytes/cycle
+  Ray Read:     39.1 bytes/cycle
+  Ray Rate:   2139.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      1.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      1.3 bytes/cycle
+  L2$ Read:    546.1 bytes/cycle
+ L1d$ Read:   2232.1 bytes/cycle
+
+ L2$ Hit Rate:     99.8%
+L1d$ Hit Rate:     78.2%
+
+
+Cycle: 819200
+Threads Launched: 937984
+Buckets Launched: 15305
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    115.1 bytes/cycle
+ Ray Write:     76.6 bytes/cycle
+  Ray Read:     38.5 bytes/cycle
+  Ray Rate:   2105.5 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      1.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      1.6 bytes/cycle
+  L2$ Read:    594.3 bytes/cycle
+ L1d$ Read:   2238.6 bytes/cycle
+
+ L2$ Hit Rate:     99.7%
+L1d$ Hit Rate:     76.5%
+
+
+Cycle: 851968
+Threads Launched: 937984
+Buckets Launched: 15921
+Segments Launched: 1
+Prefetch queue size: 0
+
+ Ray Total:    112.4 bytes/cycle
+ Ray Write:     73.9 bytes/cycle
+  Ray Read:     38.5 bytes/cycle
+  Ray Rate:   2105.5 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      1.4 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      1.4 bytes/cycle
+  L2$ Read:    627.7 bytes/cycle
+ L1d$ Read:   2255.5 bytes/cycle
+
+ L2$ Hit Rate:     99.8%
+L1d$ Hit Rate:     75.3%
+
+
+Cycle: 884736
+Threads Launched: 937984
+Buckets Launched: 16791
+Segments Launched: 2
+Prefetch queue size: 0
+
+ Ray Total:    120.8 bytes/cycle
+ Ray Write:     66.4 bytes/cycle
+  Ray Read:     54.4 bytes/cycle
+  Ray Rate:   2973.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     40.4 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     40.4 bytes/cycle
+  L2$ Read:    584.3 bytes/cycle
+ L1d$ Read:   2073.8 bytes/cycle
+
+ L2$ Hit Rate:     91.0%
+L1d$ Hit Rate:     74.3%
+
+
+Cycle: 917504
+Threads Launched: 937984
+Buckets Launched: 18144
+Segments Launched: 2
+Prefetch queue size: 0
+
+ Ray Total:    129.1 bytes/cycle
+ Ray Write:     44.5 bytes/cycle
+  Ray Read:     84.6 bytes/cycle
+  Ray Rate:   4624.5 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     79.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     79.9 bytes/cycle
+  L2$ Read:    669.3 bytes/cycle
+ L1d$ Read:   2299.1 bytes/cycle
+
+ L2$ Hit Rate:     87.2%
+L1d$ Hit Rate:     73.5%
+
+
+Cycle: 950272
+Threads Launched: 937984
+Buckets Launched: 19561
+Segments Launched: 3
+Prefetch queue size: 0
+
+ Ray Total:    139.6 bytes/cycle
+ Ray Write:     51.0 bytes/cycle
+  Ray Read:     88.6 bytes/cycle
+  Ray Rate:   4843.3 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     80.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     80.0 bytes/cycle
+  L2$ Read:    920.0 bytes/cycle
+ L1d$ Read:   2828.7 bytes/cycle
+
+ L2$ Hit Rate:     90.5%
+L1d$ Hit Rate:     71.0%
+
+
+Cycle: 983040
+Threads Launched: 937984
+Buckets Launched: 20308
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     80.1 bytes/cycle
+ Ray Write:     33.4 bytes/cycle
+  Ray Read:     46.7 bytes/cycle
+  Ray Rate:   2553.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     80.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     80.9 bytes/cycle
+  L2$ Read:    478.0 bytes/cycle
+ L1d$ Read:   1857.8 bytes/cycle
+
+ L2$ Hit Rate:     79.7%
+L1d$ Hit Rate:     76.1%
+
+
+Cycle: 1015808
+Threads Launched: 937984
+Buckets Launched: 20752
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     44.6 bytes/cycle
+ Ray Write:     16.8 bytes/cycle
+  Ray Read:     27.8 bytes/cycle
+  Ray Rate:   1517.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     63.4 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     63.4 bytes/cycle
+  L2$ Read:    652.7 bytes/cycle
+ L1d$ Read:   1695.9 bytes/cycle
+
+ L2$ Hit Rate:     90.0%
+L1d$ Hit Rate:     66.9%
+
+
+Cycle: 1048576
+Threads Launched: 937984
+Buckets Launched: 21638
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     88.2 bytes/cycle
+ Ray Write:     32.9 bytes/cycle
+  Ray Read:     55.4 bytes/cycle
+  Ray Rate:   3028.3 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     60.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     60.2 bytes/cycle
+  L2$ Read:   1380.2 bytes/cycle
+ L1d$ Read:   3455.1 bytes/cycle
+
+ L2$ Hit Rate:     95.5%
+L1d$ Hit Rate:     66.2%
+
+
+Cycle: 1081344
+Threads Launched: 937984
+Buckets Launched: 22577
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     95.6 bytes/cycle
+ Ray Write:     36.9 bytes/cycle
+  Ray Read:     58.7 bytes/cycle
+  Ray Rate:   3209.5 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     29.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     29.0 bytes/cycle
+  L2$ Read:   1323.8 bytes/cycle
+ L1d$ Read:   3477.8 bytes/cycle
+
+ L2$ Hit Rate:     97.8%
+L1d$ Hit Rate:     67.7%
+
+
+Cycle: 1114112
+Threads Launched: 937984
+Buckets Launched: 23464
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     95.1 bytes/cycle
+ Ray Write:     39.6 bytes/cycle
+  Ray Read:     55.4 bytes/cycle
+  Ray Rate:   3031.7 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     18.7 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     18.7 bytes/cycle
+  L2$ Read:   1255.1 bytes/cycle
+ L1d$ Read:   3400.4 bytes/cycle
+
+ L2$ Hit Rate:     98.5%
+L1d$ Hit Rate:     68.6%
+
+
+Cycle: 1146880
+Threads Launched: 937984
+Buckets Launched: 24250
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     87.9 bytes/cycle
+ Ray Write:     38.8 bytes/cycle
+  Ray Read:     49.1 bytes/cycle
+  Ray Rate:   2686.5 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     11.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     11.2 bytes/cycle
+  L2$ Read:    909.6 bytes/cycle
+ L1d$ Read:   2539.5 bytes/cycle
+
+ L2$ Hit Rate:     98.8%
+L1d$ Hit Rate:     69.4%
+
+
+Cycle: 1179648
+Threads Launched: 937984
+Buckets Launched: 25059
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     89.2 bytes/cycle
+ Ray Write:     38.6 bytes/cycle
+  Ray Read:     50.6 bytes/cycle
+  Ray Rate:   2765.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      9.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      9.3 bytes/cycle
+  L2$ Read:    828.9 bytes/cycle
+ L1d$ Read:   2333.6 bytes/cycle
+
+ L2$ Hit Rate:     98.9%
+L1d$ Hit Rate:     69.4%
+
+
+Cycle: 1212416
+Threads Launched: 937984
+Buckets Launched: 25906
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     92.2 bytes/cycle
+ Ray Write:     39.2 bytes/cycle
+  Ray Read:     52.9 bytes/cycle
+  Ray Rate:   2895.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     11.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     11.2 bytes/cycle
+  L2$ Read:   1021.5 bytes/cycle
+ L1d$ Read:   2673.3 bytes/cycle
+
+ L2$ Hit Rate:     98.9%
+L1d$ Hit Rate:     67.1%
+
+
+Cycle: 1245184
+Threads Launched: 937984
+Buckets Launched: 26708
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     89.5 bytes/cycle
+ Ray Write:     39.4 bytes/cycle
+  Ray Read:     50.1 bytes/cycle
+  Ray Rate:   2741.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      8.7 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      8.7 bytes/cycle
+  L2$ Read:    882.8 bytes/cycle
+ L1d$ Read:   2528.3 bytes/cycle
+
+ L2$ Hit Rate:     99.0%
+L1d$ Hit Rate:     69.8%
+
+
+Cycle: 1277952
+Threads Launched: 937984
+Buckets Launched: 27618
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     95.3 bytes/cycle
+ Ray Write:     38.4 bytes/cycle
+  Ray Read:     56.9 bytes/cycle
+  Ray Rate:   3110.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     10.4 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     10.4 bytes/cycle
+  L2$ Read:   1114.4 bytes/cycle
+ L1d$ Read:   3155.1 bytes/cycle
+
+ L2$ Hit Rate:     99.1%
+L1d$ Hit Rate:     69.7%
+
+
+Cycle: 1310720
+Threads Launched: 937984
+Buckets Launched: 28308
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     70.9 bytes/cycle
+ Ray Write:     27.8 bytes/cycle
+  Ray Read:     43.1 bytes/cycle
+  Ray Rate:   2358.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      9.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      9.9 bytes/cycle
+  L2$ Read:   1331.9 bytes/cycle
+ L1d$ Read:   3441.3 bytes/cycle
+
+ L2$ Hit Rate:     99.2%
+L1d$ Hit Rate:     67.4%
+
+
+Cycle: 1343488
+Threads Launched: 937984
+Buckets Launched: 28989
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     59.9 bytes/cycle
+ Ray Write:     17.4 bytes/cycle
+  Ray Read:     42.6 bytes/cycle
+  Ray Rate:   2327.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      9.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      9.6 bytes/cycle
+  L2$ Read:   1365.5 bytes/cycle
+ L1d$ Read:   3436.8 bytes/cycle
+
+ L2$ Hit Rate:     99.3%
+L1d$ Hit Rate:     66.6%
+
+
+Cycle: 1376256
+Threads Launched: 937984
+Buckets Launched: 29796
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     69.5 bytes/cycle
+ Ray Write:     19.1 bytes/cycle
+  Ray Read:     50.4 bytes/cycle
+  Ray Rate:   2758.3 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      9.1 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      9.1 bytes/cycle
+  L2$ Read:   1455.4 bytes/cycle
+ L1d$ Read:   3446.5 bytes/cycle
+
+ L2$ Hit Rate:     99.4%
+L1d$ Hit Rate:     64.4%
+
+
+Cycle: 1409024
+Threads Launched: 937984
+Buckets Launched: 30756
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     86.6 bytes/cycle
+ Ray Write:     26.6 bytes/cycle
+  Ray Read:     60.0 bytes/cycle
+  Ray Rate:   3281.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      8.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      8.3 bytes/cycle
+  L2$ Read:   1589.1 bytes/cycle
+ L1d$ Read:   3472.9 bytes/cycle
+
+ L2$ Hit Rate:     99.5%
+L1d$ Hit Rate:     61.2%
+
+
+Cycle: 1441792
+Threads Launched: 937984
+Buckets Launched: 31785
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     91.6 bytes/cycle
+ Ray Write:     27.2 bytes/cycle
+  Ray Read:     64.3 bytes/cycle
+  Ray Rate:   3517.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      7.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      7.0 bytes/cycle
+  L2$ Read:   1643.0 bytes/cycle
+ L1d$ Read:   3472.6 bytes/cycle
+
+ L2$ Hit Rate:     99.6%
+L1d$ Hit Rate:     59.8%
+
+
+Cycle: 1474560
+Threads Launched: 937984
+Buckets Launched: 32757
+Segments Launched: 4
+Prefetch queue size: 0
+
+ Ray Total:     83.2 bytes/cycle
+ Ray Write:     22.4 bytes/cycle
+  Ray Read:     60.8 bytes/cycle
+  Ray Rate:   3322.3 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:      6.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:      6.3 bytes/cycle
+  L2$ Read:   1661.6 bytes/cycle
+ L1d$ Read:   3452.8 bytes/cycle
+
+ L2$ Hit Rate:     99.6%
+L1d$ Hit Rate:     59.4%
+
+
+Cycle: 1507328
+Threads Launched: 937984
+Buckets Launched: 34315
+Segments Launched: 5
+Prefetch queue size: 0
+
+ Ray Total:    156.4 bytes/cycle
+ Ray Write:     59.0 bytes/cycle
+  Ray Read:     97.4 bytes/cycle
+  Ray Rate:   5325.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     28.7 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     28.7 bytes/cycle
+  L2$ Read:   1186.7 bytes/cycle
+ L1d$ Read:   2885.1 bytes/cycle
+
+ L2$ Hit Rate:     97.3%
+L1d$ Hit Rate:     64.5%
+
+
+Cycle: 1540096
+Threads Launched: 937984
+Buckets Launched: 36328
+Segments Launched: 5
+Prefetch queue size: 0
+
+ Ray Total:    230.4 bytes/cycle
+ Ray Write:    104.6 bytes/cycle
+  Ray Read:    125.8 bytes/cycle
+  Ray Rate:   6880.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     23.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     23.0 bytes/cycle
+  L2$ Read:    120.7 bytes/cycle
+ L1d$ Read:   1447.7 bytes/cycle
+
+ L2$ Hit Rate:     80.6%
+L1d$ Hit Rate:     92.1%
+
+
+Cycle: 1572864
+Threads Launched: 937984
+Buckets Launched: 38771
+Segments Launched: 5
+Prefetch queue size: 0
+
+ Ray Total:    306.7 bytes/cycle
+ Ray Write:    154.0 bytes/cycle
+  Ray Read:    152.7 bytes/cycle
+  Ray Rate:   8350.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     26.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     26.2 bytes/cycle
+  L2$ Read:    178.9 bytes/cycle
+ L1d$ Read:   2286.6 bytes/cycle
+
+ L2$ Hit Rate:     85.3%
+L1d$ Hit Rate:     92.7%
+
+
+Cycle: 1605632
+Threads Launched: 937984
+Buckets Launched: 41308
+Segments Launched: 7
+Prefetch queue size: 0
+
+ Ray Total:    192.1 bytes/cycle
+ Ray Write:     33.6 bytes/cycle
+  Ray Read:    158.6 bytes/cycle
+  Ray Rate:   8671.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     94.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     94.6 bytes/cycle
+  L2$ Read:    585.3 bytes/cycle
+ L1d$ Read:   2856.8 bytes/cycle
+
+ L2$ Hit Rate:     77.1%
+L1d$ Hit Rate:     80.3%
+
+
+Cycle: 1638400
+Threads Launched: 937984
+Buckets Launched: 43734
+Segments Launched: 10
+Prefetch queue size: 0
+
+ Ray Total:    161.2 bytes/cycle
+ Ray Write:      9.6 bytes/cycle
+  Ray Read:    151.6 bytes/cycle
+  Ray Rate:   8292.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     97.1 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     97.1 bytes/cycle
+  L2$ Read:    605.9 bytes/cycle
+ L1d$ Read:   2438.4 bytes/cycle
+
+ L2$ Hit Rate:     73.2%
+L1d$ Hit Rate:     74.8%
+
+
+Cycle: 1671168
+Threads Launched: 937984
+Buckets Launched: 44359
+Segments Launched: 10
+Prefetch queue size: 0
+
+ Ray Total:     39.2 bytes/cycle
+ Ray Write:      0.1 bytes/cycle
+  Ray Read:     39.1 bytes/cycle
+  Ray Rate:   2136.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:    101.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:    101.6 bytes/cycle
+  L2$ Read:    974.0 bytes/cycle
+ L1d$ Read:   1953.0 bytes/cycle
+
+ L2$ Hit Rate:     85.6%
+L1d$ Hit Rate:     56.1%
+
+
+Cycle: 1703936
+Threads Launched: 937984
+Buckets Launched: 45437
+Segments Launched: 10
+Prefetch queue size: 0
+
+ Ray Total:     67.7 bytes/cycle
+ Ray Write:      0.3 bytes/cycle
+  Ray Read:     67.4 bytes/cycle
+  Ray Rate:   3684.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     35.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     35.0 bytes/cycle
+  L2$ Read:   1640.2 bytes/cycle
+ L1d$ Read:   3460.8 bytes/cycle
+
+ L2$ Hit Rate:     97.8%
+L1d$ Hit Rate:     59.9%
+
+
+Cycle: 1736704
+Threads Launched: 937984
+Buckets Launched: 46804
+Segments Launched: 12
+Prefetch queue size: 0
+
+ Ray Total:     85.6 bytes/cycle
+ Ray Write:      0.2 bytes/cycle
+  Ray Read:     85.4 bytes/cycle
+  Ray Rate:   4672.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     48.1 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     48.1 bytes/cycle
+  L2$ Read:   1018.6 bytes/cycle
+ L1d$ Read:   3424.4 bytes/cycle
+
+ L2$ Hit Rate:     95.0%
+L1d$ Hit Rate:     74.8%
+
+
+Cycle: 1769472
+Threads Launched: 937984
+Buckets Launched: 47938
+Segments Launched: 20
+Prefetch queue size: 0
+
+ Ray Total:     86.9 bytes/cycle
+ Ray Write:     16.0 bytes/cycle
+  Ray Read:     70.9 bytes/cycle
+  Ray Rate:   3876.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     97.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     97.0 bytes/cycle
+  L2$ Read:    460.4 bytes/cycle
+ L1d$ Read:   1983.8 bytes/cycle
+
+ L2$ Hit Rate:     66.6%
+L1d$ Hit Rate:     75.8%
+
+
+Cycle: 1802240
+Threads Launched: 937984
+Buckets Launched: 48841
+Segments Launched: 21
+Prefetch queue size: 0
+
+ Ray Total:     75.2 bytes/cycle
+ Ray Write:     18.8 bytes/cycle
+  Ray Read:     56.4 bytes/cycle
+  Ray Rate:   3086.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     78.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     78.8 bytes/cycle
+  L2$ Read:    447.9 bytes/cycle
+ L1d$ Read:   1376.3 bytes/cycle
+
+ L2$ Hit Rate:     76.0%
+L1d$ Hit Rate:     69.6%
+
+
+Cycle: 1835008
+Threads Launched: 937984
+Buckets Launched: 49200
+Segments Launched: 23
+Prefetch queue size: 0
+
+ Ray Total:     25.4 bytes/cycle
+ Ray Write:      3.0 bytes/cycle
+  Ray Read:     22.4 bytes/cycle
+  Ray Rate:   1227.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     87.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     87.0 bytes/cycle
+  L2$ Read:    344.1 bytes/cycle
+ L1d$ Read:    725.6 bytes/cycle
+
+ L2$ Hit Rate:     69.2%
+L1d$ Hit Rate:     56.3%
+
+
+Cycle: 1867776
+Threads Launched: 937984
+Buckets Launched: 49913
+Segments Launched: 24
+Prefetch queue size: 0
+
+ Ray Total:     71.4 bytes/cycle
+ Ray Write:     26.9 bytes/cycle
+  Ray Read:     44.6 bytes/cycle
+  Ray Rate:   2437.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     79.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     79.8 bytes/cycle
+  L2$ Read:    335.1 bytes/cycle
+ L1d$ Read:   1184.9 bytes/cycle
+
+ L2$ Hit Rate:     71.4%
+L1d$ Hit Rate:     71.5%
+
+
+Cycle: 1900544
+Threads Launched: 937984
+Buckets Launched: 51279
+Segments Launched: 24
+Prefetch queue size: 0
+
+ Ray Total:    155.8 bytes/cycle
+ Ray Write:     70.4 bytes/cycle
+  Ray Read:     85.4 bytes/cycle
+  Ray Rate:   4668.9 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     58.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     58.5 bytes/cycle
+  L2$ Read:    270.5 bytes/cycle
+ L1d$ Read:   2032.3 bytes/cycle
+
+ L2$ Hit Rate:     77.5%
+L1d$ Hit Rate:     88.1%
+
+
+Cycle: 1933312
+Threads Launched: 937984
+Buckets Launched: 52446
+Segments Launched: 24
+Prefetch queue size: 0
+
+ Ray Total:    136.2 bytes/cycle
+ Ray Write:     63.3 bytes/cycle
+  Ray Read:     72.9 bytes/cycle
+  Ray Rate:   3988.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     17.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     17.3 bytes/cycle
+  L2$ Read:    158.7 bytes/cycle
+ L1d$ Read:   1652.1 bytes/cycle
+
+ L2$ Hit Rate:     89.0%
+L1d$ Hit Rate:     91.2%
+
+
+Cycle: 1966080
+Threads Launched: 937984
+Buckets Launched: 53751
+Segments Launched: 24
+Prefetch queue size: 0
+
+ Ray Total:    141.0 bytes/cycle
+ Ray Write:     59.4 bytes/cycle
+  Ray Read:     81.6 bytes/cycle
+  Ray Rate:   4460.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     76.1 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     76.1 bytes/cycle
+  L2$ Read:    964.0 bytes/cycle
+ L1d$ Read:   2974.2 bytes/cycle
+
+ L2$ Hit Rate:     91.3%
+L1d$ Hit Rate:     71.2%
+
+
+Cycle: 1998848
+Threads Launched: 937984
+Buckets Launched: 55454
+Segments Launched: 24
+Prefetch queue size: 0
+
+ Ray Total:    169.2 bytes/cycle
+ Ray Write:     62.8 bytes/cycle
+  Ray Read:    106.4 bytes/cycle
+  Ray Rate:   5820.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     35.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     35.9 bytes/cycle
+  L2$ Read:    471.6 bytes/cycle
+ L1d$ Read:   2916.8 bytes/cycle
+
+ L2$ Hit Rate:     92.3%
+L1d$ Hit Rate:     85.6%
+
+
+Cycle: 2031616
+Threads Launched: 937984
+Buckets Launched: 56830
+Segments Launched: 27
+Prefetch queue size: 0
+
+ Ray Total:    121.3 bytes/cycle
+ Ray Write:     35.3 bytes/cycle
+  Ray Read:     86.0 bytes/cycle
+  Ray Rate:   4703.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     76.7 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     76.7 bytes/cycle
+  L2$ Read:    965.2 bytes/cycle
+ L1d$ Read:   2589.4 bytes/cycle
+
+ L2$ Hit Rate:     90.3%
+L1d$ Hit Rate:     68.2%
+
+
+Cycle: 2064384
+Threads Launched: 937984
+Buckets Launched: 57222
+Segments Launched: 29
+Prefetch queue size: 0
+
+ Ray Total:     24.5 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:     24.5 bytes/cycle
+  Ray Rate:   1339.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     93.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     93.3 bytes/cycle
+  L2$ Read:    394.2 bytes/cycle
+ L1d$ Read:    882.1 bytes/cycle
+
+ L2$ Hit Rate:     69.0%
+L1d$ Hit Rate:     57.6%
+
+
+Cycle: 2097152
+Threads Launched: 937984
+Buckets Launched: 57501
+Segments Launched: 31
+Prefetch queue size: 0
+
+ Ray Total:     17.5 bytes/cycle
+ Ray Write:      0.1 bytes/cycle
+  Ray Read:     17.4 bytes/cycle
+  Ray Rate:    953.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     77.4 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     77.4 bytes/cycle
+  L2$ Read:    264.3 bytes/cycle
+ L1d$ Read:    513.0 bytes/cycle
+
+ L2$ Hit Rate:     67.0%
+L1d$ Hit Rate:     54.1%
+
+
+Cycle: 2129920
+Threads Launched: 937984
+Buckets Launched: 57695
+Segments Launched: 32
+Prefetch queue size: 0
+
+ Ray Total:     12.1 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:     12.1 bytes/cycle
+  Ray Rate:    663.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     65.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     65.0 bytes/cycle
+  L2$ Read:    198.7 bytes/cycle
+ L1d$ Read:    383.9 bytes/cycle
+
+ L2$ Hit Rate:     65.7%
+L1d$ Hit Rate:     54.2%
+
+
+Cycle: 2162688
+Threads Launched: 937984
+Buckets Launched: 57980
+Segments Launched: 33
+Prefetch queue size: 0
+
+ Ray Total:     18.1 bytes/cycle
+ Ray Write:      0.2 bytes/cycle
+  Ray Read:     17.8 bytes/cycle
+  Ray Rate:    974.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     67.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     67.9 bytes/cycle
+  L2$ Read:    237.6 bytes/cycle
+ L1d$ Read:    575.2 bytes/cycle
+
+ L2$ Hit Rate:     70.5%
+L1d$ Hit Rate:     63.3%
+
+
+Cycle: 2195456
+Threads Launched: 937984
+Buckets Launched: 58265
+Segments Launched: 33
+Prefetch queue size: 0
+
+ Ray Total:     18.8 bytes/cycle
+ Ray Write:      1.0 bytes/cycle
+  Ray Read:     17.8 bytes/cycle
+  Ray Rate:    974.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     71.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     71.5 bytes/cycle
+  L2$ Read:    258.8 bytes/cycle
+ L1d$ Read:    605.6 bytes/cycle
+
+ L2$ Hit Rate:     71.1%
+L1d$ Hit Rate:     60.9%
+
+
+Cycle: 2228224
+Threads Launched: 937984
+Buckets Launched: 58813
+Segments Launched: 34
+Prefetch queue size: 0
+
+ Ray Total:     34.8 bytes/cycle
+ Ray Write:      0.6 bytes/cycle
+  Ray Read:     34.2 bytes/cycle
+  Ray Rate:   1873.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     77.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     77.6 bytes/cycle
+  L2$ Read:    314.7 bytes/cycle
+ L1d$ Read:    854.2 bytes/cycle
+
+ L2$ Hit Rate:     73.1%
+L1d$ Hit Rate:     65.2%
+
+
+Cycle: 2260992
+Threads Launched: 937984
+Buckets Launched: 59334
+Segments Launched: 35
+Prefetch queue size: 0
+
+ Ray Total:     32.6 bytes/cycle
+ Ray Write:      0.1 bytes/cycle
+  Ray Read:     32.6 bytes/cycle
+  Ray Rate:   1780.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     72.2 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     72.2 bytes/cycle
+  L2$ Read:    250.4 bytes/cycle
+ L1d$ Read:    745.8 bytes/cycle
+
+ L2$ Hit Rate:     68.8%
+L1d$ Hit Rate:     67.5%
+
+
+Cycle: 2293760
+Threads Launched: 937984
+Buckets Launched: 60493
+Segments Launched: 36
+Prefetch queue size: 0
+
+ Ray Total:     72.6 bytes/cycle
+ Ray Write:      0.1 bytes/cycle
+  Ray Read:     72.4 bytes/cycle
+  Ray Rate:   3961.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     80.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     80.8 bytes/cycle
+  L2$ Read:    428.7 bytes/cycle
+ L1d$ Read:   1826.9 bytes/cycle
+
+ L2$ Hit Rate:     79.9%
+L1d$ Hit Rate:     79.5%
+
+
+Cycle: 2326528
+Threads Launched: 937984
+Buckets Launched: 60986
+Segments Launched: 38
+Prefetch queue size: 0
+
+ Ray Total:     30.8 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:     30.8 bytes/cycle
+  Ray Rate:   1685.1 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     92.1 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     92.1 bytes/cycle
+  L2$ Read:    322.3 bytes/cycle
+ L1d$ Read:    819.9 bytes/cycle
+
+ L2$ Hit Rate:     55.0%
+L1d$ Hit Rate:     61.6%
+
+
+Cycle: 2359296
+Threads Launched: 937984
+Buckets Launched: 61531
+Segments Launched: 39
+Prefetch queue size: 0
+
+ Ray Total:     40.5 bytes/cycle
+ Ray Write:      6.4 bytes/cycle
+  Ray Read:     34.1 bytes/cycle
+  Ray Rate:   1862.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     86.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     86.5 bytes/cycle
+  L2$ Read:    301.3 bytes/cycle
+ L1d$ Read:    851.5 bytes/cycle
+
+ L2$ Hit Rate:     61.4%
+L1d$ Hit Rate:     64.3%
+
+
+Cycle: 2392064
+Threads Launched: 937984
+Buckets Launched: 61998
+Segments Launched: 40
+Prefetch queue size: 0
+
+ Ray Total:     32.2 bytes/cycle
+ Ray Write:      3.0 bytes/cycle
+  Ray Read:     29.2 bytes/cycle
+  Ray Rate:   1596.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     72.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     72.6 bytes/cycle
+  L2$ Read:    272.4 bytes/cycle
+ L1d$ Read:    841.9 bytes/cycle
+
+ L2$ Hit Rate:     70.8%
+L1d$ Hit Rate:     70.5%
+
+
+Cycle: 2424832
+Threads Launched: 937984
+Buckets Launched: 62690
+Segments Launched: 50
+Prefetch queue size: 0
+
+ Ray Total:     48.4 bytes/cycle
+ Ray Write:      5.1 bytes/cycle
+  Ray Read:     43.2 bytes/cycle
+  Ray Rate:   2365.2 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     83.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     83.5 bytes/cycle
+  L2$ Read:    326.9 bytes/cycle
+ L1d$ Read:    928.3 bytes/cycle
+
+ L2$ Hit Rate:     66.3%
+L1d$ Hit Rate:     64.7%
+
+
+Cycle: 2457600
+Threads Launched: 937984
+Buckets Launched: 62859
+Segments Launched: 51
+Prefetch queue size: 0
+
+ Ray Total:     10.6 bytes/cycle
+ Ray Write:      0.1 bytes/cycle
+  Ray Read:     10.6 bytes/cycle
+  Ray Rate:    577.6 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     77.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     77.6 bytes/cycle
+  L2$ Read:    217.3 bytes/cycle
+ L1d$ Read:    392.8 bytes/cycle
+
+ L2$ Hit Rate:     59.8%
+L1d$ Hit Rate:     48.8%
+
+
+Cycle: 2490368
+Threads Launched: 937984
+Buckets Launched: 63288
+Segments Launched: 53
+Prefetch queue size: 0
+
+ Ray Total:     26.8 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:     26.8 bytes/cycle
+  Ray Rate:   1466.3 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     76.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     76.3 bytes/cycle
+  L2$ Read:    258.6 bytes/cycle
+ L1d$ Read:    717.8 bytes/cycle
+
+ L2$ Hit Rate:     66.5%
+L1d$ Hit Rate:     66.9%
+
+
+Cycle: 2523136
+Threads Launched: 937984
+Buckets Launched: 63611
+Segments Launched: 53
+Prefetch queue size: 0
+
+ Ray Total:     20.9 bytes/cycle
+ Ray Write:      0.7 bytes/cycle
+  Ray Read:     20.2 bytes/cycle
+  Ray Rate:   1104.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     68.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     68.8 bytes/cycle
+  L2$ Read:    229.2 bytes/cycle
+ L1d$ Read:    548.2 bytes/cycle
+
+ L2$ Hit Rate:     65.7%
+L1d$ Hit Rate:     57.8%
+
+
+Cycle: 2555904
+Threads Launched: 937984
+Buckets Launched: 64620
+Segments Launched: 53
+Prefetch queue size: 0
+
+ Ray Total:     65.0 bytes/cycle
+ Ray Write:      1.9 bytes/cycle
+  Ray Read:     63.1 bytes/cycle
+  Ray Rate:   3448.7 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     73.5 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     73.5 bytes/cycle
+  L2$ Read:    369.9 bytes/cycle
+ L1d$ Read:   2107.8 bytes/cycle
+
+ L2$ Hit Rate:     78.8%
+L1d$ Hit Rate:     85.3%
+
+
+Cycle: 2588672
+Threads Launched: 937984
+Buckets Launched: 65608
+Segments Launched: 54
+Prefetch queue size: 0
+
+ Ray Total:     65.8 bytes/cycle
+ Ray Write:      4.1 bytes/cycle
+  Ray Read:     61.8 bytes/cycle
+  Ray Rate:   3377.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     67.3 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     67.3 bytes/cycle
+  L2$ Read:    457.6 bytes/cycle
+ L1d$ Read:   1615.6 bytes/cycle
+
+ L2$ Hit Rate:     84.8%
+L1d$ Hit Rate:     75.6%
+
+
+Cycle: 2621440
+Threads Launched: 937984
+Buckets Launched: 66022
+Segments Launched: 55
+Prefetch queue size: 0
+
+ Ray Total:     27.6 bytes/cycle
+ Ray Write:      1.7 bytes/cycle
+  Ray Read:     25.9 bytes/cycle
+  Ray Rate:   1415.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     81.8 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     81.8 bytes/cycle
+  L2$ Read:    318.8 bytes/cycle
+ L1d$ Read:    741.7 bytes/cycle
+
+ L2$ Hit Rate:     70.6%
+L1d$ Hit Rate:     60.6%
+
+
+Cycle: 2654208
+Threads Launched: 937984
+Buckets Launched: 66627
+Segments Launched: 55
+Prefetch queue size: 0
+
+ Ray Total:     42.8 bytes/cycle
+ Ray Write:      4.9 bytes/cycle
+  Ray Read:     37.8 bytes/cycle
+  Ray Rate:   2067.9 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     76.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     76.0 bytes/cycle
+  L2$ Read:    348.8 bytes/cycle
+ L1d$ Read:   1349.1 bytes/cycle
+
+ L2$ Hit Rate:     77.3%
+L1d$ Hit Rate:     77.6%
+
+
+Cycle: 2686976
+Threads Launched: 937984
+Buckets Launched: 67573
+Segments Launched: 55
+Prefetch queue size: 0
+
+ Ray Total:     68.8 bytes/cycle
+ Ray Write:      9.6 bytes/cycle
+  Ray Read:     59.1 bytes/cycle
+  Ray Rate:   3233.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     71.0 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     71.0 bytes/cycle
+  L2$ Read:    685.8 bytes/cycle
+ L1d$ Read:   2628.5 bytes/cycle
+
+ L2$ Hit Rate:     89.1%
+L1d$ Hit Rate:     77.7%
+
+
+Cycle: 2719744
+Threads Launched: 937984
+Buckets Launched: 68604
+Segments Launched: 67
+Prefetch queue size: 0
+
+ Ray Total:     72.0 bytes/cycle
+ Ray Write:      7.6 bytes/cycle
+  Ray Read:     64.4 bytes/cycle
+  Ray Rate:   3523.9 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     83.9 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     83.9 bytes/cycle
+  L2$ Read:    713.1 bytes/cycle
+ L1d$ Read:   2150.0 bytes/cycle
+
+ L2$ Hit Rate:     83.4%
+L1d$ Hit Rate:     69.3%
+
+
+Cycle: 2752512
+Threads Launched: 937984
+Buckets Launched: 68759
+Segments Launched: 68
+Prefetch queue size: 0
+
+ Ray Total:      9.7 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      9.7 bytes/cycle
+  Ray Rate:    529.8 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     73.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     73.6 bytes/cycle
+  L2$ Read:    181.2 bytes/cycle
+ L1d$ Read:    307.8 bytes/cycle
+
+ L2$ Hit Rate:     53.3%
+L1d$ Hit Rate:     46.4%
+
+
+Cycle: 2785280
+Threads Launched: 937984
+Buckets Launched: 69046
+Segments Launched: 68
+Prefetch queue size: 0
+
+ Ray Total:     17.9 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:     17.9 bytes/cycle
+  Ray Rate:    981.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     88.6 bytes/cycle
+DRAM Write:      0.0 bytes/cycle
+
+ DRAM Read:     88.6 bytes/cycle
+  L2$ Read:    290.2 bytes/cycle
+ L1d$ Read:    620.1 bytes/cycle
+
+ L2$ Hit Rate:     65.0%
+L1d$ Hit Rate:     55.1%
+
+
+Cycle: 2818048
+Threads Launched: 997504
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      2.1 bytes/cycle
+ Ray Write:      0.1 bytes/cycle
+  Ray Read:      2.0 bytes/cycle
+  Ray Rate:    109.4 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     48.8 bytes/cycle
+DRAM Write:      3.5 bytes/cycle
+
+ DRAM Read:     45.3 bytes/cycle
+  L2$ Read:    222.9 bytes/cycle
+ L1d$ Read:    448.2 bytes/cycle
+
+ L2$ Hit Rate:     78.1%
+L1d$ Hit Rate:     73.0%
+
+
+Cycle: 2850816
+Threads Launched: 1264512
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      0.0 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      0.0 bytes/cycle
+  Ray Rate:      0.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     16.0 bytes/cycle
+DRAM Write:     16.0 bytes/cycle
+
+ DRAM Read:      0.0 bytes/cycle
+  L2$ Read:      0.0 bytes/cycle
+ L1d$ Read:    163.0 bytes/cycle
+
+ L2$ Hit Rate: -nan(ind)%
+L1d$ Hit Rate:    100.0%
+
+
+Cycle: 2883584
+Threads Launched: 1528256
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      0.0 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      0.0 bytes/cycle
+  Ray Rate:      0.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     15.1 bytes/cycle
+DRAM Write:     15.1 bytes/cycle
+
+ DRAM Read:      0.0 bytes/cycle
+  L2$ Read:      0.0 bytes/cycle
+ L1d$ Read:    160.7 bytes/cycle
+
+ L2$ Hit Rate: -nan(ind)%
+L1d$ Hit Rate:    100.0%
+
+
+Cycle: 2916352
+Threads Launched: 1789696
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      0.0 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      0.0 bytes/cycle
+  Ray Rate:      0.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     16.0 bytes/cycle
+DRAM Write:     16.0 bytes/cycle
+
+ DRAM Read:      0.0 bytes/cycle
+  L2$ Read:      0.0 bytes/cycle
+ L1d$ Read:    159.8 bytes/cycle
+
+ L2$ Hit Rate: -nan(ind)%
+L1d$ Hit Rate:    100.0%
+
+
+Cycle: 2949120
+Threads Launched: 1855168
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      0.0 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      0.0 bytes/cycle
+  Ray Rate:      0.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     16.0 bytes/cycle
+DRAM Write:     16.0 bytes/cycle
+
+ DRAM Read:      0.0 bytes/cycle
+  L2$ Read:      0.0 bytes/cycle
+ L1d$ Read:     37.4 bytes/cycle
+
+ L2$ Hit Rate:      0.0%
+L1d$ Hit Rate:    100.0%
+
+
+Cycle: 2981888
+Threads Launched: 1855168
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      0.0 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      0.0 bytes/cycle
+  Ray Rate:      0.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     16.0 bytes/cycle
+DRAM Write:     16.0 bytes/cycle
+
+ DRAM Read:      0.0 bytes/cycle
+  L2$ Read:      0.0 bytes/cycle
+ L1d$ Read:      0.0 bytes/cycle
+
+ L2$ Hit Rate: -nan(ind)%
+L1d$ Hit Rate: -nan(ind)%
+
+
+Cycle: 3014656
+Threads Launched: 1855168
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      0.0 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      0.0 bytes/cycle
+  Ray Rate:      0.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     15.1 bytes/cycle
+DRAM Write:     15.1 bytes/cycle
+
+ DRAM Read:      0.0 bytes/cycle
+  L2$ Read:      0.0 bytes/cycle
+ L1d$ Read:      0.0 bytes/cycle
+
+ L2$ Hit Rate: -nan(ind)%
+L1d$ Hit Rate: -nan(ind)%
+
+
+Cycle: 3047424
+Threads Launched: 1859584
+Buckets Launched: 69078
+Segments Launched: 69
+Prefetch queue size: 0
+
+ Ray Total:      0.0 bytes/cycle
+ Ray Write:      0.0 bytes/cycle
+  Ray Read:      0.0 bytes/cycle
+  Ray Rate:      0.0 Mrays/s
+
+Scene Fill:      0.0 bytes/cycle
+Scene Read:      0.0 bytes/cycle
+
+DRAM Total:     14.8 bytes/cycle
+DRAM Write:     14.8 bytes/cycle
+
+ DRAM Read:      0.0 bytes/cycle
+  L2$ Read:      1.0 bytes/cycle
+ L1d$ Read:      2.4 bytes/cycle
+
+ L2$ Hit Rate: -nan(ind)%
+L1d$ Hit Rate:    100.0%
+
+
+#-----------------------------Simulated Cycles Break-Up-------------------------------------------
+Note:  1.(Read Cycles + Write Cycles + Read Other + Write Other) should add up to % cycles during which
+          the channel is busy. This should be the same for all Ranks on a Channel
+       2.(PRE_PDN_FAST + PRE_PDN_SLOW + ACT_PDN + ACT_STBY + PRE_STBY) should add up to 100%
+       3.Power Down means Clock Enable, CKE = 0. In Standby mode, CKE = 1
+#---------------------------------------------------------------------------------------------------
+Total Simulation Cycles                          3048274
+----------------------------------------------------------------------------------------------------
+
+PROFILING DISABLED!
+-------------DRAM stats-------------
+Cycles 3048274
+Done: Core 0: Fetched 0 : Committed 0 : At time  : 0
+Sum of execution times for all programs: 0
+Num reads merged:                        0
+Num writes merged:                       0
+-------- Channel 0 Stats-----------
+Total Reads Serviced :          151638
+Total Writes Serviced :         57344
+Average Read Latency :          462.17669
+Average Read Queue Latency :    430.17669
+Average Write Latency :         356.12235
+Average Write Queue Latency :   322.12235
+Read Page Hit Rate :            0.50065
+Write Page Hit Rate :           0.99897
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      21.449112
+Average column reads per ACT:   2.002615
+Single column reads:            47810
+Single column reads(%):         31.529036
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 1 Stats-----------
+Total Reads Serviced :          151591
+Total Writes Serviced :         57344
+Average Read Latency :          452.77671
+Average Read Queue Latency :    420.77671
+Average Write Latency :         356.42618
+Average Write Queue Latency :   322.42618
+Read Page Hit Rate :            0.50310
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.975002
+Average column reads per ACT:   2.012492
+Single column reads:            47460
+Single column reads(%):         31.307926
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 2 Stats-----------
+Total Reads Serviced :          151603
+Total Writes Serviced :         58368
+Average Read Latency :          441.14764
+Average Read Queue Latency :    409.14764
+Average Write Latency :         356.84784
+Average Write Queue Latency :   322.84784
+Read Page Hit Rate :            0.50614
+Write Page Hit Rate :           0.99897
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.398302
+Average column reads per ACT:   2.024883
+Single column reads:            46868
+Single column reads(%):         30.914957
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 3 Stats-----------
+Total Reads Serviced :          151390
+Total Writes Serviced :         58368
+Average Read Latency :          443.68543
+Average Read Queue Latency :    411.68543
+Average Write Latency :         356.73787
+Average Write Queue Latency :   322.73787
+Read Page Hit Rate :            0.50256
+Write Page Hit Rate :           0.99897
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.495680
+Average column reads per ACT:   2.010304
+Single column reads:            47253
+Single column reads(%):         31.212763
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 4 Stats-----------
+Total Reads Serviced :          151830
+Total Writes Serviced :         58368
+Average Read Latency :          474.11456
+Average Read Queue Latency :    442.11456
+Average Write Latency :         356.80297
+Average Write Queue Latency :   322.80297
+Read Page Hit Rate :            0.50341
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      22.070877
+Average column reads per ACT:   2.013741
+Single column reads:            46992
+Single column reads(%):         30.950407
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 5 Stats-----------
+Total Reads Serviced :          150737
+Total Writes Serviced :         58368
+Average Read Latency :          436.51870
+Average Read Queue Latency :    404.51870
+Average Write Latency :         356.72079
+Average Write Queue Latency :   322.72079
+Read Page Hit Rate :            0.50264
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.052879
+Average column reads per ACT:   2.010604
+Single column reads:            47321
+Single column reads(%):         31.393089
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 6 Stats-----------
+Total Reads Serviced :          151809
+Total Writes Serviced :         57344
+Average Read Latency :          445.23647
+Average Read Queue Latency :    413.23647
+Average Write Latency :         356.90266
+Average Write Queue Latency :   322.90266
+Read Page Hit Rate :            0.50374
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.629650
+Average column reads per ACT:   2.015092
+Single column reads:            47315
+Single column reads(%):         31.167454
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 7 Stats-----------
+Total Reads Serviced :          151021
+Total Writes Serviced :         57344
+Average Read Latency :          413.10428
+Average Read Queue Latency :    381.10428
+Average Write Latency :         356.95119
+Average Write Queue Latency :   322.95119
+Read Page Hit Rate :            0.50220
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      18.930637
+Average column reads per ACT:   2.008846
+Single column reads:            47424
+Single column reads(%):         31.402254
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 8 Stats-----------
+Total Reads Serviced :          150969
+Total Writes Serviced :         57344
+Average Read Latency :          459.33111
+Average Read Queue Latency :    427.33111
+Average Write Latency :         356.89301
+Average Write Queue Latency :   322.89301
+Read Page Hit Rate :            0.50208
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      21.213552
+Average column reads per ACT:   2.008368
+Single column reads:            47360
+Single column reads(%):         31.370678
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 9 Stats-----------
+Total Reads Serviced :          150707
+Total Writes Serviced :         57344
+Average Read Latency :          436.93183
+Average Read Queue Latency :    404.93183
+Average Write Latency :         356.83779
+Average Write Queue Latency :   322.83779
+Read Page Hit Rate :            0.50190
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.069313
+Average column reads per ACT:   2.007633
+Single column reads:            47294
+Single column reads(%):         31.381422
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 10 Stats-----------
+Total Reads Serviced :          150423
+Total Writes Serviced :         57344
+Average Read Latency :          420.75385
+Average Read Queue Latency :    388.75385
+Average Write Latency :         356.89968
+Average Write Queue Latency :   322.89968
+Read Page Hit Rate :            0.50238
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      19.233160
+Average column reads per ACT:   2.009579
+Single column reads:            47317
+Single column reads(%):         31.455961
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 11 Stats-----------
+Total Reads Serviced :          151342
+Total Writes Serviced :         57344
+Average Read Latency :          431.02464
+Average Read Queue Latency :    399.02464
+Average Write Latency :         356.86286
+Average Write Queue Latency :   322.86286
+Read Page Hit Rate :            0.50468
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      19.860592
+Average column reads per ACT:   2.018889
+Single column reads:            47018
+Single column reads(%):         31.067383
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 12 Stats-----------
+Total Reads Serviced :          151661
+Total Writes Serviced :         57344
+Average Read Latency :          449.14919
+Average Read Queue Latency :    417.14919
+Average Write Latency :         356.42958
+Average Write Queue Latency :   322.42958
+Read Page Hit Rate :            0.50561
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.804207
+Average column reads per ACT:   2.022686
+Single column reads:            46872
+Single column reads(%):         30.905771
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 13 Stats-----------
+Total Reads Serviced :          151221
+Total Writes Serviced :         57344
+Average Read Latency :          434.30235
+Average Read Queue Latency :    402.30235
+Average Write Latency :         356.37472
+Average Write Queue Latency :   322.37472
+Read Page Hit Rate :            0.50350
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      20.007317
+Average column reads per ACT:   2.014105
+Single column reads:            47292
+Single column reads(%):         31.273434
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 14 Stats-----------
+Total Reads Serviced :          150674
+Total Writes Serviced :         57344
+Average Read Latency :          459.46392
+Average Read Queue Latency :    427.46392
+Average Write Latency :         356.12074
+Average Write Queue Latency :   322.12074
+Read Page Hit Rate :            0.50000
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      21.178665
+Average column reads per ACT:   2.000000
+Single column reads:            47959
+Single column reads(%):         31.829647
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+-------- Channel 15 Stats-----------
+Total Reads Serviced :          152428
+Total Writes Serviced :         57344
+Average Read Latency :          486.51091
+Average Read Queue Latency :    454.51091
+Average Write Latency :         355.94212
+Average Write Queue Latency :   321.94212
+Read Page Hit Rate :            0.50199
+Write Page Hit Rate :           0.99895
+Max write queue length:         80
+Max read queue length:          64
+Average read queue length:      22.777681
+Average column reads per ACT:   2.008009
+Single column reads:            47664
+Single column reads(%):         31.269846
+Floating point compares:        0
+Floating point adds:            0
+Integer adds:                   0
+------------------------------------
+
+#-------------------------------------- Power Stats ----------------------------------------------
+Note:  1. termRoth/termWoth is the power dissipated in the ODT resistors when Read/Writes terminate
+          in other ranks on the same channel
+#-------------------------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------------------------
+Total memory system power  = 96.268333 W
+Miscellaneous system power = 10 W  # Processor uncore power, disk, I/O, cooling, etc.
+Processor core power       = 0.000000 W  # Assuming that each core consumes 5 W
+Total system power         = 106.268333 W # Sum of the previous three lines
+Energy Delay product (EDP) = 0.000096430 J.s
+
+--------------------------------------DRAM--------------------------------------
+Read Bandwidth: 50.8 bytes/cycle
+Write Bandwidth: 1.2 bytes/cycle
+
+Total: 3342644
+Loads: 2421044
+Stores: 921600
+
+--------------------------------------SRAM--------------------------------------
+Read Bandwidth: 58.49 bytes/cycle
+Write Bandwidth: 46.41 bytes/cycle
+
+Total: 6721579
+Loads: 4511083
+Stores: 2210496
+
+
+--------------------------------Stream Scheduler--------------------------------
+Rays: 911010
+Ray duplication: 4.25
+Rays per bucket: 56.11
+Buckets per segment: 1001.13
+Total segments: 69
+Single buckets segments: 12 (17.39%)
+
+----------------------------------Scene Buffer----------------------------------
+Read Bandwidth: 0.0 bytes/cycle
+Write Bandwidth: 0.0 bytes/cycle
+
+Total: 0
+Loads: 0
+Stores: 0
+
+Total Energy: 2.62 mJ
+Total Power: 1.72 W
+
+--------------------------------------L2$---------------------------------------
+Read Bandwidth: 581.7 bytes/cycle
+
+Total: 27338942
+Hits: 24615743 (90.04%)
+Misses: 2723199 (9.96%)
+Half Misses: 302155 (1.11%)
+MSHR Stalls: 40494782
+
+Tag Array Access: 70623005
+Data Array Reads: 24560127
+Data Array Writes: 2421044
+
+Total Energy: 28.52 mJ
+Total Power: 18.71 W
+
+--------------------------------------L1d$--------------------------------------
+Read Bandwidth: 1845.5 bytes/cycle
+
+Total: 110959025
+Hits: 75646676 (68.18%)
+Misses: 35312349 (31.82%)
+Half Misses: 7608221 (6.86%)
+MSHR Stalls: 7678905
+
+Tag Array Access: 146342058
+Data Array Reads: 75577591
+Data Array Writes: 27704128
+
+Total Energy: 8.87 mJ
+Total Power: 5.82 W
+
+--------------------------------------L1i$--------------------------------------
+Read Bandwidth: 188.1 bytes/cycle
+
+Total: 8957840
+Hits: 8954789(99.97%)
+Misses: 3051(0.03%)
+
+Tag Array Access: 8957840
+Data Array Reads: 8954789
+Data Array Writes: 3051
+
+Total Energy: 1.43 mJ
+Total Power: 0.94 W
+
+---------------------------------------TP---------------------------------------
+Issue Cycles: 10209 (0.34%)
+        ILOGICAL: 3150 (0.11%)
+        LOAD: 2499 (0.08%)
+        IADD: 2049 (0.07%)
+        BRANCH: 687 (0.02%)
+        MOVE: 683 (0.02%)
+        FCHTHRD: 454 (0.02%)
+        STORE: 233 (0.01%)
+        SWI: 225 (0.01%)
+        LHIT: 225 (0.01%)
+        JUMP: 4 (0.00%)
+
+Data Stall Cycles: 2962019 (99.66%)
+        LHIT: 2778635 (93.49%)
+        LOAD: 133097 (4.48%)
+        INSTR_FETCH: 50061 (1.68%)
+        FCHTHRD: 225 (0.01%)
+
+Pipeline Stall Cycles: 0 (0.00%)
+
+------------------------------------RT Core-------------------------------------
+Rays: 921600
+Nodes: 154766312
+Tris: 15622399
+
+Nodes/Ray: 167.93
+Tris/Ray: 16.95
+Nodes/Tri: 9.91
+
+Stall Cycles: 1199986 (39.37%)
+        NODE_FETCH: 609337 (19.99%)
+        RAY_FETCH: 338381 (11.10%)
+        TRI_FETCH: 232858 (7.64%)
+        TRI_ISECT: 14739 (0.48%)
+        NODE_ISECT: 4669 (0.15%)
+
+------------------------------Performance Summary-------------------------------
+Cycles: 3048274
+Clock rate: 2000 MHz
+Frame time: 1.52 ms
+Mrays/s: 598
+
+---------------------------------Power Summary----------------------------------
+Energy: 187.07 mJ
+Power: 122.74 W
+Mrays/J: 4.87
+
+-------------------------------Simulation Summary-------------------------------
+Simulation rate: 6.58 KHz
+Simulation time: 463 s
+
+-------------------------------Treelet Histogram--------------------------------
+
+C:\Users\jcbha\Development\msvc-c++\arches-v2\build\src\arches-v2\RelWithDebInfo\arches-v2.exe (process 20920) exited with code 0.
+Press any key to close this window . . .

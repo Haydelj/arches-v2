@@ -20,10 +20,8 @@ struct TRaXKernelArgs
 #if defined (WIDE_COMPRESSED_BVH)
 	rtm::WideBVH::WideBVHNode* nodes;
 #else
-	rtm::PackedBVH2::Node* nodes;
+	rtm::PackedBVH2::NodePack* nodes;
 #endif
-
 	rtm::Triangle* tris;
-	rtm::PackedTreelet* treelets;
-	rtm::Ray* rays;
+	void* treelets;
 };

@@ -13,20 +13,6 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
-const static std::string phase_names[] =
-{
-	"NONE",
-	"SCHEDULER",
-	"RAY_FETCH",
-	"HIT_FETCH",
-	"HIT_UPDATE",
-	"NODE_FETCH",
-	"TRI_FETCH",
-	"NODE_ISECT",
-	"TRI_ISECT",
-	"NUM_PHASES",
-};
-
 class UnitTreeletRTCore : public UnitMemoryBase
 {
 public:
@@ -86,7 +72,7 @@ private:
 		bool hit_found;
 		bool lhit_returned;
 
-		NodeStackEntry nstack[16];
+		NodeStackEntry nstack[32];
 		uint nstack_size;
 
 		TreeletStackEntry tqueue[16];
@@ -287,6 +273,24 @@ public:
 
 		void print(cycles_t cycles, uint num_units = 1)
 		{
+			const static std::string phase_names[] =
+			{
+				"NONE",
+				"SCHEDULER",
+				"RAY_FETCH",
+				"HIT_FETCH",
+				"HIT_UPDATE",
+				"NODE_FETCH",
+				"TRI_FETCH",
+				"NODE_ISECT",
+				"TRI_ISECT",
+				"NUM_PHASES",
+			};
+
+			printf("Rays: %lld\n", rays);
+			printf("Nodes: %lld\n", nodes);
+			printf("Tris: %lld\n", tris);
+			printf("\n");
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
 			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);

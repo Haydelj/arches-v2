@@ -11,9 +11,11 @@
 #define ENABLE_RT_DEBUG_PRINTS (false)
 #endif
 
+#define PACKET_SIZE
+
 namespace Arches { namespace Units { namespace TRaX {
 
-class UnitRTCore : public UnitMemoryBase
+class UnitPRTCore : public UnitMemoryBase
 {
 public:
 	struct Configuration
@@ -23,6 +25,8 @@ public:
 
 		paddr_t node_base_addr;
 		paddr_t tri_base_addr;
+
+		rtm::Frustum frustum;
 
 		UnitMemoryBase* cache;
 	};
@@ -34,6 +38,7 @@ private:
 		{
 			float t;
 			rtm::PackedBVH2::NodePack::Data data;
+			uint64_t mask;
 		};
 
 		enum class Phase
@@ -49,19 +54,17 @@ private:
 		}
 		phase;
 
-		rtm::Ray ray;
-		rtm::vec3 inv_d;
+		rtm::Frustum sub_frustum;
 
-		rtm::Hit hit;
+		rtm::Hit hit_buffer[16];
 
 		StackEntry stack[32];
 		uint8_t stack_size;
 		uint8_t current_entry;
 		uint16_t flags;
-
-		uint16_t port;
-		uint16_t dst;
 	};
+
+	rtm::Frustum frustum;
 
 	struct NodeStagingBuffer
 	{
@@ -117,7 +120,7 @@ private:
 	uint last_ray_id{0};
 
 public:
-	UnitRTCore(const Configuration& config);
+	UnitPRTCore(const Configuration& config);
 
 	void clock_rise() override
 	{
@@ -139,7 +142,7 @@ public:
 			}
 		}
 
-		//for(uint i = 0; i < 2; ++i) //2 pops per cycle. In reality this would need to be multi banked
+		for(uint i = 0; i < 1; ++i) //n pops per cycle. In reality this would need to be multi banked
 			_schedule_ray();
 		_simualte_intersectors();
 	}

@@ -30,7 +30,7 @@ T_RTRS	2
 T_PD_MIN	10
 T_XP	13
 T_XP_DLL	50
-T_DATA_TRANS 4 //this would be 4 in normal GDDR5 but our burst length is double because we use 64 byte lines instead of 32 bytes lines
+T_DATA_TRANS 4 //this would be 2 in normal GDDR5 but our burst length is double because we use 64 byte lines instead of 32 bytes lines
 
 // try making tccd 4
 // original info was as follows:
