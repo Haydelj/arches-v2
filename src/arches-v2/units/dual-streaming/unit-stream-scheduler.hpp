@@ -2,7 +2,6 @@
 #include "stdafx.hpp"
 
 #include "units/unit-base.hpp"
-#include "units/unit-dram.hpp"
 #include "units/unit-buffer.hpp"
 
 #include "dual-streaming-kernel/include.hpp"
@@ -12,24 +11,31 @@ namespace Arches {
 namespace Units {
 namespace DualStreaming {
 
-#define RAY_BUCKET_SIZE     (2048)
-#define MAX_RAYS_PER_BUCKET ((RAY_BUCKET_SIZE - 16) / sizeof(BucketRay))
+#define RAY_BUCKET_SIZE 2048
 
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
-	paddr_t next_bucket{0};
-	uint segment_id{0};
-	uint num_rays{0};
-	BucketRay bucket_rays[MAX_RAYS_PER_BUCKET];
+	struct Header
+	{
+		paddr_t next_bucket{0};
+		uint segment_id{0};
+		uint8_t use_scene_buffer{1};
+		uint8_t num_rays{0};
+	};
+
+	const static uint MAX_RAYS = (RAY_BUCKET_SIZE - sizeof(Header)) / sizeof(BucketRay);
+
+	Header header;
+	BucketRay bucket_rays[MAX_RAYS];
 
 	bool is_full()
 	{
-		return num_rays == MAX_RAYS_PER_BUCKET;
+		return header.num_rays == MAX_RAYS;
 	}
 
 	void write_ray(const BucketRay& bray)
 	{
-		bucket_rays[num_rays++] = bray;
+		bucket_rays[header.num_rays++] = bray;
 	}
 };
 
@@ -51,12 +57,17 @@ public:
 		uint num_root_rays{0};
 		uint num_tms{0};
 		uint num_banks{1};
+		uint num_channels{1};
+		uint64_t row_size{1};
+		uint64_t block_size{1};
 
 		uint traversal_scheme{0}; //0-bfs, 1-dfs
 		uint weight_scheme{0}; //If weight scheme = 2, we use the default DFS order
 		uint max_active_segments{1024 * 1024};
 
-		UnitSceneBuffer* scene_buffer{nullptr};
+		uint                l2_cache_port{0};
+		UnitMemoryBase*     l2_cache{nullptr};
+		UnitSceneBuffer*    scene_buffer{nullptr};
 		UnitMainMemoryBase* main_mem{nullptr};
 		uint                main_mem_port_offset{0};
 		uint                main_mem_port_stride{1};
@@ -95,38 +106,47 @@ public:
 	class MemoryManager
 	{
 	private:
-		paddr_t next_bucket_addr;
-		std::stack<paddr_t> free_buckets;
+		paddr_t _next_bucket_addr;
+		uint _num_channels;
+		uint64_t _row_size;
+		std::stack<paddr_t> _free_buckets;
 
 	public:
 		paddr_t alloc_bucket()
 		{
-			if(!free_buckets.empty())
+			if(!_free_buckets.empty())
 			{
-				paddr_t bucket_address = free_buckets.top();
-				free_buckets.pop();
+				paddr_t bucket_address = _free_buckets.top();
+				_free_buckets.pop();
 				return bucket_address;
 			}
 
-			paddr_t bucket_address = next_bucket_addr;
+			paddr_t bucket_address = _next_bucket_addr;
 
-			next_bucket_addr += RAY_BUCKET_SIZE;
-			if((next_bucket_addr % ROW_BUFFER_SIZE) == 0)
-				next_bucket_addr += (NUM_DRAM_CHANNELS - 1) * ROW_BUFFER_SIZE;
+			_next_bucket_addr += RAY_BUCKET_SIZE;
+			if((_next_bucket_addr % _row_size) == 0)
+				_next_bucket_addr += (_num_channels - 1) * _row_size;
 
 			return bucket_address;
 		}
 
-		void free_bucket(paddr_t bucket_address)
+		uint get_channel(paddr_t address) const
 		{
-			free_buckets.push(bucket_address);
+			return (address / _row_size) % _num_channels;
 		}
 
-		MemoryManager(uint channel_index, paddr_t start_address)
+		void free_bucket(paddr_t bucket_address)
 		{
-			next_bucket_addr = align_to(ROW_BUFFER_SIZE, start_address);
-			while((next_bucket_addr / ROW_BUFFER_SIZE) % NUM_DRAM_CHANNELS != channel_index)
-				next_bucket_addr += ROW_BUFFER_SIZE;
+			_free_buckets.push(bucket_address);
+		}
+
+		MemoryManager(uint channel_index, uint num_channels, uint64_t row_size, paddr_t start_address)
+		{
+			_num_channels = num_channels;
+			_row_size = row_size;
+			_next_bucket_addr = align_to(_row_size, start_address);
+			while((_next_bucket_addr / _row_size) % _num_channels != channel_index)
+				_next_bucket_addr += _row_size;
 		}
 	};
 
@@ -139,6 +159,7 @@ public:
 		bool                parent_finished{false};
 		bool                prefetch_issued{false};
 		bool                prefetch_complete{false};
+		bool                use_scene_buffer{false};
 		bool				child_order_generated{false};
 
 		uint64_t			weight{0};
@@ -167,8 +188,7 @@ public:
 		std::stack<uint> traversal_stack; //for DFS
 		std::queue<uint> traversal_queue; //for BFS
 
-		std::queue<uint> prefetch_queue;
-		std::queue<uint> retire_queue;
+		std::queue<UnitSceneBuffer::Command> scene_buffer_command_queue;
 
 		uint root_rays_counter;
 		uint num_root_rays;
@@ -184,8 +204,8 @@ public:
 			traversal_scheme(config.traversal_scheme), weight_scheme(config.weight_scheme),
 			max_active_segments(config.max_active_segments), concurent_prefetches(0), active_segments(0)
 		{
-			for(uint i = 0; i < NUM_DRAM_CHANNELS; ++i)
-				memory_managers.emplace_back(i, config.heap_addr);
+			for(uint i = 0; i < config.num_channels; ++i)
+				memory_managers.emplace_back(i, config.num_channels, config.row_size, config.heap_addr);
 
 			SegmentState& segment_state = segment_state_map[0];
 			segment_state.parent_finished = false;
@@ -213,7 +233,6 @@ public:
 			{
 				READ_BUCKET,
 				WRITE_BUCKET,
-				READ_SEGMENT,
 			};
 
 			Type type{READ_BUCKET};
@@ -241,10 +260,16 @@ public:
 		Channel() {};
 	};
 
+
+	uint64_t _block_size;
 	UnitSceneBuffer* _scene_buffer;
 	UnitMainMemoryBase* _main_mem;
 	uint                _main_mem_port_offset;
 	uint                _main_mem_port_stride;
+
+	UnitMemoryBase* _l2_cache;
+	std::queue<paddr_t> _l2_cache_prefetch_queue;
+	uint _l2_cache_port;
 
 	//request flow from _request_network -> bank -> scheduler -> channel
 	StreamSchedulerRequestCrossbar _request_network;
@@ -254,7 +279,12 @@ public:
 	UnitMemoryBase::ReturnCrossBar _return_network;
 
 public:
-	UnitStreamScheduler(const Configuration& config) :_request_network(config.num_tms, config.num_banks), _banks(config.num_banks), _scheduler(config), _channels(NUM_DRAM_CHANNELS), _return_network(config.num_tms, config.num_tms, NUM_DRAM_CHANNELS), _scene_buffer(config.scene_buffer)
+	UnitStreamScheduler(const Configuration& config) : 
+		_request_network(config.num_tms, config.num_banks), 
+		_banks(config.num_banks), _scheduler(config), _channels(config.num_channels), 
+		_return_network(config.num_channels, config.num_tms),
+		_scene_buffer(config.scene_buffer), _block_size(config.block_size),
+		_l2_cache(config.l2_cache), _l2_cache_port(config.l2_cache_port)
 	{
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;

@@ -6,18 +6,32 @@ namespace Arches { namespace Units {
 
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
-UnitDRAM::UnitDRAM(uint num_ports, uint64_t size, Simulator* simulator) : UnitMainMemoryBase(size),
-	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(num_ports, NUM_DRAM_CHANNELS)
+UnitDRAM::UnitDRAM(uint num_ports, uint64_t size) : UnitMainMemoryBase(size),
+	_request_network(num_ports, numDramChannels()), _return_network(numDramChannels(), num_ports)
 {
-	char* usimm_config_file = (char*)REL_PATH_BIN_TO_SAMPLES"gddr5_16ch.cfg";
-	char* usimm_vi_file = (char*)REL_PATH_BIN_TO_SAMPLES"1Gb_x16_amd2GHz.vi";
-	if (usimm_setup(usimm_config_file, usimm_vi_file) < 0) _assert(false); //usimm faild to initilize
-
-	_assert(numDramChannels() == NUM_DRAM_CHANNELS);
-
 	_channels.resize(numDramChannels());
-
 	registerUsimmListener(this);
+}
+
+//must be called before the constructor
+bool UnitDRAM::init_usimm(const std::string& config, const std::string& vi)
+{
+	return (usimm_setup((char*)(REL_PATH_BIN_TO_SAMPLES + config).c_str(), (char*)(REL_PATH_BIN_TO_SAMPLES + vi).c_str()) < 0);
+}
+
+uint UnitDRAM::num_channels()
+{
+	return numDramChannels();
+}
+
+uint64_t UnitDRAM::row_size()
+{
+	return rowSize();
+}
+
+uint64_t UnitDRAM::block_size()
+{
+	return blockSize();
 }
 
 void UnitDRAM::reset()
@@ -59,11 +73,11 @@ bool UnitDRAM::usimm_busy() {
 	return usimmIsBusy();
 }
 
-void UnitDRAM::print_usimm_stats(uint32_t const L2_line_size,
+void UnitDRAM::print_stats(
 	uint32_t const word_size,
 	cycles_t cycle_count)
 {
-	printUsimmStats(L2_line_size, word_size, cycle_count);
+	printUsimmStats(blockSize(), word_size, cycle_count);
 }
 
 float UnitDRAM::total_power()
@@ -143,16 +157,13 @@ bool UnitDRAM::_store(const MemoryRequest& request, uint channel_index)
 		return false;
 	}
 
-	//Masked write
-	for(uint i = 0; i < request.size; ++i)
-		if((request.write_mask >> i) & 0x1)
-			_data_u8[request.paddr + i] = request.data[i];
+	std::memcpy(&_data_u8[request.paddr], request.data, request.size);
 
 	_assert(!reqRet.retLatencyKnown);
 	_assert(reqRet.retType == reqInsertRet_tt::RRT_WRITE_QUEUE);
 
 	log.stores++;
-	log.bytes_written += popcnt(request.write_mask);
+	log.bytes_written += request.size;
 
 	return true;
 }

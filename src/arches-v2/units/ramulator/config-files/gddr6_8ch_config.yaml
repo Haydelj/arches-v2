@@ -1,5 +1,5 @@
 Frontend:
-  impl: ARCHESv2
+  impl: GEM5
   clock_ratio: 1
   num_expected_insts: 500000
 
@@ -10,7 +10,7 @@ Frontend:
 
 MemorySystem:
   impl: GenericDRAM
-  clock_ratio: 1
+  clock_ratio: 2
 
   DRAM:
     impl: GDDR6

@@ -11,15 +11,15 @@ namespace rtm {
 class alignas(64) PackedBVH2
 {
 public:
-	struct alignas(64) Node
+	struct alignas(64) NodePack
 	{
 		union Data
 		{
 			struct
 			{
-				uint32_t is_leaf : 1;
-				uint32_t num_tri : 3;
-				uint32_t tri_index : 28;
+				uint32_t is_leaf    : 1;
+				uint32_t num_prims  : 3;
+				uint32_t prim_index : 28;
 			};
 			struct
 			{
@@ -33,54 +33,56 @@ public:
 	};
 
 #ifndef __riscv
-	std::vector<Node> nodes;
+	std::vector<NodePack> nodes;
+
 	PackedBVH2() {};
-	PackedBVH2(const BVH2& bvh)
+
+	PackedBVH2(const BVH2& bvh, std::vector<rtm::BVH2::BuildObject> build_objects)
 	{
+		printf("Building Packed BVH2\n");
+
 		size_t num_packed_nodes = 0;
 		struct NodeSet
 		{
 			BVH2::Node::Data data;
-			uint32_t        index;
+			uint32_t         index;
 
 			NodeSet() = default;
 			NodeSet(BVH2::Node::Data data, uint32_t index) : data(data), index(index) {};
 		};
 
-		std::vector<NodeSet> stack; stack.reserve(96);
+		std::vector<NodeSet> stack; stack.reserve(32);
 		stack.emplace_back(bvh.nodes[0].data, 0);
 
-		nodes.clear();
-		nodes.emplace_back();
-
+		nodes.resize(bvh.nodes.size() / 2);
+		uint32_t nodes_allocated = 1;
 		while(!stack.empty())
 		{
 			NodeSet current_set = stack.back();
 			stack.pop_back();
 
-			for(uint i = 0; i <= current_set.data.lst_chld_ofst; ++i)
+			for(uint i = 0; i < 2; ++i)
 			{
-				Node& current_pack = nodes[current_set.index];
+				const BVH2::Node& node = bvh.nodes[current_set.data.child_index + i];
 
-				uint index = current_set.data.fst_chld_ind + i;
-				BVH2::Node node = bvh.nodes[index];
-
+				NodePack& current_pack = nodes[current_set.index];
 				current_pack.aabb[i] = node.aabb;
 				current_pack.data[i].is_leaf = node.data.is_leaf;
-
 				if(node.data.is_leaf)
 				{
-					current_pack.data[i].tri_index = node.data.fst_chld_ind;
-					current_pack.data[i].num_tri = node.data.lst_chld_ofst;
+					current_pack.data[i].prim_index = node.data.prim_index;
+					current_pack.data[i].num_prims = node.data.num_prims;
 				}
 				else
 				{
-					stack.emplace_back(node.data, nodes.size());
-					current_pack.data[i].child_index = nodes.size();
-					nodes.emplace_back();
+					stack.emplace_back(node.data, nodes_allocated);
+					current_pack.data[i].child_index = nodes_allocated;
+					nodes_allocated++;
 				}
 			}
 		}
+
+		printf("Built Packed BVH2\n");
 	}
 #endif
 };

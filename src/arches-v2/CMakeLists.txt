@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 add_compile_definitions(UNICODE _UNICODE)
 
-set(PROJECT_NAME "Arches-v2")
+set(PROJECT_NAME "arches-v2")
 
 
 file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.hpp" "*.h")

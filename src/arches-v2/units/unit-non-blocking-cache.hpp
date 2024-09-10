@@ -14,14 +14,16 @@ public:
 	struct Configuration
 	{
 		uint size{1024};
+		uint block_size{CACHE_BLOCK_SIZE};
 		uint associativity{1};
 
 		uint latency{1};
+		uint cycle_time{1};
 
 		uint num_ports{1};
 		uint num_banks{1};
-		uint cross_bar_width{1};
 		uint64_t bank_select_mask{0};
+		const uint8_t* weight_table = _default_weight_table;
 
 		uint num_mshr{1};
 		bool use_lfb{false};
@@ -89,8 +91,8 @@ protected:
 		State state{State::INVALID};
 
 		uint8_t lru{0u};  //This is used for LFB (Line Fill Buffer) mode
-		uint64_t write_mask{0x0}; //This is used for LFB mode
-		BlockData block_data; //This is used for LFB mode
+		uint128_t write_mask{0x0}; //This is used for LFB mode
+		uint8_t block_data[128]; //This is used for LFB mode
 
 		MSHR() = default;
 
@@ -112,7 +114,7 @@ protected:
 
 	bool _use_lfb;
 	std::vector<Bank> _banks;
-	RequestCrossBar _request_cross_bar;
+	WeightedRequestCrossBar _request_cross_bar;
 	ReturnCrossBar _return_cross_bar;
 
 	std::vector<UnitMemoryBase*> _mem_highers;
@@ -160,6 +162,7 @@ public:
 			};
 			uint64_t counters[NUM_COUNTERS];
 		};
+		std::map<paddr_t, uint64_t> profile_counters;
 
 	public:
 		Log() { reset(); }
@@ -168,12 +171,17 @@ public:
 		{
 			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] = 0;
+
+			profile_counters.clear();
 		}
 
 		void accumulate(const Log& other)
 		{
 			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] += other.counters[i];
+
+			for(auto& a : other.profile_counters)
+				profile_counters[a.first] += a.second;
 		}
 
 		uint64_t get_total() { return hits + misses; }

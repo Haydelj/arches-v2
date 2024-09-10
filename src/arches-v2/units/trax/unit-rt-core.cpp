@@ -4,8 +4,8 @@ namespace Arches { namespace Units { namespace TRaX {
 
 UnitRTCore::UnitRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
-	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(config.num_tp, 1),
-	_box_pipline(3, 1), _tri_pipline(22, 8)
+	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
+	_box_pipline(3, 1), _tri_pipline(22, 1)
 {
 	_tri_staging_buffers.resize(config.max_rays);
 	_ray_states.resize(config.max_rays);
@@ -15,8 +15,8 @@ UnitRTCore::UnitRTCore(const Configuration& config) :
 
 bool UnitRTCore::_try_queue_node(uint ray_id, uint node_id)
 {
-	paddr_t start = _node_base_addr + node_id * sizeof(rtm::PackedBVH2::Node);
-	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::PackedBVH2::Node)), (uint16_t)ray_id});
+	paddr_t start = _node_base_addr + node_id * sizeof(rtm::PackedBVH2::NodePack);
+	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::PackedBVH2::NodePack)), (uint16_t)ray_id});
 	return true;
 }
 
@@ -98,7 +98,7 @@ void UnitRTCore::_read_returns()
 		}
 		else
 		{
-			_assert(sizeof(rtm::PackedBVH2::Node) == ret.size);
+			_assert(sizeof(rtm::PackedBVH2::NodePack) == ret.size);
 
 			NodeStagingBuffer buffer;
 			buffer.ray_id = ray_id;
@@ -131,21 +131,21 @@ void UnitRTCore::_schedule_ray()
 			{
 				if(entry.data.is_leaf)
 				{
-					if(_try_queue_tri(ray_id, entry.data.tri_index))
+					if(_try_queue_tri(ray_id, entry.data.prim_index))
 					{
 						ray_state.phase = RayState::Phase::TRI_FETCH;
 
 						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("Tri: %d:%d\n", entry.data.tri_index, entry.data.num_tri + 1);
+							printf("Tri: %d:%d\n", entry.data.prim_index, entry.data.num_prims + 1);
 
-						if(entry.data.num_tri == 0)
+						if(entry.data.num_prims == 0)
 						{
 							ray_state.stack_size--;
 						}
 						else
 						{
-							entry.data.tri_index++;
-							entry.data.num_tri--;
+							entry.data.prim_index++;
+							entry.data.num_prims--;
 						}
 					}
 					else
@@ -200,7 +200,7 @@ void UnitRTCore::_simualte_intersectors()
 		rtm::Ray& ray = ray_state.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.hit;
-		rtm::PackedBVH2::Node& node = buffer.node;
+		rtm::PackedBVH2::NodePack& node = buffer.node;
 
 		float hit_ts[2] = {rtm::intersect(node.aabb[0], ray, inv_d), rtm::intersect(node.aabb[1], ray, inv_d)};
 		if(hit_ts[0] < hit_ts[1])

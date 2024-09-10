@@ -280,13 +280,13 @@ public:
 };
 
 
-template<typename T>
+template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
 class Cascade : public InterconnectionNetwork<T>
 {
 private:
 	FIFOArray<T> _source_fifos;
-	size_t                         _cascade_ratio;
-	std::vector<RoundRobinArbiter> _arbiters;
+	size_t _cascade_ratio;
+	std::vector<ARB> _arbiters;
 	FIFOArray<T> _sink_fifos;
 
 public:
@@ -378,12 +378,12 @@ public:
 	void write(const T& transaction, uint source_index) override { _source_fifos.write(transaction, source_index); }
 };
 
-template<typename T>
+template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
 class CrossBar : public InterconnectionNetwork<T>
 {
 private:
 	FIFOArray<T> _source_fifos;
-	std::vector<RoundRobinArbiter> _arbiters;
+	std::vector<ARB> _arbiters;
 	FIFOArray<T> _sink_fifos;
 
 public:
@@ -427,28 +427,31 @@ public:
 	void write(const T& transaction, uint source_index) override { _source_fifos.write(transaction, source_index); }
 };
 
-template<typename T>
+template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
 class CasscadedCrossBar : public InterconnectionNetwork<T>
 {
-private:
+protected:
+	uint _source_crossbar_width, _sink_crossbar_width;
 	FIFOArray<T> _source_fifos;
-	size_t                         _input_cascade_ratio;
-	std::vector<RoundRobinArbiter> _cascade_arbiters;
-	std::vector<RoundRobinArbiter> _crossbar_arbiters;
-	size_t                         _output_cascade_ratio;
+	size_t _input_cascade_ratio;
+	std::vector<RoundRobinArbiter<uint64_t>> _cascade_arbiters;
+	std::vector<ARB> _crossbar_arbiters;
+	size_t _output_cascade_ratio;
 	FIFOArray<T> _sink_fifos;
 
 public:
-	CasscadedCrossBar(uint sources, uint sinks, uint crossbar_width, uint source_fifo_depth = 255, uint sink_fifo_depth = 255) :
+	CasscadedCrossBar(uint sources, uint sinks, uint source_crossbar_width = 64, uint sink_crossbar_width = 64, uint source_fifo_depth = 255, uint sink_fifo_depth = 255) :
+		_source_crossbar_width(std::min(source_crossbar_width, sources)),
+		_sink_crossbar_width(std::min(sink_crossbar_width, sinks)),
 		_source_fifos(sources, source_fifo_depth),
-		_input_cascade_ratio((sources + crossbar_width - 1) / crossbar_width),
-		_cascade_arbiters(crossbar_width, _input_cascade_ratio),
-		_crossbar_arbiters(crossbar_width, crossbar_width),
-		_output_cascade_ratio((sinks + crossbar_width - 1) / crossbar_width),
+		_input_cascade_ratio((sources + _source_crossbar_width - 1) / _source_crossbar_width),
+		_cascade_arbiters(_source_crossbar_width, _input_cascade_ratio),
+		_crossbar_arbiters(_sink_crossbar_width, _source_crossbar_width),
+		_output_cascade_ratio((sinks + _sink_crossbar_width - 1) / _sink_crossbar_width),
 		_sink_fifos(sinks, sink_fifo_depth)
 	{
-		_assert(sources >= crossbar_width);
-		_assert(sinks >= crossbar_width);
+		_assert(sources >= _source_crossbar_width);
+		_assert(sinks >= _sink_crossbar_width);
 	}
 
 	virtual uint get_sink(const T& transaction) = 0;

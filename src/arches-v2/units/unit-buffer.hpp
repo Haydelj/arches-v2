@@ -15,8 +15,6 @@ public:
 		uint64_t size{1024};
 		uint num_ports{1};
 		uint num_banks{1};
-		uint cross_bar_width{1};
-		uint64_t bank_select_mask{0};
 		uint latency{1};
 	};
 
@@ -38,7 +36,7 @@ private:
 public:
 	UnitBuffer(Configuration config) : UnitMainMemoryBase(config.size),
 		_request_network(config.num_ports, config.num_banks), 
-		_return_network(config.num_ports, config.num_banks), 
+		_return_network(config.num_banks, config.num_ports),
 		_banks(config.num_banks, config.latency)
 	{
 		_buffer_address_mask = generate_nbit_mask(log2i(config.size));
@@ -89,11 +87,11 @@ public:
 				log.bytes_written += req.size;
 
 				//Masked write
-				for(uint i = 0; i < req.size; ++i)
-					if((req.write_mask >> i) & 0x1)
-						_data_u8[buffer_addr + i] = req.data[i];
+				//for(uint i = 0; i < req.size; ++i)
+				//	if((req.write_mask >> i) & 0x1)
+				//		_data_u8[buffer_addr + i] = req.data[i];
 
-				//std::memcpy(&_data_u8[buffer_addr], req.data, req.size);
+				std::memcpy(&_data_u8[buffer_addr], req.data, req.size);
 
 				bank.data_pipline.read();
 			}

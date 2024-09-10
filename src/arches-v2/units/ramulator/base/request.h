@@ -24,8 +24,6 @@ struct Request {
   
   int type_id = -1;    // An identifier for the type of the request
   int source_id = -1;  // An identifier for where the request is coming from (e.g., which core)
-  unsigned int return_id = ~0u;     // An identifier for Arches-v2 wrapper
-  unsigned int arches_channel = ~0u;    // Channel index from Arches-v2
 
   int command = -1;          // The command that need to be issued to progress the request
   int final_command = -1;    // The final command that is needed to finish the request

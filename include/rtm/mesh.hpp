@@ -122,7 +122,7 @@ public:
 
 	bool load_obj(const char* file_path)
 	{
-		printf("Loading: %s\r", file_path);
+		printf("Loading: %s\n", file_path);
 
 		std::ifstream is(file_path);
 		if(!is.is_open()) return false;
@@ -255,20 +255,39 @@ public:
 			}
 		}
 
-		printf("Loaded: %s \n", file_path);
+		printf("Loaded: %s\n", file_path);
 		return true;
 	}
 
-	uint size() { return (uint)vertex_indices.size(); }
+	uint size() const { return (uint)vertex_indices.size(); }
 
-	BVH2::BuildObject get_build_object(uint index) const
+	Triangle get_triangle(uint32_t index) const
 	{
-		Triangle triangle({ vertices[vertex_indices[index][0]], vertices[vertex_indices[index][1]], vertices[vertex_indices[index][2]] });
+		return {vertices[vertex_indices[index][0]], vertices[vertex_indices[index][1]], vertices[vertex_indices[index][2]]};
+	}
+
+	void get_triangles(std::vector<Triangle>& triangles) const
+	{
+		triangles.clear();
+		for(uint32_t i = 0; i < vertex_indices.size(); ++i)
+			triangles.emplace_back(get_triangle(i));
+	}
+
+	BVH2::BuildObject get_build_object(uint i) const
+	{
+		Triangle triangle = get_triangle(i);
 		BVH2::BuildObject build_object;
 		build_object.aabb = triangle.aabb();
 		build_object.cost = triangle.cost();
-		build_object.index = index;
+		build_object.index = i;
 		return build_object;
+	}
+
+	void get_build_objects(std::vector<BVH2::BuildObject>& build_objects) const
+	{
+		build_objects.clear();
+		for(uint32_t i = 0; i < vertex_indices.size(); ++i)
+			build_objects.push_back(get_build_object(i));
 	}
 
 	void reorder(std::vector<BVH2::BuildObject>& ordered_build_objects)
@@ -286,18 +305,6 @@ public:
 			tex_coord_indices[i] = tmp_txcd_inds[ordered_build_objects[i].index];
 			material_indices[i]  = tmp_mat_inds [ordered_build_objects[i].index];
 		}
-	}
-
-	Triangle get_triangle(uint32_t index) const
-	{
-		return {vertices[vertex_indices[index][0]], vertices[vertex_indices[index][1]], vertices[vertex_indices[index][2]]};
-	}
-
-	void get_triangles(std::vector<Triangle>& triangles) const
-	{
-		triangles.clear();
-		for (uint32_t i = 0; i < vertex_indices.size(); ++i)
-			triangles.emplace_back(get_triangle(i));
 	}
 };
 

@@ -66,8 +66,8 @@ protected:
 	uint _last_thread_id;
 	uint _num_threads;
 	uint _num_halted_threads;
-	RoundRobinArbiter _thread_exec_arbiter;
-	RoundRobinArbiter _thread_fetch_arbiter;
+	RoundRobinArbiter<uint16_t> _thread_exec_arbiter;
+	RoundRobinArbiter<uint16_t> _thread_fetch_arbiter;
 	std::vector<ThreadData> _thread_data;
 
 	const std::vector<UnitBase*>& _unit_table;

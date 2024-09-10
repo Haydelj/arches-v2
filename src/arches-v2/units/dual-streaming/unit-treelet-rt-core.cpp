@@ -4,8 +4,8 @@ namespace Arches { namespace Units { namespace DualStreaming {
 
 UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _treelet_base_addr(config.treelet_base_addr), _hit_record_base_addr(config.hit_record_base_addr),
-	_use_early_termination(config.use_early_termination), _cache(config.cache), _rsb(config.rsb), _request_network(config.num_tp, 1), _return_network(config.num_tp, 1),
-	_box_pipline(3, 1), _tri_pipline(22, 8)
+	_use_early_termination(config.use_early_termination), _cache(config.cache), _rsb(config.rsb), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
+	_box_pipline(3, 1), _tri_pipline(22, 1)
 {
 	_tri_staging_buffers.resize(config.max_rays);
 	_ray_states.resize(config.max_rays);

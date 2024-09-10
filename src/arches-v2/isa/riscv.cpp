@@ -108,7 +108,7 @@ MemoryRequest _prepare_store(ExecutionItem* unit, Instruction const& instr)
 	MemoryRequest req;
 	req.type = MemoryRequest::Type::STORE;
 	req.size = sizeof(T);
-	req.write_mask = generate_nbit_mask(sizeof(T));
+	//req.write_mask = generate_nbit_mask(sizeof(T));
 	req.vaddr = unit->int_regs->registers[instr.s.rs1].u64 + s_imm(instr);
 
 	if(typeid(T) == typeid(float) || typeid(T) == typeid(double))

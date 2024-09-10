@@ -18,12 +18,12 @@ private:
 	bool _current_request_valid{ false };
 	MemoryRequest _current_request;
 
-	Cascade<MemoryRequest> _request_network;
-	FIFOArray<MemoryReturn> _return_network;
+	Cascade<MemoryRequest, RoundRobinArbiter<uint128_t>> _request_network;
+	ReturnCascade _return_network;
 
 public:
 	UnitAtomicRegfile(uint num_clients) : UnitMemoryBase(),
-		_request_network(num_clients, 1), _return_network(num_clients)
+		_request_network(num_clients, 1), _return_network(1, num_clients)
 	{
 		for (uint i = 0; i < 32; ++i)
 			iregs[i] = 0;
@@ -95,7 +95,7 @@ public:
 			if (_current_request.type != MemoryRequest::Type::STORE)
 			{
 				MemoryReturn ret(_current_request, &ret_val);
-				_return_network.write(ret, ret.port);
+				_return_network.write(ret, 0);
 			}
 
 			_current_request_valid = false;

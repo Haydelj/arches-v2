@@ -1,18 +1,26 @@
-import sys
-import re
-
-from matplotlib import pyplot as plt, ticker as mticker
+from matplotlib import pyplot as plt, ticker as mticker, colors as mcolors
 import numpy as np
-
 from math import pi, sqrt, exp
+import sys, re
 
 def gauss(n=11,sigma=1):
     r = range(-int(n/2),int(n/2)+1)
     return [1 / (sigma * sqrt(2*pi)) * exp(-float(x)**2/(2*sigma**2)) for x in r]
 
-#keys = ['L1d$ Read', 'L2$ Read', 'DRAM Read']
-keys = ['DRAM Total', 'DRAM Write', 'DRAM Read']
-colors = ['-r', '-g', '-b']
+
+ylabel = 'Bandwidth (bytes/cycle)'
+keys = []
+if len(sys.argv) > 2:
+    if sys.argv[2] == 'read':
+        keys += ['L1d$ Read', 'L2$ Read', 'DRAM Read', 'Scene Read']
+    elif sys.argv[2] == 'dram':
+        keys += ['DRAM Total', 'DRAM Write', 'DRAM Read']
+    elif sys.argv[2] == 'streams':
+        keys += ['Scene Fill', 'Ray Write', 'Ray Read']
+else:
+    keys +=  ['L2$ Hit Rate']
+
+colors = list(mcolors.TABLEAU_COLORS)
 cycles = []
 data = []
 for key in keys:
@@ -37,15 +45,16 @@ if show_unsmoothed:
         if len(data[i]) == len(cycles):
             plt.plot(cycles, data[i], colors[i], alpha=0.125)
 
-kernel_size = len(cycles) / 64
-kernel = gauss(kernel_size, kernel_size / 4)
+kernel_size = 31
+kernel = np.array(gauss(kernel_size, 5))
+kernel = kernel / kernel.sum()
 
 for i in range(len(keys)):
     if len(data[i]) == len(cycles):
         plt.plot(cycles, np.convolve(data[i], kernel, mode='same'), colors[i], label=keys[i])
 
 plt.legend(loc="upper right")
-plt.ylabel('Bandwidth (bytes/cycle)')
+plt.ylabel(ylabel)
 plt.xlabel('Time (cycles)')
 #plt.yscale('log')
 plt.grid()

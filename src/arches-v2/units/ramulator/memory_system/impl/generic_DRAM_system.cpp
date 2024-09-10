@@ -74,8 +74,6 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
       m_addr_mapper->apply(req);
       int channel_id = req.addr_vec[0];
       bool is_success = m_controllers[channel_id]->send(req);
-      assert(req.arches_channel == channel_id);
-      //std::cout << "Channel: " << channel_id << ", arches_channel: " << req.arches_channel << ", send success: " << is_success << ", type: " << req.type_id << ", addr = " << req.addr << std::endl;
 
       if (is_success) {
         switch (req.type_id) {
