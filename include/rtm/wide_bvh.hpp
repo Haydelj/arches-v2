@@ -38,187 +38,187 @@ namespace rtm
 	};
 	
 
-
 	//Subroutines to build decision tree
-	int calculate_cost(const BVH2& bvh2, std::vector<Decision> &decisions, int node_index, float root_surface_area, const int max_forst_sz, const int p_max)
-	{
-		///starts with root node for SBVH 
-		const BVH2::Node& node = bvh2.nodes[node_index];
-		int num_primitives = 0;
-
-		if (node.data.is_leaf)
+	static int calculate_cost(const BVH2& bvh2, std::vector<Decision>& decisions, int node_index, float root_surface_area, const int max_forst_sz, const int p_max)
 		{
-			num_primitives = node.data.num_prims + 1;
-			assert(num_primitives == 1); //for wide bvh collapse the bvh2 should be constrained to 1 primitive per leaf node
+			///starts with root node for SBVH 
+			const BVH2::Node& node = bvh2.nodes[node_index];
+			int num_primitives = 0;
 
-			//SAH cost for leaf
-			float cost_leaf = node.aabb.surface_area() * float(num_primitives);
-
-			//initialize the forest to default value if leaf node
-			for (int i = 0; i < max_forst_sz; i++)
+			if (node.data.is_leaf)
 			{
-				decisions[node_index * max_forst_sz + i].type = Decision::Type::LEAF;
-				decisions[node_index * max_forst_sz + i].cost = cost_leaf;
-			}
-		}
-		else
-		{
-			//post order recursive traverse to calculate total primitives in this subtree
-			num_primitives =
-				//recurse left child
-				calculate_cost(bvh2, decisions, node.data.child_index, node.aabb.surface_area(), max_forst_sz, p_max)
-				+
-				//recurse right child
-				calculate_cost(bvh2, decisions, node.data.child_index + 1, node.aabb.surface_area(), max_forst_sz, p_max);
+				num_primitives = node.data.num_prims + 1;
+				assert(num_primitives == 1); //for wide bvh collapse the bvh2 should be constrained to 1 primitive per leaf node
 
-			//Case for choosing a single node (i == 1 from paper)
-			//use min(Cprim, Cinternal)
-			{
-				float cost_leaf = INFINITY;
+				//SAH cost for leaf
+				float cost_leaf = node.aabb.surface_area() * float(num_primitives);
 
-				if (num_primitives <= p_max)
+				//initialize the forest to default value if leaf node
+				for (int i = 0; i < max_forst_sz; i++)
 				{
-					cost_leaf = node.aabb.surface_area() * float(num_primitives);
+					decisions[node_index * max_forst_sz + i].type = Decision::Type::LEAF;
+					decisions[node_index * max_forst_sz + i].cost = cost_leaf;
 				}
+			}
+			else
+			{
+				//post order recursive traverse to calculate total primitives in this subtree
+				num_primitives =
+					//recurse left child
+					calculate_cost(bvh2, decisions, node.data.child_index, node.aabb.surface_area(), max_forst_sz, p_max)
+					+
+					//recurse right child
+					calculate_cost(bvh2, decisions, node.data.child_index + 1, node.aabb.surface_area(), max_forst_sz, p_max);
 
-				float cost_distribute = INFINITY;
-				char  distribute_left = INVALID_NODE;
-				char  distribute_right = INVALID_NODE;
-
-				//Pick min from permutation of costs from left and right subtree
-				for (int k = 0; k < max_forst_sz; k++)
+				//Case for choosing a single node (i == 1 from paper)
+				//use min(Cprim, Cinternal)
 				{
-					float cost =
-						decisions[(node.data.child_index) * max_forst_sz + k].cost +
-						decisions[(node.data.child_index + 1) * max_forst_sz + (max_forst_sz - 1) - k].cost;
+					float cost_leaf = INFINITY;
 
-					if (cost < cost_distribute)
+					if (num_primitives <= p_max)
 					{
-						cost_distribute = cost;
-						distribute_left = k;
-						distribute_right = (max_forst_sz - 1) - k;
+						cost_leaf = node.aabb.surface_area() * float(num_primitives);
 					}
-				}
 
-				float cost_internal = cost_distribute + node.aabb.surface_area();
+					float cost_distribute = INFINITY;
+					char  distribute_left = INVALID_NODE;
+					char  distribute_right = INVALID_NODE;
 
-				//Pick the min cost
-				if (cost_leaf < cost_internal)
-				{
-					decisions[node_index * max_forst_sz].type = Decision::Type::LEAF;
-					decisions[node_index * max_forst_sz].cost = cost_leaf;
-				}
-				else
-				{
-					decisions[node_index * max_forst_sz].type = Decision::Type::INTERNAL;
-					decisions[node_index * max_forst_sz].cost = cost_internal;
-				}
-
-				decisions[node_index * max_forst_sz].distribute_left = distribute_left;
-				decisions[node_index * max_forst_sz].distribute_right = distribute_right;
-
-			}
-
-
-			//Create wide bvh root node for a subtree
-			//Case for 1 > i <= 7 ( from paper)
-			{
-				for (int i = 1; i < max_forst_sz; i++)
-				{
-					//propagate cheapest option
-					float cost_distribute = decisions[node_index * max_forst_sz + (i - 1)].cost;
-					char distribute_left = INVALID_NODE;
-					char distribute_right = INVALID_NODE;
-
-					for (int k = 0; k < i; k++)
+					//Pick min from permutation of costs from left and right subtree
+					for (int k = 0; k < max_forst_sz; k++)
 					{
-						float cost = decisions[(node.data.child_index) * max_forst_sz + k].cost +
-							decisions[(node.data.child_index + 1) * max_forst_sz + i - k - 1].cost;
+						float cost =
+							decisions[(node.data.child_index) * max_forst_sz + k].cost +
+							decisions[(node.data.child_index + 1) * max_forst_sz + (max_forst_sz - 1) - k].cost;
 
 						if (cost < cost_distribute)
 						{
 							cost_distribute = cost;
 							distribute_left = k;
-							distribute_right = i - k - 1;
+							distribute_right = (max_forst_sz - 1) - k;
 						}
 					}
 
-					decisions[node_index * max_forst_sz + i].cost = cost_distribute;
+					float cost_internal = cost_distribute + node.aabb.surface_area();
 
-					if (distribute_left != INVALID_NODE)
+					//Pick the min cost
+					if (cost_leaf < cost_internal)
 					{
-						decisions[node_index * max_forst_sz + i].type = Decision::Type::DISTRIBUTE;
-						decisions[node_index * max_forst_sz + i].distribute_left = distribute_left;
-						decisions[node_index * max_forst_sz + i].distribute_right = distribute_right;
+						decisions[node_index * max_forst_sz].type = Decision::Type::LEAF;
+						decisions[node_index * max_forst_sz].cost = cost_leaf;
 					}
 					else
 					{
-						decisions[node_index * max_forst_sz + i] = decisions[node_index * max_forst_sz + i - 1];
+						decisions[node_index * max_forst_sz].type = Decision::Type::INTERNAL;
+						decisions[node_index * max_forst_sz].cost = cost_internal;
+					}
+
+					decisions[node_index * max_forst_sz].distribute_left = distribute_left;
+					decisions[node_index * max_forst_sz].distribute_right = distribute_right;
+
+				}
+
+
+				//Create wide bvh root node for a subtree
+				//Case for 1 > i <= 7 ( from paper)
+				{
+					for (int i = 1; i < max_forst_sz; i++)
+					{
+						//propagate cheapest option
+						float cost_distribute = decisions[node_index * max_forst_sz + (i - 1)].cost;
+						char distribute_left = INVALID_NODE;
+						char distribute_right = INVALID_NODE;
+
+						for (int k = 0; k < i; k++)
+						{
+							float cost = decisions[(node.data.child_index) * max_forst_sz + k].cost +
+								decisions[(node.data.child_index + 1) * max_forst_sz + i - k - 1].cost;
+
+							if (cost < cost_distribute)
+							{
+								cost_distribute = cost;
+								distribute_left = k;
+								distribute_right = i - k - 1;
+							}
+						}
+
+						decisions[node_index * max_forst_sz + i].cost = cost_distribute;
+
+						if (distribute_left != INVALID_NODE)
+						{
+							decisions[node_index * max_forst_sz + i].type = Decision::Type::DISTRIBUTE;
+							decisions[node_index * max_forst_sz + i].distribute_left = distribute_left;
+							decisions[node_index * max_forst_sz + i].distribute_right = distribute_right;
+						}
+						else
+						{
+							decisions[node_index * max_forst_sz + i] = decisions[node_index * max_forst_sz + i - 1];
+						}
 					}
 				}
 			}
+			return num_primitives;
 		}
-		return num_primitives;
-	}
 	//Recursive count of triangles in a subtree
-	int count_primitives(const BVH2& bvh2, std::vector<int>& prim_indices, int node_index)
-	{
-		const BVH2::Node bvh2node = bvh2.nodes[node_index];
-
-		if (bvh2node.data.is_leaf)
+	static int count_primitives(const BVH2& bvh2, std::vector<int>& prim_indices, int node_index)
 		{
-			int count = bvh2node.data.num_prims + 1;
-			assert(count == 1);
+			const BVH2::Node bvh2node = bvh2.nodes[node_index];
 
-			for (uint32_t i = 0; i < count; i++)
+			if (bvh2node.data.is_leaf)
 			{
-				prim_indices.push_back(bvh2node.data.prim_index + i);
+				int count = bvh2node.data.num_prims + 1;
+				assert(count == 1);
+
+				for (uint32_t i = 0; i < count; i++)
+				{
+					prim_indices.push_back(bvh2node.data.prim_index + i);
+				}
+
+				return count;
 			}
 
-			return count;
+			return
+				count_primitives(bvh2, prim_indices, bvh2node.data.child_index) +
+				count_primitives(bvh2, prim_indices, bvh2node.data.child_index + 1);
 		}
-
-		return
-			count_primitives(bvh2, prim_indices, bvh2node.data.child_index) +
-			count_primitives(bvh2, prim_indices, bvh2node.data.child_index + 1);
-	}
 	//Get potential child nodes based on decision tree
-	void get_children(const BVH2& bvh2, std::vector<Decision> &decisions, int node_index, int* children, int& child_count, int i, const int max_forst_sz)
-	{
-		const BVH2::Node& bvh2node = bvh2.nodes[node_index];
-
-		if (bvh2node.data.is_leaf)
+	static void get_children(const BVH2& bvh2, std::vector<Decision>& decisions, int node_index, int* children, int& child_count, int i, const int max_forst_sz)
 		{
-			children[child_count++] = node_index; //Return self index if leaf node
-			return;
+			const BVH2::Node& bvh2node = bvh2.nodes[node_index];
+
+			if (bvh2node.data.is_leaf)
+			{
+				children[child_count++] = node_index; //Return self index if leaf node
+				return;
+			}
+
+			char distribute_left = decisions[node_index * max_forst_sz + i].distribute_left;
+			char distribute_right = decisions[node_index * max_forst_sz + i].distribute_right;
+
+			assert(distribute_left >= 0 && distribute_left < max_forst_sz);
+			assert(distribute_right >= 0 && distribute_right < max_forst_sz);
+
+			//Recurse on left child if it needs to distribute
+			if (decisions[bvh2node.data.child_index * max_forst_sz + distribute_left].type == Decision::Type::DISTRIBUTE)
+			{
+				get_children(bvh2, decisions, bvh2node.data.child_index, children, child_count, distribute_left, max_forst_sz);
+			}
+			else
+			{
+				children[child_count++] = bvh2node.data.child_index;
+			}
+
+			//Recurse on right child if it needs to distribute
+			if (decisions[(bvh2node.data.child_index + 1) * max_forst_sz + distribute_right].type == Decision::Type::DISTRIBUTE)
+			{
+				get_children(bvh2, decisions, bvh2node.data.child_index + 1, children, child_count, distribute_right, max_forst_sz);
+			}
+			else
+			{
+				children[child_count++] = bvh2node.data.child_index + 1;
+			}
 		}
 
-		char distribute_left = decisions[node_index * max_forst_sz + i].distribute_left;
-		char distribute_right = decisions[node_index * max_forst_sz + i].distribute_right;
-
-		assert(distribute_left >= 0 && distribute_left < max_forst_sz);
-		assert(distribute_right >= 0 && distribute_right < max_forst_sz);
-
-		//Recurse on left child if it needs to distribute
-		if (decisions[bvh2node.data.child_index * max_forst_sz + distribute_left].type == Decision::Type::DISTRIBUTE)
-		{
-			get_children(bvh2,decisions,bvh2node.data.child_index, children, child_count, distribute_left, max_forst_sz);
-		}
-		else
-		{
-			children[child_count++] = bvh2node.data.child_index;
-		}
-
-		//Recurse on right child if it needs to distribute
-		if (decisions[(bvh2node.data.child_index + 1) * max_forst_sz + distribute_right].type == Decision::Type::DISTRIBUTE)
-		{
-			get_children(bvh2, decisions, bvh2node.data.child_index + 1, children, child_count, distribute_right, max_forst_sz);
-		}
-		else
-		{
-			children[child_count++] = bvh2node.data.child_index + 1;
-		}
-	}
 
 
 	/// <summary>
@@ -459,7 +459,7 @@ namespace rtm
 				wnodes.emplace_back();
 			}
 
-			assert((wnodes[node_index_wbvh].base_index_child + num_internal_nodes) == uncompressedNodes.size());
+			assert((wnodes[node_index_wbvh].base_index_child + num_internal_nodes) == wnodes.size());
 
 			int offset = 0;
 			index = 0;
@@ -482,7 +482,7 @@ namespace rtm
 	/// </summary>
 	/// <typeparam name="N_ARY_SZ"></typeparam>
 	/// <typeparam name="LEAF_PRIM_COUNT"></typeparam>
-	template < int N_ARY_SZ , int LEAF_PRIM_COUNT>
+	template <int N_ARY_SZ, int LEAF_PRIM_COUNT>
 	class CompressedWideBVH
 	{
 		public:
@@ -509,7 +509,7 @@ namespace rtm
 			/// <param name="_wbvh"></param>
 			CompressedWideBVH(rtm::WideBVH<N_ARY_SZ, LEAF_PRIM_COUNT> _wbvh) : wbvh(_wbvh), bvh2(BVH2())
 			{
-
+				prim_indices.resize(wbvh.indices.size());
 				std::copy(wbvh.indices.begin(), wbvh.indices.end(), prim_indices.begin());
 				cwnodes.emplace_back();
 				compress_wide_bvh();
@@ -632,10 +632,10 @@ namespace rtm
 
 				cwnodes.clear();
 
-				for (const WideBVH<N_ARY_SZ,LEAF_NODE_PRIM_COUNT>::Node& wnode : wbvh.wnodes)
+				for (const WideBVH<N_ARY_SZ, LEAF_PRIM_COUNT>::Node& wnode : wbvh.wnodes)
 				{
 					cwnodes.emplace_back();
-					WideBVH<N_ARY_SZ,LEAF_NODE_PRIM_COUNT>::Node& cwnode = cwnodes.back();
+					CompressedWideBVH<N_ARY_SZ, LEAF_PRIM_COUNT>::Node& cwnode = cwnodes.back();
 
 					cwnode.p = wnode.aabb.min;
 					constexpr int Nq = 8;

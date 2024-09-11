@@ -15,8 +15,8 @@ UnitRTCore::UnitRTCore(const Configuration& config) :
 
 bool UnitRTCore::_try_queue_node(uint ray_id, uint node_id)
 {
-	paddr_t start = _node_base_addr + node_id * sizeof(rtm::WideBVH::WideBVHNode);
-	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::WideBVH::WideBVHNode)), (uint16_t)ray_id});
+	paddr_t start = _node_base_addr + node_id * sizeof(rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node);
+	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node)), (uint16_t)ray_id});
 	return true;
 }
 
@@ -98,7 +98,7 @@ void UnitRTCore::_read_returns()
 		}
 		else
 		{
-			_assert(sizeof(rtm::WideBVH::WideBVHNode) == ret.size);
+			_assert(sizeof(rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node) == ret.size);
 
 			NodeStagingBuffer buffer;
 			buffer.ray_id = ray_id;
@@ -200,7 +200,7 @@ void UnitRTCore::_simualte_intersectors()
 		rtm::Ray& ray = ray_state.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.hit;
-		rtm::WideBVH::WideBVHNode& node = buffer.node;
+		rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node& node = buffer.node;
 
 		//float hit_ts[2] = {rtm::intersect(node.aabb[0], ray, inv_d), rtm::intersect(node.aabb[1], ray, inv_d)};
 		//if(hit_ts[0] < hit_ts[1])
@@ -215,7 +215,7 @@ void UnitRTCore::_simualte_intersectors()
 		//}
 
 		int childCount;
-		rtm::BVH2::Node dnodes[n_ary_sz];
+		rtm::BVH2::Node dnodes[BRANCHING_FACTOR];
 		node.decompress(dnodes, childCount);
 
 		uint max_insert_depth = ray_state.stack_size;

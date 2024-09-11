@@ -180,10 +180,10 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
 #ifdef WIDE_COMPRESSED_BVH
-	rtm::WideBVH cwbvh;
-	cwbvh.buildWideCompressedBVH(bvh2);
-	mesh.reorder(cwbvh.indices);
-	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
+	rtm::WideBVH<BRANCHING_FACTOR, LEAF_NODE_PRIM_COUNT> wbvh(bvh2);
+	rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT> cwbvh(wbvh);
+	mesh.reorder(cwbvh.prim_indices);
+	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.cwnodes, heap_address);
 #else
 	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);

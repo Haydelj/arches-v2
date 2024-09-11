@@ -20,11 +20,6 @@
 
 
 
-#define T_STACK_SZ 64
-#define WIDE_COMPRESSED_BVH 1
-#define BRANCHING_FACTOR 5
-#define LEAF_NODE_PRIM_COUNT 3
-
 #include "rtm/rtm.hpp"
 
 typedef unsigned int uint;

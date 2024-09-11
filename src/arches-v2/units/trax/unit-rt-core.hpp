@@ -65,7 +65,7 @@ private:
 
 	struct NodeStagingBuffer
 	{
-		rtm::WideBVH::WideBVHNode node;
+		rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node node;
 		uint16_t ray_id;
 
 		NodeStagingBuffer() {};
