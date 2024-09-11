@@ -35,14 +35,14 @@ inline static void kernel(const TRaXKernelArgs& args)
 		rtm::RNG rng(fb_index);
 
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
-
+		uint steps = 0;
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 		if(ray.t_min < ray.t_max)
 		{
 		#if defined(__riscv) &&  defined(USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-			intersect(args.nodes, args.tris, ray, hit);
+			intersect(args.nodes, args.tris, ray, hit, steps);
 		#endif
 		}
 
@@ -54,6 +54,9 @@ inline static void kernel(const TRaXKernelArgs& args)
 		{
 			args.framebuffer[fb_index] = 0xff000000;
 		}
+
+		//args.framebuffer[fb_index] = encode_pixel(steps / 64.0f);
+
 	}
 }
 
@@ -66,6 +69,7 @@ inline static void kernel3(const TRaXKernelArgs& args)
 	}
 }
 
+#ifndef WIDE_COMPRESSED_BVH
 inline static void kernel2(const TRaXKernelArgs& args)
 {
 	for(uint index = fchthrd(); index < args.framebuffer_size / PACKET_SIZE; index = fchthrd())
@@ -78,6 +82,7 @@ inline static void kernel2(const TRaXKernelArgs& args)
 		rtm::Hit hit_buffer[PACKET_SIZE]; 
 		for(uint i = 0; i < PACKET_SIZE; ++i)
 			hit_buffer[i] = rtm::Hit(frustrum.t_max, rtm::vec2(0.0f), ~0u);
+
 
 		uint64_t mask = intersect(args.nodes, args.tris, frustrum, hit_buffer);
 
@@ -95,6 +100,7 @@ inline static void kernel2(const TRaXKernelArgs& args)
 		}
 	}
 }
+#endif
 
 #ifdef __riscv 
 int main()
@@ -117,51 +123,49 @@ int main(int argc, char* argv[])
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.pregen_rays = true;
+	args.pregen_rays =false;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
-	rtm::Mesh mesh("../../../datasets/intel-sponza.obj");
+	rtm::Mesh mesh("../../../datasets/sponza.obj");
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
-	rtm::BVH2 bvh2("../../../datasets/cache/intel-sponza_bvh.cache", build_objects, 2);
+	rtm::BVH2 bvh2("../../../datasets/cache/sponza_bvh.cache", build_objects, 2);
 	mesh.reorder(build_objects);
 
+	std::vector<rtm::Ray> rays(args.framebuffer_size);
+	if (args.pregen_rays)
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 1, rays);
+	args.rays = rays.data();
 
 #ifdef WIDE_COMPRESSED_BVH
 	rtm::WideBVH cwbvh;
-	cwbvh.buildWideCompressedBVH(bvh);
+
+	cwbvh.buildWideCompressedBVH(bvh2);
 	mesh.reorder(cwbvh.indices);
 	args.nodes = cwbvh.getNodes();
+	//args.nodes = cwbvh.getUncompressedNodes();
 #else
 	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
-
+	args.nodes = packed_bvh2.nodes.data();
+	args.treelets = treelet_bvh.treelets.data();
 #endif
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
-
-
-	args.nodes = packed_bvh2.nodes.data();
-	args.treelets = treelet_bvh.treelets.data();
 	args.tris = tris.data();
-
-	std::vector<rtm::Ray> rays(args.framebuffer_size);
-	if(args.pregen_rays)
-		pregen_rays(args, 1, rays);
-	args.rays = rays.data();
-
+	
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::vector<std::thread> threads;
 	uint thread_count = std::max(std::thread::hardware_concurrency() - 2u, 0u);
-	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel3, args);
-	kernel3(args);
+	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
+	kernel(args);
 	for (uint i = 0; i < thread_count; ++i) threads[i].join();
 
 	auto stop = std::chrono::high_resolution_clock::now();

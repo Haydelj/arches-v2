@@ -21,7 +21,7 @@
 
 
 #define T_STACK_SZ 64
-//#define WIDE_COMPRESSED_BVH 1
+#define WIDE_COMPRESSED_BVH 1
 
 #include "rtm/rtm.hpp"
 

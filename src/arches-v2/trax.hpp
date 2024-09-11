@@ -151,20 +151,6 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	std::string filename = data_folder + scene_name + ".obj";
 	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + "_bvh.cache";
 
-	rtm::Mesh mesh(filename);
-	std::vector<rtm::BVH2::BuildObject> build_objects;
-	mesh.get_build_objects(build_objects);
-
-	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
-	mesh.reorder(build_objects);
-
-	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
-
-	//rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
-
-	std::vector<rtm::Triangle> tris;
-	mesh.get_triangles(tris);
-
 	TRaXKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;
 	args.framebuffer_height = global_config.framebuffer_height;
@@ -176,20 +162,37 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
 
+	rtm::Mesh mesh(filename);
+	std::vector<rtm::BVH2::BuildObject> build_objects;
+	mesh.get_build_objects(build_objects);
+
+	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
+	mesh.reorder(build_objects);
+
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-	{
-		args.nodes = packed_bvh2.nodes.data();
-		args.tris = tris.data();
-		pregen_rays(args, global_config.pregen_bounce, rays);
-	}
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
+
+	//rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
 
 	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
+#ifdef WIDE_COMPRESSED_BVH
+	rtm::WideBVH cwbvh;
+	cwbvh.buildWideCompressedBVH(bvh2);
+	mesh.reorder(cwbvh.indices);
+	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
+#else
+	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);
+#endif
+
+	std::vector<rtm::Triangle> tris;
+	mesh.get_triangles(tris);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 	//args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
 
@@ -483,6 +486,10 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf("                            \n");
 		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total());
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total());
+		printf("                            \n");
+		printf(" L2$ RCP Miss Rate: %8.1fx\n", (float)l2_delta_log.get_total() / (l2_delta_log.misses - l2_delta_log.half_misses));
+		printf("L1d$ RCP Miss Rate: %8.1fx\n", (float)l1d_delta_log.get_total() / (l1d_delta_log.misses - l1d_delta_log.half_misses));
+
 		printf("                             \n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
@@ -494,7 +501,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	tp_log.print_profile(dram._data_u8);
 
-	dram.print_stats(4, frame_cycles);
+	//dram.print_stats(4, frame_cycles);
 	print_header("DRAM");
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);

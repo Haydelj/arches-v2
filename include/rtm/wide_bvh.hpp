@@ -18,7 +18,7 @@
 namespace rtm
 {
 
-#define n_ary_sz 8 //branching factor
+#define n_ary_sz 5 //branching factor
 #define max_forst_sz (n_ary_sz-1) //max forest size
 #define p_max 3 // max allowed leaf node size for wide BVH
 #define INVALID_NODE -1
@@ -71,7 +71,7 @@ namespace rtm
 			}
 		};
 
-		struct WideBVHNode
+		struct alignas(64) WideBVHNode 
 		{
 			vec3 p;						//anchor point 
 			uint8_t  e[3];						//exponent power of 2 for local grid scale
@@ -109,46 +109,42 @@ namespace rtm
 				int num_internal_nodes = 0;
 				int index = 0;
 
+				uint32_t e0, e1, e2;
+				float e0_f, e1_f, e2_f;
+
+				e0 = uint32_t(e[0]) << 23;
+				e1 = uint32_t(e[1]) << 23;
+				e2 = uint32_t(e[2]) << 23;
+
+				e0_f = *reinterpret_cast<float*>(&e0);
+				e1_f = *reinterpret_cast<float*>(&e1);
+				e2_f = *reinterpret_cast<float*>(&e2);
+
 				for (int i = 0; i < n_ary_sz; i++)
 				{
 					//check for non-empty child slot
 					if (meta[i])
 					{
-						
+						/*memcpy(&e0_f, &e0, sizeof(uint32_t));
+						memcpy(&e1_f, &e1, sizeof(uint32_t));
+						memcpy(&e2_f, &e2, sizeof(uint32_t));*/
+
+						dnodes[index].aabb.min.x = p.x + e0_f * float(q_min_x[i]);
+						dnodes[index].aabb.min.y = p.y + e1_f * float(q_min_y[i]);
+						dnodes[index].aabb.min.z = p.z + e2_f * float(q_min_z[i]);
+						dnodes[index].aabb.max.x = p.x + e0_f * float(q_max_x[i]);
+						dnodes[index].aabb.max.y = p.y + e1_f * float(q_max_y[i]);
+						dnodes[index].aabb.max.z = p.z + e2_f * float(q_max_z[i]);
+
 						if (imask & (1 << i)) //if internal node
 						{
-
 							dnodes[index].data.is_leaf = false;
 							dnodes[index].data.child_index = base_index_child + num_internal_nodes++;
-							dnodes[index].data.num_prims = 0;
-
-							uint32_t e0, e1, e2;
-							float e0_f, e1_f, e2_f;
-
-							e0 = uint32_t(e[0]) << 23;
-							e1 = uint32_t(e[1]) << 23;
-							e2 = uint32_t(e[2]) << 23;
-
-                            e0_f = *reinterpret_cast<float*>(&e0);
-                            e1_f = *reinterpret_cast<float*>(&e1);
-                            e2_f = *reinterpret_cast<float*>(&e2);
-                            
-							/*memcpy(&e0_f, &e0, sizeof(uint32_t));
-							memcpy(&e1_f, &e1, sizeof(uint32_t));
-							memcpy(&e2_f, &e2, sizeof(uint32_t));*/
-
-							dnodes[index].aabb.min.x = p.x + e0_f * float(q_min_x[i]);
-							dnodes[index].aabb.min.y = p.y + e1_f * float(q_min_y[i]);
-							dnodes[index].aabb.min.z = p.z + e2_f * float(q_min_z[i]);
-
-							dnodes[index].aabb.max.x = p.x + e0_f * float(q_max_x[i]);
-							dnodes[index].aabb.max.y = p.y + e1_f * float(q_max_y[i]);
-							dnodes[index].aabb.max.z = p.z + e2_f * float(q_max_z[i]);
 						}
 						else //is leaf
 						{
 							dnodes[index].data.is_leaf = true;
-							dnodes[index].data.child_index = base_index_triangle + ( meta[i] & 0b00011111); // & 0b00011111
+							dnodes[index].data.prim_index = base_index_triangle + ( meta[i] & 0b00011111); // & 0b00011111
 
 							uint32_t num_set_bits = 0;
 							for (int j = 0; j < p_max; j++)
@@ -184,9 +180,7 @@ namespace rtm
 		void buildWideCompressedBVH(const BVH2& bvh2)
 		{
 			buildWideBVHfromBVH2(bvh2);
-			
-			nodes.emplace_back();
-			compressWideBVH(0,0);
+			compressWideBVH();
 		}
 
 		void buildWideBVHfromBVH2(const BVH2& bvh2)
@@ -212,10 +206,10 @@ namespace rtm
 
 		std::vector<int> indices;		 // index buffer to triangle primitives
 
-	private:
-
-		std::vector<Decision> decisions; // array to store cost and meta data for the collapse algorithm
 		std::vector<WideBVHNode> nodes;  // Linearized nodes buffer for wide bvh
+
+	private:
+		std::vector<Decision> decisions; // array to store cost and meta data for the collapse algorithm
 		std::vector<WideBVHNodeUncompressed> uncompressedNodes; //intermediate node representation for wide bvh
 
 		int calculate_cost(int node_index, float root_surface_area, const BVH2& bvh2)
@@ -226,7 +220,7 @@ namespace rtm
 
 			if (node.data.is_leaf)
 			{
-				num_primitives = node.data.child_index + 1;
+				num_primitives = node.data.num_prims + 1;
 				assert(num_primitives == 1); //for wide bvh collapse the bvh2 should be constrained to 1 primitive per leaf node
 
 				//SAH cost for leaf
@@ -345,7 +339,7 @@ namespace rtm
 
 				for (uint32_t i = 0; i < count; i++)
 				{
-					indices.push_back(bvh2node.data.child_index + i);
+					indices.push_back(bvh2node.data.prim_index + i);
 				}
 
 				return count;
@@ -553,7 +547,7 @@ namespace rtm
 					first_child_index = indices.size();
 					num_triangles = count_primitives(child_index, bvh2);
 					bvh8Node.nodeArray[index].data.is_leaf = 1;							//make it leaf node
-					bvh8Node.nodeArray[index].data.child_index = first_child_index;
+					bvh8Node.nodeArray[index].data.prim_index = first_child_index;
 					bvh8Node.nodeArray[index].data.num_prims = num_triangles - 1;
 					bvh8Node.nodeArray[index].aabb = bvh2.nodes[child_index].aabb;
 					index++;
@@ -562,7 +556,7 @@ namespace rtm
 					bvh8Node.nodeArray[index].aabb = bvh2.nodes[child_index].aabb;
 					bvh8Node.nodeArray[index].data.is_leaf = 0;
 					bvh8Node.nodeArray[index].data.child_index = num_internal_nodes; //save node entry index in umcompressedNode array
-					bvh8Node.nodeArray[index].data.num_prims = 0;
+					//bvh8Node.nodeArray[index].data.num_prims = 0;
 					num_internal_nodes++;
 					index++;
 					break;
@@ -593,8 +587,10 @@ namespace rtm
 			}
 		}
 		//compress the wide bvh to nbvh
-		void compressWideBVH(uint32_t node_index_cwbvh, uint32_t node_index_wbvh)
+		void compressWideBVH()
 		{
+
+			/*
 			WideBVHNode& cwnode = nodes.at(node_index_cwbvh);
 			WideBVHNodeUncompressed& wnode = uncompressedNodes.at(node_index_wbvh);
 			 
@@ -687,6 +683,100 @@ namespace rtm
 					compressWideBVH(nodes.at(node_index_cwbvh).base_index_child + offset, wide_base_index_child + offset);
 					offset++;
 				}
+
+
+			}
+			*/
+
+			nodes.clear();
+			for(const WideBVHNodeUncompressed& wnode :  uncompressedNodes)
+			{
+				nodes.emplace_back();
+				WideBVHNode& cwnode = nodes.back();
+				
+				cwnode.p = wnode.aabb.min;
+				constexpr int Nq = 8;
+				constexpr float denom = 1.0f / float((1 << Nq) - 1);
+
+				const AABB& aabb = wnode.aabb;
+				vec3 e(
+					exp2f(ceilf(log2f((aabb.max.x - aabb.min.x) * denom))),
+					exp2f(ceilf(log2f((aabb.max.y - aabb.min.y) * denom))),
+					exp2f(ceilf(log2f((aabb.max.z - aabb.min.z) * denom)))
+				);
+
+				vec3 one_over_e = vec3(1.0f / e.x, 1.0f / e.y, 1.0f / e.z);
+
+				uint32_t u_ex = {};
+				uint32_t u_ey = {};
+				uint32_t u_ez = {};
+
+				memcpy(&u_ex, &e.x, sizeof(float));
+				memcpy(&u_ey, &e.y, sizeof(float));
+				memcpy(&u_ez, &e.z, sizeof(float));
+
+				assert((u_ex & 0b10000000011111111111111111111111) == 0);
+				assert((u_ey & 0b10000000011111111111111111111111) == 0);
+				assert((u_ez & 0b10000000011111111111111111111111) == 0);
+
+				//Store 8 bit exponent
+				cwnode.e[0] = u_ex >> 23;
+				cwnode.e[1] = u_ey >> 23;
+				cwnode.e[2] = u_ez >> 23;
+
+				cwnode.imask = 0;
+				cwnode.base_index_child = wnode.base_index_child;
+				cwnode.base_index_triangle = wnode.base_tri_index;
+
+				uint32_t num_triangles = 0;
+				//Loop over all the uncompressed child nodes
+				for (int i = 0; i < wnode.childCount; i++)
+				{
+					const BVH2::Node& child_node = wnode.nodeArray[i];
+
+					cwnode.q_min_x[i] = uint8_t(floorf((child_node.aabb.min.x - cwnode.p.x) * one_over_e.x));
+					cwnode.q_min_y[i] = uint8_t(floorf((child_node.aabb.min.y - cwnode.p.y) * one_over_e.y));
+					cwnode.q_min_z[i] = uint8_t(floorf((child_node.aabb.min.z - cwnode.p.z) * one_over_e.z));
+
+					cwnode.q_max_x[i] = uint8_t(ceilf((child_node.aabb.max.x - cwnode.p.x) * one_over_e.x));
+					cwnode.q_max_y[i] = uint8_t(ceilf((child_node.aabb.max.y - cwnode.p.y) * one_over_e.y));
+					cwnode.q_max_z[i] = uint8_t(ceilf((child_node.aabb.max.z - cwnode.p.z) * one_over_e.z));
+
+					if (child_node.data.is_leaf)
+					{
+						uint32_t triangle_count = child_node.data.num_prims + 1;
+
+						for (uint32_t j = 0; j < triangle_count; j++)
+						{
+							cwnode.meta[i] |= (1 << (j + 5));
+						}
+						cwnode.meta[i] |= num_triangles; //base index relative to triangle
+						num_triangles += triangle_count;
+					}
+					else
+					{
+						cwnode.meta[i] = (i + 24) | 0b00100000; // 32
+						cwnode.imask |= (1 << i);
+					}
+				}
+
+
+				//BVH2::Node tempWnodes[8];
+				//int childCount;
+
+				//cwnode.decompress(tempWnodes,childCount);
+
+				//for (int c = 0; c < childCount; c++)
+				//{
+				//	float sa0 = wnode.nodeArray[c].aabb.surface_area();
+				//	float sa1 = tempWnodes[c].aabb.surface_area();
+				//	float ratio = sa0 / sa1;
+				//	if (!(ratio > 0.5f && ratio < 2.0f))
+				//	{
+				//		__debugbreak();
+				//		cwnode.decompress(tempWnodes, childCount);
+				//	}
+				//}
 			}
 		}
 
