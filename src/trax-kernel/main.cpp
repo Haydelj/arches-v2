@@ -143,11 +143,12 @@ int main(int argc, char* argv[])
 	args.rays = rays.data();
 
 #ifdef WIDE_COMPRESSED_BVH
-	rtm::WideBVH cwbvh;
+	rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT> wbvh(bvh2);
+	rtm::CompressedWideBVH<BRANCHING_FACTOR, LEAF_NODE_PRIM_COUNT> cwbvh(wbvh);
 
-	cwbvh.buildWideCompressedBVH(bvh2);
-	mesh.reorder(cwbvh.indices);
-	args.nodes = cwbvh.getNodes();
+	mesh.reorder(cwbvh.prim_indices);
+	args.nodes = cwbvh.cwnodes.data();
+
 	//args.nodes = cwbvh.getUncompressedNodes();
 #else
 	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);

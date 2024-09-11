@@ -432,7 +432,8 @@ bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 	return is_hit;
 }
 
-inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps ,bool first_hit = false)
+
+inline bool intersect(const rtm::CompressedWideBVH<BRANCHING_FACTOR, LEAF_NODE_PRIM_COUNT>::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps ,bool first_hit = false)
 {
 	steps = 0;
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
@@ -460,7 +461,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangl
 		if (!current_entry.data.is_leaf)
 		{
 			int childCount;
-			rtm::BVH2::Node dnodes[n_ary_sz];
+			rtm::BVH2::Node dnodes[BRANCHING_FACTOR];
 			nodes[current_entry.data.child_index].decompress(dnodes, childCount);
 
 			uint max_insert_depth = node_stack_size;
@@ -512,7 +513,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNode* nodes, const rtm::Triangl
 }
 
 #ifndef __riscv
-inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
+inline bool intersect(const rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node* bvh8,
 	const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
@@ -532,7 +533,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
 	node_stack[0].t = ray.t_min;
 	node_stack[0].data.is_leaf = false;
 	node_stack[0].node_index = 0;
-	node_stack[0].child_count = n_ary_sz;
+	node_stack[0].child_count = BRANCHING_FACTOR;
 
 	bool found_hit = false;
 
@@ -544,7 +545,7 @@ inline bool intersect(const rtm::WideBVH::WideBVHNodeUncompressed* bvh8,
 
 		if (!current_entry.data.is_leaf)
 		{
-			rtm::WideBVH::WideBVHNodeUncompressed current_node8 = bvh8[current_entry.node_index];
+			rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node current_node8 = bvh8[current_entry.node_index];
 
 			for (int i = 0; i < current_entry.child_count; i++)
 			{

@@ -21,7 +21,7 @@ struct TRaXKernelArgs
 
 #if defined (WIDE_COMPRESSED_BVH)
 	//rtm::WideBVH::WideBVHNodeUncompressed* nodes;
-	rtm::WideBVH::WideBVHNode* nodes;
+	rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node* nodes;
 #else
 	rtm::PackedBVH2::NodePack* nodes;
 #endif
