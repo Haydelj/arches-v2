@@ -3,11 +3,10 @@
 #include "units/trax/unit-tp.hpp"
 #include "units/trax/unit-rt-core.hpp"
 #include "units/trax/unit-treelet-rt-core.hpp"
+
 namespace Arches {
 
-namespace ISA {
-namespace RISCV {
-namespace TRaX {
+namespace ISA { namespace RISCV { namespace TRaX {
 
 //see the opcode map for details
 const static InstructionInfo isa_custom0_000_imm[8] =
@@ -179,11 +178,10 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
-#ifdef WIDE_COMPRESSED_BVH
-	rtm::WideBVH<BRANCHING_FACTOR, LEAF_NODE_PRIM_COUNT> wbvh(bvh2);
-	rtm::CompressedWideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT> cwbvh(wbvh);
-	mesh.reorder(cwbvh.prim_indices);
-	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.cwnodes, heap_address);
+#ifdef USE_COMPRESSED_WIDE_BVH
+	rtm::CompressedWideBVH cwbvh(bvh2);
+	mesh.reorder(cwbvh.indices);
+	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
 #else
 	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);
@@ -317,7 +315,13 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
-	std::vector<Units::TRaX::UnitRTCore*> rtcs;
+
+#ifdef USE_COMPRESSED_WIDE_BVH
+	typedef Units::TRaX::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
+#else
+	typedef Units::TRaX::UnitRTCore<rtm::PackedBVH2> UnitRTCore;
+#endif
+	std::vector<UnitRTCore*> rtcs;
 
 	std::vector<UnitL1Cache*> l1ds;
 	std::vector<Units::UnitBlockingCache*> l1is;
@@ -383,7 +387,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		}
 
 	#ifdef USE_RT_CORE
-		Units::TRaX::UnitRTCore::Configuration rtc_config;
+		UnitRTCore::Configuration rtc_config;
 		rtc_config.max_rays = 128;
 		rtc_config.num_tp = num_tps_per_tm;
 		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
@@ -391,7 +395,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
 		rtc_config.cache = l1ds.back();
 
-		rtcs.push_back(_new  Units::TRaX::UnitRTCore(rtc_config));
+		rtcs.push_back(_new  UnitRTCore(rtc_config));
 		simulator.register_unit(rtcs.back());
 		mem_list.push_back(rtcs.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
@@ -464,7 +468,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
-	Units::TRaX::UnitRTCore::Log rtc_log;
+	UnitRTCore::Log rtc_log;
 
 	uint delta = global_config.logging_interval;
 	auto start = std::chrono::high_resolution_clock::now();
@@ -484,12 +488,8 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("                            \n");
-		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total());
-		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total());
-		printf("                            \n");
-		printf(" L2$ RCP Miss Rate: %8.1fx\n", (float)l2_delta_log.get_total() / (l2_delta_log.misses - l2_delta_log.half_misses));
-		printf("L1d$ RCP Miss Rate: %8.1fx\n", (float)l1d_delta_log.get_total() / (l1d_delta_log.misses - l1d_delta_log.half_misses));
-
+		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
+		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());
 		printf("                             \n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();

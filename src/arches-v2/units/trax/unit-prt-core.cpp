@@ -15,8 +15,8 @@ UnitPRTCore::UnitPRTCore(const Configuration& config) :
 
 bool UnitPRTCore::_try_queue_node(uint ray_id, uint node_id)
 {
-	paddr_t start = _node_base_addr + node_id * sizeof(rtm::PackedBVH2::NodePack);
-	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::PackedBVH2::NodePack)), (uint16_t)ray_id});
+	paddr_t start = _node_base_addr + node_id * sizeof(rtm::PackedBVH2::Node);
+	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::PackedBVH2::Node)), (uint16_t)ray_id});
 	return true;
 }
 

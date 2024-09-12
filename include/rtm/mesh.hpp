@@ -308,7 +308,7 @@ public:
 	}
 
 
-	void reorder(std::vector<int>& indices)
+	void reorder(std::vector<uint>& indices)
 	{
 		assert(indices.size() == vertex_indices.size());
 		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);

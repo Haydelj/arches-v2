@@ -170,13 +170,13 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 }
 
 constexpr uint PACKET_SIZE = 16;
-inline uint64_t intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangle* tris, const rtm::Frustum& ray_packet, rtm::Hit hit_buffer[PACKET_SIZE])
+inline uint64_t intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Frustum& ray_packet, rtm::Hit hit_buffer[PACKET_SIZE])
 {
 
 	struct NodeStackEntry
 	{
 		uint64_t mask;
-		rtm::PackedBVH2::NodePack::Data data;
+		rtm::BVH2::Node::Data data;
 	};
 
 	NodeStackEntry node_stack[32];
@@ -264,7 +264,7 @@ inline uint64_t intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Tri
 	return hit_mask;
 }
 
-inline bool intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
+inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 	steps = 0;
@@ -272,7 +272,7 @@ inline bool intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangl
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::PackedBVH2::NodePack::Data data;
+		rtm::BVH2::Node::Data data;
 	};
 
 	NodeStackEntry node_stack[32];
@@ -433,7 +433,7 @@ bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 }
 
 
-inline bool intersect(const rtm::CompressedWideBVH<BRANCHING_FACTOR, LEAF_NODE_PRIM_COUNT>::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps ,bool first_hit = false)
+inline bool intersect(const rtm::CompressedWideBVH::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps ,bool first_hit = false)
 {
 	steps = 0;
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
@@ -444,7 +444,7 @@ inline bool intersect(const rtm::CompressedWideBVH<BRANCHING_FACTOR, LEAF_NODE_P
 		rtm::BVH2::Node::Data data;
 	};
 
-	NodeStackEntry node_stack[T_STACK_SZ];
+	NodeStackEntry node_stack[32 * rtm::N_ARY_SZ];
 	uint32_t node_stack_size = 1u;
 
 	//Decompress and insert nodes
@@ -461,7 +461,7 @@ inline bool intersect(const rtm::CompressedWideBVH<BRANCHING_FACTOR, LEAF_NODE_P
 		if (!current_entry.data.is_leaf)
 		{
 			int childCount;
-			rtm::BVH2::Node dnodes[BRANCHING_FACTOR];
+			rtm::BVH2::Node dnodes[rtm::N_ARY_SZ];
 			nodes[current_entry.data.child_index].decompress(dnodes, childCount);
 
 			uint max_insert_depth = node_stack_size;
@@ -513,7 +513,7 @@ inline bool intersect(const rtm::CompressedWideBVH<BRANCHING_FACTOR, LEAF_NODE_P
 }
 
 #ifndef __riscv
-inline bool intersect(const rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node* bvh8,
+inline bool intersect(const rtm::WideBVH::Node* bvh8,
 	const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
@@ -526,14 +526,14 @@ inline bool intersect(const rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>:
 		int child_count;
 	};
 
-	NodeStackEntry node_stack[T_STACK_SZ];
+	NodeStackEntry node_stack[32 * rtm::N_ARY_SZ];
 	uint32_t node_stack_size = 1u;
 
 	//Decompress and insert nodes
 	node_stack[0].t = ray.t_min;
 	node_stack[0].data.is_leaf = false;
 	node_stack[0].node_index = 0;
-	node_stack[0].child_count = BRANCHING_FACTOR;
+	node_stack[0].child_count = rtm::N_ARY_SZ;
 
 	bool found_hit = false;
 
@@ -545,7 +545,7 @@ inline bool intersect(const rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>:
 
 		if (!current_entry.data.is_leaf)
 		{
-			rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT>::Node current_node8 = bvh8[current_entry.node_index];
+			rtm::WideBVH::Node current_node8 = bvh8[current_entry.node_index];
 
 			for (int i = 0; i < current_entry.child_count; i++)
 			{

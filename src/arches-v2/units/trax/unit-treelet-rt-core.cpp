@@ -102,7 +102,7 @@ void UnitTreeletRTCore::_read_returns()
 		}
 		else
 		{
-			_assert(sizeof(rtm::PackedBVH2::NodePack) == ret.size);
+			_assert(sizeof(rtm::PackedBVH2::Node) == ret.size);
 
 			NodeStagingBuffer buffer;
 			buffer.ray_id = ray_id;

@@ -69,7 +69,7 @@ inline static void kernel3(const TRaXKernelArgs& args)
 	}
 }
 
-#ifndef WIDE_COMPRESSED_BVH
+#ifndef USE_COMPRESSED_WIDE_BVH
 inline static void kernel2(const TRaXKernelArgs& args)
 {
 	for(uint index = fchthrd(); index < args.framebuffer_size / PACKET_SIZE; index = fchthrd())
@@ -82,7 +82,6 @@ inline static void kernel2(const TRaXKernelArgs& args)
 		rtm::Hit hit_buffer[PACKET_SIZE]; 
 		for(uint i = 0; i < PACKET_SIZE; ++i)
 			hit_buffer[i] = rtm::Hit(frustrum.t_max, rtm::vec2(0.0f), ~0u);
-
 
 		uint64_t mask = intersect(args.nodes, args.tris, frustrum, hit_buffer);
 
@@ -142,14 +141,11 @@ int main(int argc, char* argv[])
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 1, rays);
 	args.rays = rays.data();
 
-#ifdef WIDE_COMPRESSED_BVH
-	rtm::WideBVH<BRANCHING_FACTOR,LEAF_NODE_PRIM_COUNT> wbvh(bvh2);
-	rtm::CompressedWideBVH<BRANCHING_FACTOR, LEAF_NODE_PRIM_COUNT> cwbvh(wbvh);
-
-	mesh.reorder(cwbvh.prim_indices);
-	args.nodes = cwbvh.cwnodes.data();
-
-	//args.nodes = cwbvh.getUncompressedNodes();
+#ifdef USE_COMPRESSED_WIDE_BVH
+	//rtm::WideBVH wbvh(bvh2);
+	rtm::CompressedWideBVH cwbvh(bvh2);
+	mesh.reorder(cwbvh.indices);
+	args.nodes = cwbvh.nodes.data();
 #else
 	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
