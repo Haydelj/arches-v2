@@ -141,7 +141,7 @@ public:
 		float root_sah = get_node_sa(treelet.nodes[0]);
 		for(uint i = 0; i < 8; ++i)
 		{
-			uint median_node_index = (i * 2 + 1) * PackedTreelet::PREFETCH_BLOCK_SIZE / sizeof(PackedBVH2::NodePack) / 2;
+			uint median_node_index = (i * 2 + 1) * PackedTreelet::PREFETCH_BLOCK_SIZE / sizeof(PackedBVH2::Node) / 2;
 			if(median_node_index < treelet.header.num_nodes)
 			{
 				treelet.header.median_page_sah[i] = get_node_sa(treelet.nodes[median_node_index]) / root_sah;
@@ -369,7 +369,7 @@ public:
 			for (uint i = 0; i < treelet_assignments[treelet_index].size(); ++i)
 			{
 				uint node_id = treelet_assignments[treelet_index][i];
-				const rtm::PackedBVH2::NodePack& node = bvh.nodes[node_id];
+				const rtm::PackedBVH2::Node& node = bvh.nodes[node_id];
 
 				assert(node_map.find(node_id) != node_map.end());
 				uint tnode_id = node_map[node_id];

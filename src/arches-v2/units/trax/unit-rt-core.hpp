@@ -13,6 +13,7 @@
 
 namespace Arches { namespace Units { namespace TRaX {
 
+template<typename BVHT>
 class UnitRTCore : public UnitMemoryBase
 {
 public:
@@ -28,14 +29,36 @@ public:
 	};
 
 private:
-	struct RayState
+	struct StackEntry
 	{
-		struct StackEntry
+		float t;
+		rtm::BVH2::Node::Data data;
+
+		StackEntry() {}
+	};
+
+	struct StagingBuffer
+	{
+		paddr_t address;
+		uint bytes_filled;
+		uint type;
+
+		union
 		{
-			float t;
-			rtm::PackedBVH2::NodePack::Data data;
+			uint8_t data[1];
+			BVHT::Node node;
+			struct
+			{
+				rtm::Triangle tri;
+				uint tri_id;
+			};
 		};
 
+		StagingBuffer() {}
+	};
+
+	struct RayState
+	{
 		enum class Phase
 		{
 			NONE,
@@ -51,33 +74,19 @@ private:
 
 		rtm::Ray ray;
 		rtm::vec3 inv_d;
-
 		rtm::Hit hit;
 
-		StackEntry stack[32];
+		StackEntry stack[32 * rtm::N_ARY_SZ];
 		uint8_t stack_size;
 		uint8_t current_entry;
 		uint16_t flags;
 
 		uint16_t port;
 		uint16_t dst;
-	};
 
-	struct NodeStagingBuffer
-	{
-		rtm::PackedBVH2::NodePack node;
-		uint16_t ray_id;
+		StagingBuffer buffer;
 
-		NodeStagingBuffer() {};
-	};
-
-	struct TriStagingBuffer
-	{
-		rtm::Triangle tri;
-		uint32_t tri_id;
-		uint16_t bytes_filled;
-
-		TriStagingBuffer() {};
+		RayState() {};
 	};
 
 	struct FetchItem
@@ -101,11 +110,10 @@ private:
 	std::vector<RayState> _ray_states;
 
 	//node pipline
-	std::queue<NodeStagingBuffer> _node_isect_queue;
+	std::queue<uint> _node_isect_queue;
 	Pipline<uint> _box_pipline;
 
 	//tri pipline
-	std::vector<TriStagingBuffer> _tri_staging_buffers;
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
 
@@ -119,37 +127,9 @@ private:
 public:
 	UnitRTCore(const Configuration& config);
 
-	void clock_rise() override
-	{
-		_request_network.clock();
-		_read_requests();
-		_read_returns();
+	void clock_rise() override;
 
-		if(_ray_scheduling_queue.empty())
-		{
-			for(uint i = 0; i < _ray_states.size(); ++i)
-			{
-				uint phase = (uint)_ray_states[last_ray_id].phase;
-				if(++last_ray_id == _ray_states.size()) last_ray_id = 0;
-				if(phase != 0)
-				{
-					log.stall_counters[phase]++;
-					break;
-				}
-			}
-		}
-
-		//for(uint i = 0; i < 2; ++i) //2 pops per cycle. In reality this would need to be multi banked
-			_schedule_ray();
-		_simualte_intersectors();
-	}
-
-	void clock_fall() override
-	{
-		_issue_requests();
-		_issue_returns();
-		_return_network.clock();
-	}
+	void clock_fall() override;
 
 	bool request_port_write_valid(uint port_index) override
 	{
@@ -188,7 +168,8 @@ private:
 	void _read_requests();
 	void _read_returns();
 	void _schedule_ray();
-	void _simualte_intersectors();
+	void _simualte_node_pipline();
+	void _simualte_tri_pipline();
 
 	void _issue_requests();
 	void _issue_returns();

@@ -12,11 +12,17 @@
 
 namespace rtm {
 
+#ifdef _DEBUG
+#define BUILD_QUALITY 0
+#else
+#define BUILD_QUALITY 2
+#endif
+
 class BVH2
 {
 public:
-	const static uint32_t VERSION = 2395794617; //random number used to validate the cache
-	const static uint MAX_PRIMS = 8;
+	const static uint32_t VERSION = 2395794618; //random number used to validate the cache
+	const static uint MAX_PRIMS = 1;
 
 	struct BuildObject
 	{

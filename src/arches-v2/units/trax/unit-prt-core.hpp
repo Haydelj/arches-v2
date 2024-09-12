@@ -37,7 +37,7 @@ private:
 		struct StackEntry
 		{
 			float t;
-			rtm::PackedBVH2::NodePack::Data data;
+			rtm::BVH2::Node::Data data;
 			uint64_t mask;
 		};
 
@@ -68,7 +68,7 @@ private:
 
 	struct NodeStagingBuffer
 	{
-		rtm::PackedBVH2::NodePack node;
+		rtm::PackedBVH2::Node node;
 		uint16_t ray_id;
 
 		NodeStagingBuffer() {};

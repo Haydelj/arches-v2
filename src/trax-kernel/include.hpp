@@ -3,6 +3,7 @@
 
 #define USE_RT_CORE
 #define USE_HARDWARE_INTERSECTORS
+#define USE_COMPRESSED_WIDE_BVH
 
 #define KERNEL_ARGS_ADDRESS 256ull
 
@@ -19,7 +20,11 @@ struct TRaXKernelArgs
 	rtm::vec3 light_dir;
 	rtm::Ray* rays;
 
-	rtm::PackedBVH2::NodePack* nodes;
+#ifdef USE_COMPRESSED_WIDE_BVH
+	rtm::CompressedWideBVH::Node* nodes;
+#else
+	rtm::PackedBVH2::Node* nodes;
+#endif
 	rtm::Triangle* tris;
 	void* treelets;
 };

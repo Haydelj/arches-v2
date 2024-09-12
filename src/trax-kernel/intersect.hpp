@@ -170,13 +170,13 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 }
 
 constexpr uint PACKET_SIZE = 16;
-inline uint64_t intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangle* tris, const rtm::Frustum& ray_packet, rtm::Hit hit_buffer[PACKET_SIZE])
+inline uint64_t intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Frustum& ray_packet, rtm::Hit hit_buffer[PACKET_SIZE])
 {
 
 	struct NodeStackEntry
 	{
 		uint64_t mask;
-		rtm::PackedBVH2::NodePack::Data data;
+		rtm::BVH2::Node::Data data;
 	};
 
 	NodeStackEntry node_stack[32];
@@ -264,14 +264,15 @@ inline uint64_t intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Tri
 	return hit_mask;
 }
 
-inline bool intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
+inline bool intersect(const rtm::PackedBVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+	steps = 0;
 
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::PackedBVH2::NodePack::Data data;
+		rtm::BVH2::Node::Data data;
 	};
 
 	NodeStackEntry node_stack[32];
@@ -292,6 +293,7 @@ inline bool intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangl
 			uint child_index = current_entry.data.child_index;
 			float t0 = _intersect(nodes[child_index].aabb[0], ray, inv_d);
 			float t1 = _intersect(nodes[child_index].aabb[1], ray, inv_d);
+
 			if(t0 < hit.t || t1 < hit.t)
 			{
 				if(t0 < t1)
@@ -309,16 +311,23 @@ inline bool intersect(const rtm::PackedBVH2::NodePack* nodes, const rtm::Triangl
 		}
 		else
 		{
-			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
+			if (current_entry.t < hit.t)
 			{
-				uint32_t id = current_entry.data.prim_index + i;
-				if(_intersect(tris[id], ray, hit))
-				{
-					hit.id = id;
-					if(first_hit) return true;
-					else          found_hit = true;
-				}
+				hit.id = current_entry.data.prim_index;
+				hit.t = current_entry.t;
 			}
+
+			//for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
+			//{
+			//	steps++;
+			//	uint32_t id = current_entry.data.prim_index + i;
+			//	if(_intersect(tris[id], ray, hit))
+			//	{
+			//		hit.id = id;
+			//		if(first_hit) return true;
+			//		else          found_hit = true;
+			//	}
+			//}
 		}
 	} while(node_stack_size);
 
@@ -423,25 +432,191 @@ bool inline intersect(const rtm::PackedTreelet* treelets, const rtm::Ray& ray, r
 	return is_hit;
 }
 
-#ifndef __riscv 
-inline void pregen_rays(const TRaXKernelArgs& args, uint bounce, std::vector<rtm::Ray>& rays)
+
+inline bool intersect(const rtm::CompressedWideBVH::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps ,bool first_hit = false)
 {
-	printf("Generating bounce %d rays from %d path\n", bounce, args.framebuffer_size);
-	uint num_rays = args.framebuffer_size;
-	for(int index = 0; index < args.framebuffer_size; index++)
+	steps = 0;
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
 	{
-		uint32_t x = index % args.framebuffer_width;
-		uint32_t y = index / args.framebuffer_width;
+		float t;
+		rtm::BVH2::Node::Data data;
+	};
+
+	NodeStackEntry node_stack[32 * rtm::N_ARY_SZ];
+	uint32_t node_stack_size = 1u;
+
+	//Decompress and insert nodes
+	node_stack[0].t = ray.t_min;
+	node_stack[0].data.is_leaf = false;
+	node_stack[0].data.child_index = 0;
+	bool found_hit = false;
+
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if (current_entry.t >= hit.t) continue;
+		
+		if (!current_entry.data.is_leaf)
+		{
+			int childCount;
+			rtm::BVH2::Node dnodes[rtm::N_ARY_SZ];
+			nodes[current_entry.data.child_index].decompress(dnodes, childCount);
+
+			uint max_insert_depth = node_stack_size;
+			for (int i = 0; i < childCount; i++)
+			{
+				float t = _intersect(dnodes[i].aabb, ray, inv_d);
+				if (t < hit.t)
+				{
+#if 1
+					uint j = node_stack_size++;
+					for (; j > max_insert_depth; --j)
+					{
+						if (node_stack[j - 1].t > t) break;
+						node_stack[j] = node_stack[j - 1];
+					}
+					node_stack[j].t = t;
+					node_stack[j].data = dnodes[i].data;
+#else
+
+					node_stack[node_stack_size].t = t;
+					node_stack[node_stack_size].data = dnodes[i].data;
+					node_stack_size++;
+#endif
+				}
+			}
+		}
+		else
+		{
+			//if (current_entry.t < hit.t)
+			//{
+			//	hit.id = current_entry.data.prim_index;
+			//	hit.t = current_entry.t;
+			//}
+
+			for (uint32_t i = 0; i <= current_entry.data.num_prims; i++)
+			{
+				uint32_t triID = current_entry.data.prim_index + i;
+				steps++;
+				if (_intersect(tris[triID], ray, hit))
+				{
+					hit.id = triID;
+					if (first_hit)	return true;
+					else			found_hit = true;
+				}
+			}
+		}
+	} while (node_stack_size);
+	return found_hit;
+}
+
+#ifndef __riscv
+inline bool intersect(const rtm::WideBVH::Node* bvh8,
+	const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::BVH2::Node::Data data;
+		int node_index;
+		int child_count;
+	};
+
+	NodeStackEntry node_stack[32 * rtm::N_ARY_SZ];
+	uint32_t node_stack_size = 1u;
+
+	//Decompress and insert nodes
+	node_stack[0].t = ray.t_min;
+	node_stack[0].data.is_leaf = false;
+	node_stack[0].node_index = 0;
+	node_stack[0].child_count = rtm::N_ARY_SZ;
+
+	bool found_hit = false;
+
+
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if (current_entry.t >= hit.t) continue;		//if node out of ray interval, skip and continue 
+
+		if (!current_entry.data.is_leaf)
+		{
+			rtm::WideBVH::Node current_node8 = bvh8[current_entry.node_index];
+
+			for (int i = 0; i < current_entry.child_count; i++)
+			{
+				rtm::BVH2::Node childNode = current_node8.nodeArray[i];
+				float t = _intersect(childNode.aabb, ray, inv_d);		//intersects children
+				if (t < hit.t)											//If valid interval distance then push onto traversal stack
+				{
+
+					node_stack[node_stack_size].t = t;
+					node_stack[node_stack_size].node_index = current_node8.base_index_child + childNode.data.child_index; //hack to store child nodes index in global node array
+
+					if (!childNode.data.is_leaf)
+					{
+						node_stack[node_stack_size].child_count = bvh8[node_stack[node_stack_size].node_index].childCount;
+					}
+					node_stack[node_stack_size++].data = childNode.data;
+				}
+			}
+		}
+		else
+		{
+			if (current_entry.t < hit.t)
+			{
+				hit.id = current_entry.data.prim_index;
+				hit.t = current_entry.t;
+			}
+			/*
+			for (int i = 0; i <= current_entry.data.num_prims; i++)
+			{
+				uint32_t triID = current_entry.data.child_index + i;
+				if (_intersect(tris[triID], ray, hit))
+				{
+
+					hit.id = triID;
+
+					if (first_hit)	return true;
+					else			found_hit = true;
+
+				}
+			}*/
+		}
+	} while (node_stack_size);
+
+	return found_hit;
+}
+
+#endif
+
+#ifndef __riscv 
+inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays)
+{
+	uint num_rays = framebuffer_width * framebuffer_height;
+	printf("Generating bounce %d rays from %d path\n", bounce, num_rays);
+
+	std::vector<rtm::Triangle> tris;
+	mesh.get_triangles(tris);
+
+	for(int index = 0; index < num_rays; index++)
+	{
+		uint32_t x = index % framebuffer_width;
+		uint32_t y = index / framebuffer_width;
 		rtm::RNG rng(index);
 
-		rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
+		rtm::Ray ray = camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
 		for(uint i = 0; i < bounce; ++i)
 		{
 			rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
-			intersect(args.nodes, args.tris, ray, hit);
+			intersect(bvh.nodes.data(), tris.data(), ray, hit);
 			if(hit.id != ~0u)
 			{
-				rtm::vec3 normal = args.tris[hit.id].normal();
+				rtm::vec3 normal = tris[hit.id].normal();
 				ray.o += ray.d * hit.t;
 				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondray rays
 			}
