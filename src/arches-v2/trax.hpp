@@ -223,7 +223,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	uint num_tps_per_tm = 64;
 	uint num_tms = 64;
 
-	//DRAM
+	//DRAM 
 	uint64_t mem_size = 1ull << 32; //4GB
 
 #if 1
