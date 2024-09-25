@@ -1,15 +1,23 @@
 #pragma once 
 #include "stdafx.hpp"
 
-#include "ramulator/base/base.h"
-#include "ramulator/base/request.h"
-#include "ramulator/base/config.h"
-#include "ramulator/frontend/frontend.h"
-#include "ramulator/memory_system/memory_system.h"
-
+#include <ramulator2/src/base/base.h>
+#include <ramulator2/src/base/request.h>
+#include <ramulator2/src/base/config.h>
+#include <ramulator2/src/frontend/frontend.h>
+#include <ramulator2/src/memory_system/memory_system.h>
 #include "unit-base.hpp"
 #include "unit-main-memory-base.hpp"
 #include "util/arbitration.hpp"
+#include <ramulator2/src/frontend/impl/external_wrapper/gem5_frontend.cpp>
+//#include <ramulator2/src/memory_system/impl/generic_DRAM_system.cpp>
+//#include <ramulator2/src/dram/impl/GDDR6.cpp>
+#include <ramulator2/src/addr_mapper/impl/linear_mappers.cpp>
+//#include <ramulator2/src/dram_controller/impl/generic_dram_controller.cpp>
+#include "ramulator/unit-controller.h"
+//#include <ramulator2/src/dram_controller/impl/scheduler/generic_scheduler.cpp>
+//#include <ramulator2/src/dram_controller/impl/refresh/all_bank_refresh.cpp>
+#include <ramulator2/src/dram_controller/impl/rowpolicy/basic_rowpolicies.cpp>
 
 namespace Arches { namespace Units {
 
