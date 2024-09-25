@@ -3,7 +3,11 @@
 #include "ramulator2/src/base/base.h"
 #include "ramulator2/src/dram/dram.h"
 #include "ramulator2/src/addr_mapper/addr_mapper.h"
+<<<<<<< HEAD
 #include "ramulator2/src/memory_system/memory_system.h"
+=======
+//#include "ramulator2/src/memory_system/memory_system.h"
+>>>>>>> 4ba1e3b (integration of ramulator and drampower)
 #include "ramulator2/src/addr_mapper/impl/linear_mappers.cpp"
 
 namespace Ramulator {
