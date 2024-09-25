@@ -1,6 +1,5 @@
 #include "unit-dram-ramulator.hpp"
 
-
 namespace Arches { namespace Units {
 
 #define ENABLE_DRAM_DEBUG_PRINTS 0
@@ -160,11 +159,11 @@ void UnitDRAMRamulator::clock_fall()
 	for (uint i = 0; i < clock_ratio; ++i)
 		ramulator2_memorysystem->tick();
 
-	if(_busy && !ramulator2_memorysystem->ramu_is_busy())
+	/*if(_busy && !ramulator2_memorysystem->ramu_is_busy()) TODO
 	{
 		_busy = false;
 		simulator->units_executing--;
-	}
+	}*/
 
 	++_current_cycle;
 	for(uint channel_index = 0; channel_index < _channels.size(); ++channel_index)

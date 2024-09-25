@@ -20,4 +20,10 @@
 
 #include "rtm/rtm.hpp"
 
-typedef unsigned int uint;
+//typedef unsigned int uint;
+//namespace Arches {
+//	using uint = unsigned int;
+//}
+//#ifndef uint
+//#define uint unsigned int
+//#endif
