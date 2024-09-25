@@ -169,7 +169,7 @@ void UnitDRAMRamulator::clock_fall()
 	{
 		_busy = false;
 		simulator->units_executing--;
-	}
+	}*/
 
 	++_current_cycle;
 	for(uint channel_index = 0; channel_index < _channels.size(); ++channel_index)
