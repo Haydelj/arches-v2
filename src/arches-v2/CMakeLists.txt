@@ -46,7 +46,7 @@ add_executable(${PROJECT_NAME} ${NEW_INCLUDE} ${NEW_SOURCES} ${USIMM_CONFIG})
 # add_executable(${PROJECT_NAME} ${ALL_INCLUDE} ${ALL_SOURCES})
 # source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES})
 
-
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/external)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src/arches-v2)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src)
@@ -54,8 +54,14 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT D
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 target_link_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/libraries/tbb)
-target_link_libraries(${PROJECT_NAME} tbb12.lib)
-target_link_libraries(${PROJECT_NAME} yaml-cpp::yaml-cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE tbb12.lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE DRAMSys::DRAMPower)
+target_link_libraries(${PROJECT_NAME} PRIVATE Ramulator)
+# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    # COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        # ${PROJECT_SOURCE_DIR}/build/external/ramulator2/$<CONFIGURATION>/ramulator.dll
+        # ${CMAKE_CURRENT_BINARY_DIR})
+# install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> TYPE BIN)
 #set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR})
 #set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${PROJECT_NAME})
@@ -64,8 +70,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/usimm/config-files)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/usimm/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/ramulator/config-files)
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/ramulator/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/config-files)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 file(GLOB TBB_DLLS ${PROJECT_SOURCE_DIR}/libraries/tbb/*)
