@@ -10,14 +10,14 @@
 #include "unit-main-memory-base.hpp"
 #include "util/arbitration.hpp"
 #include <ramulator2/src/frontend/impl/external_wrapper/gem5_frontend.cpp>
-//#include <ramulator2/src/memory_system/impl/generic_DRAM_system.cpp>
-//#include <ramulator2/src/dram/impl/GDDR6.cpp>
 #include <ramulator2/src/addr_mapper/impl/linear_mappers.cpp>
-//#include <ramulator2/src/dram_controller/impl/generic_dram_controller.cpp>
-#include "ramulator/unit-controller.h"
-//#include <ramulator2/src/dram_controller/impl/scheduler/generic_scheduler.cpp>
-//#include <ramulator2/src/dram_controller/impl/refresh/all_bank_refresh.cpp>
 #include <ramulator2/src/dram_controller/impl/rowpolicy/basic_rowpolicies.cpp>
+#include <ramulator2/src/memory_system/impl/generic_DRAM_system.cpp>
+//#include <ramulator2/src/dram_controller/impl/generic_dram_controller.cpp>
+#include "ramulator/unit-generic-dram-controller.cpp"
+#include <ramulator2/src/dram_controller/impl/scheduler/generic_scheduler.cpp>
+#include <ramulator2/src/dram_controller/impl/refresh/all_bank_refresh.cpp>
+
 
 namespace Arches { namespace Units {
 
@@ -30,6 +30,7 @@ private:
 	Ramulator::IFrontEnd* ramulator2_frontend;
 	Ramulator::IMemorySystem* ramulator2_memorysystem;
 	int clock_ratio;
+	uint pending_requests = 0;
 
 	//float memory_tCK = ramulator2_memorysystem->get_tCK();
 

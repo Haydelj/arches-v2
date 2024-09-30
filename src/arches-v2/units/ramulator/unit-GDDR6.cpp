@@ -8,16 +8,16 @@ class GDDR6A : public IDRAM, public Implementation {
 
   public:
     inline static const std::map<std::string, Organization> org_presets = { //Table 19 for more info
-      //    name         density   DQ   Ch Bg Ba   Ro     Co
-      {"GDDR6_8Gb_x8",   {8<<10,    8,  {2, 4, 4, 1<<14, 1<<11}}}, // 2^30
-      {"GDDR6_8Gb_x16",  {8<<10,    16, {2, 4, 4, 1<<14, 1<<10}}}, 
-      {"GDDR6_16Gb_x8",  {16<<10,   8,  {2, 4, 4, 1<<15, 1<<11}}},
-      {"GDDR6_16Gb_x16", {16<<10,   16, {2, 4, 4, 1<<14, 1<<11}}},
-      {"GDDR6_32Gb_x8",  {32<<10,   8,  {2, 4, 4, 1<<16, 1<<11}}},
-      {"GDDR6_32Gb_x16", {32<<10,   16, {2, 4, 4, 1<<15, 1<<11}}},
-      {"GDDR6_16Gb_x8_8ch",  {16 << 10,   8, {8,  1, 16, 1 << 13, 1 << 11}}},
-      {"GDDR6_32Gb_x8_16ch", {32 << 10,   8, {16, 1, 16, 1 << 13, 1 << 11}}}, //
-      {"GDDR6_32Gb_x16_8ch", {32 << 10,   16, {8, 4, 4, 1 << 13, 1 << 11}}},
+      //    name         density   DQ   Ch  Ra Bg Ba   Ro     Co
+      {"GDDR6_8Gb_x8",   {8<<10,    8,  {2, 1, 4, 4, 1<<14, 1<<11}}}, // 2^30
+      {"GDDR6_8Gb_x16",  {8<<10,    16, {2, 1, 4, 4, 1<<14, 1<<10}}}, 
+      {"GDDR6_16Gb_x8",  {16<<10,   8,  {2, 1, 4, 4, 1<<15, 1<<11}}},
+      {"GDDR6_16Gb_x16", {16<<10,   16, {2, 1, 4, 4, 1<<14, 1<<11}}},
+      {"GDDR6_32Gb_x8",  {32<<10,   8,  {2, 1, 4, 4, 1<<16, 1<<11}}},
+      {"GDDR6_32Gb_x16", {32<<10,   16, {2, 1, 4, 4, 1<<15, 1<<11}}},
+      {"GDDR6_16Gb_x8_8ch",  {16 << 10,   8, {8,  1, 1, 16, 1 << 13, 1 << 11}}},
+      {"GDDR6_32Gb_x8_16ch", {32 << 10,   8, {16, 1, 1, 16, 1 << 13, 1 << 11}}}, //
+      {"GDDR6_32Gb_x16_8ch", {32 << 10,   16, {8, 1, 4, 4, 1 << 13, 1 << 11}}},
     };
 
     
@@ -32,15 +32,32 @@ class GDDR6A : public IDRAM, public Implementation {
       {"GDDR6_16000_1350mV_quad",  {16000,  4,  32,   32,     27,  32,   72,  104,   22,   4,  22,   3,    4,   12,   12,  10,    10,   43,   168,  140,   28,   3333,   500}},
 
     };
+	/*inline static const std::map<std::string, std::vector<double>> voltage_presets = {
+      //   name          VDD       VDDQ
+      {"Default",       {1.35,     1.35}},
+    };
 
+    inline static const std::map<std::string, std::vector<double>> current_presets = {
+      // from DRAMsim3
+      // name           IDD0  IDD2N   IDD3N   IDD4R   IDD4W   IDD5B   IDD2P  IDD3P  IDD5C  IDD5F  IDD6N  IBETA
+      {"Default",       {71,   60,     61,     248,    231,    286,     45,    50,     45,   135,    35,  56.25}},
+    };*/
+    inline static const std::map<std::string, std::vector<double>> voltage_presets = {
+        //   name          VDD      VPP
+        {"Default",       {1.35,     1.8}},
+    };
 
+    inline static const std::map<std::string, std::vector<double>> current_presets = {
+        // name           IDD0  IDD2N   IDD3N   IDD4R   IDD4W   IDD5B   IPP0  IPP2N  IPP3N  IPP4R  IPP4W  IPP5B
+        {"Default",       {71,   60,     61,     248,    231,    286,     3,    3,     3,     3,     3,     48}},
+    };
   /************************************************
    *                Organization
    ***********************************************/   
     const int m_internal_prefetch_size = 16;    // 16n prefetch
 
     inline static constexpr ImplDef m_levels = {
-      "channel", "bankgroup", "bank", "row", "column",    
+      "channel", "rank", "bankgroup", "bank", "row", "column",    
     };
 
 
@@ -56,7 +73,7 @@ class GDDR6A : public IDRAM, public Implementation {
 
     inline static const ImplLUT m_command_scopes = LUT (
       m_commands, m_levels, {
-        {"REFab", "channel"},  {"REFp2b",  "channel"},
+        {"REFab", "rank"},  {"REFp2b",  "channel"},
         {"ACT",   "row"},
         {"PREA", "bank"},   {"PRE",  "bank"},  {"REFpb", "bank"},
         {"RD",    "column"}, {"WR",   "column"},  {"RDA",  "column"}, {"WRA",   "column"},
@@ -104,7 +121,31 @@ class GDDR6A : public IDRAM, public Implementation {
       "nRFC", "nRFCpb",  "nRREFD", "nREFI",
       "tCK_ps"
     };
+   
+  /************************************************
+   *                   Power
+   ***********************************************/
+    /*
+    inline static constexpr ImplDef m_voltages = {
+      "VDD", "VDDQ"
+    };
+    
+    inline static constexpr ImplDef m_currents = {
+      "IDD0", "IDD2N", "IDD3N", "IDD4R", "IDD4W", "IDD5B",
+      "IDD2P", "IDD3P", "IDD5C", "IDD5F", "IDD6N", "IBETA"
+    };*/
+    inline static constexpr ImplDef m_voltages = {
+      "VDD", "VPP"
+    };
 
+    inline static constexpr ImplDef m_currents = {
+      "IDD0", "IDD2N", "IDD3N", "IDD4R", "IDD4W", "IDD5B",
+      "IPP0", "IPP2N", "IPP3N", "IPP4R", "IPP4W", "IPP5B"
+    };
+
+    inline static constexpr ImplDef m_cmds_counted = {
+      "ACT", "PRE", "RD", "WR", "REF"
+    };
 
   /************************************************
    *                 Node States
@@ -116,6 +157,7 @@ class GDDR6A : public IDRAM, public Implementation {
     inline static const ImplLUT m_init_states = LUT (
       m_levels, m_states, {
         {"channel",   "N/A"}, 
+        {"rank",      "PowerUp"},
         {"bankgroup", "N/A"},
         {"bank",      "Closed"},
         {"row",       "Closed"},
@@ -133,7 +175,9 @@ class GDDR6A : public IDRAM, public Implementation {
     FuncMatrix<PreqFunc_t<Node>>    m_preqs;
     FuncMatrix<RowhitFunc_t<Node>>  m_rowhits;
     FuncMatrix<RowopenFunc_t<Node>> m_rowopens;
+    FuncMatrix<PowerFunc_t<Node>>   m_powers;
 
+    float total_power;
 
   public:
     void tick() override {
@@ -149,13 +193,16 @@ class GDDR6A : public IDRAM, public Implementation {
       set_preqs();
       set_rowhits();
       set_rowopens();
+      set_powers();
       
       create_nodes();
+      total_power = 0;
     };
 
     void issue_command(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       m_channels[channel_id]->update_timing(command, addr_vec, m_clk);
+      m_channels[channel_id]->update_powers(command, addr_vec, m_clk);
       m_channels[channel_id]->update_states(command, addr_vec, m_clk);
     };
 
@@ -431,7 +478,8 @@ class GDDR6A : public IDRAM, public Implementation {
       m_actions.resize(m_levels.size(), std::vector<ActionFunc_t<Node>>(m_commands.size()));
 
       // Channel Actions 
-      m_actions[m_levels["channel"]][m_commands["PREA"]] = Lambdas::Action::Channel::PREab<GDDR6A>;
+      m_actions[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Action::Rank::PREab<GDDR6A>;
+      m_actions[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Action::Rank::REFab<GDDR6A>;
 
       // Bank actions
       m_actions[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Action::Bank::ACT<GDDR6A>;
@@ -444,7 +492,7 @@ class GDDR6A : public IDRAM, public Implementation {
       m_preqs.resize(m_levels.size(), std::vector<PreqFunc_t<Node>>(m_commands.size()));
 
       // Channel Actions 
-      m_preqs[m_levels["channel"]][m_commands["REFab"]] = Lambdas::Preq::Channel::RequireAllBanksClosed<GDDR6A>;
+      m_preqs[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Preq::Rank::RequireAllBanksClosed<GDDR6A>;
 
       // Bank actions
       m_preqs[m_levels["bank"]][m_commands["RD"]] = Lambdas::Preq::Bank::RequireRowOpen<GDDR6A>;
@@ -468,6 +516,74 @@ class GDDR6A : public IDRAM, public Implementation {
       m_rowopens[m_levels["bank"]][m_commands["WR"]] = Lambdas::RowOpen::Bank::RDWR<GDDR6A>;
     }
 
+    void set_powers() {
+      
+      m_drampower_enable = param<bool>("drampower_enable").default_val(false);
+
+      if (!m_drampower_enable)
+        return;
+
+      m_voltage_vals.resize(m_voltages.size(), -1);
+
+      if (auto preset_name = param_group("voltage").param<std::string>("preset").optional()) {
+        if (voltage_presets.count(*preset_name) > 0) {
+          m_voltage_vals = voltage_presets.at(*preset_name);
+        } else {
+          throw ConfigurationError("Unrecognized voltage preset \"{}\" in {}!", *preset_name, get_name());
+        }
+      }
+
+      m_current_vals.resize(m_currents.size(), -1);
+
+      if (auto preset_name = param_group("current").param<std::string>("preset").optional()) {
+        if (current_presets.count(*preset_name) > 0) {
+          m_current_vals = current_presets.at(*preset_name);
+        } else {
+          throw ConfigurationError("Unrecognized current preset \"{}\" in {}!", *preset_name, get_name());
+        }
+      }
+
+      m_power_debug = param<bool>("power_debug").default_val(false);
+
+      // TODO: Check for multichannel configs.
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      m_power_stats.resize(num_channels * num_ranks);
+      for (int i = 0; i < num_channels; i++) {
+        for (int j = 0; j < num_ranks; j++) {
+          m_power_stats[i * num_ranks + j].rank_id = i * num_ranks + j;
+          m_power_stats[i * num_ranks + j].cmd_counters.resize(m_cmds_counted.size(), 0);
+        }
+      }
+
+      m_powers.resize(m_levels.size(), std::vector<PowerFunc_t<Node>>(m_commands.size()));
+
+      m_powers[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Power::Bank::ACT<GDDR6A>;
+      m_powers[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Power::Bank::PRE<GDDR6A>;
+      m_powers[m_levels["bank"]][m_commands["RD"]]  = Lambdas::Power::Bank::RD<GDDR6A>;
+      m_powers[m_levels["bank"]][m_commands["WR"]]  = Lambdas::Power::Bank::WR<GDDR6A>;
+
+      m_powers[m_levels["rank"]][m_commands["ACT"]] = Lambdas::Power::Rank::ACT<GDDR6A>;
+      m_powers[m_levels["rank"]][m_commands["PRE"]] = Lambdas::Power::Rank::PRE<GDDR6A>;
+      m_powers[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Power::Rank::PREA<GDDR6A>;
+      m_powers[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Power::Rank::REFab<GDDR6A>;
+
+      // register stats
+      /*register_stat(s_total_background_energy).name("total_background_energy");
+      register_stat(s_total_cmd_energy).name("total_cmd_energy");
+      register_stat(s_total_energy).name("total_energy");*/
+      register_stat(total_power).name("total_power(W)");
+            
+      /*for (auto& power_stat : m_power_stats){
+        register_stat(power_stat.total_background_energy).name("total_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.total_cmd_energy).name("total_cmd_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.total_energy).name("total_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.act_background_energy).name("act_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.pre_background_energy).name("pre_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.active_cycles).name("active_cycles_rank{}", power_stat.rank_id);
+        register_stat(power_stat.idle_cycles).name("idle_cycles_rank{}", power_stat.rank_id);
+      }*/
+    }
 
     void create_nodes() {
       int num_channels = m_organization.count[m_levels["channel"]];
@@ -475,7 +591,134 @@ class GDDR6A : public IDRAM, public Implementation {
         Node* channel = new Node(this, nullptr, 0, i);
         m_channels.push_back(channel);
       }
+    }
+    
+    void finalize() override {
+      if (!m_drampower_enable)
+        return;
+
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      for (int i = 0; i < num_channels; i++) {
+        for (int j = 0; j < num_ranks; j++) {
+          process_rank_energy(m_power_stats[i * num_ranks + j], m_channels[i]->m_child_nodes[j]);
+        }
+      }
+      total_power = s_total_energy / ((float)m_clk * (float)m_timing_vals("tCK_ps") / 1000.0);
+    }
+
+    double E_BG_pre(std::size_t B, double VDD, double IDD2_N, double T_BG_pre) {
+        return (1.0 / B) * VDD * IDD2_N * T_BG_pre;
     };
+
+    double E_BG_act_shared(double VDD, double I_rho, double T_BG_act) {
+        return VDD * I_rho * T_BG_act;
+    }
+
+    double E_BG_act_star(std::size_t B, double VDD, double IDD3_N, double I_rho, double T_BG_act_star) {
+        return VDD * (1.0 / B) * (IDD3_N - I_rho) * T_BG_act_star;
+    }
+
+    double E_pre(double VDD, double IBeta, double IDD2_N, double t_RP, uint64_t N_pre) {
+        return VDD * (IBeta - IDD2_N) * t_RP * N_pre;
+    }
+
+    double E_act(double VDD, double I_theta, double I_1, double t_RAS, uint64_t N_act) {
+        return VDD * (I_theta - I_1) * t_RAS * N_act;
+    }
+
+    double E_RD(double VDD, double IDD4_R, double IDD3_N, double t_CK, std::size_t BL, std::size_t DR,
+                                  uint64_t N_RD) {
+        return VDD * (IDD4_R - IDD3_N) * (double(BL) / DR) * t_CK * N_RD;
+    }
+
+    double E_WR(double VDD, double IDD4_W, double IDD3_N, double t_CK, std::size_t BL, std::size_t DR,
+                                  uint64_t N_WR) {
+        return VDD * (IDD4_W - IDD3_N) * (BL / DR) * t_CK * N_WR;
+    }
+
+    double E_ref_ab(std::size_t B, double VDD, double IDD5B, double IDD3_N, double tRFC, uint64_t N_REF) {
+        return (1.0 / B) * VDD * (IDD5B - IDD3_N) * tRFC * N_REF;
+    }
+
+    void process_rank_energy(PowerStats& rank_stats, Node* rank_node) {
+      
+      Lambdas::Power::Rank::finalize_rank<GDDR6A>(rank_node, 0, AddrVec_t(), m_clk);
+
+      size_t num_bankgroups = m_organization.count[m_levels["bankgroup"]];
+
+      auto TS = [&](std::string_view timing) { return m_timing_vals(timing); };
+      auto VE = [&](std::string_view voltage) { return m_voltage_vals(voltage); };
+      auto CE = [&](std::string_view current) { return m_current_vals(current); };
+      double tCK_ns = (double)TS("tCK_ps") / 1000.0;
+
+      /*float rho = 0.5;
+      int B = m_organization.count[m_levels["bank"]];
+      int BG = m_organization.count[m_levels["bankgroup"]];
+      
+      auto VXX = VE("VDD");
+      auto IBeta = CE("IBETA");
+      auto IXX2N = CE("IDD2N");
+      auto IXX4R = CE("IDD4R");
+      auto IXX3N = CE("IDD3N");
+      auto IXX4W = CE("IDD4W");
+      auto IXX5X = CE("IDD5B");
+      auto t_CK = tCK_ns;
+      auto t_RFC = TS("nRFC") * t_CK;
+      auto t_RP = TS("nRP") * t_CK;
+      auto t_RAS = TS("nRAS") * t_CK;
+      auto BL = TS("nBL");
+      int DR = 4;
+      auto I_rho = rho * (CE("IDD3N") - CE("IDD2N")) + CE("IDD2N");
+      auto I_theta = (CE("IDD0") * (t_RP + t_RAS) - CE("IBETA") * t_RP) * (1 / t_RAS);
+      auto I_1 = (1.0 / B) * (CE("IDD3N") + (B - 1) * (rho * (CE("IDD3N") - CE("IDD2N")) + CE("IDD2N")));
+      auto I_BG = I_rho + (I_1 - I_rho) * BG;
+
+      
+      rank_stats.act_background_energy = E_BG_act_shared(VE("VDD"), I_rho, rank_stats.active_cycles * tCK_ns);
+      rank_stats.pre_background_energy = E_BG_pre(B, VE("VDD"), CE("IDD2N"), rank_stats.idle_cycles * tCK_ns);
+      double act_cmd_energy = E_act(VXX, I_theta, I_1, t_RAS, rank_stats.cmd_counters[m_cmds_counted("ACT")]);
+      double pre_cmd_energy = E_pre(VXX, IBeta, IXX2N, t_RP, rank_stats.cmd_counters[m_cmds_counted("PRE")]);
+      double rd_cmd_energy = E_RD(VXX, IXX4R, IXX3N, t_CK, BL, DR, rank_stats.cmd_counters[m_cmds_counted("RD")]);
+      double wr_cmd_energy = E_WR(VXX, IXX4W, IXX3N, t_CK, BL, DR, rank_stats.cmd_counters[m_cmds_counted("WR")]);
+      double ref_cmd_energy = E_ref_ab(B, VXX, IXX5X, IXX3N, t_RFC, rank_stats.cmd_counters[m_cmds_counted("REF")]);*/
+
+       rank_stats.act_background_energy = (VE("VDD") * CE("IDD3N") + VE("VPP") * CE("IPP3N")) 
+                                            * rank_stats.active_cycles * tCK_ns / 1E3;
+
+      rank_stats.pre_background_energy = (VE("VDD") * CE("IDD2N") + VE("VPP") * CE("IPP2N")) 
+                                            * rank_stats.idle_cycles * tCK_ns / 1E3;
+
+
+      double act_cmd_energy  = (VE("VDD") * (CE("IDD0") - CE("IDD3N")) + VE("VPP") * (CE("IPP0") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("ACT")] * TS("nRAS") * tCK_ns / 1E3;
+
+      double pre_cmd_energy  = (VE("VDD") * (CE("IDD0") - CE("IDD2N")) + VE("VPP") * (CE("IPP0") - CE("IPP2N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("PRE")] * TS("nRP")  * tCK_ns / 1E3;
+
+      double rd_cmd_energy   = (VE("VDD") * (CE("IDD4R") - CE("IDD3N")) + VE("VPP") * (CE("IPP4R") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("RD")] * TS("nBL") * tCK_ns / 1E3;
+
+      double wr_cmd_energy   = (VE("VDD") * (CE("IDD4W") - CE("IDD3N")) + VE("VPP") * (CE("IPP4W") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("WR")] * TS("nBL") * tCK_ns / 1E3;
+
+      double ref_cmd_energy  = (VE("VDD") * (CE("IDD5B")) + VE("VPP") * (CE("IPP5B"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("REF")] * TS("nRFC") * tCK_ns / 1E3; 
+      //printf("refresh count = %d\n", rank_stats.cmd_counters[m_cmds_counted("REF")]);
+
+      rank_stats.total_background_energy = rank_stats.act_background_energy + rank_stats.pre_background_energy;
+      rank_stats.total_cmd_energy = act_cmd_energy 
+                                    + pre_cmd_energy 
+                                    + rd_cmd_energy
+                                    + wr_cmd_energy 
+                                    + ref_cmd_energy;
+
+      rank_stats.total_energy = rank_stats.total_background_energy + rank_stats.total_cmd_energy;
+
+      s_total_background_energy += rank_stats.total_background_energy;
+      s_total_cmd_energy += rank_stats.total_cmd_energy;
+      s_total_energy += rank_stats.total_energy;
+    }
 };
 
 
