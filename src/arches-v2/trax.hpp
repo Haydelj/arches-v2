@@ -501,7 +501,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	tp_log.print_profile(dram._data_u8);
 
-	//dram.print_stats(4, frame_cycles);
+	dram.print_stats(4, frame_cycles);
 	print_header("DRAM");
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);

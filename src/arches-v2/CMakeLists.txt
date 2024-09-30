@@ -57,11 +57,6 @@ target_link_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/libraries/t
 target_link_libraries(${PROJECT_NAME} PRIVATE tbb12.lib)
 target_link_libraries(${PROJECT_NAME} PRIVATE DRAMSys::DRAMPower)
 target_link_libraries(${PROJECT_NAME} PRIVATE Ramulator)
-# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    # COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        # ${PROJECT_SOURCE_DIR}/build/external/ramulator2/$<CONFIGURATION>/ramulator.dll
-        # ${CMAKE_CURRENT_BINARY_DIR})
-# install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> TYPE BIN)
 #set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR})
 #set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${PROJECT_NAME})
