@@ -18,7 +18,7 @@
 namespace rtm {
 
 constexpr int INVALID_NODE = -1;
-constexpr int N_ARY_SZ = 5;
+constexpr int N_ARY_SZ = 6;
 constexpr int MAX_FOREST_SIZE = N_ARY_SZ - 1;
 constexpr int LEAF_PRIM_COUNT = 3;
 
@@ -358,11 +358,11 @@ private:
 class CompressedWideBVH
 {
 public:
+
 	struct alignas(64) Node
 	{
+		/*
 		vec3 p;								//anchor point 
-		uint8_t  e[3];						//exponent power of 2 for local grid scale
-		uint8_t  imask;						//internal node flag
 		uint32_t base_index_child;			//base offset in streamlined child node array
 		uint32_t base_index_triangle;		//base offset in streamlined primitive array
 		uint8_t  meta[N_ARY_SZ];			//count and indexing offset
@@ -372,8 +372,27 @@ public:
 		uint8_t  q_max_x[N_ARY_SZ];
 		uint8_t  q_max_y[N_ARY_SZ];
 		uint8_t  q_max_z[N_ARY_SZ];
+		uint8_t  e[3];						//exponent power of 2 for local grid scale
+		uint8_t  imask;						//internal node flag
+		*/
 
-		Node() : p(0.0f, 0.0f, 0.0f), e{0,0,0}, imask(0), base_index_child(0), base_index_triangle(0)
+
+		uint64_t base_index_child : 28;	//base offset in streamlined child node array
+		uint64_t base_index_triangle : 28;	//base offset in streamlined primitive array
+		uint64_t e0 : 8;
+		rtm::vec3 p;
+		uint8_t e1;
+		uint8_t e2;
+		uint8_t  meta[N_ARY_SZ];    //MSB bit stores imask now, next two MSB bits store binary encoded primitive count, rest layout remains the same 
+		uint8_t  q_min_x[N_ARY_SZ]; //quantized bounds
+		uint8_t  q_min_y[N_ARY_SZ];
+		uint8_t  q_min_z[N_ARY_SZ];
+		uint8_t  q_max_x[N_ARY_SZ];
+		uint8_t  q_max_y[N_ARY_SZ];
+		uint8_t  q_max_z[N_ARY_SZ];
+
+
+		Node() : p(0.0f, 0.0f, 0.0f), e0 {0}, e1{ 0 }, e2{ 0 }, base_index_child(0), base_index_triangle(0)
 		{
 			for(int i = 0; i < N_ARY_SZ; i++)
 			{
@@ -386,9 +405,7 @@ public:
 				q_max_z[i] = 0u;
 			}
 		};
-
 		~Node() = default;
-
 		/// <summary>
 		/// Decompresses the node and extracts max 8 child nodes 
 		/// </summary>
@@ -400,16 +417,16 @@ public:
 			int num_internal_nodes = 0;
 			int index = 0;
 
-			uint32_t e0, e1, e2;
+			uint32_t e00, e11, e22;
 			float e0_f, e1_f, e2_f;
 
-			e0 = uint32_t(e[0]) << 23;
-			e1 = uint32_t(e[1]) << 23;
-			e2 = uint32_t(e[2]) << 23;
+			e00 = uint32_t(e0) << 23;
+			e11 = uint32_t(e1) << 23;
+			e22 = uint32_t(e2) << 23;
 
-			e0_f = *reinterpret_cast<float*>(&e0);
-			e1_f = *reinterpret_cast<float*>(&e1);
-			e2_f = *reinterpret_cast<float*>(&e2);
+			e0_f = *reinterpret_cast<float*>(&e00);
+			e1_f = *reinterpret_cast<float*>(&e11);
+			e2_f = *reinterpret_cast<float*>(&e22);
 
 			for(int i = 0; i < N_ARY_SZ; i++)
 			{
@@ -423,25 +440,31 @@ public:
 					dnodes[index].aabb.max.y = p.y + e1_f * float(q_max_y[i]);
 					dnodes[index].aabb.max.z = p.z + e2_f * float(q_max_z[i]);
 
-					if(imask & (1 << i)) //if internal node
+					if(meta[i] & (1 << 7)) //if internal node
 					{
 						dnodes[index].data.is_leaf = false;
-						dnodes[index].data.child_index = base_index_child + num_internal_nodes++;
+						dnodes[index].data.child_index = uint32_t(base_index_child) + num_internal_nodes++;
 					}
 					else //is leaf
 					{
 						dnodes[index].data.is_leaf = true;
-						dnodes[index].data.prim_index = base_index_triangle + (meta[i] & 0b00011111); // & 0b00011111
+						dnodes[index].data.prim_index = uint32_t(base_index_triangle) + (meta[i] & 0b00011111); // & 0b00011111
 
+						//check the second last and third last MSB bits for binary encoded triangle count
+						uint num_primitives = uint((meta[i] & 0b01100000) >> 5);
+
+						/*
 						uint32_t num_set_bits = 0;
 						for(int j = 0; j < LEAF_PRIM_COUNT; j++)
 						{
+
 							if(meta[i] & (1u << (j + 5))) //if triangle present
 							{
 								num_set_bits++;
 							}
-						}
-						dnodes[index].data.num_prims = num_set_bits - 1;
+						}*/
+
+						dnodes[index].data.num_prims = num_primitives - 1;
 					}
 					index++;
 				}
@@ -505,11 +528,10 @@ public:
 			assert((u_ez & 0b10000000011111111111111111111111) == 0);
 
 			//Store 8 bit exponent
-			cwnode.e[0] = u_ex >> 23;
-			cwnode.e[1] = u_ey >> 23;
-			cwnode.e[2] = u_ez >> 23;
+			cwnode.e0 = u_ex >> 23;
+			cwnode.e1 = u_ey >> 23;
+			cwnode.e2 = u_ez >> 23;
 
-			cwnode.imask = 0;
 			cwnode.base_index_child = wnode.base_index_child;
 			cwnode.base_index_triangle = wnode.base_tri_index;
 
@@ -531,8 +553,12 @@ public:
 				{
 					uint32_t triangle_count = child_node.data.num_prims + 1;
 
-					for(uint32_t j = 0; j < triangle_count; j++)
-						cwnode.meta[i] |= (1 << (j + 5));
+					uint8_t tcount = static_cast<uint8_t>(triangle_count);
+
+					cwnode.meta[i] |= (tcount << 5);
+
+					//for(uint32_t j = 0; j < triangle_count; j++)
+						//cwnode.meta[i] |= (1 << (j + 5));
 
 					cwnode.meta[i] |= num_triangles; //base index relative to triangle
 					num_triangles += triangle_count;
@@ -540,7 +566,7 @@ public:
 				else
 				{
 					cwnode.meta[i] = (i + 24) | 0b00100000; // 32
-					cwnode.imask |= (1 << i);
+					cwnode.meta[i] |= (1 << 7);
 				}
 			}
 		}
