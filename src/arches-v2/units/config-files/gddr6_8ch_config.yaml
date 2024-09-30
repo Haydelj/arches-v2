@@ -13,19 +13,21 @@ MemorySystem:
   clock_ratio: 2
 
   DRAM:
-    impl: GDDR6
+    impl: GDDR6A
     org:
       preset: GDDR6_32Gb_x16_8ch
       channel_width: 32
     timing:
       preset: GDDR6_16000_1350mV_quad 
 
-  Controller:
+  ControllerA:
     impl: Generic
     Scheduler:
       impl: FRFCFS
     RefreshManager:
       impl: AllBank
+    RowPolicy:
+      impl: OpenRowPolicy
     wr_low_watermark: 0.3
     wr_high_watermark: 0.7
     plugins:
