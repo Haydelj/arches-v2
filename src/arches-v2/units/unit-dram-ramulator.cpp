@@ -129,7 +129,7 @@ bool UnitDRAMRamulator::_store(const MemoryRequest& request, uint channel_index)
 void UnitDRAMRamulator::clock_rise()
 {
 	_request_network.clock();
-
+	
 	for(uint channel_index = 0; channel_index < _channels.size(); ++channel_index)
 	{
 		if(!_request_network.is_read_valid(channel_index)) continue;
@@ -139,12 +139,17 @@ void UnitDRAMRamulator::clock_rise()
 		if (request.type == MemoryRequest::Type::STORE)
 		{
 			if (_store(request, channel_index))
+			{
 				_request_network.read(channel_index);
+			}
 		}
 		else if (request.type == MemoryRequest::Type::LOAD)
 		{
 			if (_load(request, channel_index))
+			{
 				_request_network.read(channel_index);
+				pending_requests++;
+			}
 		}
 
 		if(!_busy)
@@ -160,11 +165,11 @@ void UnitDRAMRamulator::clock_fall()
 	for (uint i = 0; i < clock_ratio; ++i)
 		ramulator2_memorysystem->tick();
 
-	/*if(_busy && !ramulator2_memorysystem->ramu_is_busy()) TODO
+	if(_busy && (pending_requests == 0))
 	{
 		_busy = false;
 		simulator->units_executing--;
-	}*/
+	}
 
 	++_current_cycle;
 	for(uint channel_index = 0; channel_index < _channels.size(); ++channel_index)
@@ -184,6 +189,7 @@ void UnitDRAMRamulator::clock_fall()
 				_return_network.write(ret, channel_index);
 				free_return_ids.push(ramulator_return.return_id);
 				channel.return_queue.pop();
+				pending_requests--;
 			}
 		}
 	}
