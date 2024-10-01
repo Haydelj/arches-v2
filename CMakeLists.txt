@@ -50,6 +50,6 @@ message("Done configuring argparse.")
 
 add_subdirectory("src")
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/datasets)
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/datasets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-endif()
+# if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/datasets)
+#     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/datasets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# endif()
