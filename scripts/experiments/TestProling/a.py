@@ -1,6 +1,6 @@
 import os
 from subprocess import PIPE, run
-EXE_PATH = R"..\..\..\build\src\arches-v2\Release\Arches-v2.exe"
+EXE_PATH = R"..\..\..\build\src\arches-v2\Release\arches-v2.exe"
 
 default_config = {}
 default_config["scene_name"] = "sponza"
@@ -9,12 +9,12 @@ default_config["framebuffer_height"] = 256
 default_config["traversal_scheme"] = 0
 default_config["simulator"] = 1 # 0 - trax, 1 - dual-streaming
 
-# scene_list = ["sponza", "san-miguel", "hairball"]
-scene_list = ["san-miguel"]
-size_list = [256]
-scheme_list = [1]
-early_list = [1]
-delay_list = [1]
+scene_list = ["sponza", "san-miguel"]
+# scene_list = ["sponza"]
+size_list = [1024]
+# scheme_list = [1]
+# early_list = [0]
+# delay_list = []
 # size_list = [1024]
 # scheme_list = [0, 1]
 
@@ -35,10 +35,10 @@ def run_config(config: dict, os_run: bool = True):
     scene = config["scene_name"]
     size = str(config["framebuffer_width"])
     test_name = simulator + "_" + scene + "_" + size
-    if simulator == "DualStreaming":
-        early = "Early" if config["use_early"] == 1 else "NoEarly"
-        scheme = "BFS" if config["traversal_scheme"] == 0 else "DFS"
-        test_name = test_name + "_" + early + "_" + scheme
+    # if simulator == "DualStreaming":
+    #     early = "Early" if config["use_early"] == 1 else "NoEarly"
+    #     scheme = "BFS" if config["traversal_scheme"] == 0 else "DFS"
+    #     test_name = test_name + "_" + early + "_" + scheme
 
 
     if os_run:
@@ -65,22 +65,14 @@ if __name__ == "__main__":
     #         config["simulator"] = 0
     #         config["framebuffer_width"] = config["framebuffer_height"] = size
     #         config["scene_name"] = scene
-    #         run_config(config, os_run=False)
+    #         run_config(config, os_run=True)
 
-    # quit()
+
     for size in size_list:
         for scene in scene_list:
-            for scheme in scheme_list:
-                for early in early_list:
-                    for delay in delay_list:
-                        config = default_config
-                        if early == 0 and delay == 1:
-                            continue
-                        config["simulator"] = 1
-                        config["framebuffer_width"] = size
-                        config["framebuffer_height"] = size
-                        config["scene_name"] = scene
-                        config["traversal_scheme"] = scheme
-                        config["use_early"] = early
-                        config["hit_delay"] = delay
-                        run_config(config, os_run=False)
+            config = default_config
+            config["simulator"] = 1
+            config["framebuffer_width"] = size
+            config["framebuffer_height"] = size
+            config["scene_name"] = scene
+            run_config(config, os_run=False)
