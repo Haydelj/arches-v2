@@ -66,8 +66,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/usimm/config-files)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/usimm/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/config-files)
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/units/ramulator/config-files)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/units/ramulator/config-files DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 file(GLOB TBB_DLLS ${PROJECT_SOURCE_DIR}/libraries/tbb/*)
