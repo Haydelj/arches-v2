@@ -308,6 +308,8 @@ public:
 	{
 		return _return_network.read(port_index);
 	}
+
+	const std::string unit_name = "Ray Staging Buffer";
 };
 
 }}}

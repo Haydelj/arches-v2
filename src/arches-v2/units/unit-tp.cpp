@@ -285,6 +285,8 @@ void UnitTP::clock_fall()
 				i_req.dst = fetch_thread_id;
 				i_req.type = MemoryRequest::Type::LOAD;
 				i_req.size = CACHE_BLOCK_SIZE;
+				i_req.unit_name = unit_name;
+				i_req.request_label = "Load Instructions";
 				_inst_cache->write_request(i_req);
 				_thread_fetch_arbiter.remove(fetch_thread_id);
 			}
@@ -376,6 +378,15 @@ void UnitTP::clock_fall()
 			_assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
 			UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
 			_set_dependancies(exec_thread_id);
+
+			req.unit_name = unit_name;
+			if (thread.instr_info.instr_type == ISA::RISCV::InstrType::LOAD)
+				req.request_label = "TP Loads Something";
+			else if (thread.instr_info.instr_type == ISA::RISCV::InstrType::STORE)
+				req.request_label = "TP Stores Something";
+			else
+				req.request_label = "TP Does Other Stuffs";
+
 			mem->write_request(req);
 		}
 		else

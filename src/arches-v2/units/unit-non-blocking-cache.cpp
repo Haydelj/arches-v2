@@ -5,7 +5,8 @@ namespace Arches {namespace Units {
 UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) : 
 	UnitCacheBase(config.size, config.block_size, config.associativity),
 	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask, config.weight_table),
-	_return_cross_bar(config.num_banks, config.num_ports)
+	_return_cross_bar(config.num_banks, config.num_ports),
+	unit_name(config.unit_name)
 {
 	_use_lfb = config.use_lfb;
 
@@ -181,7 +182,8 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		{
 			MSHR& mshr = bank.mshrs[mshr_index];
 			_push_request(mshr, request);
-			log.profile_counters[block_addr]++;
+			//log.profile_counters[block_addr]++;
+			log.request_logs[{request.unit_name, request.request_label}] += request.size;
 
 			if(mshr.state == MSHR::State::EMPTY)
 			{
@@ -209,6 +211,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 				{
 					//Missed the cache queue up a request to mem higher
 					mshr.state = MSHR::State::MISSED;
+					mshr.request_label = request.request_label;
 					bank.mshr_request_queue.push(mshr_index);
 					log.misses++;
 				}
@@ -251,10 +254,12 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 				if(lfb.state == MSHR::State::EMPTY)
 				{
 					lfb.state = MSHR::State::FILLED; //since we just filled it
+					lfb.request_label = request.request_label;
 					bank.mshr_request_queue.push(lfb_index);
 				}
 
 				log.requests++;
+				log.request_logs[{request.unit_name, request.request_label}] += request.size;
 				_request_cross_bar.read(bank_index);
 			}
 		}
@@ -262,6 +267,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		{
 			bank.uncached_write_queue.push(request);
 			log.requests++;
+			log.request_logs[{request.unit_name, request.request_label}] += request.size;
 			_request_cross_bar.read(bank_index);
 		}
 	}
@@ -292,6 +298,8 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = mshr.block_addr;
+		outgoing_request.unit_name = unit_name;
+		outgoing_request.request_label = mshr.request_label;
 		mem_higher->write_request(outgoing_request);
 		bank.mshr_request_queue.pop();
 	}
@@ -309,6 +317,8 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = mshr.block_addr;
+		outgoing_request.unit_name = unit_name;
+		outgoing_request.request_label = mshr.request_label;
 		std::memcpy(outgoing_request.data, mshr.block_data, _block_size);
 		mem_higher->write_request(outgoing_request);
 

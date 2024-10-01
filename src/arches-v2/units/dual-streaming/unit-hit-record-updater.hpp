@@ -324,6 +324,8 @@ public:
 	void clock_rise() override;
 
 	void clock_fall() override;
+
+	const std::string unit_name = "Hit Record Updater";
 };
 
 }}}

@@ -37,6 +37,9 @@ public:
 	uint16_t dst;
 	uint16_t port;
 
+	std::string unit_name; // From which unit?
+	std::string request_label; // What is the data used for?
+
 	union
 	{
 		paddr_t paddr;
@@ -71,6 +74,10 @@ public:
 		port = other.port;
 		paddr = other.paddr;
 		std::memcpy(data, other.data, other.size);
+
+		unit_name = other.unit_name;
+		request_label = other.request_label;
+
 		return *this;
 	}
 };

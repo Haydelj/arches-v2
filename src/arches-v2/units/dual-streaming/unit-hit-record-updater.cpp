@@ -197,6 +197,8 @@ void UnitHitRecordUpdater::issue_requests(uint channel_index)
 		MemoryRequest req = channel.write_queue.front();
 		channel.write_queue.pop();
 		req.port = port_in_main_memory;
+		req.unit_name = unit_name;
+		req.request_label = "Write Hit Record";
 		main_memory->write_request(req);
 		requested = true;
 	}
@@ -206,6 +208,8 @@ void UnitHitRecordUpdater::issue_requests(uint channel_index)
 		MemoryRequest req = channel.read_queue.front();
 		channel.read_queue.pop();
 		req.port = port_in_main_memory;
+		req.unit_name = unit_name;
+		req.request_label = "Load Hit Record";
 		main_memory->write_request(req);
 		requested = true;
 	}

@@ -31,6 +31,8 @@ public:
 		std::vector<UnitMemoryBase*> mem_highers{nullptr};
 		uint                         mem_higher_port_offset{0};
 		uint                         mem_higher_port_stride{1};
+
+		std::string unit_name;
 	};
 
 	struct PowerConfig
@@ -93,6 +95,8 @@ protected:
 		uint8_t lru{0u};  //This is used for LFB (Line Fill Buffer) mode
 		uint128_t write_mask{0x0}; //This is used for LFB mode
 		uint8_t block_data[128]; //This is used for LFB mode
+
+		std::string request_label;
 
 		MSHR() = default;
 
@@ -164,6 +168,8 @@ public:
 		};
 		std::map<paddr_t, uint64_t> profile_counters;
 
+		std::map<std::pair<std::string, std::string>, uint64_t> request_logs;
+
 	public:
 		Log() { reset(); }
 
@@ -173,6 +179,8 @@ public:
 				counters[i] = 0;
 
 			profile_counters.clear();
+
+			request_logs.clear();
 		}
 
 		void accumulate(const Log& other)
@@ -182,14 +190,33 @@ public:
 
 			for(auto& a : other.profile_counters)
 				profile_counters[a.first] += a.second;
+
+			for (auto& a : other.request_logs)
+			{
+				request_logs[a.first] += a.second;
+			}
 		}
 
 		uint64_t get_total() { return hits + misses; }
 		uint64_t get_total_data_array_accesses() { return data_array_reads + data_array_writes; }
 
+		void print_request_logs(cycles_t cycles, uint units = 1)
+		{
+			printf("\n====================== Detailed Bandwidth Utilization: ======================\n\n");
+			for (auto& a : request_logs)
+			{
+				auto [unit_name, request_label] = a.first;
+				uint64_t bytes = a.second;
+				printf("Unit name: %s, Request label: %s, Bandwidth Utilization: %.1f bytes/cycle\n", unit_name.c_str(), request_label.c_str(), (double)bytes / units / cycles);
+			}
+			printf("\n=============================================================================\n\n");
+		}
+
 		void print(cycles_t cycles, uint units = 1, PowerConfig power_config = PowerConfig())
 		{
 			uint64_t total = get_total();
+
+			print_request_logs(cycles);
 
 			printf("Read Bandwidth: %.1f bytes/cycle\n", (float)bytes_read / units / cycles);
 
@@ -225,6 +252,7 @@ public:
 		}
 	}
 	log;
+	std::string unit_name;
 };
 
 }

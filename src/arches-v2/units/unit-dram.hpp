@@ -91,6 +91,7 @@ public:
 			};
 			uint64_t counters[NUM_COUNTERS];
 		};
+		std::map<std::pair<std::string, std::string>, uint64_t> request_logs;
 
 		Log() { reset(); }
 
@@ -98,17 +99,38 @@ public:
 		{
 			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] = 0;
+			
+			request_logs.clear();
 		}
 
 		void accumulate(const Log& other)
 		{
 			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] += other.counters[i];
+			
+			for (auto& a : other.request_logs)
+			{
+				request_logs[a.first] += a.second;
+			}
+		}
+
+		void print_request_logs(cycles_t cycles, uint units = 1)
+		{
+			printf("\n====================== Detailed Bandwidth Utilization: ======================\n\n");
+			for (auto& a : request_logs)
+			{
+				auto [unit_name, request_label] = a.first;
+				uint64_t bytes = a.second;
+				printf("Unit name: %s, Request label: %s, Bandwidth Utilization: %.1f bytes/cycle\n", unit_name.c_str(), request_label.c_str(), (double)bytes / units / cycles);
+			}
+			printf("\n=============================================================================\n\n");
 		}
 
 		void print(cycles_t cycles, uint units = 1)
 		{
 			uint64_t total = loads + stores;
+
+			print_request_logs(cycles);
 
 			printf("Read Bandwidth: %.1f bytes/cycle\n", (double)bytes_read / units / cycles);
 			printf("Write Bandwidth: %.1f bytes/cycle\n", (double)bytes_written / units / cycles);
@@ -120,6 +142,7 @@ public:
 		}
 	}
 	log;
+	const std::string unit_name = "DRAM";
 };
 
 }}

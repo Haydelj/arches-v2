@@ -229,6 +229,7 @@ public:
 		#endif
 		}
 	}log;
+	const std::string unit_name = "TP";
 };
 
 }

@@ -393,6 +393,9 @@ void UnitStreamScheduler::clock_fall()
 		request.port = _l2_cache_port;
 		request.size = _block_size;
 
+		request.unit_name = unit_name;
+		request.request_label = "Prefetch Scene Data";
+
 		_l2_cache->write_request(request);
 		_l2_cache_prefetch_queue.pop();
 	}
@@ -512,6 +515,10 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		req.port = mem_higher_port_index;
 		req.dst = dst_tm;
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
+
+		req.unit_name = unit_name;
+		req.request_label = "Load Ray Data";
+
 		_main_mem->write_request(req);
 
 		channel.bytes_requested += _block_size;
@@ -530,6 +537,10 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		req.port = mem_higher_port_index;
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
 		std::memcpy(req.data, ((uint8_t*)&bucket) + channel.bytes_requested, _block_size);
+
+		req.unit_name = unit_name;
+		req.request_label = "Write Ray Data";
+
 		_main_mem->write_request(req);
 
 		channel.bytes_requested += _block_size;

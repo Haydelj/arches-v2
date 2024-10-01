@@ -372,6 +372,8 @@ public:
 		}
 	}
 	log;
+
+	const std::string unit_name = "Stream Scheduler";
 };
 
 }

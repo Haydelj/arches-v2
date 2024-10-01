@@ -139,12 +139,19 @@ void UnitDRAMRamulator::clock_rise()
 		if (request.type == MemoryRequest::Type::STORE)
 		{
 			if (_store(request, channel_index))
+			{
+				log.request_logs[{request.unit_name, request.request_label}] += request.size;
 				_request_network.read(channel_index);
+			}
 		}
 		else if (request.type == MemoryRequest::Type::LOAD)
 		{
 			if (_load(request, channel_index))
+			{
+				log.request_logs[{request.unit_name, request.request_label}] += request.size;
 				_request_network.read(channel_index);
+			}
+				
 		}
 
 		if(!_busy)

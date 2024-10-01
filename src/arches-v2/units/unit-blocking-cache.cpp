@@ -6,7 +6,8 @@ UnitBlockingCache::UnitBlockingCache(Configuration config) :
 	UnitCacheBase(config.size, config.block_size, config.associativity),
 	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
 	_return_cross_bar(config.num_banks, config.num_ports),
-	_banks(config.num_banks, {config.latency, config.cycle_time})
+	_banks(config.num_banks, {config.latency, config.cycle_time}),
+	unit_name(config.unit_name)
 {
 	_mem_higher = config.mem_higher;
 	_mem_higher_port_offset = config.mem_higher_port_offset;
@@ -29,6 +30,13 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 	{
 		if(!bank.tag_array_pipline.is_read_valid() || !bank.data_array_pipline.is_write_valid()) return;
 		bank.current_request = bank.tag_array_pipline.read();
+
+		{
+			// Log it here
+			auto& request = bank.current_request;
+			log.request_logs[{request.unit_name, request.request_label}] += request.size;
+		}
+		auto& request = bank.current_request;
 
 		if(bank.current_request.type == MemoryRequest::Type::LOAD
 			|| bank.current_request.type == MemoryRequest::Type::PREFECTH)
@@ -103,6 +111,8 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
 				request.dst = 0;
+				request.unit_name = unit_name;
+				request.request_label = bank.current_request.request_label;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}
@@ -110,6 +120,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 			{
 				MemoryRequest request = bank.current_request;
 				request.port = mem_higher_port_index;
+				request.unit_name = unit_name;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::IDLE;
 			}
@@ -121,6 +132,8 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
 				request.dst = (uint16_t)~0;
+				request.unit_name = unit_name;
+				request.request_label = bank.current_request.request_label;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}
