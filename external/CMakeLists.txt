@@ -48,6 +48,8 @@ foreach(Source IN LISTS ALL_SOURCES)
   endif()
 endforeach()
 
+list(REMOVE_ITEM NEW_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ramulator2/src/base/config.cpp")
+
 add_library(Ramulator STATIC ${NEW_INCLUDE} ${NEW_SOURCES})
 target_include_directories(Ramulator PUBLIC ${PROJECT_SOURCE_DIR}/external/ramulator2/src)
 target_include_directories(Ramulator PUBLIC ${argparse_SOURCE_DIR}/include)
