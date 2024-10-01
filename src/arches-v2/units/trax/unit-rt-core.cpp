@@ -16,6 +16,8 @@ UnitRTCore<BVHT>::UnitRTCore<BVHT>(const Configuration& config) :
 		_ray_states[i].phase = RayState::Phase::NONE;
 		_free_ray_ids.insert(i);
 	}
+
+	unit_name = config.unit_name;
 }
 template<typename BVHT>
 void UnitRTCore<BVHT>::clock_rise()
@@ -410,6 +412,7 @@ void UnitRTCore<BVHT>::_issue_requests()
 		request.dst = _fetch_queue.front().dst;
 		request.paddr = _fetch_queue.front().addr;
 		request.port = _num_tp;
+		request.unit_name = unit_name;
 		_cache->write_request(request);
 		_fetch_queue.pop();
 	}

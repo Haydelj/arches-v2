@@ -24,6 +24,8 @@ public:
 		paddr_t treelet_base_addr;
 
 		UnitMemoryBase* cache;
+
+		const char* unit_name = "Treelet RT Core";
 	};
 
 private:

@@ -28,12 +28,11 @@ public:
 
 		UnitRayStagingBuffer* rsb;
 		UnitMemoryBase* cache;
+
+		const char* unit_name = "Treelet RT Core";
 	};
 
 private:
-
-
-
 	struct RayState
 	{
 		struct NodeStackEntry

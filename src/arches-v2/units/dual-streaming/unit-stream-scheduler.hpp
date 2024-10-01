@@ -71,6 +71,8 @@ public:
 		UnitMainMemoryBase* main_mem{nullptr};
 		uint                main_mem_port_offset{0};
 		uint                main_mem_port_stride{1};
+
+		const char* unit_name = "Stream Scheduler";
 	};
 
 public:
@@ -289,6 +291,8 @@ public:
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;
+
+		unit_name = config.unit_name;
 	}
 
 	void clock_rise() override;

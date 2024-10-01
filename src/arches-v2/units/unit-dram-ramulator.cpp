@@ -8,7 +8,16 @@ namespace Arches { namespace Units {
 UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint64_t size) : UnitMainMemoryBase(size),
 	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(NUM_DRAM_CHANNELS, num_ports)
 {
-	config_path = "./config-files/gddr6_8ch_config.yaml";
+	TCHAR exePath[MAX_PATH];
+	GetModuleFileName(NULL, exePath, MAX_PATH);
+	std::wstring fullPath(exePath);
+	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
+	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
+
+	std::string config_filename = "../config-files/gddr6_8ch_config.yaml";
+	std::string abs_path = current_folder_path + config_filename;
+	config_path = abs_path;
+	
 	YAML::Node config = Ramulator::Config::parse_config_file(config_path, {});
 	ramulator2_frontend = Ramulator::Factory::create_frontend(config);
 	ramulator2_memorysystem = Ramulator::Factory::create_memory_system(config);
@@ -21,6 +30,8 @@ UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint64_t size) : UnitMainMe
 	ramulator2_memorysystem->connect_frontend(ramulator2_frontend);
 
 	_channels.resize(NUM_DRAM_CHANNELS);
+
+	unit_name = "DRAM";
 }
 
 UnitDRAMRamulator::~UnitDRAMRamulator() /*override*/
@@ -139,12 +150,19 @@ void UnitDRAMRamulator::clock_rise()
 		if (request.type == MemoryRequest::Type::STORE)
 		{
 			if (_store(request, channel_index))
+			{
 				_request_network.read(channel_index);
+				log.log_request(request);
+			}
 		}
-		else if (request.type == MemoryRequest::Type::LOAD)
+		else if (request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFETCH)
 		{
 			if (_load(request, channel_index))
+			{
 				_request_network.read(channel_index);
+				log.log_request(request);
+			}
+				
 		}
 
 		if(!_busy)

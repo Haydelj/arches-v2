@@ -14,6 +14,9 @@ UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) :
 	_mem_higher_port_stride = config.mem_higher_port_stride;
 
 	_banks.resize(config.num_banks, {config.num_mshr, config.latency});
+
+	unit_name = config.unit_name;
+	log.memory_ranges = config.memory_ranges;
 }
 
 UnitNonBlockingCache::~UnitNonBlockingCache()
@@ -79,7 +82,7 @@ uint UnitNonBlockingCache::_fetch_or_allocate_mshr(uint bank_index, uint64_t blo
 void UnitNonBlockingCache::_push_request(MSHR& mshr, const MemoryRequest& request)
 {
 	//prefetch requests don't produce a sub entry
-	if(request.type != MemoryRequest::Type::PREFECTH)
+	if(request.type != MemoryRequest::Type::PREFETCH)
 	{
 		MSHR::SubEntry sub_entry;
 		sub_entry.offset = _get_block_offset(request.paddr);
@@ -168,7 +171,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 	paddr_t block_addr = _get_block_addr(request.paddr);
 	paddr_t block_offset = _get_block_offset(request.paddr);
 
-	if(request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFECTH)
+	if(request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFETCH)
 	{
 		//Try to fetch an mshr for the line or allocate a new mshr for the line
 		uint mshr_index = _fetch_or_allocate_mshr(bank_index, block_addr, MSHR::Type::READ);
@@ -181,7 +184,8 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		{
 			MSHR& mshr = bank.mshrs[mshr_index];
 			_push_request(mshr, request);
-			log.profile_counters[block_addr]++;
+			//log.profile_counters[block_addr]++;
+			log.log_request(request);
 
 			if(mshr.state == MSHR::State::EMPTY)
 			{
@@ -209,6 +213,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 				{
 					//Missed the cache queue up a request to mem higher
 					mshr.state = MSHR::State::MISSED;
+					mshr.request_type = request.type;
 					bank.mshr_request_queue.push(mshr_index);
 					log.misses++;
 				}
@@ -255,6 +260,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 				}
 
 				log.requests++;
+				log.log_request(request);
 				_request_cross_bar.read(bank_index);
 			}
 		}
@@ -262,6 +268,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		{
 			bank.uncached_write_queue.push(request);
 			log.requests++;
+			log.log_request(request);
 			_request_cross_bar.read(bank_index);
 		}
 	}
@@ -288,10 +295,16 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		_assert(mshr.state == MSHR::State::MISSED);
 
 		MemoryRequest outgoing_request;
-		outgoing_request.type = MemoryRequest::Type::LOAD;
+		outgoing_request.type = mshr.request_type;
+		//if (outgoing_request.type == MemoryRequest::Type::PREFETCH)
+		//{
+		//	printf("gg");
+		//	exit(0);
+		//}
 		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = mshr.block_addr;
+		outgoing_request.unit_name = unit_name;
 		mem_higher->write_request(outgoing_request);
 		bank.mshr_request_queue.pop();
 	}
@@ -309,6 +322,7 @@ bool UnitNonBlockingCache::_try_request_lfb(uint bank_index)
 		outgoing_request.size = _block_size;
 		outgoing_request.port = mem_higher_port_index;
 		outgoing_request.paddr = mshr.block_addr;
+		outgoing_request.unit_name = unit_name;
 		std::memcpy(outgoing_request.data, mshr.block_data, _block_size);
 		mem_higher->write_request(outgoing_request);
 

@@ -30,6 +30,8 @@ public:
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{ 0 };
 		uint                main_mem_port_stride{ 1 };
+
+		const char* unit_name = "Scene Buffer";
 	};
 
 	struct PowerConfig
@@ -189,6 +191,8 @@ public:
 		_banks.resize(config.num_banks, config.latency);
 		_channels.resize(config.num_channels);
 		_data_u8.resize(config.size);
+
+		unit_name = config.unit_name;
 	}
 
 	void clock_rise() override;

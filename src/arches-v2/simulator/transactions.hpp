@@ -7,6 +7,15 @@
 
 namespace Arches {
 
+struct MemoryRange
+{
+	paddr_t paddr;
+	const char* data_type = nullptr;
+	bool operator < (const MemoryRange& other) const
+	{
+		return paddr < other.paddr;
+	};
+};
 struct MemoryRequest
 {
 public:
@@ -16,7 +25,7 @@ public:
 
 		LOAD,
 		STORE,
-		PREFECTH,
+		PREFETCH,
 
 		AMO_ADD,
 		AMO_XOR,
@@ -36,6 +45,8 @@ public:
 	uint16_t flags;
 	uint16_t dst;
 	uint16_t port;
+
+	const char* unit_name; // From which unit?
 
 	union
 	{
@@ -71,6 +82,9 @@ public:
 		port = other.port;
 		paddr = other.paddr;
 		std::memcpy(data, other.data, other.size);
+
+		unit_name = other.unit_name;
+
 		return *this;
 	}
 };

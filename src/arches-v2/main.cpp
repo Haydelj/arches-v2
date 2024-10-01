@@ -12,11 +12,11 @@ int main(int argc, char* argv[])
 {
 	Arches::GlobalConfig global_config(argc, argv);
 
-	if (global_config.simulator == 0)
+	if (global_config.simulator == "trax")
 	{
 		Arches::TRaX::run_sim_trax(global_config);
 	}
-	else if (global_config.simulator == 1)
+	else if (global_config.simulator == "dual-streaming")
 	{
 		Arches::DualStreaming::run_sim_dual_streaming(global_config);
 	}

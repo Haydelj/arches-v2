@@ -11,8 +11,10 @@ datasets
 build
 
 ## log info
+results/
 *_log.txt
 *_err.txt
+*.cmdtrace
 *.pdf
 *.dat
 
