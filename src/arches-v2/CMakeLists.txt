@@ -7,9 +7,10 @@ set(PROJECT_NAME "arches-v2")
 file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.hpp" "*.h")
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
 file(GLOB_RECURSE USIMM_CONFIG CONFIGURE_DEPENDS "*.vi" "*.cfg")
+file(GLOB_RECURSE RAMU_CONFIG CONFIGURE_DEPENDS "*.yaml")
 
 # Exclude the Trax Unit Folder
-foreach(Source IN LISTS ALL_INCLUDE ALL_SOURCES USIMM_CONFIG)
+foreach(Source IN LISTS ALL_INCLUDE ALL_SOURCES USIMM_CONFIG RAMU_CONFIG)
   get_filename_component(SourceDir ${Source} DIRECTORY)
   string(FIND ${SourceDir} "/units/temp" IsExcludedFolder)
   if(${IsExcludedFolder} EQUAL -1)
@@ -41,7 +42,7 @@ foreach(Source IN LISTS ALL_SOURCES)
 endforeach()
 
 
-add_executable(${PROJECT_NAME} ${NEW_INCLUDE} ${NEW_SOURCES} ${USIMM_CONFIG})
+add_executable(${PROJECT_NAME} ${NEW_INCLUDE} ${NEW_SOURCES} ${USIMM_CONFIG} ${RAMU_CONFIG})
 
 # add_executable(${PROJECT_NAME} ${ALL_INCLUDE} ${ALL_SOURCES})
 # source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES})
