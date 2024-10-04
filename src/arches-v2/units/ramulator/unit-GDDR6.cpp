@@ -2,6 +2,7 @@
 #include "ramulator2/src/dram/lambdas.h"
 
 namespace Ramulator {
+//#define USE_DRAMPOWER
 
 class GDDR6A : public IDRAM, public Implementation {
   RAMULATOR_REGISTER_IMPLEMENTATION(IDRAM, GDDR6A, "GDDR6A", "GDDR6 Device Model for Arches")
@@ -32,7 +33,8 @@ class GDDR6A : public IDRAM, public Implementation {
       {"GDDR6_16000_1350mV_quad",  {16000,  4,  32,   32,     27,  32,   72,  104,   22,   4,  22,   3,    4,   12,   12,  10,    10,   43,   168,  140,   28,   3333,   500}},
 
     };
-	/*inline static const std::map<std::string, std::vector<double>> voltage_presets = {
+#ifdef USE_DRAMPOWER
+    inline static const std::map<std::string, std::vector<double>> voltage_presets = {
       //   name          VDD       VDDQ
       {"Default",       {1.35,     1.35}},
     };
@@ -41,7 +43,8 @@ class GDDR6A : public IDRAM, public Implementation {
       // from DRAMsim3
       // name           IDD0  IDD2N   IDD3N   IDD4R   IDD4W   IDD5B   IDD2P  IDD3P  IDD5C  IDD5F  IDD6N  IBETA
       {"Default",       {71,   60,     61,     248,    231,    286,     45,    50,     45,   135,    35,  56.25}},
-    };*/
+    };
+#else
     inline static const std::map<std::string, std::vector<double>> voltage_presets = {
         //   name          VDD      VPP
         {"Default",       {1.35,     1.8}},
@@ -51,6 +54,8 @@ class GDDR6A : public IDRAM, public Implementation {
         // name           IDD0  IDD2N   IDD3N   IDD4R   IDD4W   IDD5B   IPP0  IPP2N  IPP3N  IPP4R  IPP4W  IPP5B
         {"Default",       {71,   60,     61,     248,    231,    286,     3,    3,     3,     3,     3,     48}},
     };
+#endif // USE_DRAMPOWER
+    
   /************************************************
    *                Organization
    ***********************************************/   
@@ -68,14 +73,14 @@ class GDDR6A : public IDRAM, public Implementation {
       "ACT", 
       "PREA", "PRE",
       "RD",  "WR",  "RDA",  "WRA",
-      "REFab", "REFpb", "REFp2b",
+      "REFab", "REFpb", "REFp2b", "REFab_end"
     };
 
     inline static const ImplLUT m_command_scopes = LUT (
       m_commands, m_levels, {
         {"REFab", "rank"},  {"REFp2b",  "channel"},
         {"ACT",   "row"},
-        {"PREA", "bank"},   {"PRE",  "bank"},  {"REFpb", "bank"},
+        {"PREA", "bank"},   {"PRE",  "bank"},  {"REFpb", "bank"}, {"REFab_end",  "rank"},
         {"RD",    "column"}, {"WR",   "column"},  {"RDA",  "column"}, {"WRA",   "column"},
       }
     );
@@ -92,6 +97,7 @@ class GDDR6A : public IDRAM, public Implementation {
         {"WRA",   {false,  true,    true,    false}},
         {"REFab", {false,  false,   false,   true} }, //double check
         {"REFpb", {false,  false,   false,   true} },
+        {"REFab_end",   {false,  true,    false,   false}},
         {"REFp2b",{false,  false,   false,   true} },
       }
     );
@@ -125,15 +131,16 @@ class GDDR6A : public IDRAM, public Implementation {
   /************************************************
    *                   Power
    ***********************************************/
-    /*
+#ifdef USE_DRAMPOWER
     inline static constexpr ImplDef m_voltages = {
       "VDD", "VDDQ"
     };
-    
+
     inline static constexpr ImplDef m_currents = {
       "IDD0", "IDD2N", "IDD3N", "IDD4R", "IDD4W", "IDD5B",
       "IDD2P", "IDD3P", "IDD5C", "IDD5F", "IDD6N", "IBETA"
-    };*/
+    };
+#else
     inline static constexpr ImplDef m_voltages = {
       "VDD", "VPP"
     };
@@ -142,6 +149,7 @@ class GDDR6A : public IDRAM, public Implementation {
       "IDD0", "IDD2N", "IDD3N", "IDD4R", "IDD4W", "IDD5B",
       "IPP0", "IPP2N", "IPP3N", "IPP4R", "IPP4W", "IPP5B"
     };
+#endif // USE_DRAMPOWER
 
     inline static constexpr ImplDef m_cmds_counted = {
       "ACT", "PRE", "RD", "WR", "REF"
@@ -182,6 +190,15 @@ class GDDR6A : public IDRAM, public Implementation {
   public:
     void tick() override {
       m_clk++;
+
+      // Check if there is any future action at this cycle
+      for (int i = m_future_actions.size() - 1; i >= 0; i--) {
+        auto& future_action = m_future_actions[i];
+        if (future_action.clk == m_clk) {
+          handle_future_action(future_action.cmd, future_action.addr_vec);
+          m_future_actions.erase(m_future_actions.begin() + i);
+        }
+      }
     };
 
     void init() override {
@@ -204,6 +221,33 @@ class GDDR6A : public IDRAM, public Implementation {
       m_channels[channel_id]->update_timing(command, addr_vec, m_clk);
       m_channels[channel_id]->update_powers(command, addr_vec, m_clk);
       m_channels[channel_id]->update_states(command, addr_vec, m_clk);
+    
+      // Check if the command requires future action
+      check_future_action(command, addr_vec);
+    };
+
+    void check_future_action(int command, const AddrVec_t& addr_vec) {
+      switch (command) {
+        case m_commands("REFab"):
+            m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nRFC") - 1});
+          break;
+        default:
+          // Other commands do not require future actions
+          break;
+      }
+    }
+
+    void handle_future_action(int command, const AddrVec_t& addr_vec) {
+      int channel_id = addr_vec[m_levels["channel"]];
+      switch (command) {
+        case m_commands("REFab"):
+          m_channels[channel_id]->update_powers(m_commands("REFab_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("REFab_end"), addr_vec, m_clk);
+          break;
+        default:
+          // Other commands do not require future actions
+          break;
+      }
     };
 
     int get_preq_command(int command, const AddrVec_t& addr_vec) override {
@@ -346,11 +390,11 @@ class GDDR6A : public IDRAM, public Implementation {
 
       // Refresh timings
       // tRFC table (unit is nanosecond!)
-      constexpr int tRFC_TABLE[3][3] = {
-      //  4Gb   8Gb  16Gb
-        { 260,  360,  550}, // Normal refresh (tRFC1)
-        { 160,  260,  350}, // FGR 2x (tRFC2)
-        { 110,  160,  260}, // FGR 4x (tRFC4)
+      constexpr int tRFC_TABLE[3][4] = {
+      //  4Gb   8Gb  16Gb  32Gb
+        { 260,  360,  550, 750}, // Normal refresh (tRFC1)
+        { 160,  260,  350, 550}, // FGR 2x (tRFC2)
+        { 110,  160,  260, 350}, // FGR 4x (tRFC4)
       };
 
       // tREFI(base) table (unit is nanosecond!)
@@ -360,6 +404,7 @@ class GDDR6A : public IDRAM, public Implementation {
           case 4096:  return 0;
           case 8192:  return 1;
           case 16384: return 2;
+          case 32768: return 3;
           default:    return -1;
         }
       }(m_organization.density);
@@ -480,6 +525,7 @@ class GDDR6A : public IDRAM, public Implementation {
       // Channel Actions 
       m_actions[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Action::Rank::PREab<GDDR6A>;
       m_actions[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Action::Rank::REFab<GDDR6A>;
+      m_actions[m_levels["rank"]][m_commands["REFab_end"]] = Lambdas::Action::Rank::REFab_end<GDDR6A>;
 
       // Bank actions
       m_actions[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Action::Bank::ACT<GDDR6A>;
@@ -567,6 +613,7 @@ class GDDR6A : public IDRAM, public Implementation {
       m_powers[m_levels["rank"]][m_commands["PRE"]] = Lambdas::Power::Rank::PRE<GDDR6A>;
       m_powers[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Power::Rank::PREA<GDDR6A>;
       m_powers[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Power::Rank::REFab<GDDR6A>;
+      m_powers[m_levels["rank"]][m_commands["REFab_end"]] = Lambdas::Power::Rank::REFab_end<GDDR6A>;
 
       // register stats
       /*register_stat(s_total_background_energy).name("total_background_energy");
@@ -607,6 +654,7 @@ class GDDR6A : public IDRAM, public Implementation {
       total_power = s_total_energy / ((float)m_clk * (float)m_timing_vals("tCK_ps") / 1000.0);
     }
 
+#ifdef USE_DRAMPOWER
     double E_BG_pre(std::size_t B, double VDD, double IDD2_N, double T_BG_pre) {
         return (1.0 / B) * VDD * IDD2_N * T_BG_pre;
     };
@@ -640,6 +688,7 @@ class GDDR6A : public IDRAM, public Implementation {
     double E_ref_ab(std::size_t B, double VDD, double IDD5B, double IDD3_N, double tRFC, uint64_t N_REF) {
         return (1.0 / B) * VDD * (IDD5B - IDD3_N) * tRFC * N_REF;
     }
+#endif // USE_DRAMPOWER
 
     void process_rank_energy(PowerStats& rank_stats, Node* rank_node) {
       
@@ -652,10 +701,11 @@ class GDDR6A : public IDRAM, public Implementation {
       auto CE = [&](std::string_view current) { return m_current_vals(current); };
       double tCK_ns = (double)TS("tCK_ps") / 1000.0;
 
-      /*float rho = 0.5;
+#ifdef USE_DRAMPOWER
+      float rho = 0.5;
       int B = m_organization.count[m_levels["bank"]];
       int BG = m_organization.count[m_levels["bankgroup"]];
-      
+
       auto VXX = VE("VDD");
       auto IBeta = CE("IBETA");
       auto IXX2N = CE("IDD2N");
@@ -663,10 +713,10 @@ class GDDR6A : public IDRAM, public Implementation {
       auto IXX3N = CE("IDD3N");
       auto IXX4W = CE("IDD4W");
       auto IXX5X = CE("IDD5B");
-      auto t_CK = tCK_ns;
-      auto t_RFC = TS("nRFC") * t_CK;
-      auto t_RP = TS("nRP") * t_CK;
-      auto t_RAS = TS("nRAS") * t_CK;
+      auto t_CK_us = tCK_ns / 1000.0;
+      auto t_RFC = TS("nRFC") * t_CK_us;
+      auto t_RP = TS("nRP") * t_CK_us;
+      auto t_RAS = TS("nRAS") * t_CK_us;
       auto BL = TS("nBL");
       int DR = 4;
       auto I_rho = rho * (CE("IDD3N") - CE("IDD2N")) + CE("IDD2N");
@@ -674,17 +724,17 @@ class GDDR6A : public IDRAM, public Implementation {
       auto I_1 = (1.0 / B) * (CE("IDD3N") + (B - 1) * (rho * (CE("IDD3N") - CE("IDD2N")) + CE("IDD2N")));
       auto I_BG = I_rho + (I_1 - I_rho) * BG;
 
-      
-      rank_stats.act_background_energy = E_BG_act_shared(VE("VDD"), I_rho, rank_stats.active_cycles * tCK_ns);
-      rank_stats.pre_background_energy = E_BG_pre(B, VE("VDD"), CE("IDD2N"), rank_stats.idle_cycles * tCK_ns);
+
+      rank_stats.act_background_energy = E_BG_act_shared(VE("VDD"), I_rho, rank_stats.active_cycles * t_CK_us);
+      rank_stats.pre_background_energy = E_BG_pre(B, VE("VDD"), CE("IDD2N"), rank_stats.idle_cycles * t_CK_us);
       double act_cmd_energy = E_act(VXX, I_theta, I_1, t_RAS, rank_stats.cmd_counters[m_cmds_counted("ACT")]);
       double pre_cmd_energy = E_pre(VXX, IBeta, IXX2N, t_RP, rank_stats.cmd_counters[m_cmds_counted("PRE")]);
-      double rd_cmd_energy = E_RD(VXX, IXX4R, IXX3N, t_CK, BL, DR, rank_stats.cmd_counters[m_cmds_counted("RD")]);
-      double wr_cmd_energy = E_WR(VXX, IXX4W, IXX3N, t_CK, BL, DR, rank_stats.cmd_counters[m_cmds_counted("WR")]);
-      double ref_cmd_energy = E_ref_ab(B, VXX, IXX5X, IXX3N, t_RFC, rank_stats.cmd_counters[m_cmds_counted("REF")]);*/
-
-       rank_stats.act_background_energy = (VE("VDD") * CE("IDD3N") + VE("VPP") * CE("IPP3N")) 
-                                            * rank_stats.active_cycles * tCK_ns / 1E3;
+      double rd_cmd_energy = E_RD(VXX, IXX4R, IXX3N, t_CK_us, BL, DR, rank_stats.cmd_counters[m_cmds_counted("RD")]);
+      double wr_cmd_energy = E_WR(VXX, IXX4W, IXX3N, t_CK_us, BL, DR, rank_stats.cmd_counters[m_cmds_counted("WR")]);
+      double ref_cmd_energy = E_ref_ab(B, VXX, IXX5X, IXX3N, t_RFC, rank_stats.cmd_counters[m_cmds_counted("REF")]);
+#else
+      rank_stats.act_background_energy = (VE("VDD") * CE("IDD3N") + VE("VPP") * CE("IPP3N"))
+          * rank_stats.active_cycles * tCK_ns / 1E3;
 
       rank_stats.pre_background_energy = (VE("VDD") * CE("IDD2N") + VE("VPP") * CE("IPP2N")) 
                                             * rank_stats.idle_cycles * tCK_ns / 1E3;
@@ -702,8 +752,9 @@ class GDDR6A : public IDRAM, public Implementation {
       double wr_cmd_energy   = (VE("VDD") * (CE("IDD4W") - CE("IDD3N")) + VE("VPP") * (CE("IPP4W") - CE("IPP3N"))) 
                                       * rank_stats.cmd_counters[m_cmds_counted("WR")] * TS("nBL") * tCK_ns / 1E3;
 
-      double ref_cmd_energy  = (VE("VDD") * (CE("IDD5B")) + VE("VPP") * (CE("IPP5B"))) 
-                                      * rank_stats.cmd_counters[m_cmds_counted("REF")] * TS("nRFC") * tCK_ns / 1E3; 
+      double ref_cmd_energy = (VE("VDD") * (CE("IDD5B")) + VE("VPP") * (CE("IPP5B")))
+          * rank_stats.cmd_counters[m_cmds_counted("REF")] * TS("nRFC") * tCK_ns / 1E3;
+#endif // USE_DRAMPOWER
       //printf("refresh count = %d\n", rank_stats.cmd_counters[m_cmds_counted("REF")]);
 
       rank_stats.total_background_energy = rank_stats.act_background_energy + rank_stats.pre_background_energy;
