@@ -482,3 +482,4 @@ class GDDR6A : public IDRAM, public Implementation {
 
 }        // namespace Ramulator
 
+
