@@ -31,6 +31,7 @@ UnitTP::UnitTP(const Configuration& config) :
 		ThreadData& thread = _thread_data[i];
 		thread.stack_mem.resize(config.stack_size);
 	}
+	unit_name = "TP";
 }
 
 void UnitTP::reset()

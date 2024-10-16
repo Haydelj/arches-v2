@@ -31,8 +31,8 @@ public:
 		std::vector<UnitMemoryBase*> mem_highers{nullptr};
 		uint                         mem_higher_port_offset{0};
 		uint                         mem_higher_port_stride{1};
-
-		std::string unit_name;
+		
+		const char* unit_name;
 	};
 
 	struct PowerConfig
@@ -252,7 +252,6 @@ public:
 		}
 	}
 	log;
-	std::string unit_name;
 };
 
 }

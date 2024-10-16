@@ -12,6 +12,8 @@ public:
 	Simulator* simulator{nullptr};
 	uint64_t   unit_id{~0ull};
 
+	const char* unit_name;
+
 public:
 	UnitBase() = default;
 	virtual void clock_rise() = 0;

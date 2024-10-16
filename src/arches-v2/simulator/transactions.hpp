@@ -7,8 +7,19 @@
 
 namespace Arches {
 
+
+
 struct MemoryRequest
 {
+public:
+	static std::set<std::pair<paddr_t, const char*>> ranges;
+	const char* GetDataType(paddr_t paddr)
+	{
+		auto it = ranges.lower_bound(std::make_pair(paddr, nullptr));
+		if (it == ranges.end())
+			return nullptr;
+		return (*it).second;
+	}
 public:
 	enum class Type : uint8_t
 	{
@@ -37,8 +48,8 @@ public:
 	uint16_t dst;
 	uint16_t port;
 
-	std::string unit_name; // From which unit?
-	std::string request_label; // What is the data used for?
+	const char* unit_name; // From which unit?
+	const char* request_label; // What is the data used for?
 
 	union
 	{
