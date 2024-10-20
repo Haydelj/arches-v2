@@ -90,16 +90,16 @@ class GlobalConfig
 {
 public:
 	//simulator config
-	uint simulator = 1; //0-trax, 1-dual-streaming
+	uint simulator = 0; //0-trax, 1-dual-streaming
 	uint logging_interval = 32 * 1024;
 
 	//workload config
-	uint scene_id = 2; 
-	uint framebuffer_width = 128;
-	uint framebuffer_height = 128;
+	uint scene_id = 0; 
+	uint framebuffer_width = 256;
+	uint framebuffer_height = 256;
 	CameraConfig camera_config;
-	bool pregen_rays = 1;
-	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
+	bool pregen_rays = 0;
+	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;

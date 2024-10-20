@@ -11,6 +11,8 @@ UnitDRAM::UnitDRAM(uint num_ports, uint64_t size) : UnitMainMemoryBase(size),
 {
 	_channels.resize(numDramChannels());
 	registerUsimmListener(this);
+
+	unit_name = "DRAM";
 }
 
 //must be called before the constructor
@@ -183,15 +185,15 @@ void UnitDRAM::clock_rise()
 			if (_store(request, channel_index))
 			{
 				_request_network.read(channel_index);
-				log.request_logs[{request.unit_name, request.request_label}] += request.size;
+				log.log_request(request);
 			}
 		}
-		else if(request.type == MemoryRequest::Type::LOAD)
+		else if(request.type == MemoryRequest::Type::LOAD || request.type == MemoryRequest::Type::PREFETCH)
 		{
 			if (_load(request, channel_index))
 			{
 				_request_network.read(channel_index);
-				log.request_logs[{request.unit_name, request.request_label}] += request.size;
+				log.log_request(request);
 			}
 		}
 

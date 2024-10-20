@@ -15,6 +15,8 @@ UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 		_work_item_load_queue.push(i);
 	}
 	_active_ray_slots = _ray_states.size();
+
+	unit_name = config.unit_name;
 }
 
 bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_id)
@@ -363,14 +365,6 @@ void UnitTreeletRTCore::_issue_requests()
 		request.paddr = _fetch_queue.front().addr;
 		request.port = _num_tp;
 		request.unit_name = unit_name;
-		if (request.dst & 0x8000)
-		{
-			request.request_label = "Load Triangles";
-		}
-		else
-		{
-			request.request_label = "Load Nodes";
-		}
 		_cache->write_request(request);
 		_fetch_queue.pop();
 	}

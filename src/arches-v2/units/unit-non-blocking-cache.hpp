@@ -32,6 +32,7 @@ public:
 		uint                         mem_higher_port_offset{0};
 		uint                         mem_higher_port_stride{1};
 		
+		std::shared_ptr<std::vector<MemoryRange>> memory_ranges;
 		const char* unit_name;
 	};
 
@@ -96,7 +97,7 @@ protected:
 		uint128_t write_mask{0x0}; //This is used for LFB mode
 		uint8_t block_data[128]; //This is used for LFB mode
 
-		std::string request_label;
+		MemoryRequest::Type request_type; // Track the memory request type
 
 		MSHR() = default;
 
@@ -168,10 +169,12 @@ public:
 		};
 		std::map<paddr_t, uint64_t> profile_counters;
 
-		std::map<std::pair<std::string, std::string>, uint64_t> request_logs;
+		std::map<std::tuple<const char*, const char*, MemoryRequest::Type>, uint64_t> request_logs;
+
+		std::shared_ptr<std::vector<MemoryRange>> memory_ranges;
 
 	public:
-		Log() { reset(); }
+		Log(){ reset(); }
 
 		void reset()
 		{
@@ -181,6 +184,22 @@ public:
 			profile_counters.clear();
 
 			request_logs.clear();
+		}
+
+		const char* GetDataType(paddr_t paddr)
+		{
+			assert(!memory_ranges->empty());
+			int idx = std::upper_bound(memory_ranges->begin(), memory_ranges->end(), MemoryRange({ paddr, nullptr })) - memory_ranges->begin();
+			if (idx == memory_ranges->size())
+				return "OutOfBound / Unlabeled Data";
+			return memory_ranges->at(idx).data_type;
+		}
+
+		void log_request(const MemoryRequest& request)
+		{
+			const char* data_type = GetDataType(request.paddr);
+			auto key = std::make_tuple(request.unit_name, data_type, request.type);
+			request_logs[key] += request.size;
 		}
 
 		void accumulate(const Log& other)
@@ -202,14 +221,29 @@ public:
 
 		void print_request_logs(cycles_t cycles, uint units = 1)
 		{
-			printf("\n====================== Detailed Bandwidth Utilization: ======================\n\n");
-			for (auto& a : request_logs)
+			printf("\nBandwidth Utilization Starts:\n");
+			for (const auto& [key, value] : request_logs)
 			{
-				auto [unit_name, request_label] = a.first;
-				uint64_t bytes = a.second;
-				printf("Unit name: %s, Request label: %s, Bandwidth Utilization: %.1f bytes/cycle\n", unit_name.c_str(), request_label.c_str(), (double)bytes / units / cycles);
+				auto unit_name = std::get<0>(key);
+				auto data_type = std::get<1>(key);
+				auto request_type = std::get<2>(key);
+				uint64_t bytes = value;
+				std::string request_label = std::string(data_type);
+				if (request_type == MemoryRequest::Type::LOAD)
+				{
+					request_label = "Load " + request_label;
+				}
+				else if (request_type == MemoryRequest::Type::PREFETCH)
+				{
+					request_label = "Prefetch " + request_label;
+				}
+				else if (request_type == MemoryRequest::Type::STORE)
+				{
+					request_label = "Store " + request_label;
+				}
+				printf("Unit name: %s, Request label: %s, Bandwidth Utilization: %.1f bytes/cycle\n", unit_name, request_label.c_str(), (double)bytes / units / cycles);
 			}
-			printf("\n=============================================================================\n\n");
+			printf("Bandwidth Utilization Ends.\n\n");
 		}
 
 		void print(cycles_t cycles, uint units = 1, PowerConfig power_config = PowerConfig())
@@ -250,8 +284,7 @@ public:
 
 			return total_power;
 		}
-	}
-	log;
+	}log;
 };
 
 }

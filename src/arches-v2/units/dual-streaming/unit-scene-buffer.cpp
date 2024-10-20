@@ -81,7 +81,6 @@ void UnitSceneBuffer::issue_requests(uint channel_index)
 		req.type = MemoryRequest::Type::LOAD;
 		req.port = port_in_dram;
 		req.unit_name = unit_name;
-		req.request_label = "Prefetch Scene Data";
 		_main_memory->write_request(req);
 		channel.byte_requested += req.size;
 

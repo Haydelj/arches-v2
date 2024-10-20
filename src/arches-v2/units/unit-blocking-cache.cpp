@@ -6,12 +6,14 @@ UnitBlockingCache::UnitBlockingCache(Configuration config) :
 	UnitCacheBase(config.size, config.block_size, config.associativity),
 	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
 	_return_cross_bar(config.num_banks, config.num_ports),
-	_banks(config.num_banks, {config.latency, config.cycle_time}),
-	unit_name(config.unit_name)
+	_banks(config.num_banks, {config.latency, config.cycle_time})
 {
 	_mem_higher = config.mem_higher;
 	_mem_higher_port_offset = config.mem_higher_port_offset;
 	_mem_higher_port_stride = config.mem_higher_port_stride;
+	
+	unit_name = config.unit_name;
+	log.memory_ranges = config.memory_ranges;
 }
 
 UnitBlockingCache::~UnitBlockingCache()
@@ -33,13 +35,12 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 
 		{
 			// Log it here
-			auto& request = bank.current_request;
-			log.request_logs[{request.unit_name, request.request_label}] += request.size;
+			log.log_request(bank.current_request);
 		}
 		auto& request = bank.current_request;
 
 		if(bank.current_request.type == MemoryRequest::Type::LOAD
-			|| bank.current_request.type == MemoryRequest::Type::PREFECTH)
+			|| bank.current_request.type == MemoryRequest::Type::PREFETCH)
 		{
 			paddr_t block_addr = _get_block_addr(bank.current_request.paddr);
 			uint block_offset = _get_block_offset(bank.current_request.paddr);
@@ -87,7 +88,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 
 		bank.state = Bank::State::FILLED;
 
-		if(bank.current_request.type == MemoryRequest::Type::PREFECTH)
+		if(bank.current_request.type == MemoryRequest::Type::PREFETCH)
 			bank.state = Bank::State::IDLE;	
 	}
 }
@@ -112,7 +113,6 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.port = mem_higher_port_index;
 				request.dst = 0;
 				request.unit_name = unit_name;
-				request.request_label = bank.current_request.request_label;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}
@@ -124,7 +124,7 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::IDLE;
 			}
-			else if(bank.current_request.type == MemoryRequest::Type::PREFECTH)
+			else if(bank.current_request.type == MemoryRequest::Type::PREFETCH)
 			{
 				MemoryRequest request;
 				request.type = MemoryRequest::Type::LOAD;
@@ -133,7 +133,6 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.port = mem_higher_port_index;
 				request.dst = (uint16_t)~0;
 				request.unit_name = unit_name;
-				request.request_label = bank.current_request.request_label;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}

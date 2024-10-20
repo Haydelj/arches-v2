@@ -130,11 +130,15 @@ namespace TRaX {
 
 typedef Units::UnitNonBlockingCache UnitL1Cache;
 typedef Units::UnitNonBlockingCache UnitL2Cache;
+std::vector<MemoryRange> memory_ranges;
+std::shared_ptr<std::vector<MemoryRange>> memory_ranges_ptr;
 
 #include "trax-kernel/include.hpp"
 #include "trax-kernel/intersect.hpp"
 static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
+	memory_ranges.push_back({ heap_address, "Instructions" });
+
 	std::string scene_name = scene_names[global_config.scene_id];
 
 	TCHAR tc_exe_path[MAX_PATH];
@@ -177,24 +181,34 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
+	memory_ranges.push_back({ heap_address, "Frame Buffer" });
 
 #ifdef USE_COMPRESSED_WIDE_BVH
 	rtm::CompressedWideBVH cwbvh(bvh2);
 	mesh.reorder(cwbvh.indices);
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
+	memory_ranges.push_back({ heap_address, "BVH Nodes" });
 #else
 	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);
+	memory_ranges.push_back({ heap_address, "BVH Nodes" });
 #endif
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+	memory_ranges.push_back({ heap_address, "Triangles" });
 
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
+	memory_ranges.push_back({ heap_address, "Pregenerated Rays" });
 	//args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
 
 	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), KERNEL_ARGS_ADDRESS);
+	memory_ranges.push_back({ KERNEL_ARGS_ADDRESS + sizeof(TRaXKernelArgs), "ARGS" });
+
+	std::sort(memory_ranges.begin(), memory_ranges.end());
+	assert(std::is_sorted(memory_ranges.begin(), memory_ranges.end()));
+	memory_ranges_ptr = std::make_shared<std::vector<MemoryRange>>(memory_ranges);
 	return args;
 }
 
@@ -342,11 +356,14 @@ static void run_sim_trax(GlobalConfig global_config)
 	paddr_t heap_address = dram.write_elf(elf);
 
 	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size);
+	dram.log.memory_ranges = memory_ranges_ptr;
 
 	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
 	l2_config.mem_highers = {&dram};
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = 1;
+	l2_config.unit_name = "L2 Cache";
+	l2_config.memory_ranges = memory_ranges_ptr;
 
 	UnitL2Cache l2(l2_config);
 	simulator.register_unit(&l2);
@@ -368,6 +385,8 @@ static void run_sim_trax(GlobalConfig global_config)
 		l1d_config.mem_highers = {&l2};
 		l1d_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index;
 		l1d_config.mem_higher_port_stride = 2;
+		l1d_config.unit_name = "L1 Data Cache";
+		l1d_config.memory_ranges = memory_ranges_ptr;
 
 		l1ds.push_back(new UnitL1Cache(l1d_config));
 		simulator.register_unit(l1ds.back());
@@ -381,6 +400,8 @@ static void run_sim_trax(GlobalConfig global_config)
 			l1i_config.num_ports = num_tps_per_i_cache;
 			l1i_config.mem_higher = &l2;
 			l1i_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index + i_cache_index * 2 + 1;
+			l1i_config.unit_name = "L1 Instruction Cache";
+			l1i_config.memory_ranges = memory_ranges_ptr;
 			Units::UnitBlockingCache* i_l1 = new Units::UnitBlockingCache(l1i_config);
 			l1is.push_back(i_l1);
 			simulator.register_unit(l1is.back());
@@ -469,6 +490,13 @@ static void run_sim_trax(GlobalConfig global_config)
 	Units::UnitTP::Log tp_log;
 
 	UnitRTCore::Log rtc_log;
+
+	float dram_peak_bandwidth = std::min(NUM_DRAM_CHANNELS, 64) * CACHE_BLOCK_SIZE;
+	float l2_peak_bandwidth = std::min(num_l2_ports_per_tm * num_tms, 64u) * CACHE_BLOCK_SIZE;
+	float l1_peak_bandwidth = std::min(num_tps_per_tm, 64u) * 4 * num_tms; // 4 bytes
+	printf("DRAM peak bandwidth: %8.1f bytes/cycle\n", dram_peak_bandwidth);
+	printf("L2 Cache peak bandwidth: %8.1f bytes/cycle\n", l2_peak_bandwidth);
+	printf("L1d$ peak bandwidth: %8.1f bytes/cycle\n", l1_peak_bandwidth);
 
 	uint delta = global_config.logging_interval;
 	auto start = std::chrono::high_resolution_clock::now();

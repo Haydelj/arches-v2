@@ -26,6 +26,8 @@ public:
 		paddr_t tri_base_addr;
 
 		UnitMemoryBase* cache;
+
+		const char* unit_name = "RT Core";
 	};
 
 private:
@@ -238,7 +240,6 @@ public:
 				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / num_units / cycles);
 		};
 	}log;
-	const std::string unit_name = "RT Core";
 };
 
 }}}

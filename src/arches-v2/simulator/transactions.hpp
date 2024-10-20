@@ -7,19 +7,17 @@
 
 namespace Arches {
 
-
-
+struct MemoryRange
+{
+	paddr_t paddr;
+	const char* data_type = nullptr;
+	bool operator < (const MemoryRange& other) const
+	{
+		return paddr < other.paddr;
+	};
+};
 struct MemoryRequest
 {
-public:
-	static std::set<std::pair<paddr_t, const char*>> ranges;
-	const char* GetDataType(paddr_t paddr)
-	{
-		auto it = ranges.lower_bound(std::make_pair(paddr, nullptr));
-		if (it == ranges.end())
-			return nullptr;
-		return (*it).second;
-	}
 public:
 	enum class Type : uint8_t
 	{
@@ -27,7 +25,7 @@ public:
 
 		LOAD,
 		STORE,
-		PREFECTH,
+		PREFETCH,
 
 		AMO_ADD,
 		AMO_XOR,
@@ -49,7 +47,6 @@ public:
 	uint16_t port;
 
 	const char* unit_name; // From which unit?
-	const char* request_label; // What is the data used for?
 
 	union
 	{
@@ -87,7 +84,6 @@ public:
 		std::memcpy(data, other.data, other.size);
 
 		unit_name = other.unit_name;
-		request_label = other.request_label;
 
 		return *this;
 	}

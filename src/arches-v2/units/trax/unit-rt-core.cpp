@@ -16,6 +16,8 @@ UnitRTCore<BVHT>::UnitRTCore<BVHT>(const Configuration& config) :
 		_ray_states[i].phase = RayState::Phase::NONE;
 		_free_ray_ids.insert(i);
 	}
+
+	unit_name = config.unit_name;
 }
 template<typename BVHT>
 void UnitRTCore<BVHT>::clock_rise()
@@ -411,14 +413,6 @@ void UnitRTCore<BVHT>::_issue_requests()
 		request.paddr = _fetch_queue.front().addr;
 		request.port = _num_tp;
 		request.unit_name = unit_name;
-		if (request.dst & 0x8000)
-		{
-			request.request_label = "Load Triangles";
-		}
-		else
-		{
-			request.request_label = "Load Nodes";
-		}
 		_cache->write_request(request);
 		_fetch_queue.pop();
 	}

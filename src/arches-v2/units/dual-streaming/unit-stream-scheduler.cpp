@@ -84,7 +84,7 @@ void UnitStreamScheduler::_update_scheduler()
 
 					paddr_t base_addr = _scheduler.treelet_addr + candidate_segment * rtm::PackedTreelet::SIZE;
 					uint rays = candidate_segment == 0 ? _scheduler.num_root_rays : state.num_rays;
-					printf("Prefetching %d to l2 with %d rays:", candidate_segment, rays);
+					//printf("Prefetching %d to l2 with %d rays:", candidate_segment, rays);
 					for(uint i = 0; i < 8; ++i)
 					{
 						float median_sah = _scheduler.cheat_treelets[candidate_segment].header.median_page_sah[i];
@@ -94,13 +94,13 @@ void UnitStreamScheduler::_update_scheduler()
 						float dram_stream_cost = 16;
 						float dram_random_cost = 64;
 						float cost_diff = dram_stream_cost - first_access_chance * dram_random_cost;
-						printf("%f, ", cost_diff);
+						//printf("%f, ", cost_diff);
 
 						if(cost_diff < 0.0f)
 							for(uint j = 0; j < rtm::PackedTreelet::PREFETCH_BLOCK_SIZE; j += _block_size)
 								_l2_cache_prefetch_queue.push(base_addr + j);
 					}
-					printf("\n");
+					//printf("\n");
 				}
 			}
 
@@ -388,13 +388,11 @@ void UnitStreamScheduler::clock_fall()
 		&& _l2_cache && _l2_cache->request_port_write_valid(_l2_cache_port))
 	{
 		MemoryRequest request;
-		request.type = MemoryRequest::Type::PREFECTH;
+		request.type = MemoryRequest::Type::PREFETCH;
 		request.paddr = _l2_cache_prefetch_queue.front();
 		request.port = _l2_cache_port;
 		request.size = _block_size;
-
 		request.unit_name = unit_name;
-		request.request_label = "Prefetch Scene Data";
 
 		_l2_cache->write_request(request);
 		_l2_cache_prefetch_queue.pop();
@@ -517,7 +515,6 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
 
 		req.unit_name = unit_name;
-		req.request_label = "Load Ray Data";
 
 		_main_mem->write_request(req);
 
@@ -539,7 +536,6 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		std::memcpy(req.data, ((uint8_t*)&bucket) + channel.bytes_requested, _block_size);
 
 		req.unit_name = unit_name;
-		req.request_label = "Write Ray Data";
 
 		_main_mem->write_request(req);
 
