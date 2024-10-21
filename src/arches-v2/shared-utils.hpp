@@ -68,7 +68,13 @@ enum SCENES
 	NUMBER
 };
 
-std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "living_room" };
+const std::vector<std::string> scene_names = { 
+	"sponza", 
+	"intel-sponza", 
+	"san-miguel", 
+	"hairball", 
+	"living_room",
+};
 
 struct CameraConfig
 {
@@ -90,7 +96,7 @@ class GlobalConfig
 {
 public:
 	//simulator config
-	uint simulator = 0; //0-trax, 1-dual-streaming
+	std::string simulator = "trax"; //0-trax, 1-dual-streaming
 	uint logging_interval = 32 * 1024;
 
 	//workload config
@@ -112,6 +118,28 @@ public:
 	uint weight_scheme = 1; // 0 total, 1 average, 2 none
 
 public:
+	void print_config()
+	{
+		printf("================================= Simulation Config =====================================\n\n");
+		printf("Simulator: %s\n", simulator.c_str());
+		printf("Scene name: %s\n", scene_names[scene_id].c_str());
+		printf("Frame buffer width: %d\n", framebuffer_width);
+		printf("Frame buffer height: %d\n", framebuffer_height);
+		printf("Current ray bounce: %d\n", pregen_bounce + 1);
+
+		// Settings for specific simulator
+		if (simulator == "dual-streaming")
+		{
+			printf("Traversal scheme: %s\n", traversal_scheme == 0 ? "Breadth First" : "Depth First");
+			printf("Use scene buffer: %s\n", use_scene_buffer ? "True": "False");
+			printf("Rays on chip: %s\n", rays_on_chip ? "True" : "False");
+			printf("Hits on chip: %s\n", hits_on_chip ? "True" : "False");
+			printf("Use early termination: %s\n", use_early ? "True" : "False");
+			printf("Delay hit load: %s\n", hit_delay ? "True" : "False");
+			printf("Hit buffer size (number of hits): %d\n", hit_buffer_size);
+		}
+		printf("\n=========================================================================================\n\n");
+	}
 	GlobalConfig(int argc, char* argv[])
 	{
 		auto ParseCommand = [&](char* argv)
@@ -128,7 +156,7 @@ public:
 
 			if(key == "simulator")
 			{
-				simulator = std::stoi(value);
+				simulator = value;
 			}
 			if(key == "scene_name")
 			{
@@ -197,8 +225,6 @@ public:
 				if(std::stoi(value) == 0)
 					setvbuf(stdout, (char*)NULL, _IONBF, 0);
 			}
-
-			std::cout << key << ' ' << value << '\n';
 		};
 
 		// 0 is .exe
@@ -206,6 +232,8 @@ public:
 			ParseCommand(argv[i]);
 
 		camera_config = camera_configs[scene_id];
+
+		print_config();
 	}
 };
 }
