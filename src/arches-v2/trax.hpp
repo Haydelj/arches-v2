@@ -512,12 +512,19 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf("Cycle: %lld                 \n", simulator.current_cycle);
 		printf("Threads Launched: %d        \n", atomic_regs.iregs[0] * 64);
 		printf("                            \n");
+		printf("--------------------------------------------------------DRAM---------------------------------------------------------\n");
 		printf("DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
+		dram_delta_log.print_request_logs(delta);
+		
+		printf("--------------------------------------------------------L2 Cache-----------------------------------------------------\n");
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
-		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
-		printf("                            \n");
 		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
+		l2_delta_log.print_request_logs(delta);
+
+		printf("--------------------------------------------------------L1d$-----------------------------------------------------\n");
+		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());
+		l1d_delta_log.print_request_logs(delta);
 		printf("                             \n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
