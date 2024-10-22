@@ -11,6 +11,8 @@ UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 	_ray_states.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
 		_free_ray_ids.insert(i);
+
+	unit_name = config.unit_name;
 }
 
 bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_id)
@@ -305,6 +307,7 @@ void UnitTreeletRTCore::_issue_requests()
 		request.dst = _fetch_queue.front().dst;
 		request.paddr = _fetch_queue.front().addr;
 		request.port = _num_tp;
+		request.unit_name = unit_name;
 		_cache->write_request(request);
 		_fetch_queue.pop();
 	}

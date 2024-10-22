@@ -49,6 +49,8 @@ public:
 		UnitMainMemoryBase* main_mem;
 		uint                main_mem_port_offset{0};
 		uint                main_mem_port_stride{1};
+
+		const char* unit_name = "Hit Record Updater";
 	};
 
 
@@ -293,6 +295,8 @@ public:
 			channels.push_back({HitRecordCache(config.cache_size, config.associativity)});
 		}
 		busy = 0;
+
+		unit_name = config.unit_name;
 	}
 
 	bool request_port_write_valid(uint port_index)

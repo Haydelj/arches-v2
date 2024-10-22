@@ -33,6 +33,8 @@ public:
 		_request_network(num_tp, 1), _return_network(num_tp), num_tp(num_tp), tm_index(tm_index), _stream_scheduler(stream_scheduler), _hit_record_updater(hit_record_updater)
 	{
 		returned_hit.paddr = ~0;
+		
+		unit_name = "Ray Staging Buffer";
 	}
 
 private:

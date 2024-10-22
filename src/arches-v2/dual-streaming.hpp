@@ -221,10 +221,15 @@ namespace DualStreaming {
 typedef Units::UnitNonBlockingCache UnitL1Cache;
 typedef Units::UnitNonBlockingCache UnitL2Cache;
 
+std::vector<MemoryRange> memory_ranges;
+std::shared_ptr<std::vector<MemoryRange>> memory_ranges_ptr;
+
 #include "dual-streaming-kernel/include.hpp"
 #include "dual-streaming-kernel/intersect.hpp"
 static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
+	memory_ranges.push_back({ heap_address, "Instructions" });
+
 	std::string scene_name = scene_names[global_config.scene_id];
 
 	TCHAR tc_exe_path[MAX_PATH];
@@ -279,15 +284,35 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
+	memory_ranges.push_back({ heap_address, "Frame Buffer" });
 
 	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
+	memory_ranges.push_back({ heap_address, "Hit Records" });
+
 	args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
+	memory_ranges.push_back({ heap_address, "Scene Data" });
+
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+	memory_ranges.push_back({ heap_address, "Triangles" });
+
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
+	memory_ranges.push_back({ heap_address, "Pregenerated Rays" });
 
 	args.num_treelets = treelet_bvh.treelets.size();
 
 	main_memory->direct_write(&args, sizeof(DualStreamingKernelArgs), KERNEL_ARGS_ADDRESS);
+	memory_ranges.push_back({ KERNEL_ARGS_ADDRESS + sizeof(DualStreamingKernelArgs), "ARGS" });
+
+	// range for ray buckets
+	memory_ranges.push_back({ (paddr_t)1e15, "Ray Buckets"});
+
+	for (auto& v : memory_ranges)
+	{
+		printf("Name %s, Memory end: %lld\n", v.data_type, v.paddr);
+	}
+	std::sort(memory_ranges.begin(), memory_ranges.end());
+	assert(std::is_sorted(memory_ranges.begin(), memory_ranges.end()));
+	memory_ranges_ptr = std::make_shared<std::vector<MemoryRange>>(memory_ranges);
 	return args;
 }
 
@@ -466,7 +491,10 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	paddr_t heap_address = dram.write_elf(elf);
 
 	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config, row_size);
+	dram.log.memory_ranges = memory_ranges_ptr;
+
 	heap_address = align_to(row_size * num_channels, heap_address);
+
 	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(rtm::PackedTreelet)};
 
 	std::set<uint> unused_dram_ports;
@@ -478,6 +506,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	l2_config.mem_highers = {&dram};
 	l2_config.mem_higher_port_offset = 0;
 	l2_config.mem_higher_port_stride = 2;
+	l2_config.unit_name = "L2 Cache";
+	l2_config.memory_ranges = memory_ranges_ptr;
 	for(uint i = l2_config.mem_higher_port_offset; i < dram_ports_per_channel; i += l2_config.mem_higher_port_stride)
 		unused_dram_ports.erase(i);
 
@@ -527,7 +557,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	else
 	{
 		stream_scheduler_config.l2_cache_port = l2_config.num_ports - 1;
-		stream_scheduler_config.l2_cache = nullptr; // &l2;
+		stream_scheduler_config.l2_cache = &l2; // &l2;
 		stream_scheduler_config.max_active_segments = num_tms * 2;
 	}
 	if(global_config.rays_on_chip)
@@ -572,6 +602,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		l1d_config.mem_highers = {&l2, &scene_buffer};
 		l1d_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index;
 		l1d_config.mem_higher_port_stride = 2;
+		l1d_config.unit_name = "L1 Data Cache";
+		l1d_config.memory_ranges = memory_ranges_ptr;
 
 		l1ds.push_back(_new Units::DualStreaming::L1Cache(l1d_config, global_config.use_scene_buffer ? treelet_range : std::pair<paddr_t, paddr_t>(0ull, 0ull)));
 		simulator.register_unit(l1ds.back());
@@ -585,6 +617,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 			l1i_config.num_ports = num_tps_per_i_cache;
 			l1i_config.mem_higher = &l2;
 			l1i_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index + i_cache_index * 2 + 1;
+			l1i_config.unit_name = "L1 Instruction Cache";
+			l1i_config.memory_ranges = memory_ranges_ptr;
 			Units::UnitBlockingCache* i_l1 = _new Units::UnitBlockingCache(l1i_config);
 			l1is.push_back(i_l1);
 			simulator.register_unit(l1is.back());
@@ -691,6 +725,12 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	Units::DualStreaming::UnitSceneBuffer::Log sb_log;
 	Units::DualStreaming::UnitStreamScheduler::Log ss_log;
 
+	float dram_peak_bandwidth = std::min(NUM_DRAM_CHANNELS, (int)dram_ports_per_channel) * CACHE_BLOCK_SIZE;
+	float l2_peak_bandwidth = std::min(num_l2_ports_per_tm * num_tms, 64u) * CACHE_BLOCK_SIZE;
+	float l1_peak_bandwidth = std::min(num_tps_per_tm, 64u) * 4 * num_tms; // 4 bytes
+	printf("DRAM peak bandwidth: %8.1f bytes/cycle\n", dram_peak_bandwidth);
+	printf("L2 Cache peak bandwidth: %8.1f bytes/cycle\n", l2_peak_bandwidth);
+	printf("L1d$ peak bandwidth: %8.1f bytes/cycle\n", l1_peak_bandwidth);
 	uint delta = global_config.logging_interval;
 	auto start = std::chrono::high_resolution_clock::now();
 	simulator.execute(delta, [&]() -> void
@@ -720,20 +760,26 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		printf("                             \n");
 		printf("Scene Fill: %8.1f bytes/cycle\n", (float)sb_delta_log.bytes_written / delta);
 		printf("Scene Read: %8.1f bytes/cycle\n", (float)sb_delta_log.bytes_read / delta);
-		printf("                             \n");
+		printf("--------------------------------------------------------DRAM---------------------------------------------------------\n");
 		printf("DRAM Total: %8.1f bytes/cycle\n", (float)(dram_delta_log.bytes_read + dram_delta_log.bytes_written) / delta);
+		printf(" DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf("DRAM Write: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_written / delta);
-		printf("                             \n");
+		dram_delta_log.print_request_logs(delta);
+
+		printf("--------------------------------------------------------SRAM---------------------------------------------------------\n");
 		printf("SRAM Total: %8.1f bytes/cycle\n", (float)(sram_delta_log.bytes_read + sram_delta_log.bytes_written) / delta);
 		printf("SRAM Write: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_written / delta);
 		printf("SRAM  Read: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_read / delta);
-		printf("                             \n");
-		printf(" DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
+
+		printf("--------------------------------------------------------L2 Cache-----------------------------------------------------\n");
 		printf("  L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
+		printf("        L2$ Hit Rate: %8.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total());
+		l2_delta_log.print_request_logs(delta);
+
+		printf("--------------------------------------------------------L1d$-----------------------------------------------------\n");
 		printf(" L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
-		printf("                             \n");
-		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total());
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total());
+		l1d_delta_log.print_request_logs(delta);
 		printf("                             \n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();

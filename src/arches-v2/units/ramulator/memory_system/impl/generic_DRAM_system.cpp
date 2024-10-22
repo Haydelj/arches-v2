@@ -49,13 +49,13 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
         controller->m_impl->set_id(fmt::format("Channel {}", i));
         controller->m_channel_id = i;
         m_controllers.push_back(controller);
-        cmd_trace_files[i].open("cmd-trace-channel-" + std::to_string(i) + ".cmdtrace", std::ios::out | std::ios::in | std::ios::trunc);
-        if (!cmd_trace_files[i].is_open())
-        {
-            std::cerr << "Unable to open file: cmd-trace-channel-" << std::to_string(i) << ".cmdtrace" << std::endl;
-            exit(1);
-        }
-        controller->cmd_trace_file = &cmd_trace_files[i];
+        //cmd_trace_files[i].open("cmd-trace-channel-" + std::to_string(i) + ".cmdtrace", std::ios::out | std::ios::in | std::ios::trunc);
+        //if (!cmd_trace_files[i].is_open())
+        //{
+        //    std::cerr << "Unable to open file: cmd-trace-channel-" << std::to_string(i) << ".cmdtrace" << std::endl;
+        //    exit(1);
+        //}
+        //controller->cmd_trace_file = &cmd_trace_files[i];
       }
 
       m_clock_ratio = param<uint>("clock_ratio").required();
@@ -214,32 +214,32 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
         /*for (auto component : m_components) {
             component->finalize();
         }*/
-        std::cout << "----------------- DRAM stats -----------------" << std::endl;
-        for (int i = 0; i < cmd_trace_files.size(); ++i)
-        {
-            cmd_trace_files[i].seekg(0);
-            auto total_energy = calculate_power(&cmd_trace_files[i]);
-            cmd_trace_files[i].close();
-            //std::cout << "Total energy of Channel " << i << ": " << total_energy.total() * 1e-3/ (m_clk * get_tCK()) << " W, total = " << total_energy.total() << ", m_clk = " << m_clk << ", tCK = " << get_tCK() << std::endl;
-            dram_power[i] = total_energy.total() * 1e-3 / (m_clk * get_tCK());
-            total_dram_power += dram_power[i];
-            std::cout << "------------ Channel " << i << " ------------" << std::endl;
-            std::cout << "Total reads serviced:         " << num_read_requests[i] << std::endl;
-            std::cout << "Total writes serviced:        " << num_write_requests[i] << std::endl;
-            std::cout << "Total writes merged:          " << m_controllers[i]->s_num_write_merge << std::endl;
-            std::cout << "Read row hit rate:            " << m_controllers[i]->s_num_read_row_hits / float(num_read_requests[i]) << std::endl;
-            std::cout << "Read row miss rate:           " << m_controllers[i]->s_num_read_row_misses / float(num_read_requests[i]) << std::endl;
-            std::cout << "Read row conflict rate:       " << m_controllers[i]->s_num_read_row_conflicts / float(num_read_requests[i]) << std::endl;
-            std::cout << "Write row hit rate:           " << m_controllers[i]->s_num_write_row_hits / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
-            std::cout << "Write row miss rate:          " << m_controllers[i]->s_num_write_row_misses / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
-            std::cout << "Write row conflict rate:      " << m_controllers[i]->s_num_write_row_conflicts / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
-            std::cout << "Average read latency:         " << m_controllers[i]->s_sum_read_latency / float(num_read_requests[i]) << std::endl;
-            std::cout << "Average read queue latency:   " << m_controllers[i]->s_sum_read_queue_latency / float(num_read_requests[i]) << std::endl;
-            std::cout << "Average write latency:        " << m_controllers[i]->s_sum_write_latency / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
-            std::cout << "Dram power:                   " << dram_power[i] << "W" << std::endl;
-            std::cout << std::endl;
-        }
-        std::cout << "Total Dram power:             " << total_dram_power << "W" << std::endl;
+        //std::cout << "----------------- DRAM stats -----------------" << std::endl;
+        //for (int i = 0; i < cmd_trace_files.size(); ++i)
+        //{
+        //    cmd_trace_files[i].seekg(0);
+        //    auto total_energy = calculate_power(&cmd_trace_files[i]);
+        //    cmd_trace_files[i].close();
+        //    //std::cout << "Total energy of Channel " << i << ": " << total_energy.total() * 1e-3/ (m_clk * get_tCK()) << " W, total = " << total_energy.total() << ", m_clk = " << m_clk << ", tCK = " << get_tCK() << std::endl;
+        //    dram_power[i] = total_energy.total() * 1e-3 / (m_clk * get_tCK());
+        //    total_dram_power += dram_power[i];
+        //    std::cout << "------------ Channel " << i << " ------------" << std::endl;
+        //    std::cout << "Total reads serviced:         " << num_read_requests[i] << std::endl;
+        //    std::cout << "Total writes serviced:        " << num_write_requests[i] << std::endl;
+        //    std::cout << "Total writes merged:          " << m_controllers[i]->s_num_write_merge << std::endl;
+        //    std::cout << "Read row hit rate:            " << m_controllers[i]->s_num_read_row_hits / float(num_read_requests[i]) << std::endl;
+        //    std::cout << "Read row miss rate:           " << m_controllers[i]->s_num_read_row_misses / float(num_read_requests[i]) << std::endl;
+        //    std::cout << "Read row conflict rate:       " << m_controllers[i]->s_num_read_row_conflicts / float(num_read_requests[i]) << std::endl;
+        //    std::cout << "Write row hit rate:           " << m_controllers[i]->s_num_write_row_hits / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
+        //    std::cout << "Write row miss rate:          " << m_controllers[i]->s_num_write_row_misses / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
+        //    std::cout << "Write row conflict rate:      " << m_controllers[i]->s_num_write_row_conflicts / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
+        //    std::cout << "Average read latency:         " << m_controllers[i]->s_sum_read_latency / float(num_read_requests[i]) << std::endl;
+        //    std::cout << "Average read queue latency:   " << m_controllers[i]->s_sum_read_queue_latency / float(num_read_requests[i]) << std::endl;
+        //    std::cout << "Average write latency:        " << m_controllers[i]->s_sum_write_latency / float(num_write_requests[i] - m_controllers[i]->s_num_write_merge) << std::endl;
+        //    std::cout << "Dram power:                   " << dram_power[i] << "W" << std::endl;
+        //    std::cout << std::endl;
+        //}
+        //std::cout << "Total Dram power:             " << total_dram_power << "W" << std::endl;
 
         /*YAML::Emitter emitter;
         emitter << YAML::BeginMap;

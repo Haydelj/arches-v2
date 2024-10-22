@@ -26,6 +26,8 @@ public:
 		paddr_t tri_base_addr;
 
 		UnitMemoryBase* cache;
+
+		const char* unit_name = "RT Core";
 	};
 
 private:
