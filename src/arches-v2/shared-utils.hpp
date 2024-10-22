@@ -104,8 +104,8 @@ public:
 	uint framebuffer_width = 256;
 	uint framebuffer_height = 256;
 	CameraConfig camera_config;
-	bool pregen_rays = 0;
-	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
+	bool pregen_rays = 1;
+	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;

@@ -17,7 +17,9 @@ output_folder_name = r"TestScripting"
 configs = {}
 configs["simulator"] = ["trax", "dual-streaming"]
 configs["scene_name"] = ["sponza", "san-miguel"]
-configs["size"] = ["1024"]
+configs["size"] = ["128", "1024"]
+configs["pregen_rays"] = ["1"]
+configs["pregen_bounce"] = ["2"]
 
 
 last_level_folder = os.path.basename(current_file_dir)
@@ -32,32 +34,63 @@ if Run:
     # Let's run simulations and generate some results
     exp_instance.run(configs=configs)
 
-# quit()
 # Let's try to visualize the logs
-
 # Example 1: Comparing Mrays/s for trax and dual-streaming on 2 scenes
 # This will be a histogram
-# data_name = "MRays/s"
-# vis_configs = configs
-# vis_configs["size"] = ["512"]
-# config_names = [key for key, value in vis_configs.items()]
-# lists = vis_configs.values()
-# combinations = itertools.product(*lists)
+data_name = "MRays/s"
+vis_configs = configs
+vis_configs["size"] = ["1024"]
+config_names = [key for key, value in vis_configs.items()]
+lists = vis_configs.values()
+combinations = itertools.product(*lists)
+results = {}
+for combo in combinations:
+    config = dict(zip(config_names, combo))
+    filename = utils.HashFilename(config) + ".txt"
+    file_path = os.path.join(abs_output_dir, filename)
+    data = utils.ExtractLogInfo(file_path, data_name)
+    print(config, data)
+    if config["simulator"] not in results:
+        results[config["simulator"]] = {}
+    results[config["simulator"]][config["scene_name"]] = data
+simulators = list(results.keys())
+scenes = list(results[simulators[0]].keys())
+num_simulators = len(simulators)
+num_scenes = len(scenes)
+data = np.zeros((num_simulators, num_scenes))
+for i, simulator in enumerate(simulators):
+    for j, scene in enumerate(scenes):
+        data[i, j] = results[simulator][scene]
+bar_width = 0.15
+x_indices = np.arange(num_scenes)
+# Create bars for each method
+for i in range(num_simulators):
+    bars = plt.bar(x_indices + i * bar_width, data[i], width=bar_width, label=simulators[i])
+    # Adding numbers above the bars
+    for bar in bars:
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2, yval, f'{yval:.1f}', 
+                 ha='center', va='bottom')  # Format to one decimal place
+# Adding labels and title
+plt.xlabel('Scenes')
+plt.ylabel(data_name)
+plt.title('MRays/s comparison (bounce = {})'.format(configs["pregen_bounce"][0]))
+plt.xticks(x_indices + bar_width * (num_simulators - 1) / 2, scenes)  # Center x-ticks
+plt.legend()
+# Show the plot
+plt.tight_layout()
+plt.show()
 
-# for combo in combinations:
-#     config = dict(zip(config_names, combo))
-#     filename = utils.HashFilename(config) + ".txt"
-#     file_path = os.path.join(abs_output_dir, filename)
-#     data = utils.ExtractLogInfo(file_path, data_name)
-#     print(config, data)
 # quit()
 # Example 2: Visualize the bandwidth of two simulators on san-miguel
 # This will be some charts containing the time-varying curves
 config = {}
-config["scene_name"] = "sponza"
+config["scene_name"] = "san-miguel"
 config["size"] = "1024"
 config["simulator"] = "trax"
-memory_unit_name = "L2 Cache"
+config["pregen_rays"] = "1"
+config["pregen_bounce"] = "2"
+memory_unit_name = "DRAM"
 filename = utils.HashFilename(config) + ".txt"
 file_path = os.path.join(abs_output_dir, filename)
 trax_bandwidths = utils.GetBandwidth(file_path, memory_unit_name)
@@ -92,7 +125,7 @@ y = ds_total_bandwidth
 if smoothing:
     y = np.convolve(y, ds_kernel, mode='same')
 plt.plot(ds_cycles, y, label = "dual-streaming")
-plt.title("Trax/Dual-Streaming Bandwidth Comparison")
+plt.title("{} Bandwidth Comparison on {} (bounce = {})".format(memory_unit_name, config["scene_name"], config["pregen_bounce"] ))
 plt.legend()
 
 plt.subplot(1, 3, 2)
@@ -100,6 +133,8 @@ plt.title("Trax {} Bandwidth Utilization on {}".format(memory_unit_name, config[
 for (unit_name, request_label), bandwidths in trax_detailed_bandwidth.items():
     if len(bandwidths) == len(trax_cycles):
         smoothed = np.convolve(bandwidths, trax_kernel, mode='same')
+        if np.max(np.array(smoothed)) < 1:
+            continue
         plt.plot(trax_cycles, smoothed, label=f"{unit_name} - {request_label}")
 plt.legend()
 
@@ -108,6 +143,8 @@ plt.title("Dual-Streaming {} Bandwidth Utilization on {}".format(memory_unit_nam
 for (unit_name, request_label), bandwidths in ds_detailed_bandwidth.items():
     if len(bandwidths) == len(ds_cycles):
         smoothed = np.convolve(bandwidths, ds_kernel, mode='same')
+        if np.max(np.array(smoothed)) < 1:
+            continue
         plt.plot(ds_cycles, smoothed, label=f"{unit_name} - {request_label}")
 plt.legend()
 plt.show()

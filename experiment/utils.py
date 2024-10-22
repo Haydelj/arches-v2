@@ -29,6 +29,12 @@ def ExtractLogInfo(log_path: str, data_name: str):
         raise Exception("Data {} does not exist in log {}.".format(data_name, log_path))
     return value
         
+# Return a list
+# list[0] -> cycles list
+# list[1] -> total bandwidth at each cycle
+# list[2] -> a dict contains the detailed information at each cycle
+# list[3] -> total average bandwidth (float)
+# list[4] -> average bandwidth utilization of each data type
 def GetBandwidth(log_path: str, unit_name: str) -> list:
     cycles = []
     total_bandwidth_timeline = []
