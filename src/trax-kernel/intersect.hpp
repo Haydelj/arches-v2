@@ -355,7 +355,7 @@ inline bool intersect(const T* treelets, const rtm::Ray& ray, rtm::Hit& hit, uin
 
 
 #ifndef __riscv 
-inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays)
+inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays, bool serializeRays = false)
 {
 	const uint framebuffer_size = framebuffer_width * framebuffer_height;
 	printf("Generating bounce %d rays from %d path\n", bounce, framebuffer_size);
@@ -392,5 +392,29 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 		rays[index] = ray;
 	}
 	printf("Generated %d rays\n", num_rays);
+
+
+
+	if (serializeRays)
+	{
+		std::string resultPathName = std::filesystem::current_path().generic_string() + "/pregenRayData.bin";
+		std::ofstream file_stream(resultPathName.c_str() , std::ios::binary);
+		
+		if (file_stream.good())
+		{
+			file_stream.write((char*)rays.data(), rays.size() * sizeof(rtm::Ray));
+			if (file_stream.good())
+			{
+				printf("Serialized ray data\n");
+			}
+		}
+		else
+		{
+			fprintf(stderr, "pregen_rays: ofstream failed to open output file\n");
+		}
+
+		file_stream.close();
+	}
 }
+
 #endif

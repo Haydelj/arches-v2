@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 #include <algorithm>
+#include <filesystem>
 #endif
 
 #include <cfloat>
