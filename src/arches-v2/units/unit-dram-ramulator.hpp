@@ -13,8 +13,6 @@
 
 namespace Arches { namespace Units {
 
-#define NUM_DRAM_CHANNELS (8)
-
 class UnitDRAMRamulator : public UnitMainMemoryBase
 {
 private:
@@ -64,7 +62,7 @@ private:
 	}
 
 public:
-	UnitDRAMRamulator(uint num_clients, uint64_t size);
+	UnitDRAMRamulator(uint num_ports, uint num_channels, uint64_t size);
 	virtual ~UnitDRAMRamulator() override;
 
 	bool request_port_write_valid(uint port_index) override;

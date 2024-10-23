@@ -2,7 +2,7 @@
 #include "shared-utils.hpp"
 #include "units/trax/unit-tp.hpp"
 #include "units/trax/unit-rt-core.hpp"
-#include "units/trax/unit-treelet-rt-core.hpp"
+#include "units/trax/unit-prt-core.hpp"
 
 namespace Arches {
 
@@ -147,21 +147,24 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 
 	printf("%s\n", poject_folder.c_str());
 
-	std::string filename = data_folder + scene_name + ".obj";
-	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + "_bvh.cache";
+	std::string obj_filename = data_folder + scene_name + ".obj";
+	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + ".bvh";
 
 	TRaXKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;
 	args.framebuffer_height = global_config.framebuffer_height;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
+	heap_address = align_to(page_size, heap_address);
+	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
+	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
-	// secondary rays only
 	args.pregen_rays = global_config.pregen_rays;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
+
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
 
-	rtm::Mesh mesh(filename);
+	rtm::Mesh mesh(obj_filename);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
@@ -171,30 +174,31 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
+	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 
-	//rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
+#if TRAX_USE_COMPRESSED_WIDE_BVH
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
 
-	heap_address = align_to(page_size, heap_address);
-	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
-	heap_address += args.framebuffer_size * sizeof(uint32_t);
-
-#ifdef USE_COMPRESSED_WIDE_BVH
-	rtm::CompressedWideBVH cwbvh(bvh2);
-	mesh.reorder(cwbvh.indices);
+	rtm::CompressedWideBVH cwbvh(wbvh);
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
+
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
+	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
 #else
-	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
-	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
+	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, wbvh.nodes, heap_address);
+
+	rtm::WideTreeletBVH wtbvh(wbvh, mesh);
+	args.treelets = write_vector(main_memory, page_size, wtbvh.treelets, heap_address);
 #endif
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 
-	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
-	//args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
-
-	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), KERNEL_ARGS_ADDRESS);
+	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), TRAX_KERNEL_ARGS_ADDRESS);
 	return args;
 }
 
@@ -221,23 +225,23 @@ static void run_sim_trax(GlobalConfig global_config)
 	uint64_t stack_size = 1ull << 10; //1KB
 	uint num_threads_per_tp = 4;
 	uint num_tps_per_tm = 64;
-	uint num_tms = 64;
+	uint num_tms = 128;
 
 	//DRAM 
 	uint64_t mem_size = 1ull << 32; //4GB
 
+	uint num_channels = 16;// dram.num_channels();
+	uint64_t row_size = 8 * 1024; // dram.row_size();
+	uint64_t block_size = 64; // dram.block_size();
+
 #if 1
 	typedef Units::UnitDRAMRamulator UnitDRAM;
-	UnitDRAM dram(64, mem_size); dram.clear();
+	UnitDRAM dram(64, num_channels, mem_size); dram.clear();
 #else
 	typedef Units::UnitDRAM UnitDRAM;
 	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
 	UnitDRAM dram(64, mem_size);
 #endif
-
-	uint num_channels = 8;// dram.num_channels();
-	uint64_t row_size = 8 * 1024; // dram.row_size();
-	uint64_t block_size = 64; // dram.block_size();
 
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
@@ -245,12 +249,12 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.size = 32ull * 1024 * 1024; //32MB
+	l2_config.size = 72ull * 1024 * 1024; //72MB
 	l2_config.block_size = block_size;
 	l2_config.num_mshr = 128;
 	l2_config.associativity = 8;
 	l2_config.latency = 10;
-	l2_config.cycle_time = 4;
+	l2_config.cycle_time = 2;
 	l2_config.num_banks = 64;
 	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
 		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
@@ -283,7 +287,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	uint num_icache_per_tm = l1d_config.num_banks;
 	Units::UnitBlockingCache::Configuration l1i_config;
 	l1i_config.size = 4 * 1024;
-	l1d_config.block_size = block_size;
+	l1i_config.block_size = block_size;
 	l1i_config.associativity = 4;
 	l1i_config.latency = 1;
 	l1i_config.cycle_time = 1;
@@ -316,10 +320,10 @@ static void run_sim_trax(GlobalConfig global_config)
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 
-#ifdef USE_COMPRESSED_WIDE_BVH
-	typedef Units::TRaX::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
+#if TRAX_USE_COMPRESSED_WIDE_BVH
+	typedef Units::TRaX::UnitPRTCore<rtm::CompressedWideBVH> UnitRTCore;
 #else
-	typedef Units::TRaX::UnitRTCore<rtm::PackedBVH2> UnitRTCore;
+	typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
 #endif
 	std::vector<UnitRTCore*> rtcs;
 
@@ -351,6 +355,8 @@ static void run_sim_trax(GlobalConfig global_config)
 	UnitL2Cache l2(l2_config);
 	simulator.register_unit(&l2);
 
+	l2.deserialize(current_folder_path + "l2.cache");
+
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
 	simulator.register_unit(&atomic_regs);
 
@@ -362,7 +368,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		std::vector<Units::UnitMemoryBase*> mem_list;
 
 		l1d_config.num_ports = num_tps_per_tm;
-	#ifdef USE_RT_CORE
+	#ifdef TRAX_USE_RT_CORE
 		l1d_config.num_ports += 1; //add extra port for RT core
 	#endif
 		l1d_config.mem_highers = {&l2};
@@ -376,19 +382,19 @@ static void run_sim_trax(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::STORE] = l1ds.back();
 
 		// L1 instruction cache
-		for(uint i_cache_index = 0; i_cache_index < num_icache_per_tm; ++i_cache_index)
-		{
-			l1i_config.num_ports = num_tps_per_i_cache;
-			l1i_config.mem_higher = &l2;
-			l1i_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index + i_cache_index * 2 + 1;
-			Units::UnitBlockingCache* i_l1 = new Units::UnitBlockingCache(l1i_config);
-			l1is.push_back(i_l1);
-			simulator.register_unit(l1is.back());
-		}
+		//for(uint i_cache_index = 0; i_cache_index < num_icache_per_tm; ++i_cache_index)
+		//{
+		//	l1i_config.num_ports = num_tps_per_i_cache;
+		//	l1i_config.mem_higher = &l2;
+		//	l1i_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index + i_cache_index * 2 + 1;
+		//	Units::UnitBlockingCache* i_l1 = new Units::UnitBlockingCache(l1i_config);
+		//	l1is.push_back(i_l1);
+		//	simulator.register_unit(l1is.back());
+		//}
 
-	#ifdef USE_RT_CORE
+	#ifdef TRAX_USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 128;
+		rtc_config.max_rays = 256;
 		rtc_config.num_tp = num_tps_per_tm;
 		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
@@ -401,7 +407,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
 	#endif
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 64));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 32));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
@@ -424,13 +430,13 @@ static void run_sim_trax(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(2, 3, 1, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
+		//sfu_list.push_back(_new Units::UnitSFU(2, 3, 1, num_tps_per_tm));
+		//simulator.register_unit(sfu_list.back());
+		//unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(1, 22, 8, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
+		//sfu_list.push_back(_new Units::UnitSFU(1, 22, 8, num_tps_per_tm));
+		//simulator.register_unit(sfu_list.back());
+		//unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
 
 		for(auto& sfu : sfu_list)
 			sfus.push_back(sfu);
@@ -446,7 +452,7 @@ static void run_sim_trax(GlobalConfig global_config)
 			tp_config.tm_index = tm_index;
 			tp_config.stack_size = stack_size;
 			tp_config.cheat_memory = dram._data_u8;
-			tp_config.inst_cache = l1is[uint(tm_index * num_icache_per_tm + tp_index / num_tps_per_i_cache)];
+			//tp_config.inst_cache = l1is[uint(tm_index * num_icache_per_tm + tp_index / num_tps_per_i_cache)];
 			tp_config.num_tps_per_i_cache = num_tps_per_i_cache;
 			tp_config.unit_table = &unit_tables.back();
 			tp_config.unique_mems = &mem_lists.back();
@@ -482,7 +488,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 		printf("                            \n");
 		printf("Cycle: %lld                 \n", simulator.current_cycle);
-		printf("Threads Launched: %d        \n", atomic_regs.iregs[0] * 64);
+		printf("Threads Launched: %d        \n", atomic_regs.iregs[0]);
 		printf("                            \n");
 		printf("DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
@@ -493,6 +499,8 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf("                             \n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
+
+	l2.serialize(current_folder_path + "l2.cache");
 
 	cycles_t frame_cycles = simulator.current_cycle;
 	double frame_time = frame_cycles / clock_rate;
@@ -516,14 +524,15 @@ static void run_sim_trax(GlobalConfig global_config)
 	l1d_log.print(frame_cycles);
 	total_power += l1d_log.print_power(l1d_power_config, frame_time);
 
-	print_header("L1i$");
-	delta_log(l1i_log, l1is);
-	l1i_log.print(frame_cycles);
-	total_power += l1i_log.print_power(l1i_power_config, frame_time);
+	//print_header("L1i$");
+	//delta_log(l1i_log, l1is);
+	//l1i_log.print(frame_cycles);
+	//total_power += l1i_log.print_power(l1i_power_config, frame_time);
 
 	print_header("TP");
 	delta_log(tp_log, tps);
 	tp_log.print(frame_cycles, tps.size());
+	//tp_log.print_profile(dram._data_u8);
 
 	if(!rtcs.empty())
 	{
@@ -550,6 +559,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	print_header("Simulation Summary");
 	printf("Simulation rate: %.2f KHz\n", simulator.current_cycle / simulation_time / 1000.0);
 	printf("Simulation time: %.0f s\n", simulation_time);
+	printf("MSIPS: %.2f\n", simulator.current_cycle * tps.size() / simulation_time / 1'000'000.0);
 
 	stbi_flip_vertically_on_write(true);
 	dram.dump_as_png_uint8((paddr_t)kernel_args.framebuffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "out.png");

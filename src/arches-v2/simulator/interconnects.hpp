@@ -2,6 +2,7 @@
 #include "stdafx.hpp"
 
 #include "util/arbitration.hpp"
+#include "util/alignment-allocator.hpp"
 
 namespace Arches {
 
@@ -162,7 +163,7 @@ class RegisterArray : public InterconnectionNetwork<T>
 private:
 	//Should be much more efficent since each line has one byte and they are alligne they will likely be on the same line
 	//reads to the data only happen if pending flag is set and ack is done by clearing the pending bit
-	std::vector<bool> _pending;
+	std::vector<bool, AlignmentAllocator<bool, 64>> _pending;
 	std::vector<T>    _transactions;
 
 public:
@@ -220,7 +221,7 @@ template<typename T>
 class FIFOArray : public InterconnectionNetwork<T>
 {
 private:
-	std::vector<uint8_t>       _sizes;
+	std::vector<uint8_t, AlignmentAllocator<uint8_t, 64>> _sizes;
 	std::vector<std::queue<T>> _fifos;
 	uint8_t _max_size;
 
@@ -280,7 +281,7 @@ public:
 };
 
 
-template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
+template<typename T, typename ARB = RoundRobinArbiter<uint128_t>>
 class Cascade : public InterconnectionNetwork<T>
 {
 private:
@@ -375,7 +376,11 @@ public:
 	const T read(uint sink_index) override { return _sink_fifos.read(sink_index); }
 
 	bool is_write_valid(uint source_index) override { return _source_fifos.is_write_valid(source_index); }
-	void write(const T& transaction, uint source_index) override { _source_fifos.write(transaction, source_index); }
+	void write(const T& transaction, uint source_index) override 
+	{
+		_assert(get_sink(transaction) < num_sinks());
+		_source_fifos.write(transaction, source_index); 
+	}
 };
 
 template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>

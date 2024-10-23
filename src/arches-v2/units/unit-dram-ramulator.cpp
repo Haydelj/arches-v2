@@ -5,8 +5,8 @@ namespace Arches { namespace Units {
 
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
-UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint64_t size) : UnitMainMemoryBase(size),
-	_request_network(num_ports, NUM_DRAM_CHANNELS), _return_network(NUM_DRAM_CHANNELS, num_ports)
+UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint num_channels, uint64_t size) : UnitMainMemoryBase(size),
+	_request_network(num_ports, num_channels), _return_network(num_channels, num_ports)
 {
 	config_path = "./config-files/gddr6_8ch_config.yaml";
 	YAML::Node config = Ramulator::Config::parse_config_file(config_path, {});
@@ -20,7 +20,7 @@ UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint64_t size) : UnitMainMe
 	ramulator2_frontend->connect_memory_system(ramulator2_memorysystem);
 	ramulator2_memorysystem->connect_frontend(ramulator2_frontend);
 
-	_channels.resize(NUM_DRAM_CHANNELS);
+	_channels.resize(num_channels);
 }
 
 UnitDRAMRamulator::~UnitDRAMRamulator() /*override*/

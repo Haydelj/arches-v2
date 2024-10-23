@@ -272,7 +272,7 @@ public:
 		}
 
 		if(!succeeded)
-			printf("Failed\n");
+			printf("Failed to load BVH2: %s\n", file_path.c_str());
 
 		return succeeded;
 	}

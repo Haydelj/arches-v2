@@ -1,7 +1,7 @@
 #pragma once 
 #include "stdafx.hpp"
 
-#include "unit-memory-base.hpp"
+#include "unit-main-memory-base.hpp"
 #include "util/bit-manipulation.hpp"
 #include "util/alignment-allocator.hpp"
 
@@ -12,6 +12,9 @@ class UnitCacheBase : public UnitMemoryBase
 public:
 	UnitCacheBase(size_t size, uint block_size, uint associativity);
 	virtual ~UnitCacheBase();
+
+	void serialize(std::string file_path);
+	bool deserialize(std::string file_path);
 
 protected:
 	struct BlockMetaData

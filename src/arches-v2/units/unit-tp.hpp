@@ -13,7 +13,7 @@
 namespace Arches {
 namespace Units {
 
-#define ENABLE_PROFILER 0
+#define ENABLE_PROFILER 1
 
 class UnitTP : public UnitBase
 {

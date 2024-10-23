@@ -13,10 +13,9 @@
 
 #include "util/elf.hpp"
 #include "isa/riscv.hpp"
+#include "rtm/rtm.hpp"
 
 #include "stdafx.hpp"
-#include "rtm/packed-bvh.hpp"
-#include "rtm/packed-treelet-bvh.hpp"
 #include <Windows.h>
 
 namespace Arches {
@@ -94,12 +93,12 @@ public:
 	uint logging_interval = 32 * 1024;
 
 	//workload config
-	uint scene_id = 1; 
+	uint scene_id = 2; 
 	uint framebuffer_width = 1024;
 	uint framebuffer_height = 1024;
 	CameraConfig camera_config;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;

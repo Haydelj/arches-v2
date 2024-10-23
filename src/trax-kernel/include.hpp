@@ -1,11 +1,11 @@
 #pragma once
 #include "stdafx.hpp"
 
-#define USE_RT_CORE
-#define USE_HARDWARE_INTERSECTORS
-#define USE_COMPRESSED_WIDE_BVH
+#define TRAX_USE_RT_CORE 1
+#define TRAX_USE_HARDWARE_INTERSECTORS 1
+#define TRAX_USE_COMPRESSED_WIDE_BVH 1
 
-#define KERNEL_ARGS_ADDRESS 256ull
+#define TRAX_KERNEL_ARGS_ADDRESS 256ull
 
 struct TRaXKernelArgs
 {
@@ -19,12 +19,13 @@ struct TRaXKernelArgs
 	rtm::Camera camera;
 	rtm::vec3 light_dir;
 	rtm::Ray* rays;
-
-#ifdef USE_COMPRESSED_WIDE_BVH
+#if TRAX_USE_COMPRESSED_WIDE_BVH
 	rtm::CompressedWideBVH::Node* nodes;
+	rtm::CompressedWideTreeletBVH::Treelet* treelets;
 #else
-	rtm::PackedBVH2::Node* nodes;
+	rtm::WideBVH::Node* nodes;
+	rtm::WideTreeletBVH::Treelet* treelets;
 #endif
+	//rtm::BVH2::Node* nodes;
 	rtm::Triangle* tris;
-	void* treelets;
 };

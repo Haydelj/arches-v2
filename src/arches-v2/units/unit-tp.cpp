@@ -319,11 +319,11 @@ void UnitTP::clock_fall()
 
 		if (ENABLE_TP_DEBUG_PRINTS && last_thread.instr.data != 0)
 		{
-			//printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
-			//last_thread.instr_info.print_instr(last_thread.instr);
-			//if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());
-			//else                             printf("\t%s pipline hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)(last_thread_stall_type - 128)].c_str());
-			//printf("\033[0m\n");
+			printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
+			last_thread.instr_info.print_instr(last_thread.instr);
+			if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());
+			else                             printf("\t%s pipline hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)(last_thread_stall_type - 128)].c_str());
+			printf("\033[0m\n");
 		}
 
 		_last_thread_id = (_last_thread_id + 1) % _num_threads;

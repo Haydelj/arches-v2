@@ -2,7 +2,8 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
-UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
+template<typename TT>
+UnitTreeletRTCore<TT>::UnitTreeletRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _treelet_base_addr(config.treelet_base_addr), _hit_record_base_addr(config.hit_record_base_addr),
 	_use_early_termination(config.use_early_termination), _cache(config.cache), _rsb(config.rsb), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
 	_box_pipline(3, 1), _tri_pipline(22, 1)
@@ -17,22 +18,25 @@ UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 	_active_ray_slots = _ray_states.size();
 }
 
-bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_id)
+template<typename TT>
+bool UnitTreeletRTCore<TT>::_try_queue_node(uint ray_id, uint treelet_id, uint node_id)
 {
-	paddr_t start = (paddr_t)&((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id].nodes[node_id];
+	paddr_t start = (paddr_t)&((TT*)_treelet_base_addr)[treelet_id].nodes[node_id];
 	_assert(start < 4ull * 1204 * 1024 * 1024);
-	_fetch_queue.push({start, (uint8_t)(sizeof(rtm::PackedTreelet::Node)), (uint16_t)ray_id});
+	_fetch_queue.push({start, (uint8_t)(sizeof(TT::Node)), (uint16_t)ray_id});
 	return true;
 }
 
-bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset)
+template<typename TT>
+bool UnitTreeletRTCore<TT>::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset, uint num_tris)
 {
-	paddr_t start = (paddr_t)&((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id].bytes[tri_offset];
-	paddr_t end = start + sizeof(rtm::PackedTreelet::Triangle);
+	paddr_t start = (paddr_t)&((TT*)_treelet_base_addr)[treelet_id].data[tri_offset];
+	paddr_t end = start + sizeof(TT::Triangle) * num_tris;
 
 	_assert(start < 4ull * 1204 * 1024 * 1024);
 
 	_tri_staging_buffers[ray_id].addr = start;
+	_tri_staging_buffers[ray_id].num_tris = num_tris;
 	_tri_staging_buffers[ray_id].bytes_filled = 0;
 
 	//split request at cache boundries
@@ -40,7 +44,7 @@ bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_of
 	paddr_t addr = start;
 	while(addr < end)
 	{
-		if(addr >= (paddr_t)(&((rtm::PackedTreelet*)_treelet_base_addr)[treelet_id + 1])) __debugbreak();
+		if(addr >= (paddr_t)(&((TT*)_treelet_base_addr)[treelet_id + 1])) __debugbreak();
 
 		paddr_t next_boundry = std::min(end, block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
@@ -51,7 +55,8 @@ bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_of
 	return true;
 }
 
-void UnitTreeletRTCore::_read_requests()
+template<typename TT>
+void UnitTreeletRTCore<TT>::_read_requests()
 {
 	if(_request_network.is_read_valid(0))
 	{
@@ -74,7 +79,8 @@ void UnitTreeletRTCore::_read_requests()
 	}
 }
 
-void UnitTreeletRTCore::_read_returns()
+template<typename TT>
+void UnitTreeletRTCore<TT>::_read_returns()
 {
 	if(_rsb->return_port_read_valid(0))
 	{
@@ -145,10 +151,10 @@ void UnitTreeletRTCore::_read_returns()
 			TriStagingBuffer& buffer = _tri_staging_buffers[ray_id];
 
 			uint offset = (ret.paddr - buffer.addr);
-			std::memcpy((uint8_t*)&buffer.tri + offset, ret.data, ret.size);
+			std::memcpy((uint8_t*)buffer.tris + offset, ret.data, ret.size);
 
 			buffer.bytes_filled += ret.size;
-			if(buffer.bytes_filled == sizeof(rtm::PackedTreelet::Triangle))
+			if(buffer.bytes_filled == sizeof(TT::Triangle) * buffer.num_tris)
 			{
 				_ray_states[ray_id].phase = RayState::Phase::TRI_ISECT;
 				_tri_isect_queue.push(ray_id);
@@ -156,7 +162,7 @@ void UnitTreeletRTCore::_read_returns()
 		}
 		else
 		{
-			_assert(sizeof(rtm::PackedTreelet::Node) == ret.size);
+			_assert(sizeof(TT::Node) == ret.size);
 
 			NodeStagingBuffer buffer;
 			buffer.ray_id = ray_id;
@@ -168,7 +174,8 @@ void UnitTreeletRTCore::_read_returns()
 	}
 }
 
-void UnitTreeletRTCore::_schedule_ray()
+template<typename TT>
+void UnitTreeletRTCore<TT>::_schedule_ray()
 {
 	//pop a entry from next rays stack and queue it up
 	if(!_ray_scheduling_queue.empty())
@@ -180,30 +187,10 @@ void UnitTreeletRTCore::_schedule_ray()
 		_assert(ray_state.treelet_id < 1024 * 1024);
 		if(ray_state.nstack_size > 0)
 		{
-			RayState::NodeStackEntry& entry = ray_state.nstack[ray_state.nstack_size - 1];
+			typename RayState::NodeStackEntry& entry = ray_state.nstack[ray_state.nstack_size - 1];
 			if(entry.t < ray_state.hit.t) //pop cull
 			{
-				if(entry.data.is_leaf)
-				{
-					if(_try_queue_tri(ray_id, ray_state.treelet_id, entry.data.tri_offset))
-					{
-						ray_state.phase = RayState::Phase::TRI_FETCH;
-						if(entry.data.num_tri == 0)
-						{
-							ray_state.nstack_size--;
-						}
-						else
-						{
-							entry.data.tri_offset += sizeof(rtm::PackedTreelet::Triangle);
-							entry.data.num_tri--;
-						}
-					}
-					else
-					{
-						_ray_scheduling_queue.push(ray_id);
-					}
-				}
-				else
+				if(entry.data.is_int)
 				{
 					if(entry.data.is_child_treelet)
 					{
@@ -233,6 +220,15 @@ void UnitTreeletRTCore::_schedule_ray()
 						else _ray_scheduling_queue.push(ray_id);
 					}
 				}
+				else
+				{
+					if(_try_queue_tri(ray_id, ray_state.treelet_id, entry.data.triangle_index * 4, entry.data.num_tri))
+					{
+						ray_state.phase = RayState::Phase::TRI_FETCH;
+						ray_state.nstack_size--;
+					}
+					else _ray_scheduling_queue.push(ray_id);
+				}
 			}
 			else
 			{
@@ -242,7 +238,7 @@ void UnitTreeletRTCore::_schedule_ray()
 		}
 		else if(ray_state.tqueue_head < ray_state.tqueue_tail)
 		{
-			RayState::TreeletStackEntry& entry = ray_state.tqueue[ray_state.tqueue_head++];
+			typename RayState::TreeletStackEntry& entry = ray_state.tqueue[ray_state.tqueue_head++];
 			if(entry.t < ray_state.hit.t)
 			{
 				WorkItem work_item;
@@ -271,7 +267,8 @@ void UnitTreeletRTCore::_schedule_ray()
 	}
 }
 
-void UnitTreeletRTCore::_simualte_intersectors()
+template<typename TT>
+void UnitTreeletRTCore<TT>::_simualte_node_pipline()
 {
 	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
 	{
@@ -283,18 +280,23 @@ void UnitTreeletRTCore::_simualte_intersectors()
 		rtm::Ray& ray = ray_state.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.hit;
-		rtm::PackedTreelet::Node& node = buffer.node;
+		const typename TT::Node& node = buffer.node;
 
-		float hit_ts[2] = {rtm::intersect(node.aabb[0], ray, inv_d), rtm::intersect(node.aabb[1], ray, inv_d)};
-		if(hit_ts[0] < hit_ts[1])
+		uint max_insert_depth = ray_state.nstack_size;
+		for(int i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
 		{
-			if(hit_ts[1] < hit.t) ray_state.nstack[ray_state.nstack_size++] = {hit_ts[1], node.data[1]};
-			if(hit_ts[0] < hit.t) ray_state.nstack[ray_state.nstack_size++] = {hit_ts[0], node.data[0]};
-		}
-		else
-		{
-			if(hit_ts[0] < hit.t) ray_state.nstack[ray_state.nstack_size++] = {hit_ts[0], node.data[0]};
-			if(hit_ts[1] < hit.t) ray_state.nstack[ray_state.nstack_size++] = {hit_ts[1], node.data[1]};
+			float t = rtm::intersect(node.aabb[i], ray, inv_d);
+			if(t < hit.t)
+			{
+				uint j = ray_state.nstack_size++;
+				for(; j > max_insert_depth; --j)
+				{
+					if(ray_state.nstack[j - 1].t > t) break;
+					ray_state.nstack[j] = ray_state.nstack[j - 1];
+				}
+				ray_state.nstack[j].t = t;
+				ray_state.nstack[j].data = node.data[i];
+			}
 		}
 
 		_box_pipline.write(ray_id);
@@ -314,7 +316,62 @@ void UnitTreeletRTCore::_simualte_intersectors()
 
 		log.nodes += 2;
 	}
+}
 
+template<>
+void UnitTreeletRTCore<rtm::CompressedWideTreeletBVH::Treelet>::_simualte_node_pipline()
+{
+	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
+	{
+		NodeStagingBuffer& buffer = _node_isect_queue.front();
+
+		uint ray_id = buffer.ray_id;
+		RayState& ray_state = _ray_states[ray_id];
+
+		rtm::Ray& ray = ray_state.ray;
+		rtm::vec3& inv_d = ray_state.inv_d;
+		rtm::Hit& hit = ray_state.hit;
+		const rtm::WideTreeletBVH::Treelet::Node node = buffer.node.decompress();
+
+		uint max_insert_depth = ray_state.nstack_size;
+		for(int i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+		{
+			float t = rtm::intersect(node.aabb[i], ray, inv_d);
+			if(t < hit.t)
+			{
+				uint j = ray_state.nstack_size++;
+				for(; j > max_insert_depth; --j)
+				{
+					if(ray_state.nstack[j - 1].t > t) break;
+					ray_state.nstack[j] = ray_state.nstack[j - 1];
+				}
+				ray_state.nstack[j].t = t;
+				ray_state.nstack[j].data = node.data[i];
+			}
+		}
+
+		_box_pipline.write(ray_id);
+		_node_isect_queue.pop();
+	}
+
+	_box_pipline.clock();
+
+	if(_box_pipline.is_read_valid())
+	{
+		uint ray_id = _box_pipline.read();
+		if(ray_id != ~0u)
+		{
+			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
+			_ray_scheduling_queue.push(ray_id);
+		}
+
+		log.nodes += 2;
+	}
+}
+
+template<typename TT>
+void UnitTreeletRTCore<TT>::_simualte_tri_pipline()
+{
 	if(!_tri_isect_queue.empty() && _tri_pipline.is_write_valid())
 	{
 		uint ray_id = _tri_isect_queue.front();
@@ -326,14 +383,23 @@ void UnitTreeletRTCore::_simualte_intersectors()
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.hit;
 
-		if(rtm::intersect(buffer.tri.tri, ray, hit))
+		if(rtm::intersect(buffer.tris[_tri_isect_index].tri, ray, hit))
 		{
 			ray_state.hit_found = true;
-			hit.id = buffer.tri.id;
+			hit.id = buffer.tris[_tri_isect_index].id;
 		}
 
-		_tri_pipline.write(ray_id);
-		_tri_isect_queue.pop();
+		_tri_isect_index++;
+		if(_tri_isect_index >= buffer.num_tris)
+		{
+			_tri_isect_index = 0;
+			_tri_isect_queue.pop();
+			_tri_pipline.write(ray_id);
+		}
+		else
+		{
+			_tri_pipline.write(~0u);
+		}
 	}
 
 	_tri_pipline.clock();
@@ -351,7 +417,8 @@ void UnitTreeletRTCore::_simualte_intersectors()
 	}
 }
 
-void UnitTreeletRTCore::_issue_requests()
+template<typename TT>
+void UnitTreeletRTCore<TT>::_issue_requests()
 {
 	if(!_fetch_queue.empty() && _cache->request_port_write_valid(_num_tp))
 	{
@@ -440,7 +507,8 @@ void UnitTreeletRTCore::_issue_requests()
 	}
 }
 
-void UnitTreeletRTCore::_issue_returns()
+template<typename TT>
+void UnitTreeletRTCore<TT>::_issue_returns()
 {
 	//issue hit returns
 	if(!_hit_return_queue.empty() && _return_network.is_write_valid(0))
@@ -450,5 +518,8 @@ void UnitTreeletRTCore::_issue_returns()
 		_hit_return_queue.pop();
 	}
 }
+
+template class UnitTreeletRTCore<rtm::WideTreeletBVH::Treelet>;
+template class UnitTreeletRTCore<rtm::CompressedWideTreeletBVH::Treelet>;
 
 }}}

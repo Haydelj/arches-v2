@@ -102,37 +102,43 @@ int main(int argc, char* argv[])
 	rtm::BVH2 bvh2(dataset_path + "cache/" + scene_name + "_bvh.cache", build_objects, 2);
 	mesh.reorder(build_objects);
 
-	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
+	std::vector<rtm::Ray> rays(args.framebuffer_size);
+	if(args.pregen_rays)
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 1, rays);
+	args.rays = rays.data();
+
+#if DS_USE_COMPRESSED_WIDE_BVH
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::CompressedWideBVH cwbvh(wbvh);
+	mesh.reorder(build_objects);
+
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
+	args.treelets = cwtbvh.treelets.data();
+#else
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
+
+	rtm::WideTreeletBVH wtbvh(wbvh, mesh);
+	args.treelets = wtbvh.treelets.data();
+#endif
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
+	args.tris = tris.data();
 
 	std::vector<rtm::Hit> hit_buffer(args.framebuffer_size);
-
-	args.treelets = treelet_bvh.treelets.data();
-	args.tris = tris.data();
+	for (int i = 0; i < args.framebuffer_size; i++)
+		hit_buffer[i].t = T_MAX;
 	args.hit_records = hit_buffer.data();
 
-	for (int i = 0; i < args.framebuffer_size; i++)
-		args.hit_records[i].t = T_MAX;
-
-	std::vector<rtm::Ray> rays(args.framebuffer_size);
-	if(args.pregen_rays)
-		pregen_rays(args, 0, rays);
-	args.rays = rays.data();
-	
 	auto start = std::chrono::high_resolution_clock::now();
 
 #ifdef MULTI_THREADED
 	std::vector<std::thread> threads;
 	uint thread_count = std::thread::hardware_concurrency() - 1u;
-	for (uint i = 0; i < thread_count; ++i) 
-		threads.emplace_back(kernel, args);
+	for (uint i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
 	kernel(args);
-
-	for (uint i = 0; i < thread_count; ++i)
-		threads[i].join();
+	for (uint i = 0; i < thread_count; ++i) threads[i].join();
 #else
 	kernel(args);
 #endif

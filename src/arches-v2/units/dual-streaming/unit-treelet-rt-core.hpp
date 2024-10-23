@@ -13,6 +13,7 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
+template<typename TT>
 class UnitTreeletRTCore : public UnitMemoryBase
 {
 public:
@@ -31,15 +32,12 @@ public:
 	};
 
 private:
-
-
-
 	struct RayState
 	{
 		struct NodeStackEntry
 		{
 			float t;
-			rtm::PackedTreelet::Node::Data data;
+			rtm::WideTreeletBVH::Treelet::Node::Data data;
 		};
 
 		struct TreeletStackEntry
@@ -97,7 +95,7 @@ private:
 			lhit_returned = false;
 			nstack_size = 1;
 			nstack[0].t = ray.t_min;
-			nstack[0].data.is_leaf = 0;
+			nstack[0].data.is_int = 1;
 			nstack[0].data.is_child_treelet = 0;
 			nstack[0].data.child_index = 0;
 			tqueue_head = 0;
@@ -108,14 +106,15 @@ private:
 
 	struct NodeStagingBuffer
 	{
-		rtm::PackedTreelet::Node node;
+		TT::Node node;
 		uint16_t ray_id;
 	};
 
 	struct TriStagingBuffer
 	{
-		rtm::PackedTreelet::Triangle tri;
+		TT::Triangle tris[3];
 		paddr_t addr;
+		uint16_t num_tris;
 		uint16_t bytes_filled;
 	};
 
@@ -155,6 +154,7 @@ private:
 	std::vector<TriStagingBuffer> _tri_staging_buffers;
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
+	uint _tri_isect_index{0};
 
 	//meta data
 	uint _max_rays;
@@ -187,9 +187,10 @@ public:
 			}
 		}
 
-		//for(uint i = 0; i < 2; ++i) //2 pops per cycle. In reality this would need to be multi banked
-			_schedule_ray();
-		_simualte_intersectors();
+		for(uint i = 0; i <	1; ++i) _schedule_ray(); //n pops per cycle. In reality this would need to be multi banked
+
+		_simualte_node_pipline();
+		_simualte_tri_pipline();
 	}
 
 	void clock_fall() override
@@ -231,12 +232,13 @@ private:
 	}
 
 	bool _try_queue_node(uint ray_id, uint treelet_id, uint node_id);
-	bool _try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset);
+	bool _try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset, uint num_tris);
 
 	void _read_requests();
 	void _read_returns();
 	void _schedule_ray();
-	void _simualte_intersectors();
+	void _simualte_node_pipline();
+	void _simualte_tri_pipline();
 
 	void _issue_requests();
 	void _issue_returns();

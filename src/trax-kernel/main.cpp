@@ -17,8 +17,8 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 
 inline static void kernel(const TRaXKernelArgs& args)
 {
-	constexpr uint TILE_X = 8;
-	constexpr uint TILE_Y = 8;
+	constexpr uint TILE_X = 4;
+	constexpr uint TILE_Y = 4;
 	constexpr uint TILE_SIZE = TILE_X * TILE_Y;
 	
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
@@ -35,14 +35,16 @@ inline static void kernel(const TRaXKernelArgs& args)
 		rtm::RNG rng(fb_index);
 
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
+		//ray.t_max = (1 << 23) - tile_id;
 		uint steps = 0;
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 		if(ray.t_min < ray.t_max)
 		{
-		#if defined(__riscv) &&  defined(USE_RT_CORE)
+		#if defined(__riscv) &&  defined(DS_USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
 			intersect(args.nodes, args.tris, ray, hit, steps);
+			//intersect(args.treelets, ray, hit, steps);
 		#endif
 		}
 
@@ -56,55 +58,48 @@ inline static void kernel(const TRaXKernelArgs& args)
 		}
 
 		//args.framebuffer[fb_index] = encode_pixel(steps / 64.0f);
-
 	}
 }
 
-inline static void kernel3(const TRaXKernelArgs& args)
+inline static void mandelbrot(const TRaXKernelArgs& args)
 {
+	constexpr uint MAX_ITERS = 100;
 	for(uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		rtm::Ray ray = args.rays[index];
-		args.framebuffer[index] = encode_pixel(ray.d * 0.5f + 0.5f);
-	}
-}
 
-#ifndef USE_COMPRESSED_WIDE_BVH
-inline static void kernel2(const TRaXKernelArgs& args)
-{
-	for(uint index = fchthrd(); index < args.framebuffer_size / PACKET_SIZE; index = fchthrd())
-	{
-		uint32_t tile_x = (index % (args.framebuffer_width / 4) * 4);
-		uint32_t tile_y = (index / (args.framebuffer_width / 4) * 4);
+		// convert 1-d loop in to 2-d loop indices
+		const int i = index / args.framebuffer_width;
+		const int j = index % args.framebuffer_width;
 
-		rtm::Frustum frustrum = args.camera.generate_frustum_for_tile(tile_x, tile_y);
+		float zreal = 0.0f;
+		float zimag = 0.0f;
+		float creal = (j - args.framebuffer_width / 1.4f) / (args.framebuffer_width / 2.0f);
+		float cimag = (i - args.framebuffer_height / 2.0f) / (args.framebuffer_height / 2.0f);
 
-		rtm::Hit hit_buffer[PACKET_SIZE]; 
-		for(uint i = 0; i < PACKET_SIZE; ++i)
-			hit_buffer[i] = rtm::Hit(frustrum.t_max, rtm::vec2(0.0f), ~0u);
-
-		uint64_t mask = intersect(args.nodes, args.tris, frustrum, hit_buffer);
-
-		for(uint i = 0; i < PACKET_SIZE; ++i)
+		float lengthsq;
+		uint k = 0;
+		do
 		{
-			uint fb_index = (tile_x + (i % 4)) + (tile_y + (i / 4)) * args.framebuffer_width;
-			if(hit_buffer[i].id != ~0u)
-			{
-				args.framebuffer[fb_index] = rtm::RNG::hash(hit_buffer[i].id) | 0xff000000;
-			}
-			else
-			{
-				args.framebuffer[fb_index] = 0xff000000;
-			}
+			float temp = (zreal * zreal) - (zimag * zimag) + creal;
+			zimag = (2.0f * zreal * zimag) + cimag;
+			zreal = temp;
+			lengthsq = (zreal * zreal) + (zimag * zimag);
+			++k;
 		}
+		while(lengthsq < 4.f && k < MAX_ITERS);
+
+		if(k == MAX_ITERS)
+			k = 0;
+
+		args.framebuffer[index] = encode_pixel(k / (float)MAX_ITERS);
 	}
 }
-#endif
 
 #ifdef __riscv 
 int main()
 {
-	kernel(*(const TRaXKernelArgs*)KERNEL_ARGS_ADDRESS);
+	kernel(*(const TRaXKernelArgs*)TRAX_KERNEL_ARGS_ADDRESS);
 	return 0;
 }
 
@@ -122,7 +117,7 @@ int main(int argc, char* argv[])
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.pregen_rays =false;
+	args.pregen_rays = true;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
@@ -133,25 +128,32 @@ int main(int argc, char* argv[])
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
-	rtm::BVH2 bvh2("../../../datasets/cache/intel-sponza_bvh.cache", build_objects, 2);
+	rtm::BVH2 bvh2("../../../datasets/cache/intel-sponza.bvh", build_objects, 2);
 	mesh.reorder(build_objects);
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if (args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 1, rays);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 2, rays);
 	args.rays = rays.data();
 
-#ifdef USE_COMPRESSED_WIDE_BVH
-	//rtm::WideBVH wbvh(bvh2);
-	rtm::CompressedWideBVH cwbvh(bvh2);
-	mesh.reorder(cwbvh.indices);
+#if TRAX_USE_COMPRESSED_WIDE_BVH
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::CompressedWideBVH cwbvh(wbvh);
+	mesh.reorder(build_objects);
 	args.nodes = cwbvh.nodes.data();
+
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
+	args.treelets = cwtbvh.treelets.data();
 #else
-	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
-	args.nodes = packed_bvh2.nodes.data();
-	args.treelets = treelet_bvh.treelets.data();
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
+	args.nodes = wbvh.nodes.data();
+
+	rtm::WideTreeletBVH wtbvh(wbvh, mesh);
+	args.treelets = wtbvh.treelets.data();
 #endif
+
+	//args.nodes = bvh2.nodes.data();
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);

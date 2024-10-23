@@ -14,14 +14,17 @@
 #include "aabb.hpp"
 #include "triangle.hpp"
 
-#include "sampling.hpp"
 #include "rng.hpp"
+#include "sampling.hpp"
 
 #include "camera.hpp"
+
 #include "mesh.hpp"
+
 #include "bvh.hpp"
-#include "packed-bvh.hpp"
-#include "packed-treelet-bvh.hpp"
 #include "wide-bvh.hpp"
+#include "wide-treelet-bvh.hpp"
+#include "compressed-wide-bvh.hpp"
+#include "compressed-wide-treelet-bvh.hpp"
 
 #include "intersect.hpp"

@@ -297,34 +297,15 @@ public:
 		std::vector<rtm::uvec3> tmp_nrml_inds(normal_indices);
 		std::vector<rtm::uvec3> tmp_txcd_inds(tex_coord_indices);
 		std::vector<uint>       tmp_mat_inds(material_indices);
-
 		for (uint32_t i = 0; i < ordered_build_objects.size(); ++i)
 		{
 			vertex_indices[i]    = tmp_vrt_inds [ordered_build_objects[i].index];
 			normal_indices[i]    = tmp_nrml_inds[ordered_build_objects[i].index];
 			tex_coord_indices[i] = tmp_txcd_inds[ordered_build_objects[i].index];
 			material_indices[i]  = tmp_mat_inds [ordered_build_objects[i].index];
+			ordered_build_objects[i].index = i;
 		}
 	}
-
-
-	void reorder(std::vector<uint>& indices)
-	{
-		assert(indices.size() == vertex_indices.size());
-		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);
-		std::vector<rtm::uvec3> tmp_nrml_inds(normal_indices);
-		std::vector<rtm::uvec3> tmp_txcd_inds(tex_coord_indices);
-		std::vector<uint>       tmp_mat_inds(material_indices);
-
-		for (uint32_t i = 0; i < indices.size(); ++i)
-		{
-			vertex_indices[i] = tmp_vrt_inds[indices[i]];
-			normal_indices[i] = tmp_nrml_inds[indices[i]];
-			tex_coord_indices[i] = tmp_txcd_inds[indices[i]];
-			material_indices[i] = tmp_mat_inds[indices[i]];
-		}
-	}
-
 };
 
 }

@@ -41,7 +41,7 @@ private:
 public:
 	RNG(uint32_t seed = 0)
 	{
-		_state = hash(seed + 1);
+		_state = hash(seed | (1 << 31u));
 	}
 
 	float randf()

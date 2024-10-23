@@ -11,9 +11,7 @@
 
 namespace Arches {
 
-namespace ISA {
-namespace RISCV {
-namespace DualStreaming {
+namespace ISA { namespace RISCV { namespace DualStreaming {
 
 //see the opcode map for details
 const static InstructionInfo isa_custom0_000_imm[8] =
@@ -185,12 +183,9 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3];});
 
-}
-}
-}
+}}}
 
-namespace Units {
-namespace DualStreaming {
+namespace Units { namespace DualStreaming {
 
 class L1Cache : public UnitNonBlockingCache
 {
@@ -212,8 +207,7 @@ private:
 	}
 };
 
-}
-}
+}}
 
 
 namespace DualStreaming {
@@ -236,58 +230,63 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	std::string data_folder = poject_folder + "datasets/";
 
 	std::string filename = data_folder + scene_name + ".obj";
-	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + "_bvh.cache";
+	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + ".bvh";
+
+	DualStreamingKernelArgs args;
+	args.framebuffer_width = global_config.framebuffer_width;
+	args.framebuffer_height = global_config.framebuffer_height;
+	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
+	heap_address = align_to(page_size, heap_address);
+	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
+	heap_address += args.framebuffer_size * sizeof(uint32_t);
+
+	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
+
+	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
+
+	args.pregen_rays = global_config.pregen_rays;
+	args.use_early = global_config.use_early;
+	args.hit_delay = global_config.hit_delay;
 
 	rtm::Mesh mesh(filename);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
 	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
-	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
 	mesh.reorder(build_objects);
-
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
-
-	std::vector<rtm::Triangle> tris;
-	mesh.get_triangles(tris);
-
-	DualStreamingKernelArgs args;
-	args.framebuffer_width = global_config.framebuffer_width;
-	args.framebuffer_height = global_config.framebuffer_height;
-	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
-
-	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
-
-	args.use_early = global_config.use_early;
-	args.hit_delay = global_config.hit_delay;
-	args.pregen_rays = global_config.pregen_rays;
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-	{
-		args.treelets = treelet_bvh.treelets.data();
-		args.tris = tris.data();
-		pregen_rays(args, global_config.pregen_bounce, rays);
-	}
-
-	std::vector<rtm::Hit> hits(args.framebuffer_size);
-	for(auto& hit : hits)
-		hit.t = T_MAX;
-
-	heap_address = align_to(page_size, heap_address);
-	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
-	heap_address += args.framebuffer_size * sizeof(uint32_t);
-
-	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
-	args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
-	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 
-	args.num_treelets = treelet_bvh.treelets.size();
+#if DS_USE_COMPRESSED_WIDE_BVH
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
 
-	main_memory->direct_write(&args, sizeof(DualStreamingKernelArgs), KERNEL_ARGS_ADDRESS);
+	rtm::CompressedWideBVH cwbvh(wbvh);
+
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
+	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
+	args.num_treelets = cwtbvh.treelets.size();
+#else
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
+
+	rtm::WideTreeletBVH wtbvh(wbvh, mesh);
+	args.treelets = write_vector(main_memory, page_size, wtbvh.treelets, heap_address);
+	args.num_treelets = wtbvh.treelets.size();
+#endif
+
+	std::vector<rtm::Triangle> tris;
+	mesh.get_triangles(tris);
+	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+
+	std::vector<rtm::Hit> hits(args.framebuffer_size, {T_MAX, rtm::vec2(0.0), ~0u});
+	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
+	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
+
+	main_memory->direct_write(&args, sizeof(DualStreamingKernelArgs), DS_KERNEL_ARGS_ADDRESS);
 	return args;
 }
 
@@ -318,18 +317,24 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	uint dram_ports_per_channel = 16;
 	uint64_t mem_size =1ull << 32; //4GB
 
+	uint num_channels = 8;// dram.num_channels();
+	uint64_t row_size = 8 * 1024; // dram.row_size();
+	uint64_t block_size = CACHE_BLOCK_SIZE; // dram.block_size();
+
+#if	DS_USE_COMPRESSED_WIDE_BVH
+	typedef rtm::CompressedWideTreeletBVH::Treelet SceneSegment;
+#else
+	typedef rtm::WideTreeletBVH::Treelet SceneSegment;
+#endif
+
 #if 1
 	typedef Units::UnitDRAMRamulator UnitDRAM;
-	UnitDRAM dram(dram_ports_per_channel * NUM_DRAM_CHANNELS, mem_size); dram.clear();
+	UnitDRAM dram(dram_ports_per_channel * num_channels, num_channels, mem_size); dram.clear();
 #else
 	typedef Units::UnitDRAM UnitDRAM;
 	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
 	UnitDRAM dram(dram_ports_per_channel * NUM_DRAM_CHANNELS, mem_size);
 #endif
-
-	uint num_channels = 8;// dram.num_channels();
-	uint64_t row_size = 8 * 1024; // dram.row_size();
-	uint64_t block_size = CACHE_BLOCK_SIZE; // dram.block_size();
 
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
@@ -382,7 +387,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	for(uint i = 0; i < l1d_config.num_ports; ++i)
 		l1_weight_table[i] = 1;
 
-#ifdef USE_RT_CORE
+#ifdef DS_USE_RT_CORE
 	l1_weight_table[l1d_config.num_ports] = l1d_config.num_ports;
 	l1d_config.num_ports += 1; //add extra port for RT core
 #endif
@@ -434,7 +439,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
-	std::vector<Units::DualStreaming::UnitTreeletRTCore*> rtcs;
+	std::vector<Units::DualStreaming::UnitTreeletRTCore<SceneSegment>*> rtcs;
 	std::vector<Units::DualStreaming::UnitRayStagingBuffer*> rsbs;
 
 	std::vector<Units::UnitNonBlockingCache*> l1ds;
@@ -467,7 +472,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config, row_size);
 	heap_address = align_to(row_size * num_channels, heap_address);
-	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(rtm::PackedTreelet)};
+	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(SceneSegment)};
 
 	std::set<uint> unused_dram_ports;
 	for(uint i = 0; i < dram_ports_per_channel; ++i)
@@ -489,7 +494,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	simulator.new_unit_group();
 
 	scene_buffer_config.segment_start = (paddr_t)kernel_args.treelets;
-	scene_buffer_config.segment_size = sizeof(rtm::PackedTreelet);
+	scene_buffer_config.segment_size = sizeof(SceneSegment);
 	scene_buffer_config.num_ports = num_tms * num_l2_ports_per_tm;
 	scene_buffer_config.row_size = row_size;
 	scene_buffer_config.block_size = block_size;
@@ -513,7 +518,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	stream_scheduler_config.num_root_rays = kernel_args.framebuffer_size;
 	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
-	stream_scheduler_config.cheat_treelets = (rtm::PackedTreelet*)&dram._data_u8[(size_t)kernel_args.treelets];
+	stream_scheduler_config.cheat_treelets = (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
 	stream_scheduler_config.main_mem = &dram;
 	stream_scheduler_config.main_mem_port_stride = dram_ports_per_channel;
 	stream_scheduler_config.main_mem_port_offset = *unused_dram_ports.begin();
@@ -521,7 +526,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	if(global_config.use_scene_buffer)
 	{
-		stream_scheduler_config.max_active_segments = scene_buffer_config.size / sizeof(rtm::PackedTreelet);
+		stream_scheduler_config.max_active_segments = scene_buffer_config.size / sizeof(SceneSegment);
 		stream_scheduler_config.scene_buffer = &scene_buffer;
 	}
 	else
@@ -590,11 +595,11 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 			simulator.register_unit(l1is.back());
 		}
 
-	#ifdef USE_RT_CORE
+	#if DS_USE_RT_CORE
 		rsbs.push_back(_new Units::DualStreaming::UnitRayStagingBuffer(1, tm_index, &stream_scheduler, &hit_record_updater));
 		simulator.register_unit(rsbs.back());
 
-		Units::DualStreaming::UnitTreeletRTCore::Configuration rtc_config;
+		Units::DualStreaming::UnitTreeletRTCore<SceneSegment>::Configuration rtc_config;
 		rtc_config.max_rays = 64;
 		rtc_config.num_tp = num_tps_per_tm;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
@@ -603,7 +608,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		rtc_config.cache = l1ds.back();
 		rtc_config.rsb = rsbs.back();
 
-		rtcs.push_back(_new Units::DualStreaming::UnitTreeletRTCore(rtc_config));
+		rtcs.push_back(_new Units::DualStreaming::UnitTreeletRTCore<SceneSegment>(rtc_config));
 		simulator.register_unit(rtcs.back());
 		mem_list.push_back(rtcs.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM4] = rtcs.back(); //SWI
@@ -687,7 +692,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
-	Units::DualStreaming::UnitTreeletRTCore::Log rtc_log;
+	Units::DualStreaming::UnitTreeletRTCore<SceneSegment>::Log rtc_log;
 	Units::DualStreaming::UnitSceneBuffer::Log sb_log;
 	Units::DualStreaming::UnitStreamScheduler::Log ss_log;
 
@@ -702,13 +707,13 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
 		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
 
-		Units::DualStreaming::UnitTreeletRTCore::Log rtc_delta_log = delta_log(rtc_log, rtcs);
+		Units::DualStreaming::UnitTreeletRTCore<SceneSegment>::Log rtc_delta_log = delta_log(rtc_log, rtcs);
 		Units::DualStreaming::UnitSceneBuffer::Log sb_delta_log = delta_log(sb_log, scene_buffer);
 		Units::DualStreaming::UnitStreamScheduler::Log ss_delta_log = delta_log(ss_log, stream_scheduler);
 
 		printf("                             \n");
 		printf("Cycle: %lld                  \n", simulator.current_cycle);
-		printf("Threads Launched: %d         \n", atomic_regs.iregs[0] * 64);
+		printf("Threads Launched: %d         \n", atomic_regs.iregs[0]);
 		printf("Buckets Launched: %lld       \n", ss_log.buckets_launched);
 		printf("Segments Launched: %lld      \n", ss_log.segments_launched);
 		printf("Prefetch queue size: %lld    \n", stream_scheduler._l2_cache_prefetch_queue.size());
@@ -716,19 +721,19 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		printf(" Ray Total: %8.1f bytes/cycle\n", (float)(ss_delta_log.buckets_generated + ss_delta_log.buckets_launched) * RAY_BUCKET_SIZE / delta);
 		printf(" Ray Write: %8.1f bytes/cycle\n", (float)ss_delta_log.buckets_generated * RAY_BUCKET_SIZE / delta);
 		printf("  Ray Read: %8.1f bytes/cycle\n", (float)ss_delta_log.buckets_launched * RAY_BUCKET_SIZE / delta);
-		printf("  Ray Rate: %8.1f Mrays/s    \n", (float)ss_delta_log.buckets_launched * Arches::Units::DualStreaming::RayBucket::MAX_RAYS / delta_us);
+		printf("  Ray Rate: %8.1f Mrays/s    \n", (float)(ss_delta_log.buckets_generated + ss_delta_log.buckets_launched) / 2.0f * Arches::Units::DualStreaming::RayBucket::MAX_RAYS / delta_us);
 		printf("                             \n");
 		printf("Scene Fill: %8.1f bytes/cycle\n", (float)sb_delta_log.bytes_written / delta);
 		printf("Scene Read: %8.1f bytes/cycle\n", (float)sb_delta_log.bytes_read / delta);
 		printf("                             \n");
 		printf("DRAM Total: %8.1f bytes/cycle\n", (float)(dram_delta_log.bytes_read + dram_delta_log.bytes_written) / delta);
 		printf("DRAM Write: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_written / delta);
+		printf("DRAM  Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf("                             \n");
 		printf("SRAM Total: %8.1f bytes/cycle\n", (float)(sram_delta_log.bytes_read + sram_delta_log.bytes_written) / delta);
 		printf("SRAM Write: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_written / delta);
 		printf("SRAM  Read: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_read / delta);
 		printf("                             \n");
-		printf(" DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf("  L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf(" L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("                             \n");

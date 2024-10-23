@@ -5,16 +5,17 @@
 #include "../unit-base.hpp"
 #include "../unit-memory-base.hpp"
 
-//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
+//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 3212 && ray_id == 0)
 
 #ifndef ENABLE_RT_DEBUG_PRINTS 
 #define ENABLE_RT_DEBUG_PRINTS (false)
 #endif
 
-#define PACKET_SIZE
-
 namespace Arches { namespace Units { namespace TRaX {
 
+constexpr uint PACKET_SIZE = 16;
+
+template<typename NT>
 class UnitPRTCore : public UnitMemoryBase
 {
 public:
@@ -26,21 +27,42 @@ public:
 		paddr_t node_base_addr;
 		paddr_t tri_base_addr;
 
-		rtm::Frustum frustum;
-
 		UnitMemoryBase* cache;
 	};
 
 private:
-	struct RayState
+	struct StackEntry
 	{
-		struct StackEntry
+		float t;
+		rtm::WideBVH::Node::Data data;
+		uint64_t mask;
+
+		StackEntry() {}
+	};
+
+	struct StagingBuffer
+	{
+		paddr_t address;
+		uint bytes_filled;
+		uint type;
+
+		union
 		{
-			float t;
-			rtm::BVH2::Node::Data data;
-			uint64_t mask;
+			uint8_t data[1];
+			NT::Node node;
+			struct
+			{
+				rtm::Triangle tri;
+				uint tri_id;
+			};
 		};
 
+		StagingBuffer() {}
+	};
+
+
+	struct RayState
+	{
 		enum class Phase
 		{
 			NONE,
@@ -54,33 +76,27 @@ private:
 		}
 		phase;
 
-		rtm::Frustum sub_frustum;
+		uint tile_id;
 
-		rtm::Hit hit_buffer[16];
+		rtm::Ray ray[PACKET_SIZE];
+		rtm::vec3 inv_d[PACKET_SIZE];
+		rtm::Hit hit[PACKET_SIZE];
 
-		StackEntry stack[32];
+		StackEntry stack[32 * NT::WIDTH];
 		uint8_t stack_size;
 		uint8_t current_entry;
 		uint16_t flags;
-	};
 
-	rtm::Frustum frustum;
+		uint16_t port[PACKET_SIZE];
+		uint16_t dst[PACKET_SIZE];
 
-	struct NodeStagingBuffer
-	{
-		rtm::PackedBVH2::Node node;
-		uint16_t ray_id;
+		uint num_rays;
+		uint return_ray;
+		uint64_t mask;
 
-		NodeStagingBuffer() {};
-	};
+		StagingBuffer buffer;
 
-	struct TriStagingBuffer
-	{
-		rtm::Triangle tri;
-		uint32_t tri_id;
-		uint16_t bytes_filled;
-
-		TriStagingBuffer() {};
+		RayState() {};
 	};
 
 	struct FetchItem
@@ -104,11 +120,10 @@ private:
 	std::vector<RayState> _ray_states;
 
 	//node pipline
-	std::queue<NodeStagingBuffer> _node_isect_queue;
+	std::queue<uint> _node_isect_queue;
 	Pipline<uint> _box_pipline;
 
 	//tri pipline
-	std::vector<TriStagingBuffer> _tri_staging_buffers;
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
 
@@ -122,37 +137,9 @@ private:
 public:
 	UnitPRTCore(const Configuration& config);
 
-	void clock_rise() override
-	{
-		_request_network.clock();
-		_read_requests();
-		_read_returns();
+	void clock_rise() override;
 
-		if(_ray_scheduling_queue.empty())
-		{
-			for(uint i = 0; i < _ray_states.size(); ++i)
-			{
-				uint phase = (uint)_ray_states[last_ray_id].phase;
-				if(++last_ray_id == _ray_states.size()) last_ray_id = 0;
-				if(phase != 0)
-				{
-					log.stall_counters[phase]++;
-					break;
-				}
-			}
-		}
-
-		for(uint i = 0; i < 1; ++i) //n pops per cycle. In reality this would need to be multi banked
-			_schedule_ray();
-		_simualte_intersectors();
-	}
-
-	void clock_fall() override
-	{
-		_issue_requests();
-		_issue_returns();
-		_return_network.clock();
-	}
+	void clock_fall() override;
 
 	bool request_port_write_valid(uint port_index) override
 	{
@@ -191,7 +178,8 @@ private:
 	void _read_requests();
 	void _read_returns();
 	void _schedule_ray();
-	void _simualte_intersectors();
+	void _simualte_node_pipline();
+	void _simualte_tri_pipline();
 
 	void _issue_requests();
 	void _issue_returns();
@@ -262,4 +250,6 @@ public:
 	}log;
 };
 
-}}}
+}
+}
+}

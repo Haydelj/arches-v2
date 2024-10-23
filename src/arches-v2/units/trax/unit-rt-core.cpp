@@ -4,8 +4,8 @@ namespace Arches { namespace Units { namespace TRaX {
 
 
 
-template<typename BVHT>
-UnitRTCore<BVHT>::UnitRTCore<BVHT>(const Configuration& config) :
+template<typename NT>
+UnitRTCore<NT>::UnitRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
 	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
 	_box_pipline(3, 1), _tri_pipline(22, 1)
@@ -17,8 +17,8 @@ UnitRTCore<BVHT>::UnitRTCore<BVHT>(const Configuration& config) :
 		_free_ray_ids.insert(i);
 	}
 }
-template<typename BVHT>
-void UnitRTCore<BVHT>::clock_rise()
+template<typename NT>
+void UnitRTCore<NT>::clock_rise()
 {
 	_request_network.clock();
 	_read_requests();
@@ -45,19 +45,19 @@ void UnitRTCore<BVHT>::clock_rise()
 	_simualte_tri_pipline();
 }
 
-template<typename BVHT>
-void UnitRTCore<BVHT>::clock_fall()
+template<typename NT>
+void UnitRTCore<NT>::clock_fall()
 {
 	_issue_requests();
 	_issue_returns();
 	_return_network.clock();
 }
 
-template<typename BVHT>
-bool UnitRTCore<BVHT>::_try_queue_node(uint ray_id, uint node_id)
+template<typename NT>
+bool UnitRTCore<NT>::_try_queue_node(uint ray_id, uint node_id)
 {
-	paddr_t start = _node_base_addr + node_id * sizeof(BVHT::Node);
-	paddr_t end = start + sizeof(BVHT::Node);
+	paddr_t start = _node_base_addr + node_id * sizeof(NT::Node);
+	paddr_t end = start + sizeof(NT::Node);
 
 	RayState& ray_state = _ray_states[ray_id];
 	ray_state.buffer.address = start;
@@ -78,8 +78,8 @@ bool UnitRTCore<BVHT>::_try_queue_node(uint ray_id, uint node_id)
 	return true;
 }
 
-template<typename BVHT>
-bool UnitRTCore<BVHT>::_try_queue_tri(uint ray_id, uint tri_id)
+template<typename NT>
+bool UnitRTCore<NT>::_try_queue_tri(uint ray_id, uint tri_id)
 {
 	paddr_t start = _tri_base_addr + tri_id * sizeof(rtm::Triangle);
 	paddr_t end = start + sizeof(rtm::Triangle);
@@ -104,8 +104,8 @@ bool UnitRTCore<BVHT>::_try_queue_tri(uint ray_id, uint tri_id)
 	return true;
 }
 
-template<typename BVHT>
-void UnitRTCore<BVHT>::_read_requests()
+template<typename NT>
+void UnitRTCore<NT>::_read_requests()
 {
 	if(_request_network.is_read_valid(0) && !_free_ray_ids.empty())
 	{
@@ -123,7 +123,7 @@ void UnitRTCore<BVHT>::_read_requests()
 		ray_state.hit.id = ~0u;
 		ray_state.stack_size = 1;
 		ray_state.stack[0].t = ray_state.ray.t_min;
-		ray_state.stack[0].data.is_leaf = 0;
+		ray_state.stack[0].data.is_int = 1;
 		ray_state.stack[0].data.child_index = 0;
 		ray_state.current_entry = 0;
 		ray_state.flags = request.flags;
@@ -137,8 +137,8 @@ void UnitRTCore<BVHT>::_read_requests()
 	}
 }
 
-template<typename BVHT>
-void UnitRTCore<BVHT>::_read_returns()
+template<typename NT>
+void UnitRTCore<NT>::_read_returns()
 {
 	if(_cache->return_port_read_valid(_num_tp))
 	{
@@ -153,7 +153,7 @@ void UnitRTCore<BVHT>::_read_returns()
 
 		if(buffer.type == 0)
 		{
-			if(buffer.bytes_filled == sizeof(BVHT::Node))
+			if(buffer.bytes_filled == sizeof(NT::Node))
 			{
 				ray_state.phase = RayState::Phase::NODE_ISECT;
 				_node_isect_queue.push(ray_id);
@@ -170,8 +170,8 @@ void UnitRTCore<BVHT>::_read_returns()
 	}
 }
 
-template<typename BVHT>
-void UnitRTCore<BVHT>::_schedule_ray()
+template<typename NT>
+void UnitRTCore<NT>::_schedule_ray()
 {
 	//pop a entry from next rays stack and queue it up
 	if(!_ray_scheduling_queue.empty())
@@ -190,7 +190,23 @@ void UnitRTCore<BVHT>::_schedule_ray()
 			StackEntry& entry = ray_state.stack[ray_state.stack_size - 1];
 			if(entry.t < ray_state.hit.t) //pop cull
 			{
-				if(entry.data.is_leaf)
+				if(entry.data.is_int)
+				{
+					if(_try_queue_node(ray_id, entry.data.child_index))
+					{
+						ray_state.phase = RayState::Phase::NODE_FETCH;
+
+						if(ENABLE_RT_DEBUG_PRINTS)
+							printf("Node: %d\n", entry.data.child_index);
+
+						ray_state.stack_size--;
+					}
+					else
+					{
+						_ray_scheduling_queue.push(ray_id);
+					}
+				}
+				else
 				{
 					if(_try_queue_tri(ray_id, entry.data.prim_index))
 					{
@@ -208,22 +224,6 @@ void UnitRTCore<BVHT>::_schedule_ray()
 							entry.data.prim_index++;
 							entry.data.num_prims--;
 						}
-					}
-					else
-					{
-						_ray_scheduling_queue.push(ray_id);
-					}
-				}
-				else
-				{
-					if(_try_queue_node(ray_id, entry.data.child_index))
-					{
-						ray_state.phase = RayState::Phase::NODE_FETCH;
-
-						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("Node: %d\n", entry.data.child_index);
-
-						ray_state.stack_size--;
 					}
 					else
 					{
@@ -250,7 +250,7 @@ void UnitRTCore<BVHT>::_schedule_ray()
 }
 
 template<>
-void UnitRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
+void UnitRTCore<rtm::WideBVH>::_simualte_node_pipline()
 {
 	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
 	{
@@ -260,72 +260,7 @@ void UnitRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 		rtm::Ray& ray = ray_state.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.hit;
-		rtm::CompressedWideBVH::Node& node = ray_state.buffer.node;
-
-		//float hit_ts[2] = {rtm::intersect(node.aabb[0], ray, inv_d), rtm::intersect(node.aabb[1], ray, inv_d)};
-		//if(hit_ts[0] < hit_ts[1])
-		//{
-		//	if(hit_ts[1] < hit.t) ray_state.stack[ray_state.stack_size++] = {hit_ts[1], node.data[1]};
-		//	if(hit_ts[0] < hit.t) ray_state.stack[ray_state.stack_size++] = {hit_ts[0], node.data[0]};
-		//}
-		//else
-		//{
-		//	if(hit_ts[0] < hit.t) ray_state.stack[ray_state.stack_size++] = {hit_ts[0], node.data[0]};
-		//	if(hit_ts[1] < hit.t) ray_state.stack[ray_state.stack_size++] = {hit_ts[1], node.data[1]};
-		//}
-
-		int childCount;
-		rtm::BVH2::Node dnodes[8];
-		node.decompress(dnodes, childCount);
-
-		uint max_insert_depth = ray_state.stack_size;
-		for(int i = 0; i < childCount; i++)
-		{
-			float t = rtm::intersect(dnodes[i].aabb, ray, inv_d);
-			if(t < hit.t)
-			{
-				uint j = ray_state.stack_size++;
-				for(; j > max_insert_depth; --j)
-				{
-					if(ray_state.stack[j - 1].t > t) break;
-					ray_state.stack[j] = ray_state.stack[j - 1];
-				}
-				ray_state.stack[j].t = t;
-				ray_state.stack[j].data = dnodes[i].data;
-			}
-		}
-
-		_box_pipline.write(ray_id);
-		_node_isect_queue.pop();
-	}
-
-	_box_pipline.clock();
-
-	if(_box_pipline.is_read_valid())
-	{
-		uint ray_id = _box_pipline.read();
-		if(ray_id != ~0u)
-		{
-			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
-			_ray_scheduling_queue.push(ray_id);
-		}
-
-		log.nodes += 2;
-	}
-}
-
-template<>
-void UnitRTCore<rtm::PackedBVH2>::_simualte_node_pipline()
-{
-	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
-	{
-		uint ray_id = _node_isect_queue.front();
-		RayState& ray_state = _ray_states[ray_id];
-
-		rtm::Ray& ray = ray_state.ray;
-		rtm::vec3& inv_d = ray_state.inv_d;
-		rtm::Hit& hit = ray_state.hit;
-		rtm::PackedBVH2::Node& node = ray_state.buffer.node;
+		const rtm::WideBVH::Node& node = ray_state.buffer.node;
 
 		uint max_insert_depth = ray_state.stack_size;
 		for(int i = 0; i < 2; i++)
@@ -363,8 +298,57 @@ void UnitRTCore<rtm::PackedBVH2>::_simualte_node_pipline()
 	}
 }
 
-template<typename BVHT>
-void UnitRTCore<BVHT>::_simualte_tri_pipline()
+template<>
+void UnitRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
+{
+	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
+	{
+		uint ray_id = _node_isect_queue.front();
+		RayState& ray_state = _ray_states[ray_id];
+
+		rtm::Ray& ray = ray_state.ray;
+		rtm::vec3& inv_d = ray_state.inv_d;
+		rtm::Hit& hit = ray_state.hit;
+		const rtm::WideBVH::Node& node = ray_state.buffer.node.decompress();
+
+		uint max_insert_depth = ray_state.stack_size;
+		for(int i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+		{
+			float t = rtm::intersect(node.aabb[i], ray, inv_d);
+			if(t < hit.t)
+			{
+				uint j = ray_state.stack_size++;
+				for(; j > max_insert_depth; --j)
+				{
+					if(ray_state.stack[j - 1].t > t) break;
+					ray_state.stack[j] = ray_state.stack[j - 1];
+				}
+				ray_state.stack[j].t = t;
+				ray_state.stack[j].data = node.data[i];
+			}
+		}
+
+		_box_pipline.write(ray_id);
+		_node_isect_queue.pop();
+	}
+
+	_box_pipline.clock();
+
+	if(_box_pipline.is_read_valid())
+	{
+		uint ray_id = _box_pipline.read();
+		if(ray_id != ~0u)
+		{
+			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
+			_ray_scheduling_queue.push(ray_id);
+		}
+
+		log.nodes += 2;
+	}
+}
+
+template<typename NT>
+void UnitRTCore<NT>::_simualte_tri_pipline()
 {
 	if(!_tri_isect_queue.empty() && _tri_pipline.is_write_valid())
 	{
@@ -398,8 +382,8 @@ void UnitRTCore<BVHT>::_simualte_tri_pipline()
 	}
 }
 
-template<typename BVHT>
-void UnitRTCore<BVHT>::_issue_requests()
+template<typename NT>
+void UnitRTCore<NT>::_issue_requests()
 {
 	if(!_fetch_queue.empty() && _cache->request_port_write_valid(_num_tp))
 	{
@@ -415,8 +399,8 @@ void UnitRTCore<BVHT>::_issue_requests()
 	}
 }
 
-template<typename BVHT>
-void UnitRTCore<BVHT>::_issue_returns()
+template<typename NT>
+void UnitRTCore<NT>::_issue_returns()
 {
 	if(!_ray_return_queue.empty())
 	{
@@ -441,7 +425,7 @@ void UnitRTCore<BVHT>::_issue_returns()
 	}
 }
 
-template class UnitRTCore<rtm::PackedBVH2>;
+template class UnitRTCore<rtm::WideBVH>;
 template class UnitRTCore<rtm::CompressedWideBVH>;
 
 }}}

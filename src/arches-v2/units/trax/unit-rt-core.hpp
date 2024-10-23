@@ -13,7 +13,7 @@
 
 namespace Arches { namespace Units { namespace TRaX {
 
-template<typename BVHT>
+template<typename NT>
 class UnitRTCore : public UnitMemoryBase
 {
 public:
@@ -32,7 +32,7 @@ private:
 	struct StackEntry
 	{
 		float t;
-		rtm::BVH2::Node::Data data;
+		rtm::WideBVH::Node::Data data;
 
 		StackEntry() {}
 	};
@@ -46,7 +46,7 @@ private:
 		union
 		{
 			uint8_t data[1];
-			BVHT::Node node;
+			NT::Node node;
 			struct
 			{
 				rtm::Triangle tri;
@@ -76,7 +76,7 @@ private:
 		rtm::vec3 inv_d;
 		rtm::Hit hit;
 
-		StackEntry stack[32 * rtm::N_ARY_SZ];
+		StackEntry stack[32 * NT::WIDTH];
 		uint8_t stack_size;
 		uint8_t current_entry;
 		uint16_t flags;

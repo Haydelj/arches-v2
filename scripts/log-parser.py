@@ -18,7 +18,7 @@ if len(sys.argv) > 2:
     elif sys.argv[2] == 'streams':
         keys += ['Scene Fill', 'Ray Write', 'Ray Read']
 else:
-    keys +=  ['L2$ Hit Rate']
+    keys +=  ['L1d$ Read', 'L2$ Read', 'DRAM Read']
 
 colors = list(mcolors.TABLEAU_COLORS)
 cycles = []
@@ -45,7 +45,7 @@ if show_unsmoothed:
         if len(data[i]) == len(cycles):
             plt.plot(cycles, data[i], colors[i], alpha=0.125)
 
-kernel_size = 31
+kernel_size = 5
 kernel = np.array(gauss(kernel_size, 5))
 kernel = kernel / kernel.sum()
 
@@ -56,6 +56,6 @@ for i in range(len(keys)):
 plt.legend(loc="upper right")
 plt.ylabel(ylabel)
 plt.xlabel('Time (cycles)')
-#plt.yscale('log')
+plt.yscale('log')
 plt.grid()
 plt.show()

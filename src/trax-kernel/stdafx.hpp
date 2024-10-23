@@ -18,8 +18,6 @@
 #include <cfloat>
 #include <cstdint>
 
-
-
 #include "rtm/rtm.hpp"
 
 typedef unsigned int uint;

@@ -71,7 +71,7 @@ public:
 					request.size = 4;
 					request.port = _tm_index;
 					request.paddr = 0x0ull;
-					request.data_u32 = 1;
+					request.data_u32 = _block_size;
 					_atomic_regs->write_request(request);
 					_stalled_for_atomic_reg = true;
 				}
@@ -84,7 +84,7 @@ public:
 				//uint tile_y = (_current_offset / _tile_width);
 				//uint x = (_current_tile % (_width / _tile_width)) * _tile_width + tile_x;
 				//uint y = (_current_tile / (_width / _tile_width)) * _tile_height + tile_y;
-				uint32_t index = _current_block * _block_size + _current_offset;
+				uint32_t index = _current_block + _current_offset;
 				MemoryReturn ret(_current_request, &index);
 
 				if(index == 0)

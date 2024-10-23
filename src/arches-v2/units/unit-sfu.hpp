@@ -14,11 +14,21 @@ class UnitSFU : public UnitBase
 private:
 	Cascade<SFURequest> request_crossbar;
 	std::vector<Pipline<SFURequest>> piplines;
-	FIFOArray<SFURequest> return_crossbar;
+	class ReturnCascade : public Decascade<SFURequest>
+	{
+	public:
+		ReturnCascade(uint banks, uint ports) : Decascade<SFURequest>(banks, ports) {}
+
+		uint get_sink(const SFURequest& ret) override
+		{
+			return ret.port;
+		}
+	}
+	return_crossbar;
 
 public:
 	UnitSFU(uint num_piplines, uint latency, uint cpi, uint num_clients) :
-		request_crossbar(num_clients, num_piplines), return_crossbar(num_clients), piplines(num_piplines, {latency, cpi})
+		request_crossbar(num_clients, num_piplines), return_crossbar(num_piplines, num_clients), piplines(num_piplines, {latency, cpi})
 	{
 	}
 
@@ -72,7 +82,7 @@ public:
 			if(piplines[pipline_index].is_read_valid() && return_crossbar.is_write_valid(pipline_index))
 			{
 				SFURequest ret = piplines[pipline_index].read();
-				return_crossbar.write(ret, ret.port);
+				return_crossbar.write(ret, pipline_index);
 			}
 		}
 
