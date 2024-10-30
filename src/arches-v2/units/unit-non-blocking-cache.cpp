@@ -13,7 +13,7 @@ UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) :
 	_mem_higher_port_offset = config.mem_higher_port_offset;
 	_mem_higher_port_stride = config.mem_higher_port_stride;
 
-	_banks.resize(config.num_banks, {config.num_mshr, config.latency});
+	_banks.resize(config.num_banks, {config.num_mshr, config.latency, 1});
 }
 
 UnitNonBlockingCache::~UnitNonBlockingCache()

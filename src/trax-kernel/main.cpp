@@ -18,12 +18,14 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 inline static void kernel(const TRaXKernelArgs& args)
 {
 	constexpr uint TILE_X = 4;
-	constexpr uint TILE_Y = 4;
+	constexpr uint TILE_Y = 8;
 	constexpr uint TILE_SIZE = TILE_X * TILE_Y;
 	
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint tile_id = index / TILE_SIZE;
+		tile_id = rtm::RNG::fast_hash(tile_id) % (args.framebuffer_size / TILE_SIZE);
+
 		uint32_t tile_x = tile_id % (args.framebuffer_width / TILE_X);
 		uint32_t tile_y = tile_id / (args.framebuffer_width / TILE_X);
 
@@ -40,10 +42,11 @@ inline static void kernel(const TRaXKernelArgs& args)
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 		if(ray.t_min < ray.t_max)
 		{
-		#if defined(__riscv) &&  defined(DS_USE_RT_CORE)
+
+		#if defined(__riscv) && (TRAX_USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-			intersect(args.nodes, args.tris, ray, hit, steps);
+		//	intersect(args.nodes, args.tris, ray, hit, steps);
 			//intersect(args.treelets, ray, hit, steps);
 		#endif
 		}
@@ -122,21 +125,21 @@ int main(int argc, char* argv[])
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
 	//intel sponza camera
-	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 	
 	// san miguel camera
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 
 	// hairball camera
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0));
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0, 10, 10), rtm::vec3(10, 0, 0));
 
 
-	rtm::Mesh mesh("../../../datasets/hairball.obj");
+	rtm::Mesh mesh("../../../datasets/sponza.obj");
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
-	rtm::BVH2 bvh2("../../../datasets/cache/hairball_bvh.cache", build_objects, 2);
+	rtm::BVH2 bvh2("../../../datasets/cache/sponza.bvh", build_objects, 2);
 	mesh.reorder(build_objects);
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);

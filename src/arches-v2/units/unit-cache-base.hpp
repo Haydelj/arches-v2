@@ -15,6 +15,11 @@ public:
 
 	void serialize(std::string file_path);
 	bool deserialize(std::string file_path);
+	void copy(paddr_t addr, void* data, uint bytes)
+	{
+		for (uint i = 0; i < (bytes + _block_size - 1) / _block_size; ++i)
+			_insert_block(addr, (uint8_t*)data + i * _block_size);
+	}
 
 protected:
 	struct BlockMetaData

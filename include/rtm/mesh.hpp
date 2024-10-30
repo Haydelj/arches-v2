@@ -33,7 +33,7 @@ public:
 public:
 	Mesh(std::string file_path) : mtl_lib("")
 	{
-		load_obj(file_path.c_str());
+ 		load_obj(file_path.c_str());
 	}
 
 	static inline rtm::vec2 read_vec2(char* line)

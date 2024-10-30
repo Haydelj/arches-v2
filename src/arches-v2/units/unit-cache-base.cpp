@@ -32,23 +32,29 @@ void UnitCacheBase::serialize(std::string file_path)
 	std::ofstream file_stream(file_path, std::ios::binary);
 	file_stream.write((char*)_tag_array.data(), sizeof(BlockMetaData) * _tag_array.size());
 	file_stream.write((char*)_data_array.data(), _data_array.size());
+
+	printf("Write cache success: %s\n", file_path.c_str());
+
 }
 
 bool UnitCacheBase::deserialize(std::string file_path)
 {
-	printf("Loading Cache: %s\n", file_path.c_str());
+	printf("Loading cache: %s\n", file_path.c_str());
 
 	bool succeeded = false;
 	std::ifstream file_stream(file_path, std::ios::binary);
-	if(file_stream.is_open())
+	if(file_stream.good())
 	{
 		file_stream.read((char*)_tag_array.data(), sizeof(BlockMetaData) * _tag_array.size());
 		file_stream.read((char*)_data_array.data(), _data_array.size());
 		succeeded = true;
-	}
 
-	if(!succeeded)
-		printf("Failed to open file\n");
+		printf("Loaded cache: %s\n", file_path.c_str());
+	}
+	else
+	{
+		printf("Failed to load cache: : Failed to open file\n");
+	}
 
 	return succeeded;
 }

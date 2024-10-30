@@ -371,6 +371,7 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 		rtm::RNG rng(index);
 
 		rtm::Ray ray = camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
+	
 		for(uint i = 0; i < bounce; ++i)
 		{
 			uint steps = 0;

@@ -109,7 +109,7 @@ protected:
 		std::queue<uint> mshr_return_queue;
 		std::queue<MemoryRequest> uncached_write_queue;
 		Pipline<uint> data_array_pipline;
-		Bank(uint num_lfb, uint latency) : mshrs(num_lfb), data_array_pipline(latency - 1) {}
+		Bank(uint num_lfb, uint latency, uint cpi) : mshrs(num_lfb), data_array_pipline(latency - 1, cpi) {}
 	};
 
 	bool _use_lfb;

@@ -64,10 +64,11 @@ enum SCENES
 	SAN_MIGUEL,
 	HAIRBALL,
 	LIVING_ROOM,
-	NUMBER
+	CORNELLBOX,
+	NUMBER,
 };
 
-std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "living_room" };
+std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "living_room" , "cornellbox"};
 
 struct CameraConfig
 {
@@ -78,27 +79,35 @@ struct CameraConfig
 
 static const CameraConfig camera_configs[SCENES::NUMBER] =
 {
-	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
+	{rtm::vec3(-900.6f, 150.8f, 1200.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
+
 	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
+	
 	{rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
+	
 	{rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
+	
 	{rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f}, //LIVING_ROOM
+	
+	{rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f} //CORNELLBOX
 };
 
 class GlobalConfig
 {
 public:
+
 	//simulator config
 	uint simulator = 0; //0-trax, 1-dual-streaming
 	uint logging_interval = 32 * 1024;
 
 	//workload config
-	uint scene_id = 2; 
+	uint scene_id = 5;
 	uint framebuffer_width = 1024;
 	uint framebuffer_height = 1024;
 	CameraConfig camera_config;
+	bool warm_l2 = 0;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;
@@ -174,6 +183,10 @@ public:
 			if(key == "hit_delay")
 			{
 				hit_delay = std::stoi(value);
+			}
+			if (key == "warm_l2")
+			{
+				warm_l2 = std::stoi(value);
 			}
 			if(key == "pregen_rays")
 			{

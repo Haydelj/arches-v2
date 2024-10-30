@@ -8,7 +8,7 @@ namespace rtm
 
 class Camera
 {
-private:
+public:
 	float _drdt;
 	rtm::vec2 _recip_res;
 	rtm::vec3 _position, _x, _y, _z;

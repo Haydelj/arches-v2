@@ -6,6 +6,8 @@
 
 namespace Arches {
 
+
+
 namespace ISA { namespace RISCV { namespace TRaX {
 
 //see the opcode map for details
@@ -143,12 +145,12 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	std::string exe_path(w_exe_path.begin(), w_exe_path.end());
 
 	std::string poject_folder = exe_path.substr(0, exe_path.rfind("build"));
-	std::string data_folder = poject_folder + "datasets/";
+	std::string data_folder = poject_folder + "datasets\\";
 
 	printf("%s\n", poject_folder.c_str());
 
 	std::string obj_filename = data_folder + scene_name + ".obj";
-	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + ".bvh";
+	std::string bvh_cache_filename = data_folder + "cache\\" + scene_name + ".bvh";
 
 	TRaXKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;
@@ -173,7 +175,7 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays, true);
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 
 #if TRAX_USE_COMPRESSED_WIDE_BVH
@@ -253,7 +255,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	l2_config.block_size = block_size;
 	l2_config.num_mshr = 128;
 	l2_config.associativity = 8;
-	l2_config.latency = 10;
+	l2_config.latency = 200;
 	l2_config.cycle_time = 2;
 	l2_config.num_banks = 64;
 	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
@@ -271,7 +273,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	l1d_config.size = 128ull * 1024; //128KB
 	l1d_config.block_size = block_size;
 	l1d_config.associativity = 4;
-	l1d_config.latency = 1;
+	l1d_config.latency = 30;
 	l1d_config.num_banks = 8;
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
@@ -321,7 +323,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 
 #if TRAX_USE_COMPRESSED_WIDE_BVH
-	typedef Units::TRaX::UnitPRTCore<rtm::CompressedWideBVH> UnitRTCore;
+	typedef Units::TRaX::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
 #else
 	typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
 #endif
@@ -355,8 +357,15 @@ static void run_sim_trax(GlobalConfig global_config)
 	UnitL2Cache l2(l2_config);
 	simulator.register_unit(&l2);
 
-	l2.deserialize(current_folder_path + "l2.cache");
 
+	std::string l2_cache_path = current_folder_path + scene_names[global_config.scene_id] + "-" + std::to_string(global_config.pregen_bounce) + "-l2.cache";
+	bool deserialized_cache = false;
+	if (global_config.warm_l2)
+	{
+		deserialized_cache = l2.deserialize(l2_cache_path);
+		//l2.copy(TRAX_KERNEL_ARGS_ADDRESS, dram._data_u8 + TRAX_KERNEL_ARGS_ADDRESS, sizeof(kernel_args));
+	}
+	
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
 	simulator.register_unit(&atomic_regs);
 
@@ -498,9 +507,11 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());
 		printf("                             \n");
 	});
+
 	auto stop = std::chrono::high_resolution_clock::now();
 
-	l2.serialize(current_folder_path + "l2.cache");
+	if(!deserialized_cache)
+		l2.serialize(l2_cache_path);
 
 	cycles_t frame_cycles = simulator.current_cycle;
 	double frame_time = frame_cycles / clock_rate;

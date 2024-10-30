@@ -14,7 +14,6 @@
 
 namespace rtm {
 
-#ifndef __riscv
 class CompressedWideTreeletBVH
 {
 public:
@@ -123,7 +122,10 @@ public:
 		};
 
 		Treelet() {}
+
 	};
+
+#ifndef __riscv
 
 public:
 	std::vector<CompressedWideTreeletBVH::Treelet> treelets;
@@ -439,7 +441,9 @@ public:
 		printf("Treelet Size: %d\n", CompressedWideTreeletBVH::Treelet::SIZE);
 		printf("Treelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);
 	}
-};
 #endif
+
+};
+
 
 } // namespace rtm
