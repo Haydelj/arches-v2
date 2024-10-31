@@ -1,4 +1,3 @@
-add_subdirectory(drampower)
 add_subdirectory(ramulator2 EXCLUDE_FROM_ALL)
 
 # cmake for ramulator
@@ -13,7 +12,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.hpp" "*.h")
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
 
-set(EXCLUDED_FOLDERS "/dram_controller/impl/plugin" "/example/impl" "/resources/" "/drampower")
+set(EXCLUDED_FOLDERS "/dram_controller/impl/plugin" "/example/impl" "/resources/")
 set(NEW_INCLUDE "")
 set(NEW_SOURCE "")
 foreach(Source IN LISTS ALL_INCLUDE)
