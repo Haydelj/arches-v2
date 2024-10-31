@@ -8,7 +8,7 @@ namespace Arches { namespace Units {
 UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint num_channels, uint64_t size) : UnitMainMemoryBase(size),
 	_request_network(num_ports, num_channels), _return_network(num_channels, num_ports)
 {
-	config_path = "./config-files/gddr6_8ch_config.yaml";
+	config_path = "./config-files/gddr6_16ch_config.yaml";
 	YAML::Node config = Ramulator::Config::parse_config_file(config_path, {});
 	ramulator2_frontend = Ramulator::Factory::create_frontend(config);
 	ramulator2_memorysystem = Ramulator::Factory::create_memory_system(config);
@@ -25,6 +25,7 @@ UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint num_channels, uint64_t
 
 UnitDRAMRamulator::~UnitDRAMRamulator() /*override*/
 {
+	
 }
 
 bool UnitDRAMRamulator::request_port_write_valid(uint port_index)

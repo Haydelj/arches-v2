@@ -2,7 +2,7 @@
 #include "stdafx.hpp"
 
 #define DS_USE_RT_CORE 1
-#define DS_USE_HARDWARE_INTERSECTORS 1
+#define DS_USE_HARDWARE_INTERSECTORS 0
 #define DS_USE_COMPRESSED_WIDE_BVH 1
 
 #define DS_KERNEL_ARGS_ADDRESS 256ull

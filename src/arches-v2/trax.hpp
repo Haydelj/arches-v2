@@ -226,7 +226,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	//Compute
 	uint64_t stack_size = 1ull << 10; //1KB
 	uint num_threads_per_tp = 4;
-	uint num_tps_per_tm = 64;
+	uint num_tps_per_tm = 128;
 	uint num_tms = 128;
 
 	//DRAM 
@@ -238,7 +238,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 #if 1
 	typedef Units::UnitDRAMRamulator UnitDRAM;
-	UnitDRAM dram(64, num_channels, mem_size); dram.clear();
+	UnitDRAM dram(32, num_channels, mem_size); dram.clear();
 #else
 	typedef Units::UnitDRAM UnitDRAM;
 	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
@@ -253,11 +253,11 @@ static void run_sim_trax(GlobalConfig global_config)
 	UnitL2Cache::Configuration l2_config;
 	l2_config.size = 72ull * 1024 * 1024; //72MB
 	l2_config.block_size = block_size;
-	l2_config.num_mshr = 128;
+	l2_config.num_mshr = 256;
 	l2_config.associativity = 8;
 	l2_config.latency = 200;
-	l2_config.cycle_time = 2;
-	l2_config.num_banks = 64;
+	l2_config.cycle_time = 1;
+	l2_config.num_banks = 32;
 	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
 		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
 
@@ -277,7 +277,6 @@ static void run_sim_trax(GlobalConfig global_config)
 	l1d_config.num_banks = 8;
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
-	l1d_config.use_lfb = false;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
@@ -358,7 +357,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	simulator.register_unit(&l2);
 
 
-	std::string l2_cache_path = current_folder_path + scene_names[global_config.scene_id] + "-" + std::to_string(global_config.pregen_bounce) + "-l2.cache";
+	std::string l2_cache_path = current_folder_path + "../../../datasets/cache/" + scene_names[global_config.scene_id] + "-" + std::to_string(global_config.pregen_bounce) + "-l2.cache";
 	bool deserialized_cache = false;
 	if (global_config.warm_l2)
 	{
@@ -423,11 +422,11 @@ static void run_sim_trax(GlobalConfig global_config)
 
 		std::vector<Units::UnitSFU*> sfu_list;
 
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm, 2, 1, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
-		unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
-		unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
+		//sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm, 2, 1, num_tps_per_tm));
+		//simulator.register_unit(sfu_list.back());
+		//unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
+		//unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
+		//unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
 
 		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm / 8, 1, 1, num_tps_per_tm));
 		simulator.register_unit(sfu_list.back());

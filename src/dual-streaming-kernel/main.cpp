@@ -67,7 +67,7 @@ inline static void kernel(const DualStreamingKernelArgs& args)
 #ifdef __riscv 
 int main()
 {
-	kernel(*(const DualStreamingKernelArgs*)KERNEL_ARGS_ADDRESS);
+	kernel(*(const DualStreamingKernelArgs*)DS_KERNEL_ARGS_ADDRESS);
 	return 0;
 }
 
@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
-	rtm::BVH2 bvh2(dataset_path + "cache/" + scene_name + "_bvh.cache", build_objects, 2);
+	rtm::BVH2 bvh2(dataset_path + "cache/" + scene_name + ".bvh", build_objects, 2);
 	mesh.reorder(build_objects);
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);

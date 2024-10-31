@@ -62,8 +62,8 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 			if(cache_index != ~0)
 			{
 				// There is already a load request for this hit
-				_assert(rsb_req.port < 64);
-				channel.rsb_load_queue[rsb_req.hit_info.hit_address] |= (1ull << rsb_req.port);
+				_assert(rsb_req.port < 128);
+				channel.rsb_load_queue[rsb_req.hit_info.hit_address] |= ((uint128_t)1ull << rsb_req.port);
 				channel.rsb_counter[{rsb_req.hit_info.hit_address, rsb_req.port}]++;
 				request_network.read(channel_index);
 			}
@@ -94,7 +94,7 @@ void UnitHitRecordUpdater::process_requests(uint channel_index)
 					load_req.paddr = rsb_req.hit_info.hit_address;
 					channel.read_queue.push(load_req);
 
-					channel.rsb_load_queue[rsb_req.hit_info.hit_address] |= (1ull << rsb_req.port);
+					channel.rsb_load_queue[rsb_req.hit_info.hit_address] |= ((uint128_t)1ull << rsb_req.port);
 					channel.rsb_counter[{rsb_req.hit_info.hit_address, rsb_req.port}]++;
 					request_network.read(channel_index);
 				}
@@ -163,8 +163,9 @@ void UnitHitRecordUpdater::process_returns(uint channel_index)
 		// If there are load requests from TP
 		if(channel.rsb_load_queue.count(hit_address))
 		{
-			uint64_t rsb_set = channel.rsb_load_queue[hit_address];
-			for(uint64_t set = rsb_set, rsb_index; set != 0; set ^= (1ull << rsb_index))
+			uint rsb_index = 0;
+			uint128_t rsb_set = channel.rsb_load_queue[hit_address];
+			for(uint128_t set = rsb_set; set != 0; set ^= ((uint128_t)1ull << rsb_index))
 			{
 				rsb_index = ctz(set);
 				_assert(channel.rsb_counter.count({hit_address, rsb_index}));

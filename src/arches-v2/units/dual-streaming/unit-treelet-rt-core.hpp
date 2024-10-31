@@ -70,7 +70,7 @@ private:
 		bool hit_found;
 		bool lhit_returned;
 
-		NodeStackEntry nstack[32];
+		NodeStackEntry nstack[32 * (rtm::WideTreeletBVH::WIDTH - 1)];
 		uint nstack_size;
 
 		TreeletStackEntry tqueue[16];

@@ -258,7 +258,7 @@ public:
 		std::queue<MemoryRequest> read_queue; //128 * 7 = 1024 bit
 		std::queue<MemoryRequest> write_queue;
 		std::queue<MemoryReturn> return_queue;
-		std::map<paddr_t, uint64_t> rsb_load_queue; // If the number of TMs is smaller than 64, otherwise we should replace UINT64 with std::vector
+		std::map<paddr_t, uint128_t> rsb_load_queue; // If the number of TMs is smaller than 64, otherwise we should replace UINT64 with std::vector
 		std::map<std::pair<paddr_t, uint>, uint> rsb_counter;
 	};
 

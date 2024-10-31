@@ -79,7 +79,7 @@ struct CameraConfig
 
 static const CameraConfig camera_configs[SCENES::NUMBER] =
 {
-	{rtm::vec3(-900.6f, 150.8f, 1200.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
+	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
 
 	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
 	
@@ -98,15 +98,15 @@ public:
 
 	//simulator config
 	uint simulator = 0; //0-trax, 1-dual-streaming
-	uint logging_interval = 32 * 1024;
+	uint logging_interval = 2000;
 
 	//workload config
-	uint scene_id = 5;
+	uint scene_id = 0;
 	uint framebuffer_width = 1024;
 	uint framebuffer_height = 1024;
 	CameraConfig camera_config;
 	bool warm_l2 = 0;
-	bool pregen_rays = 1;
+	bool pregen_rays = 0;
 	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
 
 	//dual streaming

@@ -74,6 +74,13 @@ public:
 		return *this;
 	}
 
+	uint128_t& operator^=(const uint128_t& other)
+	{
+		lo ^= other.lo;
+		hi ^= other.hi;
+		return *this;
+	}
+
 	uint128_t& operator&=(const uint128_t& other)
 	{
 		lo &= other.lo;

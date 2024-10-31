@@ -46,7 +46,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 		#if defined(__riscv) && (TRAX_USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-		//	intersect(args.nodes, args.tris, ray, hit, steps);
+			intersect(args.nodes, args.tris, ray, hit, steps);
 			//intersect(args.treelets, ray, hit, steps);
 		#endif
 		}
