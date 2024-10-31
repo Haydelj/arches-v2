@@ -19,9 +19,14 @@ MemorySystem:
       channel_width: 32
     timing:
       preset: GDDR6_16000_1350mV_quad 
+    drampower_enable: true
+    voltage:
+      preset: Default
+    current: 
+      preset: Default
 
-  ControllerA:
-    impl: Generic
+  Controller:
+    impl: GenericA
     Scheduler:
       impl: FRFCFS
     RefreshManager:
@@ -33,4 +38,4 @@ MemorySystem:
     plugins:
 
   AddrMapper:
-    impl: RoRaBaChCo
+    impl: RoBgBaRaChCo
