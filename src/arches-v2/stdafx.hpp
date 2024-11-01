@@ -145,6 +145,9 @@
 #include <intrin.h>
 #include <xmmintrin.h>
 
+
+
+
 #ifndef _DEBUG
 inline void _assert(bool x)
 {
@@ -157,7 +160,9 @@ inline void _assert(bool x)
 }
 #endif
 
+#undef uint
 typedef unsigned int uint;
+
 
 namespace Arches {
 
