@@ -4,7 +4,8 @@
 namespace Ramulator {
 //#define USE_DRAMPOWER
 
-class GDDR6A : public IDRAM, public Implementation {
+class GDDR6A : public IDRAM, public Implementation
+{
   RAMULATOR_REGISTER_IMPLEMENTATION(IDRAM, GDDR6A, "GDDR6A", "GDDR6 Device Model for Arches")
 
   public:
