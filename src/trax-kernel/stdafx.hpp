@@ -21,4 +21,4 @@
 
 #include "rtm/rtm.hpp"
 
-typedef unsigned int uint;
+//typedef unsigned int uint;

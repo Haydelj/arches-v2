@@ -1,27 +1,41 @@
 #pragma once 
 #include "stdafx.hpp"
 
-#include "ramulator/base/base.h"
-#include "ramulator/base/request.h"
-#include "ramulator/base/config.h"
-#include "ramulator/frontend/frontend.h"
-#include "ramulator/memory_system/memory_system.h"
-
-#include "unit-base.hpp"
 #include "unit-main-memory-base.hpp"
 #include "util/arbitration.hpp"
+
+
+#include <ramulator2/src/base/base.h>
+#include <ramulator2/src/base/request.h>
+#include <ramulator2/src/base/config.h>
+#include <ramulator2/src/frontend/frontend.h>
+#include <ramulator2/src/memory_system/memory_system.h>
+#include <ramulator2/src/frontend/impl/external_wrapper/gem5_frontend.cpp>
+#include <ramulator2/src/addr_mapper/impl/linear_mappers.cpp>
+#include <ramulator2/src/dram_controller/impl/rowpolicy/basic_rowpolicies.cpp>
+#include <ramulator2/src/memory_system/impl/generic_DRAM_system.cpp>
+#include "ramulator/unit-generic-dram-controller.cpp"
+#include <ramulator2/src/dram_controller/impl/scheduler/generic_scheduler.cpp>
+#include <ramulator2/src/dram_controller/impl/refresh/all_bank_refresh.cpp>
+
+
+#ifdef uint
+#undef uint
+#endif
+typedef unsigned int uint;
+
 
 namespace Arches { namespace Units {
 
 class UnitDRAMRamulator : public UnitMainMemoryBase
 {
 private:
-	std::string config_path;
-	Ramulator::IFrontEnd* ramulator2_frontend;
-	Ramulator::IMemorySystem* ramulator2_memorysystem;
-	int clock_ratio;
+	std::string _config_path;
+	Ramulator::IFrontEnd* _ramulator2_frontend;
+	Ramulator::IMemorySystem* _ramulator2_memorysystem;
 
-	//float memory_tCK = ramulator2_memorysystem->get_tCK();
+	int _clock_ratio;
+	uint _pending_requests = 0;
 
 	struct RamulatorReturn
 	{
@@ -46,20 +60,9 @@ private:
 	ReturnCascade _return_network;
 	cycles_t _current_cycle{ 0 };
 
-	std::vector<MemoryReturn> returns;
-	std::stack<uint> free_return_ids;
+	std::vector<MemoryReturn> _returns;
+	std::stack<uint> _free_return_ids;
 
-	unsigned int log_base2(unsigned int new_value)
-	{
-		int i;
-		for (i = 0; i < 32; i++)
-		{
-			new_value >>= 1;
-			if (new_value == 0)
-				break;
-		}
-		return i;
-	}
 
 public:
 	UnitDRAMRamulator(uint num_ports, uint num_channels, uint64_t size);
@@ -114,7 +117,6 @@ public:
 
 			printf("Read Bandwidth: %.1f bytes/cycle\n", (double)bytes_read / units / cycles);
 			printf("Write Bandwidth: %.1f bytes/cycle\n", (double)bytes_written / units / cycles);
-
 			printf("\n");
 			printf("Total: %lld\n", total / units);
 			printf("Loads: %lld\n", loads / units);

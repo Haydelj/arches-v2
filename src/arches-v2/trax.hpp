@@ -515,14 +515,14 @@ static void run_sim_trax(GlobalConfig global_config)
 	cycles_t frame_cycles = simulator.current_cycle;
 	double frame_time = frame_cycles / clock_rate;
 	double simulation_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0;
-	float total_power = dram.total_power();
 
 	tp_log.print_profile(dram._data_u8);
 
-	//dram.print_stats(4, frame_cycles);
+	dram.print_stats(4, frame_cycles);
 	print_header("DRAM");
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);
+	float total_power = dram.total_power();
 
 	print_header("L2$");
 	delta_log(l2_log, l2);
