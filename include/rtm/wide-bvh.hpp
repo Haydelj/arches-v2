@@ -24,7 +24,7 @@ constexpr int INVALID_NODE = -1;
 class WideBVH
 {
 public:
-	const static uint WIDTH = 6;
+	const static uint WIDTH = 2;
 
 	struct alignas(64) Node
 	{

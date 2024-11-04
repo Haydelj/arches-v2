@@ -15,6 +15,7 @@
 
 namespace Arches { namespace Units { namespace STRaTA {
 
+template<typename TT>
 class UnitTreeletRTCore : public UnitMemoryBase
 {
 public:
@@ -66,7 +67,7 @@ private:
 
 	struct NodeStagingBuffer
 	{
-		rtm::PackedTreelet::Node node;
+		TT::Node node;
 		uint16_t ray_id;
 
 		NodeStagingBuffer() {};
@@ -74,7 +75,7 @@ private:
 
 	struct TriStagingBuffer
 	{
-		rtm::PackedTreelet::Triangle tri;
+		TT::Triangle tri;
 		paddr_t addr;
 		uint16_t bytes_filled;
 
