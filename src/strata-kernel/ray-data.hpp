@@ -7,6 +7,7 @@ struct RayData
 	struct RayState
 	{
 		uint32_t treelet_id{0};
+		uint32_t treelet_child_id{0};
 		uint32_t hit_id{~0u};
 		float hit_t{T_MAX};
 		uint32_t id;	// id for framebuffer
@@ -21,4 +22,5 @@ struct RayData
 	RayState raystate;
 
 	uint32_t traversal_stack{0};
+	uint32_t visited_stack{0};
 };

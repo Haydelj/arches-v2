@@ -112,8 +112,8 @@ int main(int argc, char* argv[])
 	mesh.reorder(cwbvh.indices);
 	args.nodes = cwbvh.nodes.data();
 #else
-	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
-	rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
+	rtm::WideBVH packed_bvh2(bvh2, build_objects);
+	rtm::WideTreeletSTRaTABVH treelet_bvh(packed_bvh2, mesh);
 	args.nodes = packed_bvh2.nodes.data();
 	args.treelets = treelet_bvh.treelets.data();
 #endif
