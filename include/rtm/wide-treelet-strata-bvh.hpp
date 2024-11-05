@@ -42,7 +42,7 @@ public:
 					uint32_t is_int : 1;
 					uint32_t is_child_treelet : 1;
 					uint32_t is_parent_treelet : 1;
-					uint32_t visited_child : 1;
+					uint32_t : 1;
 					uint32_t parent_child_data_index : 3;
 					uint32_t child_index : 19;
 					uint32_t parent_index : 19;			// parent treelet index
@@ -325,7 +325,6 @@ public:
 				{
 					tnode.aabb[j] = wnode.aabb[j];
 					tnode.data[j].is_int = wnode.data[j].is_int;
-					tnode.data[j].visited_child = 0;
 					if(wnode.data[j].is_int)
 					{
 						uint child_node_id = wnode.data[j].child_index;

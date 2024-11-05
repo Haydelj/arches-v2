@@ -15,7 +15,6 @@
 
 namespace Arches { namespace Units { namespace STRaTA {
 
-template<typename TT>
 class UnitTreeletRTCore : public UnitMemoryBase
 {
 public:
@@ -35,6 +34,14 @@ public:
 private:
 	struct RayState
 	{
+		struct StackEntry
+		{
+			float t;
+			uint32_t treelet;
+			uint32_t child_index;
+			rtm::WideTreeletSTRaTABVH::Treelet::Node::Data data;
+		};
+
 		enum class Phase
 		{
 			NONE,
@@ -49,15 +56,12 @@ private:
 		}
 		phase;
 
-		rtm::Ray ray;
+		RayData ray_data;
 		rtm::vec3 inv_d;
 
 		rtm::Hit hit;
-
-		uint32_t current_treelet_id;
-		uint32_t global_ray_id;
-		uint32_t traversal_stack;
-		RayData::RayState::Traversal_State traversal_state;
+		StackEntry stack;
+		uint32_t stack_size;
 
 		uint16_t flags;
 		uint16_t port;
@@ -67,7 +71,7 @@ private:
 
 	struct NodeStagingBuffer
 	{
-		TT::Node node;
+		rtm::WideTreeletSTRaTABVH::Treelet::Node node;
 		uint16_t ray_id;
 
 		NodeStagingBuffer() {};
@@ -75,8 +79,9 @@ private:
 
 	struct TriStagingBuffer
 	{
-		TT::Triangle tri;
+		rtm::WideTreeletSTRaTABVH::Treelet::Triangle tri;
 		paddr_t addr;
+		uint16_t num_tris;
 		uint16_t bytes_filled;
 
 		TriStagingBuffer() {};
@@ -191,7 +196,7 @@ private:
 	}
 
 	bool _try_queue_node(uint ray_id, uint treelet_id, uint node_id);
-	bool _try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset);
+	bool _try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset, uint num_tris);
 
 	void _read_requests();
 	void _read_returns();
