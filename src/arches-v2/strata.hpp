@@ -185,8 +185,6 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
 
-	//rtm::PackedTreeletBVH treelet_bvh(packed_bvh2, mesh);
-
 	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
@@ -196,17 +194,16 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 	mesh.reorder(cwbvh.indices);
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
 #else
-	rtm::PackedBVH2 packed_bvh2(bvh2, build_objects);
-	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, packed_bvh2.nodes, heap_address);
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
+	rtm::WideTreeletSTRaTABVH wtbvh(wbvh, mesh);
+	args.treelets = write_vector(main_memory, page_size, wtbvh.treelets, heap_address);
 #endif
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
-
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
-	//args.treelets = write_vector(main_memory, page_size, treelet_bvh.treelets, heap_address);
-
 	main_memory->direct_write(&args, sizeof(STRaTAKernelArgs), KERNEL_ARGS_ADDRESS);
 	return args;
 }
@@ -258,7 +255,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.size = 32ull * 1024 * 1024; //32MB
+	l2_config.size = 512ull * 1024; //512KB for treelet data
 	l2_config.block_size = block_size;
 	l2_config.num_mshr = 128;
 	l2_config.associativity = 8;
@@ -296,7 +293,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	uint num_icache_per_tm = l1d_config.num_banks;
 	Units::UnitBlockingCache::Configuration l1i_config;
 	l1i_config.size = 4 * 1024;
-	l1d_config.block_size = block_size;
+	l1i_config.block_size = block_size;
 	l1i_config.associativity = 4;
 	l1i_config.latency = 1;
 	l1i_config.cycle_time = 1;
@@ -332,7 +329,7 @@ static void run_sim_strata(GlobalConfig global_config)
 #ifdef USE_COMPRESSED_WIDE_BVH
 	typedef Units::STRaTA::UnitTreeletRTCore<rtm::CompressedWideBVH> UnitRTCore;
 #else
-	typedef Units::STRaTA::UnitTreeletRTCore<rtm::PackedBVH2> UnitRTCore;
+	typedef Units::STRaTA::UnitTreeletRTCore UnitRTCore;
 #endif
 	std::vector<UnitRTCore*> rtcs;
 
@@ -366,6 +363,14 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
 	simulator.register_unit(&atomic_regs);
+
+	Units::STRaTA::UnitRayStreamBuffer::Configuration ray_stream_buffer_config;
+	ray_stream_buffer_config.latency = l2_config.latency + l1d_config.latency;
+	ray_stream_buffer_config.num_banks = 64;
+	ray_stream_buffer_config.num_tm = num_tms;
+	ray_stream_buffer_config.size = 32ull * 1024 * 1024; //32MB
+	Units::STRaTA::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);
+	simulator.register_unit(&ray_stream_buffer);
 
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
 	{
@@ -403,10 +408,10 @@ static void run_sim_strata(GlobalConfig global_config)
 		UnitRTCore::Configuration rtc_config;
 		rtc_config.max_rays = 128;
 		rtc_config.num_tp = num_tps_per_tm;
-		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
-		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
-		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
+		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
+		rtc_config.hit_record_base_addr = (paddr_t)kernel_args.hit_records;
 		rtc_config.cache = l1ds.back();
+		rtc_config.ray_stream_buffer = &ray_stream_buffer;
 
 		rtcs.push_back(_new  UnitRTCore(rtc_config));
 		simulator.register_unit(rtcs.back());
@@ -482,6 +487,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	Units::UnitTP::Log tp_log;
 
 	UnitRTCore::Log rtc_log;
+	Units::STRaTA::UnitRayStreamBuffer::Log rsb_log;
 
 	uint delta = global_config.logging_interval;
 	auto start = std::chrono::high_resolution_clock::now();
@@ -514,7 +520,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	tp_log.print_profile(dram._data_u8);
 
-	//dram.print_stats(4, frame_cycles);
+	dram.print_stats(4, frame_cycles);
 	print_header("DRAM");
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);
@@ -563,6 +569,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	print_header("Simulation Summary");
 	printf("Simulation rate: %.2f KHz\n", simulator.current_cycle / simulation_time / 1000.0);
 	printf("Simulation time: %.0f s\n", simulation_time);
+	printf("MSIPS: %.2f\n", simulator.current_cycle * tps.size() / simulation_time / 1'000'000.0);
 
 	stbi_flip_vertically_on_write(true);
 	dram.dump_as_png_uint8((paddr_t)kernel_args.framebuffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "out.png");

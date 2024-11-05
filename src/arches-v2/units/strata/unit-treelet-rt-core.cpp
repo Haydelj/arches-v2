@@ -145,8 +145,7 @@ void UnitTreeletRTCore::_schedule_ray()
 
 		RayState& ray_state = _ray_states[ray_id];
 
-		bool any_hit_found = ray_state.hit.id != ~0u;
-		if(ray_state.ray_data.traversal_stack > 0)
+		if(ray_state.ray_data.traversal_stack > 1)
 		{
 			RayState::StackEntry& entry = ray_state.stack;
 			if(entry.t < ray_state.hit.t) //pop cull
@@ -172,17 +171,14 @@ void UnitTreeletRTCore::_schedule_ray()
 						}
 						else
 						{
+							ray_state.ray_data.raystate.treelet_id = entry.data.child_index;
+							ray_state.ray_data.raystate.treelet_child_id = 0;
 							RayData ray_data;
-							ray_data.ray = ray_state.ray_data.ray;
+							ray_data = ray_state.ray_data;
 							ray_data.ray.t_max = rtm::min(ray_state.ray_data.ray.t_max, ray_state.hit.t);
-							ray_data.raystate.id = ray_state.ray_data.raystate.id;
-							ray_data.raystate.treelet_id = entry.data.child_index;
-							ray_data.raystate.treelet_child_id = 0;
-							ray_data.raystate.hit_id = ray_state.hit.id;
-							ray_data.raystate.hit_t = ray_state.hit.t;
-							ray_data.traversal_stack = ray_state.ray_data.traversal_stack;
 							_ray_buffer_store_queue.push(ray_data);
-							// _ray_scheduling_queue.push(ray_id);
+							ray_state.ray_data.traversal_stack = 0;
+							_ray_scheduling_queue.push(ray_id);
 						}
 					}
 					else
@@ -222,16 +218,14 @@ void UnitTreeletRTCore::_schedule_ray()
 						}
 						else
 						{
+							ray_state.ray_data.raystate.treelet_id = entry.data.parent_index;
+							ray_state.ray_data.raystate.treelet_child_id = entry.data.parent_child_index;
 							RayData ray_data;
-							ray_data.ray = ray_state.ray_data.ray;
+							ray_data = ray_state.ray_data;
 							ray_data.ray.t_max = rtm::min(ray_state.ray_data.ray.t_max, ray_state.hit.t);
-							ray_data.raystate.id = ray_state.ray_data.raystate.id;
-							ray_data.raystate.treelet_id = entry.data.parent_index;
-							ray_data.raystate.treelet_child_id = entry.data.parent_child_index;
-							ray_data.raystate.hit_id = ray_state.hit.id;
-							ray_data.raystate.hit_t = ray_state.hit.t;
-							ray_data.traversal_stack = ray_state.ray_data.traversal_stack;
 							_ray_buffer_store_queue.push(ray_data);
+							ray_state.ray_data.traversal_stack = 0;
+							_ray_scheduling_queue.push(ray_id);
 						}
 					}
 					else
@@ -258,8 +252,9 @@ void UnitTreeletRTCore::_schedule_ray()
 		}
 		else
 		{
-			if(any_hit_found)
+			if(ray_state.hit.id != ~0u)
 			{
+				_assert(ray_state.ray_data.traversal_stack == 1);
 				//stack empty or anyhit found return the hit
 				if(ENABLE_RT_DEBUG_PRINTS)
 					printf("Ret: %d\n", ray_state.hit.id);
