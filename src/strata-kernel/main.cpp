@@ -19,33 +19,62 @@ inline static void kernel(const STRaTAKernelArgs& args)
 {
 #if defined(__riscv)
 	// write initial rays for root node
-	uint32_t index;
-	for (index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
+	uint32_t index, x, y;
+	for (index = fchthrd(); index < args.raybuffer_size; index = fchthrd())
 	{
-		uint32_t x = index % args.framebuffer_width;
-		uint32_t y = index / args.framebuffer_width;
+		x = index % args.framebuffer_width;
+		y = index / args.framebuffer_width;
 		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
 		
 		RayData raydata;
 		raydata.ray = ray;
 		raydata.raystate.treelet_id = 0;
+		raydata.raystate.treelet_child_id = 0;
 		raydata.raystate.hit_id = ~0u;
 		raydata.raystate.hit_t = T_MAX;
 		raydata.raystate.id = index;
 		raydata.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
 		raydata.traversal_stack = 1;
+		raydata.visited_stack = 1;
 		_srb(raydata);
 	}
 
-	for (index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
+	for (; index < args.framebuffer_size; index = fchthrd())
 	{
-		rtm::Hit hit = _lhit(args.hit_records + index);
+		STRaTAHitReturn hit_return = _lhit();
 		uint32_t out = 0xff000000;
-		if (hit.id != ~0u)
+		if (hit_return.hit.id != ~0u)
 		{
-			out |= rtm::RNG::hash(hit.id);
+			out |= rtm::RNG::hash(hit_return.hit.id);
 		}
-		args.framebuffer[index] = out;
+		args.framebuffer[hit_return.index] = out;
+
+		x = index % args.framebuffer_width;
+		y = index / args.framebuffer_width;
+		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
+		
+		RayData raydata;
+		raydata.ray = ray;
+		raydata.raystate.treelet_id = 0;
+		raydata.raystate.treelet_child_id = 0;
+		raydata.raystate.hit_id = ~0u;
+		raydata.raystate.hit_t = T_MAX;
+		raydata.raystate.id = index;
+		raydata.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
+		raydata.traversal_stack = 1;
+		raydata.visited_stack = 1;
+		_srb(raydata);
+	}
+
+	for (; index < args.framebuffer_size + args.raybuffer_size; index = fchthrd())
+	{
+		STRaTAHitReturn hit_return = _lhit();
+		uint32_t out = 0xff000000;
+		if (hit_return.hit.id != ~0u)
+		{
+			out |= rtm::RNG::hash(hit_return.hit.id);
+		}
+		args.framebuffer[hit_return.index] = out;
 	}
 
 #else
@@ -54,9 +83,10 @@ inline static void kernel(const STRaTAKernelArgs& args)
 		uint32_t x = index % args.framebuffer_width;
 		uint32_t y = index / args.framebuffer_width;
 
+		uint32_t steps = 0;
 		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
-		intersect(args.treelets, ray, hit);
+		intersect(args.treelets, ray, hit, steps);
 		uint32_t out = 0xff000000;
 		if (hit.id != ~0u)
 			out |= rtm::RNG::hash(hit.id);
@@ -114,7 +144,6 @@ int main(int argc, char* argv[])
 #else
 	rtm::WideBVH packed_bvh2(bvh2, build_objects);
 	rtm::WideTreeletSTRaTABVH treelet_bvh(packed_bvh2, mesh);
-	args.nodes = packed_bvh2.nodes.data();
 	args.treelets = treelet_bvh.treelets.data();
 #endif
 
