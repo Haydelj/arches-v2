@@ -260,9 +260,8 @@ void UnitTreeletRTCore::_schedule_ray()
 					printf("Ret: %d\n", ray_state.hit.id);
 
 				ray_state.phase = RayState::Phase::HIT_UPDATE;
-				// _ray_return_queue.push(ray_id);
-				paddr_t paddr = _hit_record_base_addr + ray_state.ray_data.raystate.id * sizeof(rtm::Hit);
-				_hit_return_map[paddr] = ray_id;
+				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::OVER;
+				_hit_store_queue.push(ray_id);
 			}
 			else
 			{
@@ -406,7 +405,25 @@ void UnitTreeletRTCore::_issue_requests()
 
 	if(_ray_stream_buffer->request_port_write_valid(_tm_index))
 	{
-		if(!_ray_buffer_store_queue.empty())
+		if(!_hit_store_queue.empty())
+		{
+			uint ray_id = _hit_store_queue.front();
+			_hit_store_queue.pop();
+
+			RayState& ray_state = _ray_states[ray_id];
+
+			MemoryRequest req;
+			req.type = MemoryRequest::Type::STORE;
+			req.size = sizeof(RayData);
+			req.port = 0;
+			req.paddr = ray_state.ray_data.raystate.id;
+			std::memcpy(req.data, &ray_state.ray_data, req.size);
+			_ray_stream_buffer->write_request(req);
+
+			ray_state.phase = RayState::Phase::RAY_FETCH;
+			_ray_data_load_queue.push(ray_id);
+		}
+		else if(!_ray_buffer_store_queue.empty())
 		{
 			RayData ray_data = _ray_buffer_store_queue.front();
 			_ray_buffer_store_queue.pop();
@@ -429,9 +446,15 @@ void UnitTreeletRTCore::_issue_requests()
 			req.size = sizeof(RayData);
 			req.port = _tm_index;
 			req.dst = ray_id;
-			// req.flags = _ray_states[ray_id].current_treelet_id;
 			req.paddr = 0xdeadbeefull;
 			_ray_stream_buffer->write_request(req);
+		}
+		else if(!_tp_hit_load_queue.empty())
+		{
+			//issue hit requests
+			const MemoryRequest& req = _tp_hit_load_queue.front();
+			_ray_stream_buffer->write_request(req);
+			_tp_hit_load_queue.pop();
 		}
 	}
 }

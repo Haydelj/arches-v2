@@ -352,6 +352,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	paddr_t heap_address = dram.write_elf(elf);
 
 	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size);
+	kernel_args.raybuffer_size = 4ull * 1024 * 1024; //4MB
 
 	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
 	l2_config.mem_highers = {&dram};
@@ -368,7 +369,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	ray_stream_buffer_config.latency = l2_config.latency + l1d_config.latency;
 	ray_stream_buffer_config.num_banks = 64;
 	ray_stream_buffer_config.num_tm = num_tms;
-	ray_stream_buffer_config.size = 32ull * 1024 * 1024; //32MB
+	ray_stream_buffer_config.size = 4ull * 1024 * 1024; //4MB
 	Units::STRaTA::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);
 	simulator.register_unit(&ray_stream_buffer);
 
