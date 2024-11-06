@@ -138,7 +138,7 @@ Disassembly of section .text:
    1021c:	08f27253          	fsub.s	ft4,ft4,fa5
    10220:	15402787          	flw	fa5,340(zero) # 154 <main-0xff5c>
    10224:	08f37353          	fsub.s	ft6,ft6,fa5
-   10228:	00005e0b          	traceray	ft8,ft0,0
+   10228:	00005e0b          	.insn	4, 0x5e0b
    1022c:	e00f87d3          	fmv.x.w	a5,ft11
    10230:	00271693          	sll	a3,a4,0x2
    10234:	00d80f33          	add	t5,a6,a3

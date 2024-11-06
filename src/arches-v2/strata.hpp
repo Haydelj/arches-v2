@@ -96,7 +96,7 @@ const static InstructionInfo isa_custom0_funct3[8] =
 	InstructionInfo(0x1, IMPL_NONE),
 	InstructionInfo(0x2, IMPL_NONE),
 	InstructionInfo(0x3, IMPL_NONE),
-	InstructionInfo(0x4, "lhit", InstrType::CUSTOM6, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x4, "lhits", InstrType::CUSTOM6, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
 	{
 		RegAddr reg_addr;
 		reg_addr.reg = instr.i.rd;
@@ -235,19 +235,18 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	//DRAM 
 	uint64_t mem_size = 1ull << 32; //4GB
+	uint num_channels = 16;// dram.num_channels();
+	uint64_t row_size = 8 * 1024; // dram.row_size();
+	uint64_t block_size = 64; // dram.block_size();
 
 #if 1
 	typedef Units::UnitDRAMRamulator UnitDRAM;
-	UnitDRAM dram(64, mem_size); dram.clear();
+	UnitDRAM dram(32, num_channels, mem_size); dram.clear();
 #else
 	typedef Units::UnitDRAM UnitDRAM;
 	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
 	UnitDRAM dram(64, mem_size);
 #endif
-
-	uint num_channels = 8;// dram.num_channels();
-	uint64_t row_size = 8 * 1024; // dram.row_size();
-	uint64_t block_size = 64; // dram.block_size();
 
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
@@ -312,7 +311,8 @@ static void run_sim_strata(GlobalConfig global_config)
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
-	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM7] = "TRACERAY";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM6] = "LOADHIT";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM7] = "STORERB";
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::STRaTA::custom0;
 
 	uint num_tps = num_tps_per_tm * num_tms;
@@ -417,6 +417,7 @@ static void run_sim_strata(GlobalConfig global_config)
 		rtcs.push_back(_new  UnitRTCore(rtc_config));
 		simulator.register_unit(rtcs.back());
 		mem_list.push_back(rtcs.back());
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rtcs.back();
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
 	#endif
 

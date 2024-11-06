@@ -76,28 +76,36 @@ void UnitTreeletRTCore::_read_returns()
 	if(_ray_stream_buffer->return_port_read_valid(_tm_index))
 	{
 		MemoryReturn ret = _ray_stream_buffer->read_return(_tm_index);
-		_assert(ret.size == sizeof(RayData));
-		RayData ray_data;
-		std::memcpy(&ray_data, ret.data, sizeof(RayData));
-		uint ray_id = ret.dst;
-		RayState& ray_state = _ray_states[ray_id];
-		ray_state.ray_data = ray_data;
-		ray_state.inv_d = rtm::vec3(1.0f) / ray_data.ray.d;
-		ray_state.hit.t = ray_data.raystate.hit_t;
-		ray_state.hit.bc = rtm::vec2(0.0f);
-		ray_state.hit.id = ray_data.raystate.hit_id;
-		ray_state.stack_size = 1;
-		ray_state.stack.t = ray_data.ray.t_min;
-		ray_state.stack.treelet = ray_data.raystate.treelet_id;
-		ray_state.stack.child_index = ray_data.raystate.treelet_child_id;
-		ray_state.stack.data.is_int = 1;
-		ray_state.stack.data.is_child_treelet = 0;
-		ray_state.stack.data.is_parent_treelet = 0;
+		if(ret.size == sizeof(RayData))
+		{
+			RayData ray_data;
+			std::memcpy(&ray_data, ret.data, sizeof(RayData));
+			uint ray_id = ret.dst;
+			RayState& ray_state = _ray_states[ray_id];
+			ray_state.ray_data = ray_data;
+			ray_state.inv_d = rtm::vec3(1.0f) / ray_data.ray.d;
+			ray_state.hit.t = ray_data.raystate.hit_t;
+			ray_state.hit.bc = rtm::vec2(0.0f);
+			ray_state.hit.id = ray_data.raystate.hit_id;
+			ray_state.stack_size = 1;
+			ray_state.stack.t = ray_data.ray.t_min;
+			ray_state.stack.treelet = ray_data.raystate.treelet_id;
+			ray_state.stack.child_index = ray_data.raystate.treelet_child_id;
+			ray_state.stack.data.is_int = 1;
+			ray_state.stack.data.is_child_treelet = 0;
+			ray_state.stack.data.is_parent_treelet = 0;
 
-		ray_state.phase = RayState::Phase::SCHEDULER;
-		_ray_scheduling_queue.push(ray_id);
+			ray_state.phase = RayState::Phase::SCHEDULER;
+			_ray_scheduling_queue.push(ray_id);
 
-		log.rays++;
+			log.rays++;
+		}
+		else if(ret.size == sizeof(STRaTAHitReturn))
+		{
+			_tp_hit_return_queue.push(ret);
+		}
+		else
+			_assert(0);
 	}
 
 	if(_cache->return_port_read_valid(_num_tp))
@@ -461,26 +469,11 @@ void UnitTreeletRTCore::_issue_requests()
 
 void UnitTreeletRTCore::_issue_returns()
 {
-	if(!_tp_hit_load_queue.empty() && _return_network.is_write_valid(0))
+	if(!_tp_hit_return_queue.empty() && _return_network.is_write_valid(0))
 	{
-		MemoryRequest req = _tp_hit_load_queue.front();
-		if(_hit_return_map.find(req.paddr) != _hit_return_map.end())
-		{
-			uint ray_id = _hit_return_map[req.paddr];
-			RayState& ray_state = _ray_states[ray_id];
-			MemoryReturn ret;
-			ret.size = sizeof(rtm::Hit);
-			ret.dst = req.dst;
-			ret.port = req.port;
-			ret.paddr = req.paddr;
-			std::memcpy(ret.data, &ray_state.hit, sizeof(rtm::Hit));
-			_return_network.write(ret, 0);
-
-			ray_state.phase = RayState::Phase::RAY_FETCH;
-			_ray_data_load_queue.push(ray_id);
-			_hit_return_map.erase(req.paddr);
-			_tp_hit_load_queue.pop();
-		}
+		const MemoryReturn& ret = _tp_hit_return_queue.front();
+		_return_network.write(ret, 0);
+		_tp_hit_return_queue.pop();
 	}
 }
 

@@ -4,6 +4,7 @@
 #include "trax.hpp"
 #include "dual-streaming.hpp"
 #include "trax-kernel/intersect.hpp"
+#include "strata.hpp"
 
 //global verbosity flag
 int arches_verbosity = 1;

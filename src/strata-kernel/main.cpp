@@ -47,7 +47,7 @@ inline static void kernel(const STRaTAKernelArgs& args)
 
 	for (; index < args.framebuffer_size; index = fchthrd())
 	{
-		STRaTAHitReturn hit_return = _lhit();
+		STRaTAHitReturn hit_return = _lhits();
 		uint32_t out = 0xff000000;
 		if (hit_return.hit.id != ~0u)
 		{
@@ -75,7 +75,7 @@ inline static void kernel(const STRaTAKernelArgs& args)
 
 	for (; index < args.framebuffer_size + max_ray; index = fchthrd())
 	{
-		STRaTAHitReturn hit_return = _lhit();
+		STRaTAHitReturn hit_return = _lhits();
 		uint32_t out = 0xff000000;
 		if (hit_return.hit.id != ~0u)
 		{
