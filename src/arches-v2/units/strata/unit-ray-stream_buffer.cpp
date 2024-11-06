@@ -17,89 +17,120 @@ void UnitRayStreamBuffer::clock_fall()
 		Bank& bank = _banks[bank_index];
 		bank.data_pipline.clock();
 
-		if(!bank.data_pipline.is_read_valid()) continue;
+		if(!bank.data_pipline.is_read_valid() || !_return_network.is_write_valid(bank_index)) continue;
 
 		const MemoryRequest& req = bank.data_pipline.peek();
-		if(req.type == MemoryRequest::Type::LOAD)
+		if(req.size == sizeof(rtm::Hit))		// process load hit
 		{
-			if(!_return_network.is_write_valid(bank_index)) continue;
-			_assert(req.paddr < 0x1ull << 32);
-
+			if(_complete_ray_buffers.empty()) continue;
+			_assert(req.type == MemoryRequest::Type::LOAD);
+			const RayData& ray_data = _complete_ray_buffers.back();
+			STRaTAHitReturn hit_return;
+			rtm::Hit hit;
+			hit.t = ray_data.raystate.hit_t;
+			hit.id = ray_data.raystate.hit_id;
+			hit.bc = rtm::vec2(0.0f);
+			hit_return.hit = hit;
+			hit_return.index = ray_data.raystate.id;
 			MemoryReturn ret;
-			if(_tm_buffer_table[bank_index] == ~0u)		// allocate a ray buffer to the tm
-			{
-				if(_idle_ray_buffer.empty()) continue;
-				ret = allocate_ray_buffer(bank_index, req);
-			}
-			else
-			{
-				uint32_t treelet_id = _tm_buffer_table[bank_index];
-				if(_ray_buffers[treelet_id].size() == 0)	// ray buffer is empty, allocate a new ray buffer to the tm
-				{
-					_tm_buffer_table[bank_index] = ~0u;
-					if(_idle_ray_buffer.empty()) continue;
-					ret = allocate_ray_buffer(bank_index, req);
-				}
-				else
-				{
-					std::memcpy(ret.data, &_ray_buffers[treelet_id].rays.back(), req.size);
-					_ray_buffers[treelet_id].pop_ray();
-				}
-			}
-
+			ret.size = sizeof(STRaTAHitReturn);
+			ret.port = req.port;
+			std::memcpy(ret.data, &hit_return, sizeof(STRaTAHitReturn));
 			log.loads++;
 			log.bytes_read += req.size;
 			_return_network.write(ret, bank_index);
 			bank.data_pipline.read();
+			_complete_ray_buffers.pop_back();
+			_ray_buffers_size -= sizeof(RayData);
 		}
-		else if(req.type == MemoryRequest::Type::STORE)
+		else
 		{
-			log.stores++;
-			log.bytes_written += req.size;
-			
-			RayData ray_data;
-			std::memcpy(&ray_data, req.data, req.size);
-			if(_ray_buffers.count(ray_data.raystate.treelet_id) == 0)
+			if(req.type == MemoryRequest::Type::LOAD)
 			{
-				RayBuffer ray_buffer;
-				ray_buffer.header.treelet_id = ray_data.raystate.treelet_id;
-				ray_buffer.write_ray(ray_data);
-				_ray_buffers[ray_data.raystate.treelet_id] = ray_buffer;
-				_ray_buffers_size += sizeof(RayBuffer::Header) + sizeof(RayData);
-				_idle_ray_buffer.insert(ray_data.raystate.treelet_id);
+				MemoryReturn ret;
+				if(_tm_buffer_table[req.port] == ~0u)		// allocate a ray buffer to the tm
+				{
+					if(_idle_ray_buffer.empty()) continue;
+					ret = allocate_ray_buffer(req.port, req);
+				}
+				else
+				{
+					uint32_t treelet_id = _tm_buffer_table[req.port];
+					if(_ray_buffers[treelet_id].size() == 0)	// if the ray buffer is empty, allocate a new ray buffer to the tm
+					{
+						_ray_buffers.erase(treelet_id);
+						_tm_buffer_table[req.port] = ~0u;
+						if(_idle_ray_buffer.empty()) continue;
+						ret = allocate_ray_buffer(req.port, req);
+					}
+					else
+					{
+						std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), req.size);
+						ret.size = sizeof(RayData);
+						ret.port = req.port;
+						_ray_buffers[treelet_id].pop_back();
+						_ray_buffers_size -= sizeof(RayData);
+					}
+				}
+				log.loads++;
+				log.bytes_read += req.size;
+				_return_network.write(ret, bank_index);
+				bank.data_pipline.read();
 			}
-			else
+			else if(req.type == MemoryRequest::Type::STORE)
 			{
-				_ray_buffers[ray_data.raystate.treelet_id].write_ray(ray_data);
-				_ray_buffers_size += sizeof(RayData);
+				RayData ray_data;
+				std::memcpy(&ray_data, req.data, req.size);
+				if(ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::OVER)
+				{
+					_complete_ray_buffers.push_back(ray_data);
+					_ray_buffers_size += sizeof(RayData);
+				}
+				else
+				{
+					if(_ray_buffers.count(ray_data.raystate.treelet_id) == 0)
+					{
+						_ray_buffers[ray_data.raystate.treelet_id].push_back(ray_data);
+						_ray_buffers_size += sizeof(RayData);
+						_idle_ray_buffer.insert(ray_data.raystate.treelet_id);
+					}
+					else
+					{
+						_ray_buffers[ray_data.raystate.treelet_id].push_back(ray_data);
+						_ray_buffers_size += sizeof(RayData);
+					}
+				}
+				log.stores++;
+				log.bytes_written += req.size;
+				bank.data_pipline.read();
 			}
-
-			bank.data_pipline.read();
 		}
 	}
-
-	// issue_returns();
 	_return_network.clock();
 }
 
 void UnitRayStreamBuffer::_proccess_request(uint bank_index)
 {
 	Bank& bank = _banks[bank_index];
+	_assert(_ray_buffers_size <= _max_size);
 
-	if(!_request_network.is_read_valid(bank_index) || !bank.data_pipline.is_write_valid() || !(_ray_buffers_size < _max_size))
+	if(!_request_network.is_read_valid(bank_index) || !bank.data_pipline.is_write_valid())
 		return;
 
 	bank.data_pipline.write(_request_network.read(bank_index));
 }
 
-MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint bank_index, const MemoryRequest& req)
+MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, const MemoryRequest& req)
 {
 	MemoryReturn ret;
 	uint32_t treelet_id = *_idle_ray_buffer.begin();
-	_tm_buffer_table[bank_index] = treelet_id;
+	_tm_buffer_table[tm_index] = treelet_id;
 	_assert(_ray_buffers[treelet_id].size() > 0);
-	std::memcpy(ret.data, &_ray_buffers[treelet_id].rays.back(), req.size);
-	_ray_buffers[treelet_id].pop_ray();
+	std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), req.size);
+	ret.size = sizeof(RayData);
+	ret.port = req.port;
+	_ray_buffers[treelet_id].pop_back();
+	_ray_buffers_size -= sizeof(RayData);
 	_idle_ray_buffer.erase(treelet_id);
 	return ret;
 }

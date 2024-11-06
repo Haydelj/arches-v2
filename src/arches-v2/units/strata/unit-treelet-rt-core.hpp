@@ -110,7 +110,8 @@ private:
 
 	// hit record loading
 	std::queue<MemoryRequest> _tp_hit_load_queue;
-	std::map<paddr_t, uint32_t> _hit_return_map;
+	std::queue<MemoryReturn> _tp_hit_return_queue;
+	std::queue<uint> _hit_store_queue;
 
 	//node pipline
 	std::queue<NodeStagingBuffer> _node_isect_queue;

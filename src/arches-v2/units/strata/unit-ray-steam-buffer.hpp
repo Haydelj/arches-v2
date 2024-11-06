@@ -7,30 +7,6 @@
 
 namespace Arches { namespace Units { namespace STRaTA {
 
-struct RayBuffer
-{
-	struct Header
-	{
-		paddr_t next_buffer{0};
-		uint32_t treelet_id{0};
-	};
-	Header header;
-	std::vector<RayData> rays;
-
-	void write_ray(const RayData& ray)
-	{
-		rays.push_back(ray);
-	}
-	void pop_ray()
-	{
-		rays.pop_back();
-	}
-	uint32_t size()
-	{
-		return rays.size();
-	}
-};
-
 class UnitRayStreamBuffer : public UnitMainMemoryBase
 {
 public:
@@ -56,7 +32,8 @@ public:
 		Bank(uint latency) : data_pipline(latency) {}
 	};
 
-	std::map<uint32_t, RayBuffer> _ray_buffers{};	// map treelet index to ray buffer
+	std::map<uint32_t, std::vector<RayData>> _ray_buffers{};	// map treelet index to ray buffer
+	std::vector<RayData> _complete_ray_buffers{};
 	uint64_t _ray_buffers_size{0};
 	
 private:

@@ -19,35 +19,34 @@ inline void _srb(const RayData& rb)
 	register float f10 asm("f10") = rb.raystate.hit_id;
 	register float f11 asm("f11") = rb.raystate.hit_t;
 	register float f12 asm("f12") = rb.raystate.id;
-	register float f13 asm("f13") = rb.raystate.traversal_state;
+	register float f13 asm("f13") = static_cast<float>(rb.raystate.traversal_state);
 	register float f14 asm("f14") = rb.traversal_stack;
 	register float f15 asm("f15") = rb.visited_stack;
 	asm volatile("srb f0, 256(x0)" : : "f" (f0), "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10), "f" (f11), "f" (f12), "f" (f13), "f" (f14), "f" (f15));
 #endif
 }
 
-inline rtm::Hit _lhit(rtm::Hit* src)
+inline STRaTAHitReturn _lhits()
 {
 #ifdef __riscv
-	register float dst0 asm("f28");
-	register float dst1 asm("f29");
-	register float dst2 asm("f30");
-	register float dst3 asm("f31");
-	asm volatile("lhit %0, 0(%4)" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3) : "r" (src) : "memory");
+	register float dst0 asm("f27");
+	register float dst1 asm("f28");
+	register float dst2 asm("f29");
+	register float dst3 asm("f30");
+	register float dst4 asm("f31");
+	asm volatile("lhits %0" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3), "=f" (dst4) : : "memory");
 
-	rtm::Hit hit;
-	hit.t = dst0;
-	hit.bc.x = dst1;
-	hit.bc.y = dst2;
+	STRaTAHitReturn hit_return;
+	hit_return.hit.t = dst0;
+	hit_return.hit.bc.x = dst1;
+	hit_return.hit.bc.y = dst2;
 	float _dst3 = dst3;
-	hit.id = *(uint*)&_dst3;
+	hit_return.hit.id = *(uint*)&_dst3;
+	float _dst4 = dst4;
+	hit_return.index = *(uint*)&_dst4;
 
-	return hit;
-#else 
-	return *src;
+	return hit_return;
 #endif
-
-
 }
 
 inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)

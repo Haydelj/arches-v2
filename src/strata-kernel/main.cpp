@@ -20,8 +20,14 @@ inline static void kernel(const STRaTAKernelArgs& args)
 #if defined(__riscv)
 	// write initial rays for root node
 	uint32_t index, x, y;
-	for (index = fchthrd(); index < args.raybuffer_size; index = fchthrd())
+	uint32_t max_ray = args.raybuffer_size / sizeof(RayData);
+	for (index = fchthrd(); index < max_ray; index = fchthrd())
 	{
+		if(index >= args.framebuffer_size)
+		{
+			max_ray = args.framebuffer_size;
+			break;
+		}
 		x = index % args.framebuffer_width;
 		y = index / args.framebuffer_width;
 		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
@@ -41,7 +47,7 @@ inline static void kernel(const STRaTAKernelArgs& args)
 
 	for (; index < args.framebuffer_size; index = fchthrd())
 	{
-		STRaTAHitReturn hit_return = _lhit();
+		STRaTAHitReturn hit_return = _lhits();
 		uint32_t out = 0xff000000;
 		if (hit_return.hit.id != ~0u)
 		{
@@ -49,6 +55,7 @@ inline static void kernel(const STRaTAKernelArgs& args)
 		}
 		args.framebuffer[hit_return.index] = out;
 
+		// trace a new primary ray
 		x = index % args.framebuffer_width;
 		y = index / args.framebuffer_width;
 		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
@@ -66,9 +73,9 @@ inline static void kernel(const STRaTAKernelArgs& args)
 		_srb(raydata);
 	}
 
-	for (; index < args.framebuffer_size + args.raybuffer_size; index = fchthrd())
+	for (; index < args.framebuffer_size + max_ray; index = fchthrd())
 	{
-		STRaTAHitReturn hit_return = _lhit();
+		STRaTAHitReturn hit_return = _lhits();
 		uint32_t out = 0xff000000;
 		if (hit_return.hit.id != ~0u)
 		{
