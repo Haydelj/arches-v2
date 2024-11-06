@@ -43,18 +43,16 @@ public:
 					uint32_t is_child_treelet : 1;
 					uint32_t is_parent_treelet : 1;
 					uint32_t : 1;
-					uint32_t parent_child_data_index : 3;
-					uint32_t child_index : 19;
-					uint32_t parent_index : 19;			// parent treelet index
-					uint32_t parent_child_index : 19;	// child index in parent treelet
+					uint32_t child_index : 20;
+					uint32_t parent_index : 20;			// parent treelet index
+					uint32_t parent_child_index : 20;	// child index in parent treelet
 				};
 				struct
 				{
 					uint32_t num_tri : 2;
 					uint32_t triangle_index : 32;
-					uint32_t : 8;
-					uint32_t leaf_parent_child_data_index : 3;
-					uint32_t leaf_parent_child_index : 19;
+					uint32_t : 10;
+					uint32_t leaf_parent_child_index : 20;
 				};
 			};
 
@@ -339,7 +337,6 @@ public:
 								child_node.data[k].is_parent_treelet = 1;
 								child_node.data[k].parent_index = treelet_index;
 								child_node.data[k].parent_child_index = i;
-								child_node.data[k].parent_child_data_index = j;
 							}
 						}
 						else
@@ -355,12 +352,10 @@ public:
 									child_node.data[k].is_parent_treelet = 0;
 									child_node.data[k].parent_index = treelet_index;
 									child_node.data[k].parent_child_index = i;
-									child_node.data[k].parent_child_data_index = j;
 								}
 								else
 								{
 									child_node.data[k].leaf_parent_child_index = i;
-									child_node.data[k].leaf_parent_child_data_index = j;
 								}
 							}
 						}

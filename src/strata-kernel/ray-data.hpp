@@ -24,3 +24,9 @@ struct RayData
 	uint32_t traversal_stack{0};
 	uint32_t visited_stack{0};
 };
+
+struct STRaTAHitReturn
+{
+	rtm::Hit hit;
+	uint32_t index;		// id for framebuffer
+};
