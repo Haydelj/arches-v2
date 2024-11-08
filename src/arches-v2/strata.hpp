@@ -94,25 +94,7 @@ const static InstructionInfo isa_custom0_funct3[8] =
 {
 	InstructionInfo(0x0, META_DECL{return isa_custom0_000_imm[instr.u.imm_31_12 >> 3]; }),
 	InstructionInfo(0x1, IMPL_NONE),
-	InstructionInfo(0x2, IMPL_NONE),
-	InstructionInfo(0x3, IMPL_NONE),
-	InstructionInfo(0x4, "lhits", InstrType::CUSTOM6, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
-	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
-		//load hit record into registers [rd - (rd + N)]
-		MemoryRequest mem_req;
-		mem_req.type = MemoryRequest::Type::LOAD;
-		mem_req.size = sizeof(rtm::Hit);
-		mem_req.dst = reg_addr.u8;
-		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
-
-		return mem_req;
-	}),
-	InstructionInfo(0x5, "srb", InstrType::CUSTOM7, Encoding::S, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x2, "swi", InstrType::CUSTOM4, Encoding::S, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
 	{
 		RegAddr reg_addr;
 		reg_addr.reg = instr.i.rd;
@@ -131,6 +113,24 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 		return mem_req;
 	}),
+	InstructionInfo(0x3, IMPL_NONE),
+	InstructionInfo(0x4, "lhit", InstrType::CUSTOM6, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	{
+		RegAddr reg_addr;
+		reg_addr.reg = instr.i.rd;
+		reg_addr.reg_type = RegType::FLOAT;
+		reg_addr.sign_ext = false;
+
+		//load hit record into registers [rd - (rd + N)]
+		MemoryRequest mem_req;
+		mem_req.type = MemoryRequest::Type::LOAD;
+		mem_req.size = sizeof(STRaTAHitReturn);
+		mem_req.dst = reg_addr.u8;
+		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
+
+		return mem_req;
+	}),
+	InstructionInfo(0x5, IMPL_NONE),
 };
 
 const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3];});
@@ -311,8 +311,8 @@ static void run_sim_strata(GlobalConfig global_config)
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
-	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM6] = "LOADHIT";
-	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM7] = "STORERB";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM4] = "SWI";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM6] = "LHIT";
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::STRaTA::custom0;
 
 	uint num_tps = num_tps_per_tm * num_tms;
@@ -417,8 +417,8 @@ static void run_sim_strata(GlobalConfig global_config)
 		rtcs.push_back(_new  UnitRTCore(rtc_config));
 		simulator.register_unit(rtcs.back());
 		mem_list.push_back(rtcs.back());
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rtcs.back();
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM4] = rtcs.back(); //SWI
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rtcs.back(); //LHIT
 	#endif
 
 		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 64));

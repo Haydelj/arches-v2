@@ -63,7 +63,7 @@ void UnitTreeletRTCore::_read_requests()
 			_ray_buffer_store_queue.push(ray_data);
 			log.rays++;
 		}
-		else if(request.size == sizeof(rtm::Hit))		// load hit
+		else if(request.size == sizeof(STRaTAHitReturn))		// load hit
 		{
 			_tp_hit_load_queue.push(request);
 		}

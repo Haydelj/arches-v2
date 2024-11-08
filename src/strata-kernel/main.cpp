@@ -42,12 +42,12 @@ inline static void kernel(const STRaTAKernelArgs& args)
 		raydata.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
 		raydata.traversal_stack = 1;
 		raydata.visited_stack = 1;
-		_srb(raydata);
+		_swi(raydata);
 	}
 
 	for (; index < args.framebuffer_size; index = fchthrd())
 	{
-		STRaTAHitReturn hit_return = _lhits();
+		STRaTAHitReturn hit_return = _lhit(args.hit_records + index - max_ray);
 		uint32_t out = 0xff000000;
 		if (hit_return.hit.id != ~0u)
 		{
@@ -70,12 +70,12 @@ inline static void kernel(const STRaTAKernelArgs& args)
 		raydata.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
 		raydata.traversal_stack = 1;
 		raydata.visited_stack = 1;
-		_srb(raydata);
+		_swi(raydata);
 	}
 
 	for (; index < args.framebuffer_size + max_ray; index = fchthrd())
 	{
-		STRaTAHitReturn hit_return = _lhits();
+		STRaTAHitReturn hit_return = _lhit(args.hit_records + index - max_ray);
 		uint32_t out = 0xff000000;
 		if (hit_return.hit.id != ~0u)
 		{
