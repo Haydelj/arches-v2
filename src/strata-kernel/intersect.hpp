@@ -3,7 +3,7 @@
 #include "include.hpp"
 #include "ray-data.hpp"
 
-inline void _srb(const RayData& rb)
+inline void _swi(const RayData& rb)
 {
 #ifdef __riscv
 	register float f0 asm("f0") = rb.ray.o.x;
@@ -22,11 +22,11 @@ inline void _srb(const RayData& rb)
 	register float f13 asm("f13") = static_cast<float>(rb.raystate.traversal_state);
 	register float f14 asm("f14") = rb.traversal_stack;
 	register float f15 asm("f15") = rb.visited_stack;
-	asm volatile("srb f0, 256(x0)" : : "f" (f0), "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10), "f" (f11), "f" (f12), "f" (f13), "f" (f14), "f" (f15));
+	asm volatile("swi f0, 256(x0)" : : "f" (f0), "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10), "f" (f11), "f" (f12), "f" (f13), "f" (f14), "f" (f15));
 #endif
 }
 
-inline STRaTAHitReturn _lhits()
+inline STRaTAHitReturn _lhit(rtm::Hit* src)
 {
 #ifdef __riscv
 	register float dst0 asm("f27");
@@ -34,7 +34,7 @@ inline STRaTAHitReturn _lhits()
 	register float dst2 asm("f29");
 	register float dst3 asm("f30");
 	register float dst4 asm("f31");
-	asm volatile("lhits %0" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3), "=f" (dst4) : : "memory");
+	asm volatile("lhit %0, 0(%4)" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3), "=f" (dst4) : "r" (src) : "memory");
 
 	STRaTAHitReturn hit_return;
 	hit_return.hit.t = dst0;

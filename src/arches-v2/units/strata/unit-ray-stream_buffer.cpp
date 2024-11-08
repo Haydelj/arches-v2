@@ -20,7 +20,7 @@ void UnitRayStreamBuffer::clock_fall()
 		if(!bank.data_pipline.is_read_valid() || !_return_network.is_write_valid(bank_index)) continue;
 
 		const MemoryRequest& req = bank.data_pipline.peek();
-		if(req.size == sizeof(rtm::Hit))		// process load hit
+		if(req.size == sizeof(STRaTAHitReturn))		// process load hit
 		{
 			if(_complete_ray_buffers.empty()) continue;
 			_assert(req.type == MemoryRequest::Type::LOAD);
