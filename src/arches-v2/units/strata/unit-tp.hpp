@@ -1,5 +1,6 @@
 #pragma once
 #include "units/unit-tp.hpp"
+#include "strata-kernel/ray-data.hpp"
 
 namespace Arches { namespace Units { namespace STRaTA {
 
@@ -31,15 +32,19 @@ private:
 				if(float_regs_pending[i])
 					return float_regs_pending[i];
 		}
-		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM7) //TRACE RAY
+		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM4) //SWI
 		{
-			for(uint i = 0; i < sizeof(rtm::Ray) / sizeof(float); ++i)
-				if(float_regs_pending[instr.rs1 + i])
-					return float_regs_pending[instr.rs1 + i];
-
-			for(uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); ++i)
+			for(uint i = 0; i < sizeof(RayData) / sizeof(float); ++i)
+				if(float_regs_pending[instr.rs2 + i])
+					return float_regs_pending[instr.rs2 + i];
+		}
+		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM6) //LHIT
+		{ 
+			for(uint i = 0; i < sizeof(STRaTAHitReturn) / sizeof(float); i++)
+			{
 				if(float_regs_pending[instr.rd + i])
 					return float_regs_pending[instr.rd + i];
+			}
 		}
 		else return Units::UnitTP::_check_dependancies(thread_id);
 
@@ -63,10 +68,10 @@ private:
 			//	float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM2;
 			float_regs_pending[instr.rd] = (uint8_t)ISA::RISCV::InstrType::CUSTOM2;
 		}
-		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM7) //TRACE RAY
+		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM6) //LHIT
 		{
-			for(uint i = 0; i < sizeof(rtm::Hit) / sizeof(float); ++i)
-				float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM7;
+			for(uint i = 0; i < sizeof(STRaTAHitReturn) / sizeof(float); ++i)
+				float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM6;
 		}
 
 		else Units::UnitTP::_set_dependancies(thread_id);

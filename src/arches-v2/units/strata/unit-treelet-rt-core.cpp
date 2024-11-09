@@ -87,7 +87,6 @@ void UnitTreeletRTCore::_read_returns()
 			ray_state.hit.t = ray_data.raystate.hit_t;
 			ray_state.hit.bc = rtm::vec2(0.0f);
 			ray_state.hit.id = ray_data.raystate.hit_id;
-			ray_state.stack_size = 1;
 			ray_state.stack.t = ray_data.ray.t_min;
 			ray_state.stack.treelet = ray_data.raystate.treelet_id;
 			ray_state.stack.child_index = ray_data.raystate.treelet_child_id;
@@ -117,10 +116,10 @@ void UnitTreeletRTCore::_read_returns()
 			TriStagingBuffer& buffer = _tri_staging_buffers[ray_id];
 
 			uint offset = (ret.paddr - buffer.addr);
-			std::memcpy((uint8_t*)&buffer.tri + offset, ret.data, ret.size);
+			std::memcpy((uint8_t*)&buffer.tris + offset, ret.data, ret.size);
 
 			buffer.bytes_filled += ret.size;
-			if(buffer.bytes_filled == sizeof(rtm::WideTreeletSTRaTABVH::Treelet::Triangle))
+			if(buffer.bytes_filled == sizeof(rtm::WideTreeletSTRaTABVH::Treelet::Triangle) * buffer.num_tris)
 			{
 				_ray_states[ray_id].phase = RayState::Phase::TRI_ISECT;
 				_tri_isect_queue.push(ray_id);
@@ -153,7 +152,7 @@ void UnitTreeletRTCore::_schedule_ray()
 
 		RayState& ray_state = _ray_states[ray_id];
 
-		if(ray_state.ray_data.traversal_stack > 1)
+		if((ray_state.ray_data.traversal_stack > 1) || (ray_state.ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::DOWN))
 		{
 			RayState::StackEntry& entry = ray_state.stack;
 			if(entry.t < ray_state.hit.t) //pop cull
@@ -368,17 +367,26 @@ void UnitTreeletRTCore::_simualte_intersectors()
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.hit;
 
-		if(rtm::intersect(buffer.tri.tri, ray, hit))
+		if(rtm::intersect(buffer.tris[_tri_isect_index].tri, ray, hit))
 		{
-			hit.id = buffer.tri.id;
-			ray_state.ray_data.raystate.hit_id = buffer.tri.id;
+			hit.id = buffer.tris[_tri_isect_index].id;
+			ray_state.ray_data.raystate.hit_id = buffer.tris[_tri_isect_index].id;
 			ray_state.ray_data.raystate.hit_t = hit.t;
 		}
-		_assert(ray_state.ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::DOWN);
-		ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::UP;
 
-		_tri_pipline.write(ray_id);
-		_tri_isect_queue.pop();
+		_tri_isect_index++;
+		if(_tri_isect_index >= buffer.num_tris)
+		{
+			_assert(ray_state.ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::DOWN);
+			ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::UP;
+			_tri_isect_index = 0;
+			_tri_isect_queue.pop();
+			_tri_pipline.write(ray_id);
+		}
+		else
+		{
+			_tri_pipline.write(~0u);
+		}
 	}
 
 	_tri_pipline.clock();
@@ -423,7 +431,7 @@ void UnitTreeletRTCore::_issue_requests()
 			MemoryRequest req;
 			req.type = MemoryRequest::Type::STORE;
 			req.size = sizeof(RayData);
-			req.port = 0;
+			req.port = _tm_index;
 			req.paddr = ray_state.ray_data.raystate.id;
 			std::memcpy(req.data, &ray_state.ray_data, req.size);
 			_ray_stream_buffer->write_request(req);
@@ -460,7 +468,9 @@ void UnitTreeletRTCore::_issue_requests()
 		else if(!_tp_hit_load_queue.empty())
 		{
 			//issue hit requests
-			const MemoryRequest& req = _tp_hit_load_queue.front();
+			MemoryRequest& req = _tp_hit_load_queue.front();
+			req.dst = req.port;
+			req.port = _tm_index;
 			_ray_stream_buffer->write_request(req);
 			_tp_hit_load_queue.pop();
 		}

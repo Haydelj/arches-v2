@@ -21,6 +21,10 @@ int main(int argc, char* argv[])
 	{
 		Arches::DualStreaming::run_sim_dual_streaming(global_config);
 	}
+	else if (global_config.simulator == 2)
+	{
+		Arches::STRaTA::run_sim_strata(global_config);
+	}
 	
 	return 0;
 }
