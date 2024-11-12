@@ -38,7 +38,7 @@ inline static void kernel(const DualStreamingKernelArgs& args)
 		_swi(wi); //write root ray to ray bucket
 	}
 
-#ifndef USE_RT_CORE
+#ifndef DS_USE_RT_CORE
 	intersect_buckets(args); //use software traversal
 #endif
 

@@ -10,7 +10,7 @@
 //#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
 
 #ifndef ENABLE_RT_DEBUG_PRINTS 
-#define ENABLE_RT_DEBUG_PRINTS (false)
+#define ENABLE_RT_DEBUG_PRINTS (true)
 #endif
 
 namespace Arches { namespace Units { namespace STRaTA {
@@ -38,7 +38,6 @@ private:
 		{
 			float t;
 			uint32_t treelet;
-			uint32_t child_index;
 			rtm::WideTreeletSTRaTABVH::Treelet::Node::Data data;
 		};
 
