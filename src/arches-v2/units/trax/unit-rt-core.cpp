@@ -2,18 +2,23 @@
 
 namespace Arches { namespace Units { namespace TRaX {
 
+//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 4)
+//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 4 && ray_id == 0)
 
+#ifndef ENABLE_RT_DEBUG_PRINTS 
+#define ENABLE_RT_DEBUG_PRINTS (false)
+#endif
 
 template<typename NT>
 UnitRTCore<NT>::UnitRTCore(const Configuration& config) :
-	_max_rays(config.max_rays), _num_tp(config.num_tp), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
-	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
-	_box_pipline(3, 1), _tri_pipline(22, 1)
+	_max_rays(config.max_rays), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
+	_cache(config.cache), _request_network(config.num_clients, 1), _return_network(1, config.num_clients),
+	_box_pipline(3), _tri_pipline(22), _cache_port(config.cache_port)
 {
 	_ray_states.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
 	{
-		_ray_states[i].phase = RayState::Phase::NONE;
+		_ray_states[i].phase = RayState::Phase::RAY_FETCH;
 		_free_ray_ids.insert(i);
 	}
 }
@@ -26,16 +31,17 @@ void UnitRTCore<NT>::clock_rise()
 
 	if(_ray_scheduling_queue.empty())
 	{
-		for(uint i = 0; i < _ray_states.size(); ++i)
+		uint phase = (uint)_ray_states[last_ray_id].phase;
+		log.stall_counters[phase]++;
+
+		if(ENABLE_RT_DEBUG_PRINTS)
 		{
-			uint phase = (uint)_ray_states[last_ray_id].phase;
-			if(++last_ray_id == _ray_states.size()) last_ray_id = 0;
-			if(phase != 0)
-			{
-				log.stall_counters[phase]++;
-				break;
-			}
+			printf("\033[31m");
+			printf("%03d %s\n", last_ray_id, phase_names[phase].c_str());
+			printf("\033[0m");
 		}
+
+		if(++last_ray_id == _ray_states.size()) last_ray_id = 0;
 	}
 
 	for(uint i = 0; i < 1; ++i) //n stack ops per cycle. In reality this would need to be multi banked
@@ -79,16 +85,17 @@ bool UnitRTCore<NT>::_try_queue_node(uint ray_id, uint node_id)
 }
 
 template<typename NT>
-bool UnitRTCore<NT>::_try_queue_tri(uint ray_id, uint tri_id)
+bool UnitRTCore<NT>::_try_queue_tris(uint ray_id, uint tri_id, uint num_tris)
 {
 	paddr_t start = _tri_base_addr + tri_id * sizeof(rtm::Triangle);
-	paddr_t end = start + sizeof(rtm::Triangle);
+	paddr_t end = start + sizeof(rtm::Triangle) * num_tris;
 
 	RayState& ray_state = _ray_states[ray_id];
 	ray_state.buffer.address = start;
 	ray_state.buffer.bytes_filled = 0;
 	ray_state.buffer.type = 1;
 	ray_state.buffer.tri_id = tri_id;
+	ray_state.buffer.num_tris = num_tris;
 
 	//split request at cache boundries
 	//queue the requests to fill the buffer
@@ -140,12 +147,14 @@ void UnitRTCore<NT>::_read_requests()
 template<typename NT>
 void UnitRTCore<NT>::_read_returns()
 {
-	if(_cache->return_port_read_valid(_num_tp))
+	if(_cache->return_port_read_valid(_cache_port))
 	{
-		const MemoryReturn ret = _cache->read_return(_num_tp);
+		const MemoryReturn ret = _cache->read_return(_cache_port);
 		uint16_t ray_id = ret.dst;
 		RayState& ray_state = _ray_states[ray_id];
 		StagingBuffer& buffer = ray_state.buffer;
+
+		//if(ENABLE_RT_DEBUG_PRINTS) printf("ret %xll\n", ret.paddr);
 
 		uint offset = (ret.paddr - buffer.address);
 		std::memcpy((uint8_t*)&buffer.data + offset, ret.data, ret.size);
@@ -161,7 +170,7 @@ void UnitRTCore<NT>::_read_returns()
 		}
 		else if(buffer.type == 1)
 		{
-			if(buffer.bytes_filled == sizeof(rtm::Triangle))
+			if(buffer.bytes_filled == sizeof(rtm::Triangle) * buffer.num_tris)
 			{
 				ray_state.phase = RayState::Phase::TRI_ISECT;
 				_tri_isect_queue.push(ray_id);
@@ -179,9 +188,6 @@ void UnitRTCore<NT>::_schedule_ray()
 		uint ray_id = _ray_scheduling_queue.front();
 		_ray_scheduling_queue.pop();
 
-		if(ENABLE_RT_DEBUG_PRINTS)
-			printf("Scheduling: %d\n", ray_id);
-
 		RayState& ray_state = _ray_states[ray_id];
 
 		bool any_hit_found = (ray_state.flags & 0x1) && ray_state.hit.id != ~0u;
@@ -197,38 +203,24 @@ void UnitRTCore<NT>::_schedule_ray()
 						ray_state.phase = RayState::Phase::NODE_FETCH;
 
 						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("Node: %d\n", entry.data.child_index);
+							printf("%03d NODE_FETCH: %d\n", ray_id, entry.data.child_index);
 
 						ray_state.stack_size--;
 					}
-					else
-					{
-						_ray_scheduling_queue.push(ray_id);
-					}
+					else _ray_scheduling_queue.push(ray_id);
 				}
 				else
 				{
-					if(_try_queue_tri(ray_id, entry.data.prim_index))
+					if(_try_queue_tris(ray_id, entry.data.prim_index, entry.data.num_prims))
 					{
 						ray_state.phase = RayState::Phase::TRI_FETCH;
 
 						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("Tri: %d:%d\n", entry.data.prim_index, entry.data.num_prims + 1);
+							printf("%03d TRI_FETCH: %d:%d\n", ray_id, entry.data.prim_index, entry.data.num_prims);
 
-						if(entry.data.num_prims == 0)
-						{
-							ray_state.stack_size--;
-						}
-						else
-						{
-							entry.data.prim_index++;
-							entry.data.num_prims--;
-						}
+						ray_state.stack_size--;
 					}
-					else
-					{
-						_ray_scheduling_queue.push(ray_id);
-					}
+					else _ray_scheduling_queue.push(ray_id);
 				}
 			}
 			else
@@ -241,7 +233,7 @@ void UnitRTCore<NT>::_schedule_ray()
 		{
 			//stack empty or anyhit found return the hit
 			if(ENABLE_RT_DEBUG_PRINTS)
-				printf("Ret: %d\n", ray_state.hit.id);
+				printf("%03d HIT_RETURN: %d\n", ray_id, ray_state.hit.id);
 
 			ray_state.phase = RayState::Phase::HIT_RETURN;
 			_ray_return_queue.push(ray_id);
@@ -294,7 +286,7 @@ void UnitRTCore<rtm::WideBVH>::_simualte_node_pipline()
 			_ray_scheduling_queue.push(ray_id);
 		}
 
-		log.nodes += 2;
+		log.nodes++;
 	}
 }
 
@@ -343,7 +335,7 @@ void UnitRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 			_ray_scheduling_queue.push(ray_id);
 		}
 
-		log.nodes += 2;
+		log.nodes++;
 	}
 }
 
@@ -360,11 +352,22 @@ void UnitRTCore<NT>::_simualte_tri_pipline()
 		rtm::Hit& hit = ray_state.hit;
 		StagingBuffer& buffer = ray_state.buffer;
 
-		if(rtm::intersect(buffer.tri, ray, hit))
-			hit.id = buffer.tri_id;
+		if(rtm::intersect(buffer.tris[_tri_isect_index], ray, hit))
+		{
+			hit.id = buffer.tri_id + _tri_isect_index;
+		}
 
-		_tri_pipline.write(ray_id);
-		_tri_isect_queue.pop();
+		_tri_isect_index++;
+		if(_tri_isect_index >= buffer.num_tris)
+		{
+			_tri_isect_index = 0;
+			_tri_isect_queue.pop();
+			_tri_pipline.write(ray_id);
+		}
+		else
+		{
+			_tri_pipline.write(~0u);
+		}
 	}
 
 	_tri_pipline.clock();
@@ -385,15 +388,17 @@ void UnitRTCore<NT>::_simualte_tri_pipline()
 template<typename NT>
 void UnitRTCore<NT>::_issue_requests()
 {
-	if(!_fetch_queue.empty() && _cache->request_port_write_valid(_num_tp))
+	if(!_fetch_queue.empty() && _cache->request_port_write_valid(_cache_port))
 	{
+		//if(ENABLE_RT_DEBUG_PRINTS) printf("req %llx\n", _fetch_queue.front().addr);
+
 		//fetch the next block
 		MemoryRequest request;
 		request.type = MemoryRequest::Type::LOAD;
 		request.size = _fetch_queue.front().size;
 		request.dst = _fetch_queue.front().dst;
 		request.paddr = _fetch_queue.front().addr;
-		request.port = _num_tp;
+		request.port = _cache_port;
 		_cache->write_request(request);
 		_fetch_queue.pop();
 	}
@@ -418,9 +423,10 @@ void UnitRTCore<NT>::_issue_returns()
 			std::memcpy(ret.data, &ray_state.hit, sizeof(rtm::Hit));
 			_return_network.write(ret, 0);
 
-			ray_state.phase = RayState::Phase::NONE;
+			ray_state.phase = RayState::Phase::RAY_FETCH;
 			_free_ray_ids.insert(ray_id);
 			_ray_return_queue.pop();
+			log.hits_returned++;
 		}
 	}
 }

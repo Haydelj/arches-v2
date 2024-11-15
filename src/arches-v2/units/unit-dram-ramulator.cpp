@@ -1,25 +1,28 @@
-#include "unit-dram-ramulator.hpp"
+	#include "unit-dram-ramulator.hpp"
 
 namespace Arches { namespace Units {
 
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
-UnitDRAMRamulator::UnitDRAMRamulator(uint num_ports, uint num_channels, uint64_t size) : UnitMainMemoryBase(size),
-	_request_network(num_ports, num_channels), _return_network(num_channels, num_ports)
+UnitDRAMRamulator::UnitDRAMRamulator(Configuration config) : UnitMainMemoryBase(config.size),
+	_request_network(config.num_ports, config.num_controllers), _return_network(config.num_controllers, config.num_ports), _partition_mask(config.partition_mask)
 {
-	_config_path = "./config-files/gddr6_16ch_config.yaml";
-	YAML::Node config = Ramulator::Config::parse_config_file(_config_path, {});
-	_ramulator2_frontend = Ramulator::Factory::create_frontend(config);
-	_ramulator2_memorysystem = Ramulator::Factory::create_memory_system(config);
-	_clock_ratio = _ramulator2_memorysystem->get_clock_ratio();
+	YAML::Node yaml = Ramulator::Config::parse_config_file(config.config_path, {});
 
-	if ((_ramulator2_frontend == nullptr) || (_ramulator2_memorysystem == nullptr))
-		assert(false);
+	_controllers.resize(config.num_controllers);
+	for(uint i = 0; i < config.num_controllers; ++i)
+	{
+		_controllers[i].ramulator2_frontend = Ramulator::Factory::create_frontend(yaml);
+		_controllers[i].ramulator2_memorysystem = Ramulator::Factory::create_memory_system(yaml);
 
-	_ramulator2_frontend->connect_memory_system(_ramulator2_memorysystem);
-	_ramulator2_memorysystem->connect_frontend(_ramulator2_frontend);
+		_assert(_controllers[i].ramulator2_frontend);
+		_assert(_controllers[i].ramulator2_memorysystem);
 
-	_channels.resize(num_channels);
+		_controllers[i].ramulator2_frontend->connect_memory_system(_controllers[i].ramulator2_memorysystem);
+		_controllers[i].ramulator2_memorysystem->connect_frontend(_controllers[i].ramulator2_frontend);
+	}
+
+	_clock_ratio = _controllers[0].ramulator2_memorysystem->get_clock_ratio();
 }
 
 UnitDRAMRamulator::~UnitDRAMRamulator() /*override*/
@@ -57,8 +60,11 @@ void UnitDRAMRamulator::print_stats(
 	uint32_t const word_size,
 	cycles_t cycle_count)
 {
-	_ramulator2_frontend->finalize();
-	_ramulator2_memorysystem->finalize();
+	for(auto& controller : _controllers)
+	{
+		controller.ramulator2_frontend->finalize();
+		controller.ramulator2_memorysystem->finalize();
+	}
 }
 
 float UnitDRAMRamulator::total_power()
@@ -83,15 +89,13 @@ bool UnitDRAMRamulator::_load(const MemoryRequest& request, uint channel_index)
 		_free_return_ids.pop();
 	}
 
-	bool enqueue_success = _ramulator2_frontend->receive_external_requests(0, request.paddr, return_id, [this, channel_index](Ramulator::Request& req)
+	bool enqueue_success = _controllers[channel_index].ramulator2_frontend->receive_external_requests(0, _convert_address(request.paddr), return_id, [this, channel_index](Ramulator::Request& req)
 	{
-		_assert(req.addr_vec[0] == channel_index);
-		
 		// your read request callback 
 #if ENABLE_DRAM_DEBUG_PRINTS
 		printf("Load: 0x%llx(%d, %d, %d, %d, %d): %d cycles\n", req.addr, req.addr_vec[0], req.addr_vec[1], req.addr_vec[2], req.addr_vec[3], req.addr_vec[4], (req.depart - req.arrive) / _clock_ratio);
 #endif
-		_channels[channel_index].return_queue.push({ req.depart, (uint)req.source_id });
+		_controllers[channel_index].return_queue.push({ req.depart, (uint)req.source_id });
 	});
 
 	if (enqueue_success)
@@ -108,7 +112,7 @@ bool UnitDRAMRamulator::_load(const MemoryRequest& request, uint channel_index)
 bool UnitDRAMRamulator::_store(const MemoryRequest& request, uint channel_index)
 {
 	//interface with ramulator
-	bool enqueue_success = _ramulator2_frontend->receive_external_requests(1,  request.paddr & ~0x3full, -1, [this](Ramulator::Request& req)
+	bool enqueue_success = _controllers[channel_index].ramulator2_frontend->receive_external_requests(1, _convert_address(request.paddr), -1, [this](Ramulator::Request& req)
 	{	// your read request callback 
 #if ENABLE_DRAM_DEBUG_PRINTS
 		printf("Load(%d): 0x%llx(%d, %d, %d, %lld, %d)\n", request.port, request.paddr, req.addr_vec[0], req.addr_vec[1], req.addr_vec[2], req.addr_vec[3], req.addr_vec[4]);
@@ -130,24 +134,24 @@ void UnitDRAMRamulator::clock_rise()
 {
 	_request_network.clock();
 	
-	for(uint channel_index = 0; channel_index < _channels.size(); ++channel_index)
+	for(uint controller_index = 0; controller_index < _controllers.size(); ++controller_index)
 	{
-		if(!_request_network.is_read_valid(channel_index)) continue;
+		if(!_request_network.is_read_valid(controller_index)) continue;
 
-		const MemoryRequest& request = _request_network.peek(channel_index);
+		const MemoryRequest& request = _request_network.peek(controller_index);
 
 		if (request.type == MemoryRequest::Type::STORE)
 		{
-			if (_store(request, channel_index))
+			if (_store(request, controller_index))
 			{
-				_request_network.read(channel_index);
+				_request_network.read(controller_index);
 			}
 		}
 		else if (request.type == MemoryRequest::Type::LOAD)
 		{
-			if (_load(request, channel_index))
+			if (_load(request, controller_index))
 			{
-				_request_network.read(channel_index);
+				_request_network.read(controller_index);
 				_pending_requests++;
 			}
 		}
@@ -163,7 +167,8 @@ void UnitDRAMRamulator::clock_rise()
 void UnitDRAMRamulator::clock_fall()
 {
 	for (uint i = 0; i < _clock_ratio; ++i)
-		_ramulator2_memorysystem->tick();
+		for(uint j = 0; j < _controllers.size(); ++j)
+			_controllers[j].ramulator2_memorysystem->tick();
 
 	if(_busy && (_pending_requests == 0))
 	{
@@ -172,23 +177,23 @@ void UnitDRAMRamulator::clock_fall()
 	}
 
 	++_current_cycle;
-	for(uint channel_index = 0; channel_index < _channels.size(); ++channel_index)
+	for(uint controller_index = 0; controller_index < _controllers.size(); ++controller_index)
 	{
-		Channel& channel = _channels[channel_index];
-		if(!channel.return_queue.empty())
+		MemoryController& controller = _controllers[controller_index];
+		if(!controller.return_queue.empty())
 		{
-			const RamulatorReturn& ramulator_return = channel.return_queue.top();
+			const RamulatorReturn& ramulator_return = controller.return_queue.top();
 			const MemoryReturn& ret = _returns[ramulator_return.return_id];
-			if(_return_network.is_write_valid(channel_index))
+			if(_return_network.is_write_valid(controller_index))
 			{
-#if ENABLE_DRAM_DEBUG_PRINTS
+			#if ENABLE_DRAM_DEBUG_PRINTS
 				printf("Load Return(%d): 0x%llx\n", ret.port, ret.paddr);
-#endif
-				assert(_current_cycle >= (ramulator_return.return_cycle / _clock_ratio));
+			#endif
+				_assert(_current_cycle >= (ramulator_return.return_cycle / _clock_ratio));
 				log.bytes_read += ret.size;
-				_return_network.write(ret, channel_index);
+				_return_network.write(ret, controller_index);
 				_free_return_ids.push(ramulator_return.return_id);
-				channel.return_queue.pop();
+				controller.return_queue.pop();
 				_pending_requests--;
 			}
 		}

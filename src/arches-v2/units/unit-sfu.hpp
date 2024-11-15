@@ -28,7 +28,7 @@ private:
 
 public:
 	UnitSFU(uint num_piplines, uint latency, uint cpi, uint num_clients) :
-		request_crossbar(num_clients, num_piplines), return_crossbar(num_piplines, num_clients), piplines(num_piplines, {latency, cpi})
+		request_crossbar(num_clients, num_piplines), return_crossbar(num_piplines, num_clients), piplines(num_piplines, {latency})
 	{
 	}
 

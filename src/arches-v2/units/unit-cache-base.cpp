@@ -5,6 +5,14 @@ namespace Units {
 
 UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity) : _tag_array(size / block_size), _data_array(size), UnitMemoryBase()
 {
+	//initialize tag array
+	for(uint i = 0; i < _tag_array.size(); ++i)
+	{
+		_tag_array[i].valid = 0x0;
+		_tag_array[i].lru = i % associativity;
+		_tag_array[i].tag = ~0x0ull;
+	}
+
 	_block_size = block_size;
 	_associativity = associativity;
 
@@ -31,13 +39,13 @@ void UnitCacheBase::serialize(std::string file_path)
 {
 	std::ofstream file_stream(file_path, std::ios::binary);
 	file_stream.write((char*)_tag_array.data(), sizeof(BlockMetaData) * _tag_array.size());
-	file_stream.write((char*)_data_array.data(), _data_array.size());
+	//file_stream.write((char*)_data_array.data(), _data_array.size());
 
 	printf("Write cache success: %s\n", file_path.c_str());
 
 }
 
-bool UnitCacheBase::deserialize(std::string file_path)
+bool UnitCacheBase::deserialize(std::string file_path, const UnitMainMemoryBase& main_mem)
 {
 	printf("Loading cache: %s\n", file_path.c_str());
 
@@ -46,7 +54,17 @@ bool UnitCacheBase::deserialize(std::string file_path)
 	if(file_stream.good())
 	{
 		file_stream.read((char*)_tag_array.data(), sizeof(BlockMetaData) * _tag_array.size());
-		file_stream.read((char*)_data_array.data(), _data_array.size());
+		//file_stream.read((char*)_data_array.data(), _data_array.size());
+
+		for(uint i = 0; i < _tag_array.size(); ++i)
+		{
+			if(!_tag_array[i].valid) continue;
+			uint64_t tag = _tag_array[i].tag;
+			uint64_t set_index = i / _associativity;
+			paddr_t block_addr = _get_block_addr(tag, set_index);
+			main_mem.direct_read(_data_array.data() + i * _block_size, _block_size, block_addr);
+		}
+
 		succeeded = true;
 
 		printf("Loaded cache: %s\n", file_path.c_str());
@@ -60,18 +78,18 @@ bool UnitCacheBase::deserialize(std::string file_path)
 }
 
 //update lru and returns data pointer to cache line
-uint8_t* UnitCacheBase::_get_block(paddr_t paddr)
+uint8_t* UnitCacheBase::_get_block(paddr_t block_addr)
 {
-	uint start = _get_set_index(paddr) * _associativity;
+	uint64_t tag = _get_tag(block_addr);
+	uint set_index = _get_set_index(block_addr);
+	uint start = set_index  * _associativity;
 	uint end = start + _associativity;
-
-	uint64_t tag = _get_tag(paddr);
 
 	uint found_index = ~0;
 	uint found_lru = 0;
 	for(uint i = start; i < end; ++i)
 	{
-		if(_tag_array[i].valid && _tag_array[i].tag == tag)
+		if(_tag_array[i].tag == tag)
 		{
 			found_index = i;
 			found_lru = _tag_array[i].lru;
@@ -79,32 +97,61 @@ uint8_t* UnitCacheBase::_get_block(paddr_t paddr)
 		}
 	}
 
-	if(found_index == ~0) return nullptr; //didn't find line so we will leave lru alone and return nullptr
+	if(found_index == ~0) 
+		return nullptr; //Didn't find line so we will leave lru alone and return nullptr
 
 	for(uint i = start; i < end; ++i)
 		if(_tag_array[i].lru < found_lru) _tag_array[i].lru++;
 
 	_tag_array[found_index].lru = 0;
+	if(!_tag_array[found_index].valid) //Found the block but it was invalid
+		return nullptr;
 
 	return &_data_array[found_index * _block_size];
 }
 
-//inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
-uint8_t* UnitCacheBase::_insert_block(paddr_t paddr, const uint8_t* data)
+//writes data to block and updates valid bit
+uint8_t* UnitCacheBase::_update_block(paddr_t block_addr, const uint8_t* data)
 {
-	uint start = _get_set_index(paddr) * _associativity;
+	_assert(data);
+	uint64_t tag = _get_tag(block_addr);
+	uint set_index = _get_set_index(block_addr);
+	uint start = set_index * _associativity;
 	uint end = start + _associativity;
 
+	for(uint i = start; i < end; ++i)
+	{
+		if(_tag_array[i].tag == tag)
+		{
+			_tag_array[i].valid = 1;
+			std::memcpy(_data_array.data() + i * _block_size, data, _block_size);
+			return &_data_array[i * _block_size];
+		}
+	}
+
+	return nullptr;
+}
+
+//inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
+uint8_t* UnitCacheBase::_insert_block(paddr_t block_addr, const uint8_t* data)
+{
+	paddr_t temp;
+	return _insert_block(block_addr, data, temp);
+}
+
+//inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
+uint8_t* UnitCacheBase::_insert_block(paddr_t block_addr, const uint8_t* data, paddr_t& victim)
+{
+	uint64_t tag = _get_tag(block_addr);
+	uint set_index = _get_set_index(block_addr);
+	uint start = set_index * _associativity;
+	uint end = start + _associativity;
+
+	//find replacement index
 	uint replacement_index = ~0u;
 	uint replacement_lru = 0u;
 	for(uint i = start; i < end; ++i)
 	{
-		if(!_tag_array[i].valid)
-		{
-			replacement_index = i;
-			break;
-		}
-		
 		if(_tag_array[i].lru >= replacement_lru)
 		{
 			replacement_lru = _tag_array[i].lru;
@@ -112,15 +159,26 @@ uint8_t* UnitCacheBase::_insert_block(paddr_t paddr, const uint8_t* data)
 		}
 	}
 
+	//compute victim block
+	victim = 0ull;
+	if(_tag_array[replacement_index].valid)
+		victim = _get_block_addr(_tag_array[replacement_index].tag, set_index);
+
+	//update lru
 	for(uint i = start; i < end; ++i)
-		_tag_array[i].lru++;
+		if(_tag_array[i].lru < replacement_lru) _tag_array[i].lru++;
 
+	//set block metadata
 	_tag_array[replacement_index].lru = 0;
-	_tag_array[replacement_index].valid = true;
-	_tag_array[replacement_index].tag = _get_tag(paddr);
-
-	std::memcpy(&_data_array[replacement_index * _block_size], data, _block_size);
-	return &_data_array[replacement_index];
+	_tag_array[replacement_index].tag = tag;
+	if(data)
+	{
+		//insert block if data was passed
+		std::memcpy(&_data_array[replacement_index * _block_size], data, _block_size);
+		_tag_array[replacement_index].valid = 1;
+	}
+	else _tag_array[replacement_index].valid = 0;
+	return &_data_array[replacement_index * _block_size];
 }
 
 }}

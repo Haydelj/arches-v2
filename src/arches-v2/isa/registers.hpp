@@ -2,37 +2,57 @@
 
 #include "stdafx.hpp"
 
-
 namespace Arches { namespace ISA { namespace RISCV {
 
-enum class RegType : uint8_t
+enum class RegType : uint16_t
 {
-	INT,
-	FLOAT,
+	INT8 = 0x0,
+	INT16 = 0x1,
+	INT32 = 0x2,
+	INT64 = 0x3,
+
+	UINT8 = 0x4,
+	UINT16 = 0x5,
+	UINT32 = 0x6,
+	UINT64 = 0x7,
+
+	FLOAT8 = 0x8,
+	FLOAT16 = 0x9,
+	FLOAT32 = 0xa,
+	FLOAT64 = 0xb,
 };
 
-struct RegAddr
+inline uint size(RegType type)
+{
+	return 1 << ((uint)type & 0x3);
+}
+
+inline uint sign_ext(RegType type)
+{
+	return (type <= RegType::INT64);
+}
+
+inline bool is_int(RegType type)
+{
+	return (type < RegType::FLOAT8);
+}
+
+struct DstReg
 {
 	union
 	{
 		struct
 		{
-			uint8_t reg : 5;
-			RegType reg_type : 1;
-			bool    sign_ext : 1;
-			uint8_t _reserved : 1;
+			uint16_t index : 5;
+			uint16_t thread_id : 4;
+			ISA::RISCV::RegType type : 4;
 		};
-
-		uint8_t u8;
+		uint16_t u16;
 	};
 
-	RegAddr() = default;
-	RegAddr(uint8_t u8) : u8(u8) {}
-
-	std::string mnemonic()
-	{
-		return (reg_type == RegType::INT ? "x" : "f") + std::to_string(reg);
-	}
+	DstReg() = default;
+	DstReg(uint16_t u16) : u16(u16) {};
+	std::string mnemonic() { return (is_int(type) ? "x" : "f") + std::to_string(index); }
 };
 
 class Register32 final {
@@ -252,6 +272,6 @@ public:
 	~FloatingPointRegisterFile() = default;
 };
 
-void write_register(IntegerRegisterFile* int_regs, FloatingPointRegisterFile* float_regs, RegAddr dst, uint8_t size, const uint8_t* data);
+void write_register(IntegerRegisterFile* int_regs, FloatingPointRegisterFile* float_regs, DstReg dst_reg, const uint8_t* data);
 
 }}}

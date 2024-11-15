@@ -13,22 +13,18 @@ namespace ISA { namespace RISCV { namespace TRaX {
 //see the opcode map for details
 const static InstructionInfo isa_custom0_000_imm[8] =
 {
-	InstructionInfo(0x0, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x0, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::INT;
-		reg_addr.sign_ext = false;
-
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
 		req.size = sizeof(uint32_t);
-		req.dst = reg_addr.u8;
+		req.dst_reg.index = instr.i.rd;
+		req.dst_reg.type = RegType::UINT32;
 		req.vaddr = 0x0ull;
 
 		return req;
 	}),
-	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegType::FLOAT, EXEC_DECL
+	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegFile::FLOAT, EXEC_DECL
 	{
 		Register32 * fr = unit->float_regs->registers;
 
@@ -53,7 +49,7 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 
 		unit->float_regs->registers[instr.u.rd].f32 = rtm::intersect(aabb, ray, inv_d);
 	}),
-	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegType::FLOAT, EXEC_DECL
+	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegFile::FLOAT, EXEC_DECL
 	{
 		Register32 * fr = unit->float_regs->registers;
 
@@ -100,23 +96,21 @@ const static InstructionInfo isa_custom0_funct3[8] =
 	InstructionInfo(0x2, IMPL_NONE),
 	InstructionInfo(0x3, IMPL_NONE),
 	InstructionInfo(0x4, IMPL_NONE),
-	InstructionInfo(0x5, "traceray", InstrType::CUSTOM7, Encoding::I, RegType::FLOAT, MEM_REQ_DECL
+	InstructionInfo(0x5, "traceray", InstrType::CUSTOM7, Encoding::I, RegFile::FLOAT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::STORE;
 		mem_req.size = sizeof(rtm::Ray);
-		mem_req.dst = reg_addr.u8;
+		mem_req.dst_reg.index = instr.i.rd;
+		mem_req.dst_reg.type = RegType::FLOAT32;
 		mem_req.flags = (uint16_t)ISA::RISCV::i_imm(instr);
 		mem_req.vaddr = 0xdeadbeefull;
 
 		Register32* fr = unit->float_regs->registers;
 		for(uint i = 0; i < sizeof(rtm::Ray) / sizeof(float); ++i)
+		{
 			((float*)mem_req.data)[i] = fr[instr.i.rs1 + i].f32;
+		}
 
 		return mem_req;
 	}),
@@ -130,11 +124,18 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom
 
 namespace TRaX {
 
-typedef Units::UnitNonBlockingCache UnitL1Cache;
-typedef Units::UnitNonBlockingCache UnitL2Cache;
-
 #include "trax-kernel/include.hpp"
 #include "trax-kernel/intersect.hpp"
+
+typedef Units::UnitDRAMRamulator UnitDRAM;
+typedef Units::UnitCache UnitL2Cache;
+typedef Units::UnitCache UnitL1Cache;
+#if TRAX_USE_COMPRESSED_WIDE_BVH
+typedef Units::TRaX::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
+#else
+typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
+#endif
+
 static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
 	std::string scene_name = scene_names[global_config.scene_id];
@@ -200,6 +201,7 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	mesh.get_triangles(tris);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 
+	args.total_threads = global_config.total_threads;
 	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), TRAX_KERNEL_ARGS_ADDRESS);
 	return args;
 }
@@ -218,48 +220,42 @@ void print_header(std::string string, uint header_length = 80)
 
 static void run_sim_trax(GlobalConfig global_config)
 {
-	//hardware spec
-	double clock_rate = 2'000'000'000.0;
-
 #if 1 //Modern config
-
 	//Compute
-	uint64_t stack_size = 1ull << 10; //1KB
-	uint num_threads_per_tp = 4;
-	uint num_tps_per_tm = 128;
+	double clock_rate = 2.0e9;
+	uint num_threads = 4;
+	uint num_tps = 128;
 	uint num_tms = 128;
+	uint64_t stack_size = 512;
 
-	//DRAM 
-	uint64_t mem_size = 1ull << 32; //4GB
+	//Memory
+	uint64_t block_size = CACHE_BLOCK_SIZE;
+	uint num_partitions = 16;
+	uint partition_stride = 1 << 10;
+	uint64_t partition_mask = generate_nbit_mask(log2i(num_partitions)) << log2i(partition_stride);
 
-	uint num_channels = 16;// dram.num_channels();
-	uint64_t row_size = 8 * 1024; // dram.row_size();
-	uint64_t block_size = 64; // dram.block_size();
-
-#if 1
-	typedef Units::UnitDRAMRamulator UnitDRAM;
-	UnitDRAM dram(32, num_channels, mem_size); dram.clear();
-#else
-	typedef Units::UnitDRAM UnitDRAM;
-	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
-	UnitDRAM dram(64, mem_size);
-#endif
-
-	_assert(block_size <= MemoryRequest::MAX_SIZE);
-	_assert(block_size == CACHE_BLOCK_SIZE);
-	//_assert(row_size == DRAM_ROW_SIZE);
+	//DRAM
+	UnitDRAM::Configuration dram_config;
+	dram_config.config_path = "./config-files/gddr6_pch_config.yaml";
+	dram_config.size = 4ull << 30; //4GB
+	dram_config.num_controllers = num_partitions;
+	dram_config.partition_mask = partition_mask;
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.size = 72ull * 1024 * 1024; //72MB
+	l2_config.in_order = true;
+	l2_config.size = 72ull << 20; //72MB
 	l2_config.block_size = block_size;
-	l2_config.num_mshr = 256;
-	l2_config.associativity = 8;
-	l2_config.latency = 200;
-	l2_config.cycle_time = 1;
-	l2_config.num_banks = 32;
-	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
-		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
+	l2_config.associativity = 18;
+	l2_config.num_partitions = num_partitions;
+	l2_config.partition_select_mask = partition_mask;
+	l2_config.num_banks = 2;
+	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
+	l2_config.crossbar_width = 64;
+	l2_config.num_mshr = 192;
+	l2_config.rob_size = 4 * l2_config.num_mshr  / l2_config.num_banks;
+	l2_config.input_latency = 85;
+	l2_config.output_latency = 85;
 
 	UnitL2Cache::PowerConfig l2_power_config;
 	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
@@ -268,75 +264,30 @@ static void run_sim_trax(GlobalConfig global_config)
 	l2_power_config.write_energy = 0.365393e-9f - l2_power_config.tag_energy;
 
 	//L1d$
-	uint num_mshr = 256;
 	UnitL1Cache::Configuration l1d_config;
-	l1d_config.size = 128ull * 1024; //128KB
+	l1d_config.in_order = true;
+	l1d_config.size = 128ull << 10; //128KB
 	l1d_config.block_size = block_size;
-	l1d_config.associativity = 4;
-	l1d_config.latency = 30;
-	l1d_config.num_banks = 8;
+	l1d_config.associativity = 16;
+	l1d_config.num_banks = 4;
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
-	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
+	l1d_config.crossbar_width = 4;
+	l1d_config.num_mshr = 256;
+	l1d_config.rob_size = 8 * l1d_config.num_mshr / l1d_config.num_banks;
+	l1d_config.input_latency = 20;
+	l1d_config.output_latency = 10;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
 	l1d_power_config.tag_energy = 0.000663943e-9f;
 	l1d_power_config.read_energy = 0.0310981e-9f - l1d_power_config.tag_energy;
 	l1d_power_config.write_energy = 0.031744e-9f - l1d_power_config.tag_energy;
-
-	//L1i$
-	uint num_icache_per_tm = l1d_config.num_banks;
-	Units::UnitBlockingCache::Configuration l1i_config;
-	l1i_config.size = 4 * 1024;
-	l1i_config.block_size = block_size;
-	l1i_config.associativity = 4;
-	l1i_config.latency = 1;
-	l1i_config.cycle_time = 1;
-	l1i_config.num_banks = 1;
-	l1i_config.bank_select_mask = 0;
-
-	Units::UnitBlockingCache::PowerConfig l1i_power_config;
-	l1i_power_config.leakage_power = 1.72364e-3f * l1i_config.num_banks * num_icache_per_tm * num_tms;
-	l1i_power_config.tag_energy = 0.000215067e-9f;
-	l1i_power_config.read_energy = 0.00924837e-9f - l1i_power_config.tag_energy;
-	l1i_power_config.write_energy = 0.00850041e-9f - l1i_power_config.tag_energy;
 #else //Legacy config
 
 #endif
 
-	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
-	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
-	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
-	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM7] = "TRACERAY";
-	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::TRaX::custom0;
-
-	uint num_tps = num_tps_per_tm * num_tms;
-	uint num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
-	uint num_tps_per_i_cache = num_tps_per_tm / num_icache_per_tm;
-	uint num_l2_ports_per_tm = l1d_config.num_banks * 2;
-
-	Simulator simulator;
-	std::vector<Units::TRaX::UnitTP*> tps;
-
-	std::vector<Units::UnitSFU*> sfus;
-	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
-
-#if TRAX_USE_COMPRESSED_WIDE_BVH
-	typedef Units::TRaX::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
-#else
-	typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
-#endif
-	std::vector<UnitRTCore*> rtcs;
-
-	std::vector<UnitL1Cache*> l1ds;
-	std::vector<Units::UnitBlockingCache*> l1is;
-
-	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
-	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
-	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
-
-	simulator.register_unit(&dram);
-	simulator.new_unit_group();
+	_assert(block_size <= MemoryRequest::MAX_SIZE);
+	_assert(block_size == CACHE_BLOCK_SIZE);
 
 	TCHAR exePath[MAX_PATH];
 	GetModuleFileName(NULL, exePath, MAX_PATH);
@@ -344,83 +295,76 @@ static void run_sim_trax(GlobalConfig global_config)
 	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 	ELF elf(current_folder_path + "../../trax-kernel/riscv/kernel");
+
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
+	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM7] = "TRACERAY";
+	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::TRaX::custom0;
+
+	uint num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
+
+	Simulator simulator;
+	std::vector<Units::UnitTP*> tps;
+	std::vector<Units::UnitSFU*> sfus;
+	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
+	std::vector<UnitRTCore*> rtcs;
+	std::vector<UnitL1Cache*> l1ds;
+	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms * 2);
+	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
+	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
+
+	dram_config.num_ports = dram_config.num_controllers;
+	UnitDRAM dram(dram_config);
+	simulator.register_unit(&dram);
+	simulator.new_unit_group();
+
+	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
+	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, partition_stride);
 
-	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size);
-
-	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
+	l2_config.num_ports = num_tms;
 	l2_config.mem_highers = {&dram};
-	l2_config.mem_higher_port_offset = 0;
-	l2_config.mem_higher_port_stride = 1;
-
+	l2_config.mem_higher_port = 0;
 	UnitL2Cache l2(l2_config);
 	simulator.register_unit(&l2);
-
+	simulator.new_unit_group();
 
 	std::string l2_cache_path = current_folder_path + "../../../datasets/cache/" + scene_names[global_config.scene_id] + "-" + std::to_string(global_config.pregen_bounce) + "-l2.cache";
 	bool deserialized_cache = false;
 	if (global_config.warm_l2)
 	{
-		deserialized_cache = l2.deserialize(l2_cache_path);
+		deserialized_cache = l2.deserialize(l2_cache_path, dram);
 		//l2.copy(TRAX_KERNEL_ARGS_ADDRESS, dram._data_u8 + TRAX_KERNEL_ARGS_ADDRESS, sizeof(kernel_args));
 	}
-	
+
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
 	simulator.register_unit(&atomic_regs);
+	simulator.new_unit_group();
 
+	l1d_config.num_ports = num_tps;
+#ifdef TRAX_USE_RT_CORE
+	l1d_config.num_ports += 2 * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
+	l1d_config.crossbar_width += 2;
+#endif
+	l1d_config.mem_highers = {&l2};
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
 	{
-		simulator.new_unit_group();
 		std::vector<Units::UnitBase*> unit_table((uint)ISA::RISCV::InstrType::NUM_TYPES, nullptr);
-
 		std::vector<Units::UnitMemoryBase*> mem_list;
+		std::vector<Units::UnitSFU*> sfu_list;
 
-		l1d_config.num_ports = num_tps_per_tm;
-	#ifdef TRAX_USE_RT_CORE
-		l1d_config.num_ports += 1; //add extra port for RT core
-	#endif
-		l1d_config.mem_highers = {&l2};
-		l1d_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index;
-		l1d_config.mem_higher_port_stride = 2;
-
+		l1d_config.mem_higher_port = tm_index;
 		l1ds.push_back(new UnitL1Cache(l1d_config));
 		simulator.register_unit(l1ds.back());
 		mem_list.push_back(l1ds.back());
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
 		unit_table[(uint)ISA::RISCV::InstrType::STORE] = l1ds.back();
 
-		// L1 instruction cache
-		//for(uint i_cache_index = 0; i_cache_index < num_icache_per_tm; ++i_cache_index)
-		//{
-		//	l1i_config.num_ports = num_tps_per_i_cache;
-		//	l1i_config.mem_higher = &l2;
-		//	l1i_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index + i_cache_index * 2 + 1;
-		//	Units::UnitBlockingCache* i_l1 = new Units::UnitBlockingCache(l1i_config);
-		//	l1is.push_back(i_l1);
-		//	simulator.register_unit(l1is.back());
-		//}
-
-	#ifdef TRAX_USE_RT_CORE
-		UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 256;
-		rtc_config.num_tp = num_tps_per_tm;
-		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
-		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
-		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
-		rtc_config.cache = l1ds.back();
-
-		rtcs.push_back(_new  UnitRTCore(rtc_config));
-		simulator.register_unit(rtcs.back());
-		mem_list.push_back(rtcs.back());
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
-	#endif
-
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 32));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps, tm_index, &atomic_regs, 32));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
-
-		std::vector<Units::UnitSFU*> sfu_list;
 
 		//sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm, 2, 1, num_tps_per_tm));
 		//simulator.register_unit(sfu_list.back());
@@ -428,48 +372,68 @@ static void run_sim_trax(GlobalConfig global_config)
 		//unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
 		//unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm / 8, 1, 1, num_tps_per_tm));
+		sfu_list.push_back(_new Units::UnitSFU(num_tps / 8, 1, 1, num_tps));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::IMUL] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::IDIV] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm / 16, 6, 1, num_tps_per_tm));
+		sfu_list.push_back(_new Units::UnitSFU(num_tps / 16, 6, 1, num_tps));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
 
-		//sfu_list.push_back(_new Units::UnitSFU(2, 3, 1, num_tps_per_tm));
-		//simulator.register_unit(sfu_list.back());
-		//unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
+	#if TRAX_USE_HARDWARE_INTERSECTORS
+		sfu_list.push_back(_new Units::UnitSFU(2, 3, 1, num_tps_per_tm));
+		simulator.register_unit(sfu_list.back());
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
 
-		//sfu_list.push_back(_new Units::UnitSFU(1, 22, 8, num_tps_per_tm));
-		//simulator.register_unit(sfu_list.back());
-		//unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
+		sfu_list.push_back(_new Units::UnitSFU(1, 22, 8, num_tps_per_tm));
+		simulator.register_unit(sfu_list.back());
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
+	#endif
 
 		for(auto& sfu : sfu_list)
 			sfus.push_back(sfu);
 
-		unit_tables.emplace_back(unit_table);
+	#ifdef TRAX_USE_RT_CORE
+		UnitRTCore::Configuration rtc_config;
+		rtc_config.num_clients = num_tps;
+		rtc_config.max_rays = 128;
+		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
+		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
+		rtc_config.cache = l1ds.back();
+		for(uint i = 0; i < 2; ++i)
+		{
+			rtc_config.cache_port = num_tps + i * 32;
+			rtcs.push_back(_new  UnitRTCore(rtc_config));
+			simulator.register_unit(rtcs.back());
+			mem_list.push_back(rtcs.back());
+			unit_table[(uint)ISA::RISCV::InstrType::CUSTOM7] = rtcs.back();
+
+			unit_tables.emplace_back(unit_table);
+		}
+	#endif
+
 		sfu_lists.emplace_back(sfu_list);
 		mem_lists.emplace_back(mem_list);
 
-		for(uint tp_index = 0; tp_index < num_tps_per_tm; ++tp_index)
+		Units::UnitTP::Configuration tp_config;
+		tp_config.tm_index = tm_index;
+		tp_config.stack_size = stack_size;
+		tp_config.cheat_memory = dram._data_u8;
+		tp_config.unique_mems = &mem_lists.back();
+		tp_config.unique_sfus = &sfu_lists.back();
+		tp_config.num_threads = num_threads;
+		for(uint tp_index = 0; tp_index < num_tps; ++tp_index)
 		{
-			Units::UnitTP::Configuration tp_config;
+			if(tp_index < num_tps / 2) tp_config.unit_table = &unit_tables.back() - 1;
+			else                       tp_config.unit_table = &unit_tables.back();
 			tp_config.tp_index = tp_index;
-			tp_config.tm_index = tm_index;
-			tp_config.stack_size = stack_size;
-			tp_config.cheat_memory = dram._data_u8;
-			//tp_config.inst_cache = l1is[uint(tm_index * num_icache_per_tm + tp_index / num_tps_per_i_cache)];
-			tp_config.num_tps_per_i_cache = num_tps_per_i_cache;
-			tp_config.unit_table = &unit_tables.back();
-			tp_config.unique_mems = &mem_lists.back();
-			tp_config.unique_sfus = &sfu_lists.back();
-			tp_config.num_threads = num_threads_per_tp;
-
 			tps.push_back(new Units::TRaX::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}
+
+		simulator.new_unit_group();
 	}
 
 	for(auto& tp : tps)
@@ -493,6 +457,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
 		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
 		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
+		UnitRTCore::Log rtc_delta_log = delta_log(rtc_log, rtcs);
 
 		printf("                            \n");
 		printf("Cycle: %lld                 \n", simulator.current_cycle);
@@ -502,9 +467,10 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("                            \n");
-		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
-		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());
+		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits) / l2_delta_log.get_total());
+		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits) / l1d_delta_log.get_total());
 		printf("                             \n");
+		if(!rtcs.empty()) printf("MRays/s: %.0f\n\n", rtc_delta_log.hits_returned / epsilon_ns * 1000.0);
 	});
 
 	auto stop = std::chrono::high_resolution_clock::now();
@@ -534,15 +500,9 @@ static void run_sim_trax(GlobalConfig global_config)
 	l1d_log.print(frame_cycles);
 	total_power += l1d_log.print_power(l1d_power_config, frame_time);
 
-	//print_header("L1i$");
-	//delta_log(l1i_log, l1is);
-	//l1i_log.print(frame_cycles);
-	//total_power += l1i_log.print_power(l1i_power_config, frame_time);
-
 	print_header("TP");
 	delta_log(tp_log, tps);
 	tp_log.print(frame_cycles, tps.size());
-	//tp_log.print_profile(dram._data_u8);
 
 	if(!rtcs.empty())
 	{
@@ -577,7 +537,6 @@ static void run_sim_trax(GlobalConfig global_config)
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;
 	for(auto& l1d : l1ds) delete l1d;
-	for(auto& l1i : l1is) delete l1i;
 	for(auto& thread_scheduler : thread_schedulers) delete thread_scheduler;
 	for(auto& rtc : rtcs) delete rtc;
 }

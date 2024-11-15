@@ -3,7 +3,6 @@
 #include "shared-utils.hpp"
 #include "trax.hpp"
 #include "dual-streaming.hpp"
-#include "trax-kernel/intersect.hpp"
 
 //global verbosity flag
 int arches_verbosity = 1;

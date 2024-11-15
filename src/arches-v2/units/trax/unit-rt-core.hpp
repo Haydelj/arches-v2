@@ -5,13 +5,19 @@
 #include "../unit-base.hpp"
 #include "../unit-memory-base.hpp"
 
-//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
-
-#ifndef ENABLE_RT_DEBUG_PRINTS 
-#define ENABLE_RT_DEBUG_PRINTS (false)
-#endif
-
 namespace Arches { namespace Units { namespace TRaX {
+
+const static std::string phase_names[] =
+{
+	"RAY_FETCH",
+	"SCHEDULER",
+	"HIT_RETURN",
+	"NODE_FETCH",
+	"TRI_FETCH",
+	"NODE_ISECT",
+	"TRI_ISECT",
+	"NUM_PHASES",
+};
 
 template<typename NT>
 class UnitRTCore : public UnitMemoryBase
@@ -19,13 +25,13 @@ class UnitRTCore : public UnitMemoryBase
 public:
 	struct Configuration
 	{
+		uint num_clients;
 		uint max_rays;
-		uint num_tp;
-
 		paddr_t node_base_addr;
 		paddr_t tri_base_addr;
 
 		UnitMemoryBase* cache;
+		uint cache_port;
 	};
 
 private:
@@ -49,7 +55,8 @@ private:
 			NT::Node node;
 			struct
 			{
-				rtm::Triangle tri;
+				rtm::Triangle tris[3];
+				uint num_tris;
 				uint tri_id;
 			};
 		};
@@ -61,7 +68,7 @@ private:
 	{
 		enum class Phase
 		{
-			NONE,
+			RAY_FETCH,
 			SCHEDULER,
 			HIT_RETURN,
 			NODE_FETCH,
@@ -100,6 +107,7 @@ private:
 	RequestCascade _request_network;
 	ReturnCascade _return_network;
 	UnitMemoryBase* _cache;
+	uint _cache_port;
 
 	//ray scheduling hardware
 	std::queue<uint> _ray_scheduling_queue;
@@ -116,10 +124,10 @@ private:
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
+	uint _tri_isect_index{0};
 
 	//meta data
 	uint _max_rays;
-	uint _num_tp;
 	paddr_t _node_base_addr;
 	paddr_t _tri_base_addr;
 	uint last_ray_id{0};
@@ -163,7 +171,7 @@ private:
 	}
 
 	bool _try_queue_node(uint ray_id, uint node_id);
-	bool _try_queue_tri(uint ray_id, uint tri_id);
+	bool _try_queue_tris(uint ray_id, uint tri_id, uint num_tris);
 
 	void _read_requests();
 	void _read_returns();
@@ -185,6 +193,7 @@ public:
 				uint64_t rays;
 				uint64_t nodes;
 				uint64_t tris;
+				uint64_t hits_returned;
 				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
 			};
 			uint64_t counters[16];
@@ -206,18 +215,6 @@ public:
 
 		void print(cycles_t cycles, uint num_units = 1)
 		{
-			const static std::string phase_names[] =
-			{
-				"NONE",
-				"SCHEDULER",
-				"HIT_RETURN",
-				"NODE_FETCH",
-				"TRI_FETCH",
-				"NODE_ISECT",
-				"TRI_ISECT",
-				"NUM_PHASES",
-			};
-
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
 			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);

@@ -3,6 +3,8 @@
 
 #include "units/unit-dram.hpp"
 #include "units/unit-dram-ramulator.hpp"
+#include "units/unit-cache.hpp"
+#include "units/unit-crossbar.hpp"
 #include "units/unit-blocking-cache.hpp"
 #include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-buffer.hpp"
@@ -27,6 +29,7 @@ static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment
 	heap_address = array_address + size * sizeof(RET);
 	main_memory->direct_write(data, size * sizeof(RET), array_address);
 	return reinterpret_cast<RET*>(array_address);
+
 }
 
 template <typename RET>
@@ -70,6 +73,7 @@ enum SCENES
 
 std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "living_room" , "cornellbox"};
 
+
 struct CameraConfig
 {
 	rtm::vec3 position;
@@ -98,20 +102,22 @@ public:
 
 	//simulator config
 	uint simulator = 0; //0-trax, 1-dual-streaming
-	uint logging_interval = 2000;
+	uint logging_interval = 10000;
 
 	//workload config
-	uint scene_id = 0;
-	uint framebuffer_width = 64;
-	uint framebuffer_height = 64;
+	uint scene_id = 2;
+	uint framebuffer_width = 1024;
+	uint framebuffer_height = 1024;
+	uint total_threads = 1024 << 10;
+
 	CameraConfig camera_config;
-	bool warm_l2 = 0;
-	bool pregen_rays = 0;
-	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
+	bool warm_l2 = 1;
+	bool pregen_rays = 1;
+	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;
-	bool rays_on_chip = 0;
+	bool rays_on_chip = 1;
 	bool hits_on_chip = 1;
 	bool use_early = 0;
 	bool hit_delay = 0;
