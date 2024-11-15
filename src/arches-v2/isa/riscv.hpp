@@ -192,6 +192,12 @@ enum class Encoding : uint8_t
 	C,
 };
 
+enum class RegFile : uint8_t
+{
+	INT,
+	FLOAT,
+};
+
 class InstructionInfo;
 
 class Instruction final 
@@ -345,8 +351,8 @@ public:
 	char const* mnemonic{nullptr};
 	InstrType   instr_type{InstrType::NA};
 	Encoding    encoding{Encoding::NA};
-	RegType     dst_reg_type{RegType::INT};
-	RegType     src_reg_type{RegType::INT};
+	RegFile     dst_reg_type{RegFile::INT};
+	RegFile     src_reg_type{RegFile::INT};
 	ExecType    exec_type{ExecType::INVALID};
 
 private:
@@ -366,13 +372,13 @@ public:
 	InstructionInfo(uint32_t func_code, ExecutionFunction impl_fn) : _exec_fn(impl_fn) {}
 	InstructionInfo(uint32_t func_code, char const* mnemonic, ExecutionFunction impl_fn) : mnemonic(mnemonic), _exec_fn(impl_fn) {}
 
-	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegType reg_type, ExecutionFunction exec_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(reg_type), src_reg_type(reg_type), exec_type(ExecType::EXECUTABLE), _exec_fn(exec_fn) {}
-	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegType dst_reg_type, RegType src_reg_type, ExecutionFunction exec_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(dst_reg_type), src_reg_type(src_reg_type), exec_type(ExecType::EXECUTABLE), _exec_fn(exec_fn) {}
+	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile reg_type, ExecutionFunction exec_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(reg_type), src_reg_type(reg_type), exec_type(ExecType::EXECUTABLE), _exec_fn(exec_fn) {}
+	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile dst_reg_type, RegFile src_reg_type, ExecutionFunction exec_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(dst_reg_type), src_reg_type(src_reg_type), exec_type(ExecType::EXECUTABLE), _exec_fn(exec_fn) {}
 	
-	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegType reg_type, ControlFlowFunction ctrl_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(reg_type), src_reg_type(reg_type), exec_type(ExecType::CONTROL_FLOW), _ctrl_fn(ctrl_fn) {}
+	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile reg_type, ControlFlowFunction ctrl_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(reg_type), src_reg_type(reg_type), exec_type(ExecType::CONTROL_FLOW), _ctrl_fn(ctrl_fn) {}
 
-	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegType reg_type, MemoryRequestFunction req_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(reg_type), src_reg_type(reg_type), exec_type(ExecType::MEMORY), _req_fn(req_fn) {}
-	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegType dst_reg_type, RegType src_reg_type, MemoryRequestFunction req_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(dst_reg_type), src_reg_type(src_reg_type), exec_type(ExecType::MEMORY), _req_fn(req_fn) {}
+	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile reg_type, MemoryRequestFunction req_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(reg_type), src_reg_type(reg_type), exec_type(ExecType::MEMORY), _req_fn(req_fn) {}
+	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile dst_reg_type, RegFile src_reg_type, MemoryRequestFunction req_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(dst_reg_type), src_reg_type(src_reg_type), exec_type(ExecType::MEMORY), _req_fn(req_fn) {}
 
 
 	~InstructionInfo() = default;
@@ -403,8 +409,8 @@ public:
 
 	void print_instr(Instruction const& instr, FILE* stream = stdout) const
 	{
-		char drfc = dst_reg_type == RegType::INT ? 'x' : 'f';
-		char srfc = src_reg_type == RegType::INT ? 'x' : 'f';
+		char drfc = dst_reg_type == RegFile::INT ? 'x' : 'f';
+		char srfc = src_reg_type == RegFile::INT ? 'x' : 'f';
 
 		switch(encoding)
 		{
@@ -444,8 +450,8 @@ public:
 
 	void print_regs(const Instruction& instr, const ExecutionItem& exec_item) const
 	{
-		if(src_reg_type != RegType::INT) return;
-		if(dst_reg_type != RegType::INT) return;
+		if(src_reg_type != RegFile::INT) return;
+		if(dst_reg_type != RegFile::INT) return;
 
 		switch(encoding)
 		{

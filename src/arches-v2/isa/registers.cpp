@@ -37,40 +37,40 @@ FloatingPointRegisterFile::FloatingPointRegisterFile()
 	for (int i = 0; i < sizeof(valid); ++i) valid[i] = true;
 }
 
-void write_register(IntegerRegisterFile* int_regs, FloatingPointRegisterFile* float_regs, RegAddr dst, uint8_t size, const uint8_t* data)
+void write_register(IntegerRegisterFile* int_regs, FloatingPointRegisterFile* float_regs, DstReg dst_reg, const uint8_t* data)
 {
-	if(dst.reg_type == ISA::RISCV::RegType::INT)
+	if(is_int(dst_reg.type))
 	{
-		//TODO fix. This is not portable.
-		//int_regs->registers[dst_reg].u64 = 0x0ull;
-		if(!dst.sign_ext)
+		if(!sign_ext(dst_reg.type))
 		{
-			switch(size)
+			switch(size(dst_reg.type))
 			{
-			case 1: int_regs->registers[dst.reg].u64 = *((uint8_t*)data); break;
-			case 2: int_regs->registers[dst.reg].u64 = *((uint16_t*)data); break;
-			case 4: int_regs->registers[dst.reg].u64 = *((uint32_t*)data); break;
-			case 8: int_regs->registers[dst.reg].u64 = *((uint64_t*)data); break;
-				nodefault;
+			case 1: int_regs->registers[dst_reg.index].u64 = *((uint8_t*)data); break;
+			case 2: int_regs->registers[dst_reg.index].u64 = *((uint16_t*)data); break;
+			case 4: int_regs->registers[dst_reg.index].u64 = *((uint32_t*)data); break;
+			case 8: int_regs->registers[dst_reg.index].u64 = *((uint64_t*)data); break;
+			default: _assert(false);
 			}
 		}
 		else
 		{
-			switch(size)
+			switch(size(dst_reg.type))
 			{
-			case 1: int_regs->registers[dst.reg].s64 = *((int8_t*)data); break;
-			case 2: int_regs->registers[dst.reg].s64 = *((int16_t*)data); break;
-			case 4: int_regs->registers[dst.reg].s64 = *((int32_t*)data); break;
-			case 8: int_regs->registers[dst.reg].s64 = *((uint64_t*)data); break;
-				nodefault;
+			case 1: int_regs->registers[dst_reg.index].s64 = *((int8_t*)data); break;
+			case 2: int_regs->registers[dst_reg.index].s64 = *((int16_t*)data); break;
+			case 4: int_regs->registers[dst_reg.index].s64 = *((int32_t*)data); break;
+			case 8: int_regs->registers[dst_reg.index].s64 = *((uint64_t*)data); break;
+			default: _assert(false);
 			}
 		}
 	}
-	else if(dst.reg_type == ISA::RISCV::RegType::FLOAT)
+	else
 	{
-		_assert(size == 4);
-		float_regs->registers[dst.reg].f32 = *((float*)data);
-	
+		switch(size(dst_reg.type))
+		{
+		case 4: float_regs->registers[dst_reg.index].f32 = *((float*)data); break;
+		default: _assert(false);
+		}
 	}
 }
 

@@ -2,8 +2,8 @@
 
 #include "stdafx.hpp"
 
+#include "isa/registers.hpp"
 #include "dual-streaming-kernel/work-item.hpp"
-
 
 namespace Arches {
 
@@ -34,7 +34,13 @@ public:
 	Type     type;
 	uint8_t  size;
 	uint16_t flags;
-	uint16_t dst;
+
+	union
+	{
+		ISA::RISCV::DstReg dst_reg;
+		uint16_t dst;
+	};
+	
 	uint16_t port;
 
 	union
@@ -107,10 +113,10 @@ public:
 		*this = other;
 	}
 
-	MemoryReturn(const MemoryRequest& request, const void* data) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
+	MemoryReturn(const MemoryRequest& request, const void* data = nullptr) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
 	{
 		_assert(request.size <= MemoryRequest::MAX_SIZE);
-		std::memcpy(this->data, data, request.size);
+		if(data) std::memcpy(this->data, data, request.size);
 	}
 
 	MemoryReturn& operator=(const MemoryReturn& other)
@@ -179,7 +185,7 @@ struct StreamSchedulerRequest
 
 struct SFURequest
 {
-	uint16_t dst;
+	ISA::RISCV::DstReg dst_reg;
 	uint16_t port;
 };
 

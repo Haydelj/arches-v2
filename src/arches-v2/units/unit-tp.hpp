@@ -13,7 +13,7 @@
 namespace Arches {
 namespace Units {
 
-#define ENABLE_PROFILER 1
+#define ENABLE_PROFILER 0
 
 class UnitTP : public UnitBase
 {
@@ -75,6 +75,8 @@ protected:
 	const std::vector<UnitMemoryBase*>& _unique_mems;
 	UnitMemoryBase* _inst_cache;
 
+	MemoryRequest coalescing_buffer;
+
 public:
 	UnitTP(const Configuration& config);
 
@@ -88,7 +90,7 @@ protected:
 	virtual uint8_t _check_dependancies(uint thread_id);
 	virtual void _set_dependancies(uint thread_id);
 	void _process_load_return(const MemoryReturn& ret);
-	void _clear_register_pending(uint thread_id, ISA::RISCV::RegAddr dst);
+	void _clear_register_pending(ISA::RISCV::DstReg dst);
 	void _log_instruction_issue(uint thread_id);
 
 public:

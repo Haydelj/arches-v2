@@ -16,22 +16,18 @@ namespace ISA { namespace RISCV { namespace DualStreaming {
 //see the opcode map for details
 const static InstructionInfo isa_custom0_000_imm[8] =
 {
-	InstructionInfo(0x0, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x0, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::INT;
-		reg_addr.sign_ext = false;
-
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
 		req.size = sizeof(uint32_t);
-		req.dst = reg_addr.u8;
+		req.dst_reg.index = instr.i.rd;
+		req.dst_reg.type = RegType::UINT32;
 		req.vaddr = 0x0ull;
 
 		return req;
 	}),
-	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegType::FLOAT, EXEC_DECL
+	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegFile::FLOAT, EXEC_DECL
 	{
 		Register32 * fr = unit->float_regs->registers;
 
@@ -56,7 +52,7 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 
 		unit->float_regs->registers[instr.u.rd].f32 = rtm::intersect(aabb, ray, inv_d);
 	}),
-	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegType::FLOAT, EXEC_DECL
+	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegFile::FLOAT, EXEC_DECL
 	{
 		Register32 * fr = unit->float_regs->registers;
 
@@ -99,29 +95,20 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 const static InstructionInfo isa_custom0_funct3[8] =
 {
 	InstructionInfo(0x0, META_DECL{return isa_custom0_000_imm[instr.u.imm_31_12 >> 3]; }),
-	InstructionInfo(0x1, "lwi", InstrType::CUSTOM3, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x1, "lwi", InstrType::CUSTOM3, Encoding::I, RegFile::FLOAT, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
 		//load bucket ray into registers [rd - (rd + N)]
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::LOAD;
 		mem_req.size = sizeof(WorkItem);
-		mem_req.dst = reg_addr.u8;
+		mem_req.dst_reg.index = instr.i.rd;
+		mem_req.dst_reg.type = RegType::FLOAT32;
 		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
 
 		return mem_req;
 	}),
-	InstructionInfo(0x2, "swi", InstrType::CUSTOM4, Encoding::S, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x2, "swi", InstrType::CUSTOM4, Encoding::S, RegFile::FLOAT, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
 		//store bucket ray to hit record updater
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::STORE;
@@ -134,7 +121,7 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 		return mem_req;
 	}),
-	InstructionInfo(0x3, "cshit", InstrType::CUSTOM5, Encoding::S, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x3, "cshit", InstrType::CUSTOM5, Encoding::S, RegFile::FLOAT, RegFile::INT, MEM_REQ_DECL
 	{
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::STORE;
@@ -147,34 +134,26 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 		return mem_req;
 	}),
-	InstructionInfo(0x4, "lhit", InstrType::CUSTOM6, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x4, "lhit", InstrType::CUSTOM6, Encoding::I, RegFile::FLOAT, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
 		//load hit record into registers [rd - (rd + N)]
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::LOAD;
 		mem_req.size = sizeof(rtm::Hit);
-		mem_req.dst = reg_addr.u8;
+		mem_req.dst_reg.index = instr.i.rd;
+		mem_req.dst_reg.type = RegType::FLOAT32;
 		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
 
 		return mem_req;
 	}),
-	InstructionInfo(0x5, "traceray", InstrType::CUSTOM7, Encoding::I, RegType::FLOAT, MEM_REQ_DECL
+	InstructionInfo(0x5, "traceray", InstrType::CUSTOM7, Encoding::I, RegFile::FLOAT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
 		//load hit record into registers [rd - (rd + N)]
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::LOAD;
 		mem_req.size = sizeof(rtm::Hit);
-		mem_req.dst = reg_addr.u8;
+		mem_req.dst_reg.index = instr.i.rd;
+		mem_req.dst_reg.type = RegType::FLOAT32;
 		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
 
 		return mem_req;
@@ -185,17 +164,18 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom
 
 }}}
 
-namespace Units { namespace DualStreaming {
+namespace DualStreaming {
 
-class L1Cache : public UnitNonBlockingCache
+class UnitL1Cache : public Units::UnitCache
 {
 private:
 	std::pair<paddr_t, paddr_t> _treelet_range;
 
 public:
-	L1Cache(const UnitNonBlockingCache::Configuration& config, const std::pair<paddr_t, paddr_t>& treelet_range) : 
-		UnitNonBlockingCache(config), _treelet_range(treelet_range)
-	{}
+	UnitL1Cache(const UnitCache::Configuration& config, const std::pair<paddr_t, paddr_t>& treelet_range) :
+		UnitCache(config), _treelet_range(treelet_range)
+	{
+	}
 
 private:
 	UnitMemoryBase* _get_mem_higher(paddr_t addr) override
@@ -207,16 +187,17 @@ private:
 	}
 };
 
-}}
-
-
-namespace DualStreaming {
-
-typedef Units::UnitNonBlockingCache UnitL1Cache;
-typedef Units::UnitNonBlockingCache UnitL2Cache;
-
 #include "dual-streaming-kernel/include.hpp"
 #include "dual-streaming-kernel/intersect.hpp"
+
+typedef Units::UnitCache UnitL2Cache;
+typedef Units::UnitDRAMRamulator UnitDRAM;
+#if	DS_USE_COMPRESSED_WIDE_BVH
+typedef rtm::CompressedWideTreeletBVH::Treelet SceneSegment;
+#else
+typedef rtm::WideTreeletBVH::Treelet SceneSegment;
+#endif
+
 static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
 	std::string scene_name = scene_names[global_config.scene_id];
@@ -304,40 +285,68 @@ void print_header(std::string string, uint header_length = 80)
 static void run_sim_dual_streaming(const GlobalConfig& global_config)
 {
 	//hardware spec
-	double clock_rate = 2.0e9;
 	
 #if 1 //Modern config
-	uint num_threads_per_tp = 4;
-	uint num_tps_per_tm = 128;
+	double clock_rate = 2.0e9;
+	uint num_threads = 4;
+	uint num_tps = 128;
 	uint num_tms = 128;
-	uint64_t stack_size = 1ull << 10; //1KB
+	uint64_t stack_size = 512;
+
+	uint64_t block_size = CACHE_BLOCK_SIZE;
+	uint num_partitions = 16;
+	uint partition_stride = 1 << 11; 
+	uint64_t partition_mask = generate_nbit_mask(log2i(num_partitions)) << log2i(partition_stride);
 
 	//DRAM
-	uint dram_ports_per_channel = 6;
-	uint64_t mem_size =1ull << 32; //4GB
+	UnitDRAM::Configuration dram_config;
+	dram_config.config_path = "./config-files/gddr6_pch_config.yaml";
+	dram_config.size = 4ull << 30; //4GB
+	dram_config.num_controllers = num_partitions;
+	dram_config.partition_mask = partition_mask;
 
-	uint num_channels = 16;// dram.num_channels();
-	uint64_t row_size = 8 * 1024; // dram.row_size();
-	uint64_t block_size = CACHE_BLOCK_SIZE; // dram.block_size();
+	//L2$
+	UnitL2Cache::Configuration l2_config;
+	l2_config.in_order = true;
+	l2_config.size = 72ull << 20; //72MB
+	l2_config.block_size = block_size;
+	l2_config.associativity = 18;
+	l2_config.num_ports = num_tms;
+	l2_config.num_partitions = num_partitions;
+	l2_config.partition_select_mask = partition_mask;
+	l2_config.num_banks = 2;
+	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
+	l2_config.crossbar_width = 64;
+	l2_config.num_mshr = 192;
+	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
+	l2_config.input_latency = 85;
+	l2_config.output_latency = 85;
 
-#if	DS_USE_COMPRESSED_WIDE_BVH
-	typedef rtm::CompressedWideTreeletBVH::Treelet SceneSegment;
-#else
-	typedef rtm::WideTreeletBVH::Treelet SceneSegment;
-#endif
+	UnitL2Cache::PowerConfig l2_power_config;
+	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
+	l2_power_config.tag_energy = 0.00756563e-9f;
+	l2_power_config.read_energy = 0.378808e-9f - l2_power_config.tag_energy;
+	l2_power_config.write_energy = 0.365393e-9f - l2_power_config.tag_energy;
 
-#if 1
-	typedef Units::UnitDRAMRamulator UnitDRAM;
-	UnitDRAM dram(dram_ports_per_channel * num_channels, num_channels, mem_size); dram.clear();
-#else
-	typedef Units::UnitDRAM UnitDRAM;
-	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
-	UnitDRAM dram(dram_ports_per_channel * NUM_DRAM_CHANNELS, mem_size);
-#endif
+	//L1d$
+	UnitL1Cache::Configuration l1d_config;
+	l1d_config.in_order = true;
+	l1d_config.size = 128ull << 10; //128KB
+	l1d_config.block_size = block_size;
+	l1d_config.associativity = 16;
+	l1d_config.num_banks = 4;
+	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
+	l1d_config.crossbar_width = 4;
+	l1d_config.num_mshr = 256;
+	l1d_config.rob_size = 8 * l1d_config.num_mshr / l1d_config.num_banks;
+	l1d_config.input_latency = 20;
+	l1d_config.output_latency = 10;
 
-	_assert(block_size <= MemoryRequest::MAX_SIZE);
-	_assert(block_size == CACHE_BLOCK_SIZE);
-	//_assert(row_size == DRAM_ROW_SIZE);
+	UnitL1Cache::PowerConfig l1d_power_config;
+	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
+	l1d_power_config.tag_energy = 0.000663943e-9f;
+	l1d_power_config.read_energy = 0.0310981e-9f - l1d_power_config.tag_energy;
+	l1d_power_config.write_energy = 0.031744e-9f - l1d_power_config.tag_energy;
 
 	//Scene buffer
 	Units::DualStreaming::UnitSceneBuffer::Configuration scene_buffer_config;
@@ -350,68 +359,12 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	scene_buffer_power_config.leakage_power = 53.7192e-3f * scene_buffer_config.num_banks;
 	scene_buffer_power_config.read_energy = 0.118977e-9f;
 	scene_buffer_power_config.write_energy = 0.118977e-9f;
-
-	//L2$
-	UnitL2Cache::Configuration l2_config;
-	l2_config.size = 64ull * 1024 * 1024; //32MB
-	l2_config.block_size = block_size;
-	l2_config.associativity = 8;
-	l2_config.num_mshr = 128;
-	l2_config.latency = 200;
-	l2_config.cycle_time = 1;
-	l2_config.num_banks = 32;
-	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
-		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
-
-	UnitL2Cache::PowerConfig l2_power_config;
-	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
-	l2_power_config.tag_energy = 0.00756563e-9f;
-	l2_power_config.read_energy = 0.378808e-9f - l2_power_config.tag_energy;
-	l2_power_config.write_energy = 0.365393e-9f - l2_power_config.tag_energy;
-
-	//L1d$
-	uint num_mshr = 256;
-	UnitL1Cache::Configuration l1d_config;
-	l1d_config.size = 128ull * 1024;
-	l1d_config.block_size = block_size;
-	l1d_config.associativity = 4;
-	l1d_config.latency = 30;
-	l1d_config.cycle_time = 1;
-	l1d_config.num_banks = 4;
-	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
-	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
-	l1d_config.num_ports = num_tps_per_tm;
-
-#ifdef DS_USE_RT_CORE
-	l1d_config.num_ports += 1; //add extra port for RT core
-#endif
-
-	UnitL1Cache::PowerConfig l1d_power_config;
-	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
-	l1d_power_config.tag_energy = 0.000663943e-9f;
-	l1d_power_config.read_energy = 0.0310981e-9f - l1d_power_config.tag_energy;
-	l1d_power_config.write_energy = 0.031744e-9f - l1d_power_config.tag_energy;
-
-	//L1i$
-	uint num_icache_per_tm = l1d_config.num_banks;
-	Units::UnitBlockingCache::Configuration l1i_config;
-	l1i_config.size = 4 * 1024;
-	l1i_config.block_size = block_size;
-	l1i_config.associativity = 4;
-	l1i_config.latency = 1;
-	l1i_config.cycle_time = 1;
-	l1i_config.num_banks = 1;
-	l1i_config.bank_select_mask = 0;
-
-	Units::UnitBlockingCache::PowerConfig l1i_power_config;
-	l1i_power_config.leakage_power = 1.72364e-3f * l1i_config.num_banks * num_icache_per_tm * num_tms;
-	l1i_power_config.tag_energy = 0.000215067e-9f;
-	l1i_power_config.read_energy = 0.00924837e-9f - l1i_power_config.tag_energy;
-	l1i_power_config.write_energy = 0.00850041e-9f - l1i_power_config.tag_energy;
-
 #else //Legacy config
 
 #endif
+
+	_assert(block_size <= MemoryRequest::MAX_SIZE);
+	_assert(block_size == CACHE_BLOCK_SIZE);
 
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
@@ -422,26 +375,22 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM6] = "LHIT";
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::DualStreaming::custom0;
 
-	uint num_tps = num_tps_per_tm * num_tms;
 	uint num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
-	uint num_tps_per_i_cache = num_tps_per_tm / num_icache_per_tm;
-	uint num_l2_ports_per_tm = l1d_config.num_banks * 2;
 
 	Simulator simulator;
-
 	std::vector<Units::UnitTP*> tps;
-
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<Units::DualStreaming::UnitTreeletRTCore<SceneSegment>*> rtcs;
 	std::vector<Units::DualStreaming::UnitRayStagingBuffer*> rsbs;
-
-	std::vector<Units::UnitNonBlockingCache*> l1ds;
-	std::vector<Units::UnitBlockingCache*> l1is;
-
+	std::vector<UnitL1Cache*> l1ds;
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
+
+	uint dram_ports_per_controller = 4;
+	dram_config.num_ports = dram_ports_per_controller * dram_config.num_controllers;
+	UnitDRAM dram(dram_config); 
 
 	simulator.register_unit(&dram);
 	simulator.new_unit_group();
@@ -449,8 +398,8 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	Units::UnitBuffer::Configuration sram_config;
 	sram_config.latency = 1;
 	sram_config.size = 1 << 30;
-	sram_config.num_banks = num_channels;
-	sram_config.num_ports = dram_ports_per_channel * num_channels;
+	sram_config.num_banks = num_partitions;
+	sram_config.num_ports = dram_ports_per_controller * num_partitions;
 
 	Units::UnitBuffer sram(sram_config);
 	simulator.register_unit(&sram);
@@ -462,23 +411,22 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
 	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
 	ELF elf(current_folder_path + "../../dual-streaming-kernel/riscv/kernel");
-	paddr_t heap_address = dram.write_elf(elf);
 
-	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config, row_size);
-	heap_address = align_to(row_size * num_channels, heap_address);
+	dram.clear();
+	paddr_t heap_address = dram.write_elf(elf);
+	DualStreamingKernelArgs kernel_args = DualStreaming::initilize_buffers(&dram, heap_address, global_config, partition_stride);
+	heap_address = align_to(partition_stride * num_partitions, heap_address);
 	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(SceneSegment)};
 
 	std::set<uint> unused_dram_ports;
-	for(uint i = 0; i < dram_ports_per_channel; ++i)
+	for(uint i = 0; i < dram_ports_per_controller; ++i)
 		unused_dram_ports.insert(i);
 
-	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
-	//l2_config.mem_higher = &dram;
+	l2_config.num_ports = num_tms;
 	l2_config.mem_highers = {&dram};
-	l2_config.mem_higher_port_offset = 0;
-	l2_config.mem_higher_port_stride = 3;
-	for(uint i = l2_config.mem_higher_port_offset; i < dram_ports_per_channel; i += l2_config.mem_higher_port_stride)
-		unused_dram_ports.erase(i);
+	l2_config.mem_higher_port = *unused_dram_ports.begin();
+	l2_config.mem_higher_port_stride = dram_ports_per_controller;
+	unused_dram_ports.erase(*unused_dram_ports.begin());
 
 	UnitL2Cache l2(l2_config);
 	simulator.register_unit(&l2);
@@ -489,13 +437,13 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	scene_buffer_config.segment_start = (paddr_t)kernel_args.treelets;
 	scene_buffer_config.segment_size = sizeof(SceneSegment);
-	scene_buffer_config.num_ports = num_tms * num_l2_ports_per_tm;
-	scene_buffer_config.row_size = row_size;
+	scene_buffer_config.num_ports = num_tms;
+	scene_buffer_config.row_size = partition_stride;
 	scene_buffer_config.block_size = block_size;
-	scene_buffer_config.num_channels = num_channels;
+	scene_buffer_config.num_channels = num_partitions;
 	scene_buffer_config.main_mem = &dram;
-	scene_buffer_config.main_mem_port_stride = dram_ports_per_channel;
 	scene_buffer_config.main_mem_port_offset = *unused_dram_ports.begin();
+	scene_buffer_config.main_mem_port_stride = dram_ports_per_controller;
 	unused_dram_ports.erase(*unused_dram_ports.begin());
 
 	Units::DualStreaming::UnitSceneBuffer scene_buffer(scene_buffer_config);
@@ -503,18 +451,18 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	Units::DualStreaming::UnitStreamScheduler::Configuration stream_scheduler_config;
 	stream_scheduler_config.num_banks = 32;
-	stream_scheduler_config.num_channels = num_channels;
+	stream_scheduler_config.num_channels = num_partitions;
 	stream_scheduler_config.traversal_scheme = global_config.traversal_scheme;
 	stream_scheduler_config.weight_scheme = global_config.weight_scheme;
 	stream_scheduler_config.num_tms = num_tms;
 	stream_scheduler_config.block_size = block_size;
-	stream_scheduler_config.row_size = row_size;
+	stream_scheduler_config.row_size = partition_stride;
 	stream_scheduler_config.num_root_rays = kernel_args.framebuffer_size;
 	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
 	stream_scheduler_config.cheat_treelets = (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
 	stream_scheduler_config.main_mem = &dram;
-	stream_scheduler_config.main_mem_port_stride = dram_ports_per_channel;
+	stream_scheduler_config.main_mem_port_stride = dram_ports_per_controller;
 	stream_scheduler_config.main_mem_port_offset = *unused_dram_ports.begin();
 	unused_dram_ports.erase(*unused_dram_ports.begin());
 
@@ -542,10 +490,10 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	hit_record_updater_config.hit_record_start = *(paddr_t*)&kernel_args.hit_records;
 	hit_record_updater_config.cache_size = global_config.hit_buffer_size; // 128 * 16 = 2048B = 2KB
 	hit_record_updater_config.associativity = 8;
-	hit_record_updater_config.row_size = row_size;
-	hit_record_updater_config.num_channels = num_channels;
+	hit_record_updater_config.row_size = partition_stride;
+	hit_record_updater_config.num_channels = num_partitions;
 	hit_record_updater_config.main_mem = &dram;
-	hit_record_updater_config.main_mem_port_stride = dram_ports_per_channel;
+	hit_record_updater_config.main_mem_port_stride = dram_ports_per_controller;
 	hit_record_updater_config.main_mem_port_offset = *unused_dram_ports.begin();
 	unused_dram_ports.erase(*unused_dram_ports.begin());
 
@@ -554,40 +502,32 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		std::vector<rtm::Hit> hits(kernel_args.framebuffer_size);
 		for(auto& hit : hits) hit.t = T_MAX;
 		paddr_t address = *(paddr_t*)&kernel_args.hit_records;
-		write_vector(&sram, row_size, hits, address);
+		write_vector(&sram, partition_stride, hits, address);
 		hit_record_updater_config.main_mem = &sram;
 	}
 
 	Units::DualStreaming::UnitHitRecordUpdater hit_record_updater(hit_record_updater_config);
 	simulator.register_unit(&hit_record_updater);
+	simulator.new_unit_group();
 
+	l1d_config.num_ports = num_tps;
+#ifdef DS_USE_RT_CORE
+	l1d_config.num_ports += 1 * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
+	l1d_config.crossbar_width += 1;
+#endif
+	l1d_config.mem_highers = {&l2, &scene_buffer};
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
 	{
-		simulator.new_unit_group();
 		std::vector<Units::UnitBase*> unit_table((uint)ISA::RISCV::InstrType::NUM_TYPES, nullptr);
-
 		std::vector<Units::UnitMemoryBase*> mem_list;
+		std::vector<Units::UnitSFU*> sfu_list;
 
-		l1d_config.mem_highers = {&l2, &scene_buffer};
-		l1d_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index;
-		l1d_config.mem_higher_port_stride = 2;
-
-		l1ds.push_back(_new Units::DualStreaming::L1Cache(l1d_config, global_config.use_scene_buffer ? treelet_range : std::pair<paddr_t, paddr_t>(0ull, 0ull)));
+		l1d_config.mem_higher_port = tm_index;
+		l1ds.push_back(_new UnitL1Cache(l1d_config, global_config.use_scene_buffer ? treelet_range : std::pair<paddr_t, paddr_t>(0ull, 0ull)));
 		simulator.register_unit(l1ds.back());
 		mem_list.push_back(l1ds.back());
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
 		unit_table[(uint)ISA::RISCV::InstrType::STORE] = l1ds.back();
-
-		// L1 instruction cache
-		for(uint i_cache_index = 0; i_cache_index < num_icache_per_tm; ++i_cache_index)
-		{
-			l1i_config.num_ports = num_tps_per_i_cache;
-			l1i_config.mem_higher = &l2;
-			l1i_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index + i_cache_index * 2 + 1;
-			Units::UnitBlockingCache* i_l1 = _new Units::UnitBlockingCache(l1i_config);
-			l1is.push_back(i_l1);
-			simulator.register_unit(l1is.back());
-		}
 
 	#if DS_USE_RT_CORE
 		rsbs.push_back(_new Units::DualStreaming::UnitRayStagingBuffer(1, tm_index, &stream_scheduler, &hit_record_updater));
@@ -595,7 +535,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 		Units::DualStreaming::UnitTreeletRTCore<SceneSegment>::Configuration rtc_config;
 		rtc_config.max_rays = 256;
-		rtc_config.num_tp = num_tps_per_tm;
+		rtc_config.num_tp = num_tps;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.hit_record_base_addr = (paddr_t)kernel_args.hit_records;
 		rtc_config.use_early_termination = global_config.use_early;
@@ -608,7 +548,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM4] = rtcs.back(); //SWI
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rtcs.back(); //LHIT
 	#else
-		rsbs.push_back(_new Units::DualStreaming::UnitRayStagingBuffer(num_tps_per_tm, tm_index, &stream_scheduler, &hit_record_updater));
+		rsbs.push_back(_new Units::DualStreaming::UnitRayStagingBuffer(num_tps, tm_index, &stream_scheduler, &hit_record_updater));
 		simulator.register_unit(rsbs.back());
 		mem_list.push_back(rsbs.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM3] = rsbs.back(); //LWI
@@ -617,26 +557,25 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rsbs.back(); //LHIT
 	#endif
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 64));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps, tm_index, &atomic_regs, 64));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::ATOMIC] = thread_schedulers.back();
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
 
-		std::vector<Units::UnitSFU*> sfu_list;
 
-		//sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm, 2, 1, num_tps_per_tm));
+		//sfu_list.push_back(_new Units::UnitSFU(num_tps, 2, 1, num_tps));
 		//simulator.register_unit(sfu_list.back());
 		//unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
 		//unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
 		//unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm / 8, 1, 1, num_tps_per_tm));
+		sfu_list.push_back(_new Units::UnitSFU(num_tps / 8, 1, 1, num_tps));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::IMUL] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::IDIV] = sfu_list.back();
 
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm / 16, 6, 1, num_tps_per_tm));
+		sfu_list.push_back(_new Units::UnitSFU(num_tps / 16, 6, 1, num_tps));
 		simulator.register_unit(sfu_list.back());
 		unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
 		unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
@@ -658,23 +597,23 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 		sfu_lists.emplace_back(sfu_list);
 		mem_lists.emplace_back(mem_list);
 
-		for(uint tp_index = 0; tp_index < num_tps_per_tm; ++tp_index)
+		for(uint tp_index = 0; tp_index < num_tps; ++tp_index)
 		{
 			Units::UnitTP::Configuration tp_config;
 			tp_config.tp_index = tp_index;
 			tp_config.tm_index = tm_index;
 			tp_config.stack_size = stack_size;
 			tp_config.cheat_memory = dram._data_u8;
-			tp_config.inst_cache = l1is[uint(tm_index * num_icache_per_tm + tp_index / num_tps_per_i_cache)];
-			tp_config.num_tps_per_i_cache = num_tps_per_i_cache;
 			tp_config.unit_table = &unit_tables.back();
 			tp_config.unique_mems = &mem_lists.back();
 			tp_config.unique_sfus = &sfu_lists.back();
-			tp_config.num_threads = num_threads_per_tp;
+			tp_config.num_threads = num_threads;
 
 			tps.push_back(new Units::DualStreaming::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}
+
+		simulator.new_unit_group();
 	}
 
 	for(auto& tp : tps)
@@ -774,11 +713,6 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	l1d_log.print(frame_cycles);
 	total_power += l1d_log.print_power(l1d_power_config, frame_time);
 
-	print_header("L1i$");
-	delta_log(l1i_log, l1is);
-	l1i_log.print(frame_cycles);
-	total_power += l1i_log.print_power(l1i_power_config, frame_time);
-
 	print_header("TP");
 	delta_log(tp_log, tps);
 	tp_log.print(frame_cycles, tps.size());
@@ -854,7 +788,6 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;
 	for(auto& l1d : l1ds) delete l1d;
-	for(auto& l1i : l1is) delete l1i;
 	for(auto& thread_scheduler : thread_schedulers) delete thread_scheduler;
 	for(auto& rtc : rtcs) delete rtc;
 	for(auto& rsb : rsbs) delete rsb;

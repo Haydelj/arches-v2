@@ -4,7 +4,7 @@ namespace Arches {namespace Units {
 
 UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) : 
 	UnitCacheBase(config.size, config.block_size, config.associativity),
-	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask, config.weight_table),
+	_request_cross_bar(config.num_ports, config.num_banks, config.bank_select_mask),
 	_return_cross_bar(config.num_banks, config.num_ports)
 {
 	_use_lfb = config.use_lfb;
@@ -13,7 +13,7 @@ UnitNonBlockingCache::UnitNonBlockingCache(Configuration config) :
 	_mem_higher_port_offset = config.mem_higher_port_offset;
 	_mem_higher_port_stride = config.mem_higher_port_stride;
 
-	_banks.resize(config.num_banks, {config.num_mshr, config.latency, 1});
+	_banks.resize(config.num_banks, {config.num_mshr, config.latency});
 }
 
 UnitNonBlockingCache::~UnitNonBlockingCache()

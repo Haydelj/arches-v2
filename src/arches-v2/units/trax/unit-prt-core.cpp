@@ -10,7 +10,7 @@ template<typename NT>
 UnitPRTCore<NT>::UnitPRTCore<NT>(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
 	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
-	_box_pipline(3, 1), _tri_pipline(22, 1)
+	_box_pipline(3), _tri_pipline(22)
 {
 	_ray_states.resize(config.max_rays / PACKET_SIZE);
 	for(uint i = 0; i < _ray_states.size(); ++i)

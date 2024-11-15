@@ -18,25 +18,26 @@
 #include <ramulator2/src/dram_controller/impl/scheduler/generic_scheduler.cpp>
 #include <ramulator2/src/dram_controller/impl/refresh/all_bank_refresh.cpp>
 
-
 #ifdef uint
 #undef uint
 #endif
 typedef unsigned int uint;
 
-
 namespace Arches { namespace Units {
 
 class UnitDRAMRamulator : public UnitMainMemoryBase
 {
+public:
+	struct Configuration
+	{
+		std::string config_path;
+		uint64_t size{1ull << 30};
+		uint num_ports;
+		uint num_controllers;
+		uint64_t partition_mask;
+	};
+
 private:
-	std::string _config_path;
-	Ramulator::IFrontEnd* _ramulator2_frontend;
-	Ramulator::IMemorySystem* _ramulator2_memorysystem;
-
-	int _clock_ratio;
-	uint _pending_requests = 0;
-
 	struct RamulatorReturn
 	{
 		cycles_t return_cycle;
@@ -48,14 +49,20 @@ private:
 		}
 	};
 
-	struct Channel
+	struct MemoryController
 	{
+		Ramulator::IFrontEnd* ramulator2_frontend;
+		Ramulator::IMemorySystem* ramulator2_memorysystem;
 		std::priority_queue<RamulatorReturn> return_queue;
 	};
 
+	int _clock_ratio;
+	uint _pending_requests = 0;
 	bool _busy{false};
 
-	std::vector<Channel> _channels;
+	paddr_t _partition_mask{0x0ull};
+
+	std::vector<MemoryController> _controllers;
 	RequestCascade _request_network;
 	ReturnCascade _return_network;
 	cycles_t _current_cycle{ 0 };
@@ -63,9 +70,8 @@ private:
 	std::vector<MemoryReturn> _returns;
 	std::stack<uint> _free_return_ids;
 
-
 public:
-	UnitDRAMRamulator(uint num_ports, uint num_channels, uint64_t size);
+	UnitDRAMRamulator(Configuration config);
 	virtual ~UnitDRAMRamulator() override;
 
 	bool request_port_write_valid(uint port_index) override;
@@ -128,6 +134,11 @@ public:
 private:
 	bool _load(const MemoryRequest& request_item, uint channel_index);
 	bool _store(const MemoryRequest& request_item, uint channel_index);
+	paddr_t _convert_address(paddr_t address)
+	{
+		address &= ~generate_nbit_mask(log2i(CACHE_BLOCK_SIZE));
+		return pext(address, ~_partition_mask);
+	}
 };
 
 }}
