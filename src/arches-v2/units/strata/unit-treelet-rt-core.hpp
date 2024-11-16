@@ -108,11 +108,13 @@ private:
 
 	// hit record loading
 	std::queue<MemoryRequest> _tp_hit_load_queue;
+	std::map<paddr_t, uint16_t> _hit_return_port_map;
 	std::queue<MemoryReturn> _tp_hit_return_queue;
 	std::queue<uint> _hit_store_queue;
 
 	//node pipline
 	std::queue<NodeStagingBuffer> _node_isect_queue;
+	std::queue<NodeStagingBuffer> _leaf_isect_queue;
 	Pipline<uint> _box_pipline;
 
 	//tri pipline
@@ -217,6 +219,9 @@ public:
 				uint64_t rays;
 				uint64_t nodes;
 				uint64_t tris;
+				uint64_t hits;
+				uint64_t get_hits;
+				uint64_t store_rays;
 				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
 			};
 			uint64_t counters[16];

@@ -146,7 +146,7 @@ typedef Units::UnitNonBlockingCache UnitL2Cache;
 
 #include "strata-kernel/include.hpp"
 #include "strata-kernel/intersect.hpp"
-static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
+static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size, uint raybuffer_size)
 {
 	std::string scene_name = scene_names[global_config.scene_id];
 
@@ -173,6 +173,9 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 
 	std::vector<rtm::Hit> hits(args.framebuffer_size, {T_MAX, rtm::vec2(0.0), ~0u});
 	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
+
+	args.raybuffer_size = raybuffer_size;
+	args.max_init_ray = std::min(args.raybuffer_size / (uint32_t)sizeof(RayData), args.framebuffer_size);
 
 	// secondary rays only
 	args.pregen_rays = global_config.pregen_rays;
@@ -352,8 +355,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	ELF elf(current_folder_path + "../../strata-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
 
-	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size);
-	kernel_args.raybuffer_size = 4ull * 1024 * 1024; //4MB
+	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size, 4ull * 1024 * 1024);
 
 	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
 	l2_config.mem_highers = {&dram};
@@ -408,7 +410,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	#ifdef USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 256;
+		rtc_config.max_rays = 2;
 		rtc_config.num_tp = num_tps_per_tm;
 		rtc_config.tm_index = tm_index;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
@@ -502,6 +504,8 @@ static void run_sim_strata(GlobalConfig global_config)
 		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
 		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
 		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
+		Units::STRaTA::UnitRayStreamBuffer::Log rsb_delta_log = delta_log(rsb_log, ray_stream_buffer);
+		UnitRTCore::Log rtc_delta_log = delta_log(rtc_log, rtcs);
 
 		printf("                            \n");
 		printf("Cycle: %lld                 \n", simulator.current_cycle);
@@ -510,6 +514,12 @@ static void run_sim_strata(GlobalConfig global_config)
 		printf("DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
+		printf("RSB$ Read: %8.1f bytes/cycle\n", (float)rsb_delta_log.bytes_read / delta);
+		printf("RSB$ Write: %7.1f bytes/cycle\n", (float)rsb_delta_log.bytes_written / delta);
+		printf("RTC Rays: %d\n", rtc_delta_log.rays);
+		printf("RTC Store Rays: %d\n", rtc_delta_log.store_rays);
+		printf("RTC Hits: %d\n", rtc_delta_log.hits);
+		printf("RTC Get Hits: %d\n", rtc_delta_log.get_hits);
 		printf("                            \n");
 		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());

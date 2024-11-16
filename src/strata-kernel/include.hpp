@@ -14,6 +14,7 @@ struct STRaTAKernelArgs
 	uint32_t framebuffer_size;
 	uint32_t* framebuffer;
 	uint32_t raybuffer_size;
+	uint32_t max_init_ray;
 
 	bool pregen_rays;
 
