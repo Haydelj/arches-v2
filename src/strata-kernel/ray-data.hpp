@@ -16,6 +16,7 @@ struct RayData
 			NONE,
 			DOWN,
 			UP,
+			LEAF_STAY,
 			OVER,
 		} traversal_state;
 	};
