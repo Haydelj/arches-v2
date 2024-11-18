@@ -33,6 +33,7 @@ void UnitRayStreamBuffer::clock_fall()
 			{
 				_raydata_request_queue[bank_index].push({req.port, req.dst});
 				bank.data_pipline.read();
+				log.ray_request_push_count++;
 			}
 			else if(req.type == MemoryRequest::Type::STORE)
 			{
@@ -165,6 +166,7 @@ void UnitRayStreamBuffer::_issue_returns()
 				}
 				_ray_buffers_size -= sizeof(RayData);
 				_raydata_request_queue[bank_index].pop();
+				log.ray_request_pop_count++;
 				log.loads++;
 				log.bytes_read += sizeof(RayData);
 				_return_network.write(ret, bank_index);

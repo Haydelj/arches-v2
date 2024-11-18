@@ -410,7 +410,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	#ifdef USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 2;
+		rtc_config.max_rays = 256;
 		rtc_config.num_tp = num_tps_per_tm;
 		rtc_config.tm_index = tm_index;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
@@ -516,10 +516,13 @@ static void run_sim_strata(GlobalConfig global_config)
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("RSB$ Read: %8.1f bytes/cycle\n", (float)rsb_delta_log.bytes_read / delta);
 		printf("RSB$ Write: %7.1f bytes/cycle\n", (float)rsb_delta_log.bytes_written / delta);
+		printf("RSB$ Req Push: %d\n", rsb_delta_log.ray_request_push_count);
+		printf("RSB$ Req Pop: %d\n", rsb_delta_log.ray_request_pop_count);
 		printf("RTC Rays: %d\n", rtc_delta_log.rays);
 		printf("RTC Store Rays: %d\n", rtc_delta_log.store_rays);
 		printf("RTC Hits: %d\n", rtc_delta_log.hits);
 		printf("RTC Get Hits: %d\n", rtc_delta_log.get_hits);
+		printf("RTC Load Hits: %d\n", rtc_delta_log.load_hits);
 		printf("                            \n");
 		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());

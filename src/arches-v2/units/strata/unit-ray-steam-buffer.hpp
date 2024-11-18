@@ -97,6 +97,8 @@ public:
 				uint64_t stores;
 				uint64_t bytes_read;
 				uint64_t bytes_written;
+				uint64_t ray_request_push_count;
+				uint64_t ray_request_pop_count;
 			};
 			uint64_t counters[8];
 		};
