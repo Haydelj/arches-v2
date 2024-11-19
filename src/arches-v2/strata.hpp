@@ -234,7 +234,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	//Compute
 	uint64_t stack_size = 1ull << 10; //1KB
-	uint num_threads_per_tp = 4;
+	uint num_threads_per_tp = 1;
 	uint num_tps_per_tm = 128;
 	uint num_tms = 128;
 
@@ -523,6 +523,7 @@ static void run_sim_strata(GlobalConfig global_config)
 		printf("RTC Hits: %d\n", rtc_delta_log.hits);
 		printf("RTC Get Hits: %d\n", rtc_delta_log.get_hits);
 		printf("RTC Load Hits: %d\n", rtc_delta_log.load_hits);
+		printf("RTC Return Hits: %d\n", rtc_delta_log.return_hits);
 		printf("                            \n");
 		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());
