@@ -234,7 +234,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	//Compute
 	uint64_t stack_size = 1ull << 10; //1KB
-	uint num_threads_per_tp = 1;
+	uint num_threads_per_tp = 4;
 	uint num_tps_per_tm = 128;
 	uint num_tms = 128;
 

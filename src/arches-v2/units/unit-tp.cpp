@@ -3,7 +3,7 @@
 namespace Arches {
 namespace Units {
 
-#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 1 && _tm_index == 32)
+//#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0)
 //#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x0000000000000383)
 
 #ifndef ENABLE_TP_DEBUG_PRINTS 
@@ -87,7 +87,6 @@ void UnitTP::_process_load_return(const MemoryReturn& ret)
 	uint16_t ret_thread_id = ret.dst >> 8;
 	ThreadData& ret_thread = _thread_data[ret_thread_id];
 	ISA::RISCV::RegAddr reg_addr((uint8_t)ret.dst);
-	//if (ret.size == 20) printf("TP get hit: %d\n", ret.dst);
 	if(reg_addr.reg_type == ISA::RISCV::RegType::FLOAT)
 	{
 		for(uint i = 0; i < ret.size / sizeof(float); ++i)
@@ -317,14 +316,9 @@ void UnitTP::clock_fall()
 		{
 			log.log_resource_stall((ISA::RISCV::InstrType)(last_thread_stall_type - 128), last_thread.pc);
 		}
-		if (last_thread.instr.data != 0)
-		{
-			int test = 0;
-		}
 
 		if (ENABLE_TP_DEBUG_PRINTS && last_thread.instr.data != 0)
 		{
-			return;
 			printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
 			last_thread.instr_info.print_instr(last_thread.instr);
 			if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());
