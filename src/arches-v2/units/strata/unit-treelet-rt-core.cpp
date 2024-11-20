@@ -169,10 +169,11 @@ void UnitTreeletRTCore::_schedule_ray()
 						if(_try_queue_node(ray_id, entry.treelet, entry.data.child_index))
 						{
 							ray_state.ray_data.raystate.treelet_id = entry.treelet;
+							ray_state.ray_data.raystate.treelet_child_id = entry.data.child_index;
 							ray_state.phase = RayState::Phase::NODE_FETCH;
 
 							if(ENABLE_RT_DEBUG_PRINTS)
-								printf("TM: %d, Ray_id: %d, global_id: %d, [Down] Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, entry.data.child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+								printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Down] Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.data.child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 						}
 						else
 						{
@@ -191,7 +192,7 @@ void UnitTreeletRTCore::_schedule_ray()
 						ray_state.phase = RayState::Phase::RAY_FETCH;
 						_ray_data_load_queue.push(ray_id);
 						if (ENABLE_RT_DEBUG_PRINTS)
-							printf("TM: %d, Ray_id: %d, global_id: %d, [Down] Store Ray: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, entry.data.child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+							printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Down] Store Ray: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.data.child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 					}
 				}
 				else
@@ -202,7 +203,7 @@ void UnitTreeletRTCore::_schedule_ray()
 						ray_state.phase = RayState::Phase::TRI_FETCH;
 
 						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("TM: %d, Ray_id: %d, global_id: %d, [Down] Fetch Tri: %d:%d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, entry.data.triangle_index * 4, entry.data.num_tri, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+							printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Down] Fetch Tri: %d:%d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.data.triangle_index * 4, entry.data.num_tri, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 					}
 					else
 					{
@@ -219,10 +220,11 @@ void UnitTreeletRTCore::_schedule_ray()
 						if(_try_queue_node(ray_id, entry.treelet, entry.data.parent_child_index))
 						{
 							ray_state.ray_data.raystate.treelet_id = entry.treelet;
+							ray_state.ray_data.raystate.treelet_child_id = entry.data.parent_child_index;
 							ray_state.phase = RayState::Phase::NODE_FETCH;
 
 							if(ENABLE_RT_DEBUG_PRINTS)
-								printf("TM: %d, Ray_id: %d, global_id: %d, [Up] Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, entry.data.parent_child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+								printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Up] Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.data.parent_child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 						}
 						else
 						{
@@ -248,10 +250,11 @@ void UnitTreeletRTCore::_schedule_ray()
 					if(_try_queue_node(ray_id, entry.treelet, entry.data.leaf_parent_child_index))
 					{
 						ray_state.ray_data.raystate.treelet_id = entry.treelet;
+						ray_state.ray_data.raystate.treelet_child_id = entry.data.leaf_parent_child_index;
 						ray_state.phase = RayState::Phase::NODE_FETCH;
 
 						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("TM: %d, Ray_id: %d, global_id: %d, [Up] Leaf Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, entry.data.leaf_parent_child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+							printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Up] Leaf Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.data.leaf_parent_child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 					}
 					else
 					{
@@ -266,8 +269,8 @@ void UnitTreeletRTCore::_schedule_ray()
 			if(ray_state.hit.id != ~0u)
 			{
 				//stack empty or anyhit found return the hit
-				if(ENABLE_RT_DEBUG_PRINTS)
-					printf("TM: %d, Ray_id: %d, global_id: %d, Store Hit: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.hit.id, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+				if(ENABLE_RT_DEBUG_PRINTS || ENABLE_HIT_DEBUG_PRINTS)
+					printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, Store Hit: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.hit.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 
 				ray_state.phase = RayState::Phase::HIT_UPDATE;
 				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::OVER;
@@ -276,8 +279,8 @@ void UnitTreeletRTCore::_schedule_ray()
 			}
 			else
 			{
-				if (ENABLE_RT_DEBUG_PRINTS)
-					printf("TM: %d, Ray_id: %d, global_id: %d, Hit Nothing, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+				if (ENABLE_RT_DEBUG_PRINTS || ENABLE_HIT_DEBUG_PRINTS)
+					printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, Hit Nothing, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::OVER;
 				_hit_store_queue.push(ray_id);
 			}
