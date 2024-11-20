@@ -500,7 +500,8 @@ void UnitTreeletRTCore<TT>::_issue_requests()
 		else if(!_tp_hit_load_queue.empty() && _active_ray_slots == 0)
 		{
 			//issue hit requests
-			const MemoryRequest& req = _tp_hit_load_queue.front();
+			MemoryRequest req = _tp_hit_load_queue.front();
+			req.dst &= ~(1 << 15);
 			_rsb->write_request(req);
 			_tp_hit_load_queue.pop();
 		}

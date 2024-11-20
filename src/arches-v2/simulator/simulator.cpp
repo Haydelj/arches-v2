@@ -58,8 +58,8 @@ public:
 
 	void on_scheduler_entry(bool)
 	{
-		SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
-		SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+		//SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
+		//SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 	}
 
 	void on_scheduler_exit(bool)

@@ -101,7 +101,7 @@ class GlobalConfig
 public:
 
 	//simulator config
-	uint simulator = 0; //0-trax, 1-dual-streaming
+	uint simulator = 1; //0-trax, 1-dual-streaming
 	uint logging_interval = 10000;
 
 	//workload config
