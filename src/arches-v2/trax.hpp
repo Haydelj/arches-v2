@@ -138,20 +138,11 @@ typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
 
 static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
+
 	std::string scene_name = scene_names[global_config.scene_id];
-
-	TCHAR tc_exe_path[MAX_PATH];
-	GetModuleFileName(NULL, tc_exe_path, MAX_PATH);
-	std::wstring w_exe_path(tc_exe_path);
-	std::string exe_path(w_exe_path.begin(), w_exe_path.end());
-
-	std::string poject_folder = exe_path.substr(0, exe_path.rfind("build"));
-	std::string data_folder = poject_folder + "datasets\\";
-
-	printf("%s\n", poject_folder.c_str());
-
-	std::string obj_filename = data_folder + scene_name + ".obj";
-	std::string bvh_cache_filename = data_folder + "cache\\" + scene_name + ".bvh";
+	std::string project_folder = get_project_folder_path();
+	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
+	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
 
 	TRaXKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;
@@ -167,7 +158,7 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
 
-	rtm::Mesh mesh(obj_filename);
+	rtm::Mesh mesh(scene_file);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
@@ -220,6 +211,8 @@ void print_header(std::string string, uint header_length = 80)
 
 static void run_sim_trax(GlobalConfig global_config)
 {
+	std::string project_folder_path = get_project_folder_path();
+
 #if 1 //Modern config
 	//Compute
 	double clock_rate = 2.0e9;
@@ -236,7 +229,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//DRAM
 	UnitDRAM::Configuration dram_config;
-	dram_config.config_path = "./config-files/gddr6_pch_config.yaml";
+	dram_config.config_path = project_folder_path + "build\\src\\arches-v2\\config-files\\gddr6_pch_config.yaml";
 	dram_config.size = 4ull << 30; //4GB
 	dram_config.num_controllers = num_partitions;
 	dram_config.partition_mask = partition_mask;
@@ -289,12 +282,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
 
-	TCHAR exePath[MAX_PATH];
-	GetModuleFileName(NULL, exePath, MAX_PATH);
-	std::wstring fullPath(exePath);
-	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
-	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
-	ELF elf(current_folder_path + "../../trax-kernel/riscv/kernel");
+	ELF elf(project_folder_path + "src\\trax-kernel\\riscv\\kernel");
 
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
@@ -330,7 +318,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	simulator.register_unit(&l2);
 	simulator.new_unit_group();
 
-	std::string l2_cache_path = current_folder_path + "../../../datasets/cache/" + scene_names[global_config.scene_id] + "-" + std::to_string(global_config.pregen_bounce) + "-l2.cache";
+	std::string l2_cache_path = project_folder_path + "\\datasets\\cache\\" + scene_names[global_config.scene_id] + "-" + std::to_string(global_config.pregen_bounce) + "-l2.cache";
 	bool deserialized_cache = false;
 	if (global_config.warm_l2)
 	{

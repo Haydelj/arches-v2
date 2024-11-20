@@ -22,6 +22,14 @@
 
 namespace Arches {
 
+std::string get_project_folder_path()
+{
+	CHAR path[MAX_PATH];
+	GetModuleFileNameA(NULL, path, MAX_PATH);
+	std::string executable_path(path);
+	return executable_path.substr(0, executable_path.rfind("build"));
+}
+
 template <typename RET>
 static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, RET* data, size_t size, paddr_t& heap_address)
 {
@@ -66,12 +74,12 @@ enum SCENES
 	INTEL_SPONZA,
 	SAN_MIGUEL,
 	HAIRBALL,
-	LIVING_ROOM,
 	CORNELLBOX,
+	LIVING_ROOM,
 	NUMBER,
 };
 
-std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "living_room" , "cornellbox"};
+std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "cornellbox" , "living_room"};
 
 
 struct CameraConfig
@@ -90,10 +98,10 @@ static const CameraConfig camera_configs[SCENES::NUMBER] =
 	{rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
 	
 	{rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
-	
-	{rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f}, //LIVING_ROOM
-	
-	{rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f} //CORNELLBOX
+
+	{rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
+
+	{rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f} //LIVING_ROOM
 };
 
 class GlobalConfig
@@ -105,15 +113,15 @@ public:
 	uint logging_interval = 10000;
 
 	//workload config
-	uint scene_id = 2;
-	uint framebuffer_width = 1024;
-	uint framebuffer_height = 1024;
+	uint scene_id = 0;
+	uint framebuffer_width = 64;
+	uint framebuffer_height = 64;
 	uint total_threads = 1024 << 10;
 
 	CameraConfig camera_config;
 	bool warm_l2 = 1;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;
@@ -154,6 +162,10 @@ public:
 					}
 				}
 			}
+			if (key == "scene_id")
+			{
+				scene_id = stoi(value);
+			}
 			if(key == "framebuffer_width")
 			{
 				framebuffer_width = std::stoi(value);
@@ -166,7 +178,7 @@ public:
 			{
 				traversal_scheme = std::stoi(value);
 			}
-			if(key == "hit_buuffer_size")
+			if(key == "hit_buffer_size")
 			{
 				hit_buffer_size = std::stoi(value);
 			}

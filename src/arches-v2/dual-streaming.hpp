@@ -201,17 +201,9 @@ typedef rtm::WideTreeletBVH::Treelet SceneSegment;
 static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
 	std::string scene_name = scene_names[global_config.scene_id];
-
-	TCHAR tc_exe_path[MAX_PATH];
-	GetModuleFileName(NULL, tc_exe_path, MAX_PATH);
-	std::wstring w_exe_path(tc_exe_path);
-	std::string exe_path(w_exe_path.begin(), w_exe_path.end());
-
-	std::string poject_folder = exe_path.substr(0, exe_path.rfind("build"));
-	std::string data_folder = poject_folder + "datasets/";
-
-	std::string filename = data_folder + scene_name + ".obj";
-	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + ".bvh";
+	std::string project_folder = get_project_folder_path();
+	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
+	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
 
 	DualStreamingKernelArgs args;
 	args.framebuffer_width = global_config.framebuffer_width;
@@ -232,7 +224,7 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	args.use_early = global_config.use_early;
 	args.hit_delay = global_config.hit_delay;
 
-	rtm::Mesh mesh(filename);
+	rtm::Mesh mesh(scene_file);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
@@ -284,8 +276,12 @@ void print_header(std::string string, uint header_length = 80)
 
 static void run_sim_dual_streaming(const GlobalConfig& global_config)
 {
+
+	std::string project_folder = get_project_folder_path();
+
+
 	//hardware spec
-	
+
 #if 1 //Modern config
 	double clock_rate = 2.0e9;
 	uint num_threads = 4;
@@ -300,7 +296,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 
 	//DRAM
 	UnitDRAM::Configuration dram_config;
-	dram_config.config_path = "./config-files/gddr6_pch_config.yaml";
+	dram_config.config_path = project_folder + "build\\src\\arches-v2\\config-files\\gddr6_pch_config.yaml";
 	dram_config.size = 4ull << 30; //4GB
 	dram_config.num_controllers = num_partitions;
 	dram_config.partition_mask = partition_mask;
@@ -404,13 +400,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	Units::UnitBuffer sram(sram_config);
 	simulator.register_unit(&sram);
 	simulator.new_unit_group();
-
-	TCHAR exePath[MAX_PATH];
-	GetModuleFileName(NULL, exePath, MAX_PATH);
-	std::wstring fullPath(exePath);
-	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
-	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
-	ELF elf(current_folder_path + "../../dual-streaming-kernel/riscv/kernel");
+	ELF elf(project_folder + "src\\dual-streaming-kernel\\riscv\\kernel");
 
 	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
