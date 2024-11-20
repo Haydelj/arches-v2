@@ -282,7 +282,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
 
-	ELF elf(project_folder_path + "build\\src\\trax-kernel\\riscv\\kernel");
+	ELF elf(project_folder_path + "src\\trax-kernel\\riscv\\kernel");
 
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";

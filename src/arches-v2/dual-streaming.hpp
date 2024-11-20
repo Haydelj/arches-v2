@@ -400,7 +400,7 @@ static void run_sim_dual_streaming(const GlobalConfig& global_config)
 	Units::UnitBuffer sram(sram_config);
 	simulator.register_unit(&sram);
 	simulator.new_unit_group();
-	ELF elf(project_folder + "build\\src\\dual-streaming-kernel\\riscv\\kernel");
+	ELF elf(project_folder + "src\\dual-streaming-kernel\\riscv\\kernel");
 
 	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
