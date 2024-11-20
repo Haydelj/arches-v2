@@ -8,11 +8,11 @@
 #include "unit-ray-steam-buffer.hpp"
 
 //#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
-#define ENABLE_RT_DEBUG_PRINTS (ray_state.ray_data.raystate.id == 9802)
+#define ENABLE_RT_DEBUG_PRINTS (ray_state.ray_data.raystate.id == 15)
 #define ENABLE_HIT_DEBUG_PRINTS (false)
 
 #ifndef ENABLE_RT_DEBUG_PRINTS 
-#define ENABLE_RT_DEBUG_PRINTS (false)
+#define ENABLE_RT_DEBUG_PRINTS (true)
 #endif
 
 namespace Arches { namespace Units { namespace STRaTA {
@@ -41,6 +41,7 @@ private:
 			float t;
 			uint32_t treelet;
 			rtm::WideTreeletSTRaTABVH::Treelet::Node::Data data;
+			rtm::WideTreeletSTRaTABVH::Treelet::Node::ParentData parent_data;
 		};
 
 		enum class Phase

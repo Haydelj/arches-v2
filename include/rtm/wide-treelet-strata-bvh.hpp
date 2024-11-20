@@ -41,21 +41,28 @@ public:
 				{
 					uint32_t is_int : 1;
 					uint32_t is_child_treelet : 1;
-					uint32_t is_parent_treelet : 1;
-					uint32_t child_index : 10;
-					uint32_t parent_index : 10;			// parent treelet index
-					uint32_t parent_child_index : 9;	// child index in parent treelet
+					uint32_t : 1;
+					uint32_t child_index : 29;
 				};
 				struct
 				{
 					uint32_t : 1;
 					uint32_t num_tri : 2;
-					uint32_t triangle_index : 19;
-					// uint32_t : 10;
-					uint32_t leaf_parent_child_index : 10;
+					uint32_t triangle_index : 29;
 				};
 			};
 
+			union ParentData
+			{
+				struct
+				{
+					uint32_t is_parent_treelet : 1;
+					uint32_t parent_treelet_index : 11;		// parent treelet index
+					uint32_t parent_node_index : 20;		// parent node index in the parent treelet
+				};
+			};
+
+			ParentData parent_data;
 			Data data[WIDTH];
 			AABB aabb[WIDTH];
 
@@ -330,34 +337,20 @@ public:
 						{
 							tnode.data[j].is_child_treelet = 1;
 							tnode.data[j].child_index = root_node_treelet[child_node_id];
-							// set parent
-							for(uint k = 0; k < WIDTH; ++k)
-							{
-								Treelet::Node& child_node = treelets[tnode.data[j].child_index].nodes[0];
-								child_node.data[k].is_parent_treelet = 1;
-								child_node.data[k].parent_index = treelet_index;
-								child_node.data[k].parent_child_index = i;
-							}
+							// set parent data
+							Treelet::Node& child_node = treelets[tnode.data[j].child_index].nodes[0];
+							child_node.parent_data.is_parent_treelet = 1;
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 						else
 						{
 							tnode.data[j].is_child_treelet = 0;
 							tnode.data[j].child_index = node_map[child_node_id];
-							// set parent
+							// set parent data
 							Treelet::Node& child_node = treelets[treelet_index].nodes[tnode.data[j].child_index];
-							for(uint k = 0; k < WIDTH; ++k)
-							{
-								if(bvh.nodes[child_node_id].data[k].is_int)
-								{
-									child_node.data[k].is_parent_treelet = 0;
-									child_node.data[k].parent_index = treelet_index;
-									child_node.data[k].parent_child_index = i;
-								}
-								else
-								{
-									child_node.data[k].leaf_parent_child_index = i;
-								}
-							}
+							child_node.parent_data.is_parent_treelet = 0;
+							child_node.parent_data.parent_node_index = i;
 						}
 					}
 					else

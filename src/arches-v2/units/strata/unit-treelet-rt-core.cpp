@@ -96,8 +96,9 @@ void UnitTreeletRTCore::_read_returns()
 			ray_state.stack.treelet = ray_data.raystate.treelet_id;
 			ray_state.stack.data.is_int = 1;
 			ray_state.stack.data.is_child_treelet = 0;
-			ray_state.stack.data.is_parent_treelet = 0;
-			ray_state.stack.data.parent_child_index = ray_data.raystate.treelet_child_id;
+			ray_state.stack.parent_data.is_parent_treelet = 0;
+			ray_state.stack.parent_data.parent_treelet_index = ray_data.raystate.treelet_id;
+			ray_state.stack.parent_data.parent_node_index = ray_data.raystate.treelet_child_id;
 			ray_state.stack.data.child_index = ray_data.raystate.treelet_child_id;
 
 			ray_state.phase = RayState::Phase::SCHEDULER;
@@ -213,53 +214,34 @@ void UnitTreeletRTCore::_schedule_ray()
 			}
 			else if(ray_state.ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::UP)	// fetch parent node
 			{
-				if(entry.data.is_int)
+				if(!entry.parent_data.is_parent_treelet)
 				{
-					if(!entry.data.is_parent_treelet)
-					{
-						if(_try_queue_node(ray_id, entry.treelet, entry.data.parent_child_index))
-						{
-							ray_state.ray_data.raystate.treelet_id = entry.treelet;
-							ray_state.ray_data.raystate.treelet_child_id = entry.data.parent_child_index;
-							ray_state.phase = RayState::Phase::NODE_FETCH;
-
-							if(ENABLE_RT_DEBUG_PRINTS)
-								printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Up] Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.data.parent_child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
-						}
-						else
-						{
-							_ray_scheduling_queue.push(ray_id);
-						}
-					}
-					else
-					{
-						ray_state.ray_data.raystate.treelet_id = entry.data.parent_index;
-						ray_state.ray_data.raystate.treelet_child_id = entry.data.parent_child_index;
-						RayData ray_data;
-						ray_data = ray_state.ray_data;
-						ray_data.ray.t_max = rtm::min(ray_state.ray_data.ray.t_max, ray_state.hit.t);
-						_ray_buffer_store_queue.push(ray_data);
-						ray_state.phase = RayState::Phase::RAY_FETCH;
-						_ray_data_load_queue.push(ray_id);
-						if (ENABLE_RT_DEBUG_PRINTS)
-							printf("TM: %d, Ray_id: %d, global_id: %d, [Up] Store Ray Treelet: %d, Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, entry.data.parent_index, entry.data.parent_child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
-					}
-				}
-				else
-				{
-					if(_try_queue_node(ray_id, entry.treelet, entry.data.leaf_parent_child_index))
+					if(_try_queue_node(ray_id, entry.treelet, entry.parent_data.parent_node_index))
 					{
 						ray_state.ray_data.raystate.treelet_id = entry.treelet;
-						ray_state.ray_data.raystate.treelet_child_id = entry.data.leaf_parent_child_index;
+						ray_state.ray_data.raystate.treelet_child_id = entry.parent_data.parent_node_index;
 						ray_state.phase = RayState::Phase::NODE_FETCH;
 
 						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Up] Leaf Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.data.leaf_parent_child_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
+							printf("TM: %d, Ray_id: %d, global_id: %d, treelet: %d, node: %d, [Up] Fetch Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, ray_state.ray_data.raystate.treelet_id, ray_state.ray_data.raystate.treelet_child_id, entry.parent_data.parent_node_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 					}
 					else
 					{
 						_ray_scheduling_queue.push(ray_id);
 					}
+				}
+				else
+				{
+					ray_state.ray_data.raystate.treelet_id = entry.parent_data.parent_treelet_index;
+					ray_state.ray_data.raystate.treelet_child_id = entry.parent_data.parent_node_index;
+					RayData ray_data;
+					ray_data = ray_state.ray_data;
+					ray_data.ray.t_max = rtm::min(ray_state.ray_data.ray.t_max, ray_state.hit.t);
+					_ray_buffer_store_queue.push(ray_data);
+					ray_state.phase = RayState::Phase::RAY_FETCH;
+					_ray_data_load_queue.push(ray_id);
+					if (ENABLE_RT_DEBUG_PRINTS)
+						printf("TM: %d, Ray_id: %d, global_id: %d, [Up] Store Ray Treelet: %d, Node: %d, traversal stack: %s, visited stack: %s\n", _tm_index, ray_id, ray_state.ray_data.raystate.id, entry.parent_data.parent_treelet_index, entry.parent_data.parent_node_index, std::bitset<32>(ray_state.ray_data.traversal_stack).to_string().c_str(), std::bitset<32>(ray_state.ray_data.visited_stack).to_string().c_str());
 				}
 			}
 		}
@@ -314,6 +296,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				ray_state.stack.t = hit_ts[near_side];
 				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
 				ray_state.stack.data = node.data[near_side];
+				ray_state.stack.parent_data = node.parent_data;
 				_assert(ray_state.ray_data.traversal_stack >> 31 != 1);
 				_assert(ray_state.ray_data.visited_stack >> 31 != 1);
 				ray_state.ray_data.traversal_stack = (ray_state.ray_data.traversal_stack << 1) | near_side;
@@ -328,6 +311,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			{
 				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
 				ray_state.stack.data = node.data[0];
+				ray_state.stack.parent_data = node.parent_data;
 				// ray_state.ray_data.traversal_stack = ray_state.ray_data.traversal_stack >> 1;
 				// ray_state.ray_data.visited_stack = ray_state.ray_data.visited_stack >> 1;
 				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::UP;
@@ -342,6 +326,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				ray_state.stack.t = rtm::intersect(node.aabb[next_visit], ray, inv_d);
 				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
 				ray_state.stack.data = node.data[next_visit];
+				ray_state.stack.parent_data = node.parent_data;
 				_assert(ray_state.ray_data.traversal_stack >> 31 != 1);
 				_assert(ray_state.ray_data.visited_stack >> 31 != 1);
 				ray_state.ray_data.traversal_stack = ((ray_state.ray_data.traversal_stack >> 1) << 1) | next_visit;
@@ -354,6 +339,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			{	//TODO: no need to intersect
 				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
 				ray_state.stack.data = node.data[0];
+				ray_state.stack.parent_data = node.parent_data;
 				ray_state.ray_data.traversal_stack = ray_state.ray_data.traversal_stack >> 1;
 				ray_state.ray_data.visited_stack = ray_state.ray_data.visited_stack >> 1;
 				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::UP;
@@ -377,41 +363,6 @@ void UnitTreeletRTCore::_simualte_intersectors()
 
 		log.nodes += 1;
 	}
-
-	// process leaf node
-	/* if(!_leaf_isect_queue.empty())
-	{
-		NodeStagingBuffer buffer = _leaf_isect_queue.front();
-		uint ray_id = buffer.ray_id;
-		RayState& ray_state = _ray_states[ray_id];
-		rtm::WideTreeletSTRaTABVH::Treelet::Node& node = buffer.node;
-		if(ray_state.ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::LEAF_STAY)
-		{
-			uint32_t near_visited = ray_state.ray_data.visited_stack & 1;
-			if(near_visited)
-			{
-				uint32_t next_visit = !(ray_state.ray_data.traversal_stack & 1);
-				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
-				ray_state.stack.data = node.data[next_visit];
-				_assert(ray_state.ray_data.traversal_stack >> 31 != 1);
-				_assert(ray_state.ray_data.visited_stack >> 31 != 1);
-				ray_state.ray_data.traversal_stack = ((ray_state.ray_data.traversal_stack >> 1) << 1) | next_visit;
-				ray_state.ray_data.visited_stack = (ray_state.ray_data.visited_stack >> 1) << 1;
-				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
-			}
-			else
-			{
-				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
-				ray_state.stack.data = node.data[0];
-				ray_state.ray_data.traversal_stack = ray_state.ray_data.traversal_stack >> 1;
-				ray_state.ray_data.visited_stack = ray_state.ray_data.visited_stack >> 1;
-				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::UP;
-				_leaf_isect_queue.pop();
-			}
-			// _ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
-			// _ray_scheduling_queue.push(ray_id);
-		}
-	} */
 
 	// triangle intersection
 	if(!_tri_isect_queue.empty() && _tri_pipline.is_write_valid())
@@ -448,6 +399,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				uint32_t next_visit = !(ray_state.ray_data.traversal_stack & 1);
 				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
 				ray_state.stack.data = node.data[next_visit];
+				ray_state.stack.parent_data = node.parent_data;
 				_assert(ray_state.ray_data.traversal_stack >> 31 != 1);
 				_assert(ray_state.ray_data.visited_stack >> 31 != 1);
 				ray_state.ray_data.traversal_stack = ((ray_state.ray_data.traversal_stack >> 1) << 1) | next_visit;
@@ -458,6 +410,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			{
 				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
 				ray_state.stack.data = node.data[0];
+				ray_state.stack.parent_data = node.parent_data;
 				ray_state.ray_data.traversal_stack = ray_state.ray_data.traversal_stack >> 1;
 				ray_state.ray_data.visited_stack = ray_state.ray_data.visited_stack >> 1;
 				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::UP;
