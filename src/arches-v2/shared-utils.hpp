@@ -81,7 +81,6 @@ enum SCENES
 
 std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "cornellbox" , "living_room"};
 
-
 struct CameraConfig
 {
 	rtm::vec3 position;
@@ -107,29 +106,27 @@ static const CameraConfig camera_configs[SCENES::NUMBER] =
 class GlobalConfig
 {
 public:
-
 	//simulator config
-	uint simulator = 1; //0-trax, 1-dual-streaming
+	uint simulator = 2; //0-trax, 1-dual-streaming, 2-ric
 	uint logging_interval = 10000;
 
 	//workload config
 	uint scene_id = 0;
-	uint framebuffer_width = 64;
-	uint framebuffer_height = 64;
-	uint total_threads = 1024 << 10;
+	uint framebuffer_width = 256;
+	uint framebuffer_height = 256;
 
 	CameraConfig camera_config;
-	bool warm_l2 = 1;
+	bool warm_l2 = 0;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;
-	bool rays_on_chip = 1;
+	bool rays_on_chip = 0;
 	bool hits_on_chip = 1;
 	bool use_early = 0;
 	bool hit_delay = 0;
-	uint hit_buffer_size = 64 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
+	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
 	uint traversal_scheme = 1; // 0-BFS, 1-DFS
 	uint weight_scheme = 1; // 0 total, 1 average, 2 none
 

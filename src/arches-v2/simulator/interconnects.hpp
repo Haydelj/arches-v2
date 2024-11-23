@@ -123,7 +123,7 @@ public:
 	}
 };
 
-template<typename T, uint MAX_SIZE = 64 * 3>
+template<typename T, uint MAX_SIZE = 64 * 4>
 class alignas(64) Interconnect
 {
 protected:

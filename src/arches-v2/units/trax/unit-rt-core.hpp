@@ -86,10 +86,10 @@ private:
 		StackEntry stack[32 * NT::WIDTH];
 		uint8_t stack_size;
 		uint8_t current_entry;
-		uint16_t flags;
 
+		MemoryRequest::Flags flags;
+		BitStack27 dst;
 		uint16_t port;
-		uint16_t dst;
 
 		StagingBuffer buffer;
 
@@ -100,7 +100,7 @@ private:
 	{
 		paddr_t addr;
 		uint8_t size;
-		uint16_t dst;
+		uint16_t ray_id;
 	};
 
 	//interconnects

@@ -85,10 +85,9 @@ private:
 		StackEntry stack[32 * NT::WIDTH];
 		uint8_t stack_size;
 		uint8_t current_entry;
-		uint16_t flags;
 
 		uint16_t port[PACKET_SIZE];
-		uint16_t dst[PACKET_SIZE];
+		BitStack27 dst[PACKET_SIZE];
 
 		uint num_rays;
 		uint return_ray;
@@ -103,7 +102,7 @@ private:
 	{
 		paddr_t addr;
 		uint8_t size;
-		uint16_t dst;
+		uint16_t ray_id;
 	};
 
 	//interconnects

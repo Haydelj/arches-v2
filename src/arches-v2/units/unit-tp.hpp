@@ -90,7 +90,7 @@ protected:
 	virtual uint8_t _check_dependancies(uint thread_id);
 	virtual void _set_dependancies(uint thread_id);
 	void _process_load_return(const MemoryReturn& ret);
-	void _clear_register_pending(ISA::RISCV::DstReg dst);
+	void _clear_register_pending(uint thread_id, ISA::RISCV::DstReg dst);
 	void _log_instruction_issue(uint thread_id);
 
 public:

@@ -60,10 +60,10 @@ protected:
 	{
 		struct SubEntry
 		{
-			uint64_t  dst;
-			uint16_t  port;
-			uint8_t   size;
-			uint8_t   offset;
+			BitStack27 dst;
+			uint16_t   port;
+			uint8_t    size;
+			uint8_t    offset;
 		};
 
 		enum class Type : uint8_t

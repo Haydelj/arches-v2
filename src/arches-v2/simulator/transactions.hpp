@@ -4,12 +4,12 @@
 
 #include "isa/registers.hpp"
 #include "dual-streaming-kernel/work-item.hpp"
+#include "util/bit-manipulation.hpp"
 
 namespace Arches {
 
 struct MemoryRequest
 {
-public:
 	enum class Type : uint8_t
 	{
 		NA,
@@ -26,22 +26,25 @@ public:
 		AMO_MAX,
 		AMO_MINU,
 		AMO_MAXU,
+
+		FCHTHRD,
+		CSHIT,
+	};
+
+	struct Flags
+	{
+		uint8_t omit_cache : 3;
+		uint8_t : 5;
 	};
 
 	const static uint MAX_SIZE = CACHE_BLOCK_SIZE;
 
 	//meta data 
-	Type     type;
-	uint8_t  size;
-	uint16_t flags;
-
-	union
-	{
-		ISA::RISCV::DstReg dst_reg;
-		uint16_t dst;
-	};
-	
-	uint16_t port;
+	Type type{MemoryRequest::Type::NA};
+	uint8_t size{0};
+	Flags flags{};
+	BitStack27 dst{};
+	uint16_t port{0};
 
 	union
 	{
@@ -58,8 +61,7 @@ public:
 		uint64_t data_u64;
 	};
 
-public:
-	MemoryRequest() = default;
+	MemoryRequest() : paddr(0) {}
 
 	MemoryRequest(const MemoryRequest& other)
 	{
@@ -83,11 +85,12 @@ public:
 
 struct MemoryReturn
 {
-public:
 	//meta data 
-	uint8_t  size;
-	uint16_t dst;
-	uint16_t port;
+	MemoryRequest::Type type{MemoryRequest::Type::NA};;
+	uint8_t size{0};
+	MemoryRequest::Flags flags{};
+	BitStack27 dst{};
+	uint16_t port{0};
 
 	union
 	{
@@ -104,25 +107,31 @@ public:
 		uint64_t data_u64;
 	};
 
-public:
-	MemoryReturn() = default;
+	MemoryReturn() : paddr(0) {}
 
 	MemoryReturn(const MemoryReturn& other)
 	{
-		_assert(other.size <= MemoryRequest::MAX_SIZE);
 		*this = other;
 	}
 
-	MemoryReturn(const MemoryRequest& request, const void* data = nullptr) : size(request.size), dst(request.dst), port(request.port), paddr(request.paddr)
+	MemoryReturn(const MemoryRequest& request, const void* data = nullptr)
 	{
 		_assert(request.size <= MemoryRequest::MAX_SIZE);
-		if(data) std::memcpy(this->data, data, request.size);
+		type = request.type;
+		size = request.size;
+		flags = request.flags;
+		dst = request.dst;
+		port = request.port;
+		paddr = request.paddr;
+		if(data) std::memcpy(this->data, data, size);
 	}
 
 	MemoryReturn& operator=(const MemoryReturn& other)
 	{
 		_assert(other.size <= MemoryRequest::MAX_SIZE);
+		type = other.type;
 		size = other.size;
+		flags = other.flags;
 		dst = other.dst;
 		port = other.port;
 		paddr = other.paddr;
@@ -185,7 +194,7 @@ struct StreamSchedulerRequest
 
 struct SFURequest
 {
-	ISA::RISCV::DstReg dst_reg;
+	BitStack27 dst;
 	uint16_t port;
 };
 

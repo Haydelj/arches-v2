@@ -160,7 +160,6 @@ void UnitPRTCore<NT>::_read_requests()
 		ray_state.stack[0].data.child_index = 0;
 		ray_state.stack[0].mask = ~0u;
 		ray_state.current_entry = 0;
-		ray_state.flags = request.flags;
 		ray_state.dst[ray_index] = request.dst;
 		ray_state.port[ray_index] = request.port;
 
@@ -182,7 +181,7 @@ void UnitPRTCore<NT>::_read_returns()
 	if(_cache->return_port_read_valid(_num_tp))
 	{
 		const MemoryReturn ret = _cache->read_return(_num_tp);
-		uint16_t ray_id = ret.dst;
+		uint16_t ray_id = ret.dst.peek(10);
 		RayState& ray_state = _ray_states[ray_id];
 		StagingBuffer& buffer = ray_state.buffer;
 
@@ -460,7 +459,7 @@ void UnitPRTCore<NT>::_issue_requests()
 		MemoryRequest request;
 		request.type = MemoryRequest::Type::LOAD;
 		request.size = _fetch_queue.front().size;
-		request.dst = _fetch_queue.front().dst;
+		request.dst.push(_fetch_queue.front().ray_id, 10);
 		request.paddr = _fetch_queue.front().addr;
 		request.port = _num_tp;
 		_cache->write_request(request);

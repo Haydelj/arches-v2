@@ -70,9 +70,8 @@ void UnitTP::set_entry_point(uint64_t entry_point)
 	}
 }
 
-void UnitTP::_clear_register_pending(ISA::RISCV::DstReg dst)
+void UnitTP::_clear_register_pending(uint thread_id, ISA::RISCV::DstReg dst)
 {
-	uint thread_id = dst.thread_id;
 	if(ENABLE_TP_DEBUG_PRINTS)
 	{
 		printf("%02d           \t                \tret \t%s       \t\n", thread_id, dst.mnemonic().c_str());
@@ -85,16 +84,16 @@ void UnitTP::_clear_register_pending(ISA::RISCV::DstReg dst)
 
 void UnitTP::_process_load_return(const MemoryReturn& ret)
 {
-	uint ret_thread_id = ISA::RISCV::DstReg(ret.dst).thread_id;
+	BitStack27 dst = ret.dst;
+	uint ret_thread_id = dst.pop(4);
+	ISA::RISCV::DstReg dst_reg(dst.pop(9));
 	ThreadData& ret_thread = _thread_data[ret_thread_id];
 	for(uint offset = 0, i = 0; offset < ret.size; ++i)
 	{
-		ISA::RISCV::DstReg dst_reg(ret.dst);
-		dst_reg.index += i;
-
-		_clear_register_pending(dst_reg);
+		_clear_register_pending(ret_thread_id, dst_reg);
 		write_register(&ret_thread.int_regs, &ret_thread.float_regs, dst_reg, ret.data + offset);
 		offset += size(dst_reg.type);
+		dst_reg.index++;
 	}
 }
 
@@ -244,8 +243,10 @@ void UnitTP::clock_rise()
 	for (auto& unit : _unique_sfus)
 	{
 		if (!unit->return_port_read_valid(_tp_index)) continue;
-		const SFURequest& ret = unit->read_return(_tp_index);
-		_clear_register_pending(ret.dst_reg);
+		SFURequest ret = unit->read_return(_tp_index);
+		uint thread_id = ret.dst.pop(4);
+		ISA::RISCV::DstReg dst_reg(ret.dst.pop(9));
+		_clear_register_pending(thread_id, dst_reg);
 	}
 
 	if(_inst_cache)
@@ -253,9 +254,8 @@ void UnitTP::clock_rise()
 		uint i_cache_port = _tp_index % _num_tps_per_i_cache;
 		if(_inst_cache->return_port_read_valid(i_cache_port))
 		{
-			const MemoryReturn ret = _inst_cache->read_return(i_cache_port);
-
-			uint thread_id = ISA::RISCV::DstReg(ret.dst).thread_id;
+			MemoryReturn ret = _inst_cache->read_return(i_cache_port);
+			uint thread_id = ret.dst.pop(4);
 			ThreadData& thread = _thread_data[thread_id];
 			std::memcpy(thread.i_buffer.data, ret.data, CACHE_BLOCK_SIZE);
 			thread.i_buffer.paddr = ret.paddr;
@@ -278,7 +278,7 @@ void UnitTP::clock_fall()
 				MemoryRequest i_req;
 				i_req.paddr = fetch_thread.pc & ~0x3full;
 				i_req.port = i_cache_port;
-				i_req.dst = fetch_thread_id;
+				i_req.dst.push(fetch_thread_id, 4);
 				i_req.type = MemoryRequest::Type::LOAD;
 				i_req.size = CACHE_BLOCK_SIZE;
 				_inst_cache->write_request(i_req);
@@ -343,19 +343,18 @@ void UnitTP::clock_fall()
 	else if (thread.instr_info.exec_type == ISA::RISCV::ExecType::EXECUTABLE)
 	{
 		thread.instr_info.execute(exec_item, thread.instr);
-
-		//Issue to SFU
-		SFURequest req;
-		req.port = _tp_index;
-		req.dst_reg.index = thread.instr.rd;
-		req.dst_reg.thread_id = thread_id;
-		if(thread.instr_info.dst_reg_type == ISA::RISCV::RegFile::INT) req.dst_reg.type = ISA::RISCV::RegType::INT32;
-		else                                                           req.dst_reg.type = ISA::RISCV::RegType::FLOAT32;
-
+		
 		//Because of forwarding instruction with latency 1 don't cause stalls so we don't need to set the pending bit
 		UnitSFU* sfu = (UnitSFU*)_unit_table[(uint)thread.instr_info.instr_type];
 		if (sfu)
 		{
+			//Issue to SFU
+			SFURequest req;
+			ISA::RISCV::DstReg dst_reg(thread.instr.rd, (thread.instr_info.dst_reg_type == ISA::RISCV::RegFile::FLOAT) ? ISA::RISCV::RegType::FLOAT32 : ISA::RISCV::RegType::UINT32);
+			req.dst.push(dst_reg.u9, 9);
+			req.dst.push(thread_id, 4);
+			req.port = _tp_index;
+
 			_set_dependancies(thread_id);
 			sfu->write_request(req);
 		} 
@@ -363,14 +362,16 @@ void UnitTP::clock_fall()
 	else if (thread.instr_info.exec_type == ISA::RISCV::ExecType::MEMORY)
 	{
 		MemoryRequest req = thread.instr_info.generate_request(exec_item, thread.instr);
-		req.dst_reg.thread_id = thread_id;
-		req.port = _tp_index;
-
 		if (req.vaddr < (~0x0ull << 20))
 		{
 			_assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
-			UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
+			req.dst.push(thread_id, 4);
+			req.port = _tp_index;
+			if(thread.instr_info.instr_type == ISA::RISCV::InstrType::STORE)
+				req.flags.omit_cache = 0b111;
 			_set_dependancies(thread_id);
+
+			UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
 			mem->write_request(req);
 		}
 		else
@@ -380,7 +381,7 @@ void UnitTP::clock_fall()
 			{
 				//Because of forwarding instruction with latency 1 don't cause stalls so we don't need to set pending bit
 				paddr_t buffer_addr = req.vaddr & _stack_mask;
-				write_register(&thread.int_regs, &thread.float_regs, req.dst_reg, &thread.stack_mem[buffer_addr]);
+				write_register(&thread.int_regs, &thread.float_regs, req.dst.pop(9), &thread.stack_mem[buffer_addr]);
 			}
 			else if (thread.instr_info.instr_type == ISA::RISCV::InstrType::STORE)
 			{

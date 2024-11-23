@@ -151,7 +151,7 @@
 #ifndef _DEBUG
 inline void _assert(bool x)
 {
-	if(!x) __debugbreak();
+	//if(!x) __debugbreak();
 }
 #else
 inline void _assert(bool x)

@@ -102,7 +102,6 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.size = _block_size;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
-				request.dst = 0;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}
@@ -120,7 +119,6 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.size = _block_size;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
-				request.dst = (uint16_t)~0;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}

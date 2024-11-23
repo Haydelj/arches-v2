@@ -150,7 +150,7 @@ void UnitRTCore<NT>::_read_returns()
 	if(_cache->return_port_read_valid(_cache_port))
 	{
 		const MemoryReturn ret = _cache->read_return(_cache_port);
-		uint16_t ray_id = ret.dst;
+		uint16_t ray_id = ret.dst.peek(10);
 		RayState& ray_state = _ray_states[ray_id];
 		StagingBuffer& buffer = ray_state.buffer;
 
@@ -189,9 +189,8 @@ void UnitRTCore<NT>::_schedule_ray()
 		_ray_scheduling_queue.pop();
 
 		RayState& ray_state = _ray_states[ray_id];
-
-		bool any_hit_found = (ray_state.flags & 0x1) && ray_state.hit.id != ~0u;
-		if(!any_hit_found && ray_state.stack_size > 0)
+		//bool any_hit_found = (ray_state.flags & 0x1) && ray_state.hit.id != ~0u;
+		if(ray_state.stack_size > 0)
 		{
 			StackEntry& entry = ray_state.stack[ray_state.stack_size - 1];
 			if(entry.t < ray_state.hit.t) //pop cull
@@ -396,7 +395,7 @@ void UnitRTCore<NT>::_issue_requests()
 		MemoryRequest request;
 		request.type = MemoryRequest::Type::LOAD;
 		request.size = _fetch_queue.front().size;
-		request.dst = _fetch_queue.front().dst;
+		request.dst.push(_fetch_queue.front().ray_id, 10);
 		request.paddr = _fetch_queue.front().addr;
 		request.port = _cache_port;
 		_cache->write_request(request);

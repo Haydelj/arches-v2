@@ -21,7 +21,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 	constexpr uint TILE_Y = 8;
 	constexpr uint TILE_SIZE = TILE_X * TILE_Y;
 	
-	for (uint index = fchthrd(); index < args.total_threads; index = fchthrd())
+	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint tile_id = index / TILE_SIZE;
 		tile_id = rtm::RNG::fast_hash(tile_id) % (args.framebuffer_size / TILE_SIZE);

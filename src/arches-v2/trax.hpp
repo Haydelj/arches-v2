@@ -6,8 +6,6 @@
 
 namespace Arches {
 
-
-
 namespace ISA { namespace RISCV { namespace TRaX {
 
 //see the opcode map for details
@@ -18,10 +16,8 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
 		req.size = sizeof(uint32_t);
-		req.dst_reg.index = instr.i.rd;
-		req.dst_reg.type = RegType::UINT32;
+		req.dst.push(DstReg(instr.rd, RegType::UINT32).u9, 9);
 		req.vaddr = 0x0ull;
-
 		return req;
 	}),
 	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegFile::FLOAT, EXEC_DECL
@@ -101,16 +97,12 @@ const static InstructionInfo isa_custom0_funct3[8] =
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::STORE;
 		mem_req.size = sizeof(rtm::Ray);
-		mem_req.dst_reg.index = instr.i.rd;
-		mem_req.dst_reg.type = RegType::FLOAT32;
-		mem_req.flags = (uint16_t)ISA::RISCV::i_imm(instr);
+		mem_req.dst.push(DstReg(instr.rd, RegType::FLOAT32).u9, 9);
 		mem_req.vaddr = 0xdeadbeefull;
 
 		Register32* fr = unit->float_regs->registers;
 		for(uint i = 0; i < sizeof(rtm::Ray) / sizeof(float); ++i)
-		{
 			((float*)mem_req.data)[i] = fr[instr.i.rs1 + i].f32;
-		}
 
 		return mem_req;
 	}),
@@ -138,7 +130,6 @@ typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
 
 static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
 {
-
 	std::string scene_name = scene_names[global_config.scene_id];
 	std::string project_folder = get_project_folder_path();
 	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
@@ -192,7 +183,6 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	mesh.get_triangles(tris);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 
-	args.total_threads = global_config.total_threads;
 	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), TRAX_KERNEL_ARGS_ADDRESS);
 	return args;
 }
@@ -237,6 +227,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	//L2$
 	UnitL2Cache::Configuration l2_config;
 	l2_config.in_order = true;
+	l2_config.level = 2;
 	l2_config.size = 72ull << 20; //72MB
 	l2_config.block_size = block_size;
 	l2_config.associativity = 18;
@@ -259,6 +250,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
 	l1d_config.in_order = true;
+	l1d_config.level = 1;
 	l1d_config.size = 128ull << 10; //128KB
 	l1d_config.block_size = block_size;
 	l1d_config.associativity = 16;
@@ -386,11 +378,11 @@ static void run_sim_trax(GlobalConfig global_config)
 	#ifdef TRAX_USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
 		rtc_config.num_clients = num_tps;
-		rtc_config.max_rays = 128;
+		rtc_config.max_rays = 256;
 		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
 		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
 		rtc_config.cache = l1ds.back();
-		for(uint i = 0; i < 2; ++i)
+		for(uint i = 0; i < 1; ++i)
 		{
 			rtc_config.cache_port = num_tps + i * 32;
 			rtcs.push_back(_new  UnitRTCore(rtc_config));
@@ -414,9 +406,9 @@ static void run_sim_trax(GlobalConfig global_config)
 		tp_config.num_threads = num_threads;
 		for(uint tp_index = 0; tp_index < num_tps; ++tp_index)
 		{
-			if(tp_index < num_tps / 2) tp_config.unit_table = &unit_tables.back() - 1;
-			else                       tp_config.unit_table = &unit_tables.back();
 			tp_config.tp_index = tp_index;
+			tp_config.unit_table = &unit_tables.back();
+			//if(tp_index < num_tps / 2) tp_config.unit_table = &unit_tables.back() - 1;
 			tps.push_back(new Units::TRaX::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}

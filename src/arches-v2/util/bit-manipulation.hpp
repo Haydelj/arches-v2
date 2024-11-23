@@ -46,7 +46,44 @@ inline uint64_t pext(uint64_t data, uint64_t mask)
 	return _pext_u64(data, mask);
 }
 
+struct BitStack27
+{
+	union
+	{
+		struct
+		{
+			uint32_t data : 27;
+			uint32_t size : 5;
+		};
+		uint32_t raw;
+	};
 
+	BitStack27() : raw(0) {}
+	explicit BitStack27(uint32_t raw) : raw(raw) {}
+
+	void push(uint32_t value, uint bits)
+	{
+		_assert(size + bits <= 27);
+		_assert(value < (1 << bits));
+		data |= value << size;
+		size += bits;
+	}
+
+	uint32_t peek(uint bits) const
+	{
+		_assert(bits <= size);
+		uint shft = size - bits;
+		return data >> shft;
+	}
+
+	uint32_t pop(uint bits)
+	{
+		uint32_t value = peek(bits);
+		size -= bits;
+		data &= generate_nbit_mask(size);
+		return value;
+	}
+};
 
 class alignas(16) uint128_t 
 {

@@ -14,6 +14,7 @@ public:
 	struct Configuration
 	{
 		bool in_order{false};
+		uint level{0};
 
 		uint size{1024};
 		uint block_size{CACHE_BLOCK_SIZE};
@@ -112,6 +113,7 @@ protected:
 	ReturnCrossBar _return_network;
 
 	bool _in_order;
+	uint _level;
 
 	uint64_t _bank_select_mask{0};
 	uint _get_bank(paddr_t addr)
@@ -139,7 +141,7 @@ public:
 				uint64_t hits;
 				uint64_t misses;
 				uint64_t half_misses;
-				uint64_t uncached_writes;
+				uint64_t uncached_requests;
 				uint64_t rob_stalls;
 				uint64_t mshr_stalls;
 				uint64_t bytes_read;
@@ -184,7 +186,7 @@ public:
 			printf("Misses: %lld (%.2f%%)\n", misses / units, 100.0f * misses / total);
 			printf("Half Misses: %lld (%.2f%%)\n", half_misses / units, 100.0f * half_misses / total);
 			printf("\n");
-			printf("Uncached writes: %lld\n", uncached_writes / units);
+			printf("Uncached Requests: %lld\n", uncached_requests / units);
 			printf("\n");
 			printf("RB Stalls: %lld\n", rob_stalls / units);
 			printf("MSHR Stalls: %lld\n", mshr_stalls / units);

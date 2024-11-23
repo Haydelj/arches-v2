@@ -99,11 +99,8 @@ MemoryRequest _prepare_load(ExecutionItem* unit, Instruction const& instr)
 	MemoryRequest req;
 	req.type = MemoryRequest::Type::LOAD;
 	req.size = sizeof(T);
+	req.dst.push(DstReg(instr.rd, reg_type<T>()).u9, 9);
 	req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
-
-	req.dst_reg.index = instr.i.rd;
-	req.dst_reg.type = reg_type<T>();
-
 	return req;
 }
 
@@ -115,16 +112,8 @@ MemoryRequest _prepare_store(ExecutionItem* unit, Instruction const& instr)
 	req.size = sizeof(T);
 	//req.write_mask = generate_nbit_mask(sizeof(T));
 	req.vaddr = unit->int_regs->registers[instr.s.rs1].u64 + s_imm(instr);
-
-	if(typeid(T) == typeid(float) || typeid(T) == typeid(double))
-	{
-		std::memcpy(req.data, &unit->float_regs->registers[instr.s.rs2], sizeof(T));
-	}
-	else
-	{
-		std::memcpy(req.data, &unit->int_regs->registers[instr.s.rs2], sizeof(T));
-	}
-
+	if(typeid(T) == typeid(float) || typeid(T) == typeid(double)) std::memcpy(req.data, &unit->float_regs->registers[instr.s.rs2], sizeof(T));
+	else                                                          std::memcpy(req.data,   &unit->int_regs->registers[instr.s.rs2], sizeof(T));
 	return req;
 }
 
@@ -134,13 +123,9 @@ MemoryRequest _prepare_amo(ExecutionItem* unit, Instruction const& instr)
 	MemoryRequest req;
 	req.type = TYPE;
 	req.size = sizeof(T);
+	req.dst.push(DstReg(instr.rd, reg_type<T>()).u9, 9);
 	req.vaddr = unit->int_regs->registers[instr.rs1].u64;
-
-	req.dst_reg.index = instr.i.rd;
-	req.dst_reg.type = reg_type<T>();
-
 	std::memcpy(req.data, &unit->int_regs->registers[instr.rs2], sizeof(T));
-
 	return req;
 }
 

@@ -1,16 +1,13 @@
 #pragma once
 
-#include "unit-stream-scheduler.hpp"
+#include "units/ric/unit-ray-coalescer.hpp"
 #include <numeric>
 
-namespace Arches { namespace Units { namespace DualStreaming {
+namespace Arches { namespace Units { namespace RIC {
 
-#define DEBUG_PRINTS false
+constexpr bool DEBUG_PRINTS = false;
 
-/*!
-* \brief In this function, we deal with the traversal logic and decide the next ray bucket to load from DRAM
-*/
-void UnitStreamScheduler::_update_scheduler()
+void UnitRayCoalescer::_update_scheduler()
 {
 	if(_scheduler.root_rays_counter == _scheduler.num_root_rays && !_scheduler.segment_state_map[0].parent_finished)
 	{
@@ -47,15 +44,6 @@ void UnitStreamScheduler::_update_scheduler()
 		//printf("complete segment %d, total bucket %d, active bucket %d\n", segment_index, segment_state.total_buckets, segment_state.active_buckets);
 	}
 
-	// update prefetched segment
-	if(_scene_buffer && _scene_buffer->prefetch_complete_sideband.is_read_valid())
-	{
-		uint segment_index = _scene_buffer->prefetch_complete_sideband.read();
-		SegmentState& state = _scheduler.segment_state_map[segment_index];
-		state.prefetch_complete = true;
-		_scheduler.concurent_prefetches--;
-	}
-
 	//prefetch new segments
 	for(uint i = 0; i < _scheduler.candidate_segments.size(); ++i)
 	{
@@ -67,43 +55,8 @@ void UnitStreamScheduler::_update_scheduler()
 			&& _scheduler.concurent_prefetches < 4)
 		{
 			state.prefetch_issued = true;
+			state.prefetch_complete = true;
 			_scheduler.active_segments++;
-
-			if(_scene_buffer)
-			{
-				_scheduler.concurent_prefetches++;
-				_scheduler.scene_buffer_command_queue.push({UnitSceneBuffer::Command::Type::PREFETCH, candidate_segment});
-			}
-			else
-			{
-				state.prefetch_complete = true;
-
-				if(_l2_cache)
-				{
-					//while(!_l2_cache_prefetch_queue.empty()) _l2_cache_prefetch_queue.pop();
-
-					paddr_t base_addr = _scheduler.treelet_addr + candidate_segment * rtm::WideTreeletBVH::Treelet::SIZE;
-					uint rays = candidate_segment == 0 ? _scheduler.num_root_rays : state.num_rays;
-					printf("Prefetching %d to l2 with %d rays:", candidate_segment, rays);
-					for(uint i = 0; i < 8; ++i)
-					{
-						float median_sah = _scheduler.cheat_treelets[candidate_segment].header.median_page_sah[i];
-						float num_accesses = rays * median_sah * 0.5f;
-						float first_access_chance = rtm::min(1.0, num_accesses);
-
-						float dram_stream_cost = 16;
-						float dram_random_cost = 64;
-						float cost_diff = dram_stream_cost - first_access_chance * dram_random_cost;
-						printf("%f, ", cost_diff);
-
-						//if(cost_diff < 0.0f)
-						//	for(uint j = 0; j < rtm::WideTreeletBVH::Treelet::PREFETCH_BLOCK_SIZE; j += _block_size)
-						//		_l2_cache_prefetch_queue.push(base_addr + j);
-					}
-					printf("\n");
-				}
-			}
-
 			log.segments_launched++;
 			break;
 		}
@@ -137,9 +90,6 @@ void UnitStreamScheduler::_update_scheduler()
 
 			if(state.prefetch_issued)
 			{
-				if(_scene_buffer)
-					_scheduler.scene_buffer_command_queue.push({UnitSceneBuffer::Command::Type::RETIRE, candidate_segment});
-
 				_scheduler.active_segments--;
 				if(DEBUG_PRINTS)
 					printf("Segment %d retired after %d buckets\n", candidate_segment, state.total_buckets);
@@ -336,13 +286,11 @@ void UnitStreamScheduler::_update_scheduler()
 	}
 }
 
-
-
 /*
 * The following part is almost the same with traditional stream scheduler!
 */
 
-void UnitStreamScheduler::clock_rise()
+void UnitRayCoalescer::clock_rise()
 {
 	_request_network.clock();
 
@@ -355,7 +303,7 @@ void UnitStreamScheduler::clock_rise()
 	_update_scheduler(); // In this process, we deal with traversal logic and decide the next ray bucket to load from DRAM
 }
 
-void UnitStreamScheduler::clock_fall()
+void UnitRayCoalescer::clock_fall()
 {
 	for(uint i = 0; i < _channels.size(); ++i)
 	{
@@ -375,31 +323,10 @@ void UnitStreamScheduler::clock_fall()
 		_issue_return(i);
 	}
 
-	if(!_scheduler.scene_buffer_command_queue.empty()
-		&& _scene_buffer && _scene_buffer->command_sideband.is_write_valid()
-)
-	{
-		_scene_buffer->command_sideband.write(_scheduler.scene_buffer_command_queue.front());
-		_scheduler.scene_buffer_command_queue.pop();
-	}
-
-	if(!_l2_cache_prefetch_queue.empty()
-		&& _l2_cache && _l2_cache->request_port_write_valid(_l2_cache_port))
-	{
-		MemoryRequest request;
-		request.type = MemoryRequest::Type::PREFECTH;
-		request.paddr = _l2_cache_prefetch_queue.front();
-		request.port = _l2_cache_port;
-		request.size = _block_size;
-
-		_l2_cache->write_request(request);
-		_l2_cache_prefetch_queue.pop();
-	}
-
 	_return_network.clock();
 }
 
-void UnitStreamScheduler::_proccess_request(uint bank_index)
+void UnitRayCoalescer::_proccess_request(uint bank_index)
 {
 	Bank& bank = _banks[bank_index];
 
@@ -425,16 +352,16 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 
 	if(!_request_network.is_read_valid(bank_index)) return;
 
-	const StreamSchedulerRequest& req = _request_network.peek(bank_index);
-	if(req.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
+	const Request& req = _request_network.peek(bank_index);
+	if(req.type == Request::Type::STORE_WORKITEM)
 	{
 		uint segment_index = req.swi.segment_id;
-		uint weight = 1 << (15 - (std::min(req.swi.order_hint, 15u)));
+		uint weight = 1 << (15 - (std::min((uint)req.swi.order_hint, 15u)));
 
 		//if this segment is not in the coalescer add an entry
 		if(bank.ray_coalescer.count(segment_index) == 0 || !bank.ray_coalescer[segment_index].is_full())
 		{
-			if(req.swi.bray.ray.t_min != req.swi.bray.ray.t_max)
+			if(req.swi.ray_id != ~0ull)
 			{
 				if(bank.ray_coalescer.count(segment_index) == 0)
 				{
@@ -442,7 +369,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 					bank.ray_coalescer[segment_index].header.segment_id = segment_index;
 				}
 
-				bank.ray_coalescer[segment_index].write_ray(req.swi.bray);
+				bank.ray_coalescer[segment_index].write_ray(req.swi.ray_id);
 
 				SegmentState& state = _scheduler.segment_state_map[segment_index];
 				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
@@ -467,13 +394,13 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 			bank.ray_coalescer.erase(segment_index);
 		}
 	}
-	else if(req.type == StreamSchedulerRequest::Type::BUCKET_COMPLETE)
+	else if(req.type == Request::Type::BUCKET_COMPLETE)
 	{
 		//forward to stream scheduler
 		_scheduler.bucket_complete_queue.push(req.bc.segment_id);
 		_request_network.read(bank_index);
 	}
-	else if(req.type == StreamSchedulerRequest::Type::LOAD_BUCKET)
+	else if(req.type == Request::Type::LOAD_BUCKET)
 	{
 		//forward to stream scheduler
 		_scheduler.bucket_request_queue.push(req.port);
@@ -483,7 +410,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 	else _assert(false);
 }
 
-void UnitStreamScheduler::_proccess_return(uint channel_index)
+void UnitRayCoalescer::_proccess_return(uint channel_index)
 {
 	Channel& channel = _channels[channel_index];
 	uint mem_higher_port_index = channel_index * _main_mem_port_stride + _main_mem_port_offset;
@@ -493,7 +420,7 @@ void UnitStreamScheduler::_proccess_return(uint channel_index)
 	channel.forward_return_valid = true;
 }
 
-void UnitStreamScheduler::_issue_request(uint channel_index)
+void UnitRayCoalescer::_issue_request(uint channel_index)
 {
 	Channel& channel = _channels[channel_index];
 	uint mem_higher_port_index = channel_index * _main_mem_port_stride + _main_mem_port_offset;
@@ -540,17 +467,17 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 	}
 }
 
-void UnitStreamScheduler::_issue_return(uint channel_index)
+void UnitRayCoalescer::_issue_return(uint channel_index)
 {
 	Channel& channel = _channels[channel_index];
 	if(!_return_network.is_write_valid(channel_index)) return;
 
 	if(channel.forward_return_valid)
 	{
-		//forward to ray buffer
 		channel.forward_return.port = channel.forward_return.dst.pop(8);
 		_return_network.write(channel.forward_return, channel_index);
 		channel.forward_return_valid = false;
+	
 	}
 }
 

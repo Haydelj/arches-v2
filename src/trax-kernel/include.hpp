@@ -12,7 +12,6 @@ struct TRaXKernelArgs
 	uint32_t framebuffer_width;
 	uint32_t framebuffer_height;
 	uint32_t framebuffer_size;
-	uint32_t total_threads;
 	uint32_t* framebuffer;
 
 	bool pregen_rays;
