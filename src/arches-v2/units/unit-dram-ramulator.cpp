@@ -134,6 +134,7 @@ void UnitDRAMRamulator::clock_rise()
 {
 	_request_network.clock();
 	
+	bool busy = _pending_requests > 0;
 	for(uint controller_index = 0; controller_index < _controllers.size(); ++controller_index)
 	{
 		if(!_request_network.is_read_valid(controller_index)) continue;
@@ -156,10 +157,23 @@ void UnitDRAMRamulator::clock_rise()
 			}
 		}
 
+		busy = true;
+	}
+
+	if(busy)
+	{
 		if(!_busy)
 		{
 			_busy = true;
 			simulator->units_executing++;
+		}
+	}
+	else
+	{
+		if(_busy)
+		{
+			_busy = false;
+			simulator->units_executing--;
 		}
 	}
 }
@@ -169,12 +183,6 @@ void UnitDRAMRamulator::clock_fall()
 	for (uint i = 0; i < _clock_ratio; ++i)
 		for(uint j = 0; j < _controllers.size(); ++j)
 			_controllers[j].ramulator2_memorysystem->tick();
-
-	if(_busy && (_pending_requests == 0))
-	{
-		_busy = false;
-		simulator->units_executing--;
-	}
 
 	++_current_cycle;
 	for(uint controller_index = 0; controller_index < _controllers.size(); ++controller_index)

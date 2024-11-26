@@ -17,16 +17,20 @@ public:
 	bool deserialize(std::string file_path, const UnitMainMemoryBase& main_mem);
 	void copy(paddr_t addr, void* data, uint bytes)
 	{
-		for (uint i = 0; i < (bytes + _block_size - 1) / _block_size; ++i)
-			_insert_block(addr, (uint8_t*)data + i * _block_size);
+		for(uint i = 0; i < (bytes + _block_size - 1) / _block_size; ++i)
+		{
+			_insert_block(addr);
+			_write_block(addr, (uint8_t*)data + i * _block_size);
+		}
 	}
 
 protected:
 	struct BlockMetaData
 	{
-		uint64_t tag     : 56;
+		uint64_t tag     : 58;
 		uint64_t lru     : 4;
-		uint64_t valid   : 4;
+		uint64_t dirty   : 1;
+		uint64_t valid   : 1;
 	};
 
 	uint64_t _set_index_mask, _tag_mask, _block_offset_mask;
@@ -37,9 +41,9 @@ protected:
 	std::vector<uint8_t, AlignmentAllocator<uint8_t, 64>> _data_array;
 
 	uint8_t* _get_block(paddr_t block_addr);
-	uint8_t* _update_block(paddr_t block_addr, const uint8_t* data);
-	uint8_t* _insert_block(paddr_t block_addr, const uint8_t* data = nullptr);
-	uint8_t* _insert_block(paddr_t block_addr, const uint8_t* data, paddr_t& victim);
+	uint8_t* _write_block(paddr_t block_addr, const uint8_t* data, bool set_dirty = false);
+	void _insert_block(paddr_t block_addr);
+	void _insert_block(paddr_t block_addr, paddr_t& victim_addr, uint8_t*& victim_data, bool& victim_dirty);
 
 	paddr_t _get_block_offset(paddr_t paddr) { return  (paddr >> 0) & _block_offset_mask; }
 	paddr_t _get_block_addr(paddr_t paddr) { return paddr & ~_block_offset_mask; }

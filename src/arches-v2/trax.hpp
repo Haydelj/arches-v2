@@ -209,6 +209,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	uint num_threads = 4;
 	uint num_tps = 128;
 	uint num_tms = 128;
+	uint num_rtc = 2;
 	uint64_t stack_size = 512;
 
 	//Memory
@@ -226,7 +227,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.in_order = true;
+	l2_config.in_order = false;
 	l2_config.level = 2;
 	l2_config.size = 72ull << 20; //72MB
 	l2_config.block_size = block_size;
@@ -290,7 +291,7 @@ static void run_sim_trax(GlobalConfig global_config)
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<UnitRTCore*> rtcs;
 	std::vector<UnitL1Cache*> l1ds;
-	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms * 2);
+	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms * num_rtc);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
 
@@ -324,8 +325,8 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	l1d_config.num_ports = num_tps;
 #ifdef TRAX_USE_RT_CORE
-	l1d_config.num_ports += 2 * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
-	l1d_config.crossbar_width += 2;
+	l1d_config.num_ports += num_rtc * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
+	l1d_config.crossbar_width += num_rtc;
 #endif
 	l1d_config.mem_highers = {&l2};
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
@@ -378,11 +379,11 @@ static void run_sim_trax(GlobalConfig global_config)
 	#ifdef TRAX_USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
 		rtc_config.num_clients = num_tps;
-		rtc_config.max_rays = 256;
+		rtc_config.max_rays = 256 / num_rtc;
 		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
 		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
 		rtc_config.cache = l1ds.back();
-		for(uint i = 0; i < 1; ++i)
+		for(uint i = 0; i < num_rtc; ++i)
 		{
 			rtc_config.cache_port = num_tps + i * 32;
 			rtcs.push_back(_new  UnitRTCore(rtc_config));
@@ -407,8 +408,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		for(uint tp_index = 0; tp_index < num_tps; ++tp_index)
 		{
 			tp_config.tp_index = tp_index;
-			tp_config.unit_table = &unit_tables.back();
-			//if(tp_index < num_tps / 2) tp_config.unit_table = &unit_tables.back() - 1;
+			tp_config.unit_table = &unit_tables[num_rtc * tm_index + tp_index * num_rtc / num_tps];
 			tps.push_back(new Units::TRaX::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}
@@ -447,10 +447,14 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("                            \n");
-		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits) / l2_delta_log.get_total());
-		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits) / l1d_delta_log.get_total());
-		printf("                             \n");
-		if(!rtcs.empty()) printf("MRays/s: %.0f\n\n", rtc_delta_log.hits_returned / epsilon_ns * 1000.0);
+		printf(" L2$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total(), 100.0 * l2_delta_log.half_misses / l2_delta_log.get_total(), 100.0 * l2_delta_log.misses / l2_delta_log.get_total());
+		printf("L1d$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.half_misses / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.misses / l1d_delta_log.get_total());
+		printf("                            \n");
+		if(!rtcs.empty())
+		{
+			printf("MRays/s: %.0f\n\n", rtc_delta_log.hits_returned / epsilon_ns * 1000.0);
+			rtc_delta_log.print(delta, rtcs.size());
+		}
 	});
 
 	auto stop = std::chrono::high_resolution_clock::now();

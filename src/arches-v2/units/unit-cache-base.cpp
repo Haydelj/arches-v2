@@ -8,7 +8,8 @@ UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity) :
 	//initialize tag array
 	for(uint i = 0; i < _tag_array.size(); ++i)
 	{
-		_tag_array[i].valid = 0x0;
+		_tag_array[i].valid = 0;
+		_tag_array[i].dirty = 0;
 		_tag_array[i].lru = i % associativity;
 		_tag_array[i].tag = ~0x0ull;
 	}
@@ -111,7 +112,7 @@ uint8_t* UnitCacheBase::_get_block(paddr_t block_addr)
 }
 
 //writes data to block and updates valid bit
-uint8_t* UnitCacheBase::_update_block(paddr_t block_addr, const uint8_t* data)
+uint8_t* UnitCacheBase::_write_block(paddr_t block_addr, const uint8_t* data, bool set_dirty)
 {
 	_assert(data);
 	uint64_t tag = _get_tag(block_addr);
@@ -124,7 +125,8 @@ uint8_t* UnitCacheBase::_update_block(paddr_t block_addr, const uint8_t* data)
 		if(_tag_array[i].tag == tag)
 		{
 			_tag_array[i].valid = 1;
-			std::memcpy(_data_array.data() + i * _block_size, data, _block_size);
+			if(set_dirty) _tag_array[i].dirty = 1;
+			std::memcpy(&_data_array[i * _block_size], data, _block_size);
 			return &_data_array[i * _block_size];
 		}
 	}
@@ -133,14 +135,14 @@ uint8_t* UnitCacheBase::_update_block(paddr_t block_addr, const uint8_t* data)
 }
 
 //inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
-uint8_t* UnitCacheBase::_insert_block(paddr_t block_addr, const uint8_t* data)
+void UnitCacheBase::_insert_block(paddr_t block_addr)
 {
-	paddr_t temp;
-	return _insert_block(block_addr, data, temp);
+	paddr_t temp0; uint8_t* temp1; bool temp2;
+	_insert_block(block_addr, temp0, temp1, temp2);
 }
 
 //inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
-uint8_t* UnitCacheBase::_insert_block(paddr_t block_addr, const uint8_t* data, paddr_t& victim)
+void UnitCacheBase::_insert_block(paddr_t block_addr, paddr_t& victim_addr, uint8_t*& victim_data, bool& victim_dirty)
 {
 	uint64_t tag = _get_tag(block_addr);
 	uint set_index = _get_set_index(block_addr);
@@ -160,9 +162,15 @@ uint8_t* UnitCacheBase::_insert_block(paddr_t block_addr, const uint8_t* data, p
 	}
 
 	//compute victim block
-	victim = 0ull;
+	victim_addr = 0ull;
+	victim_data = nullptr;
+	victim_dirty = false;
 	if(_tag_array[replacement_index].valid)
-		victim = _get_block_addr(_tag_array[replacement_index].tag, set_index);
+	{
+		victim_addr = _get_block_addr(_tag_array[replacement_index].tag, set_index);
+		victim_data = _data_array.data() + replacement_index * _block_size;
+		victim_dirty = _tag_array[replacement_index].dirty;
+	}
 
 	//update lru
 	for(uint i = start; i < end; ++i)
@@ -171,14 +179,8 @@ uint8_t* UnitCacheBase::_insert_block(paddr_t block_addr, const uint8_t* data, p
 	//set block metadata
 	_tag_array[replacement_index].lru = 0;
 	_tag_array[replacement_index].tag = tag;
-	if(data)
-	{
-		//insert block if data was passed
-		std::memcpy(&_data_array[replacement_index * _block_size], data, _block_size);
-		_tag_array[replacement_index].valid = 1;
-	}
-	else _tag_array[replacement_index].valid = 0;
-	return &_data_array[replacement_index * _block_size];
+	_tag_array[replacement_index].valid = 0;
+	_tag_array[replacement_index].dirty = 0;
 }
 
 }}

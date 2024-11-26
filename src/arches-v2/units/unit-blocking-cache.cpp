@@ -71,7 +71,8 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
 		_assert(ret.paddr == _get_block_addr(ret.paddr));
 
-		_insert_block(ret.paddr, ret.data);
+		_insert_block(ret.paddr);
+		_write_block(ret.paddr, ret.data);
 		log.data_array_writes++;
 
 		uint block_offset = _get_block_offset(bank.current_request.paddr);

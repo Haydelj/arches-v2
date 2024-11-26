@@ -123,14 +123,8 @@ static RICKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, p
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
-	std::vector<rtm::Hit> hits(args.framebuffer_size, {T_MAX, rtm::vec2(0.0), ~0u});
-	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
-
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-
 	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
-
-	args.pregen_rays = global_config.pregen_rays;
 
 	rtm::Mesh mesh(scene_file);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
@@ -139,10 +133,21 @@ static RICKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, p
 	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
 	mesh.reorder(build_objects);
 
+	args.pregen_rays = global_config.pregen_rays;
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
-	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
+	
+	std::vector<MinRayState> ray_states(args.framebuffer_size);
+	for(uint i = 0; i < ray_states.size(); ++i)
+	{
+		ray_states[i].ray = rays[i];
+		ray_states[i].hit.bc = rtm::vec2(0.0f);
+		ray_states[i].hit.t = T_MAX;
+		ray_states[i].hit.id = ~0u;
+	}
+
+	args.ray_states = write_vector(main_memory, CACHE_BLOCK_SIZE, ray_states, heap_address);
 
 	rtm::WideBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
@@ -182,12 +187,13 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	uint num_threads = 4;
 	uint num_tps = 128;
 	uint num_tms = 128;
+	uint num_rtc = 1;
 	uint64_t stack_size = 512;
 
 	//Memory
 	uint64_t block_size = CACHE_BLOCK_SIZE;
 	uint num_partitions = 16;
-	uint partition_stride = 1 << 11; 
+	uint partition_stride = 1 << 10; 
 	uint64_t partition_mask = generate_nbit_mask(log2i(num_partitions)) << log2i(partition_stride);
 
 	//DRAM
@@ -199,17 +205,16 @@ static void run_sim_ric(const GlobalConfig& global_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.in_order = true;
+	l2_config.in_order = false;
 	l2_config.level = 2;
 	l2_config.size = 72ull << 20; //72MB
 	l2_config.block_size = block_size;
 	l2_config.associativity = 18;
-	l2_config.num_ports = num_tms;
 	l2_config.num_partitions = num_partitions;
 	l2_config.partition_select_mask = partition_mask;
 	l2_config.num_banks = 2;
 	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
-	l2_config.crossbar_width = 64;
+	l2_config.crossbar_width = 32;
 	l2_config.num_mshr = 192;
 	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
 	l2_config.input_latency = 85;
@@ -265,7 +270,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<Units::RIC::UnitTreeletRTCore<SceneSegment>*> rtcs;
 	std::vector<UnitL1Cache*> l1ds;
-	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms * 2);
+	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms * num_rtc);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
 
@@ -299,6 +304,8 @@ static void run_sim_ric(const GlobalConfig& global_config)
 		unused_dram_ports.insert(i);
 
 	l2_config.num_ports = num_tms;
+	l2_config.num_ports += 16 * l2_config.num_ports / l2_config.crossbar_width;
+	l2_config.crossbar_width += 16;
 	l2_config.mem_highers = {&dram};
 	l2_config.mem_higher_port = *unused_dram_ports.begin();
 	l2_config.mem_higher_port_stride = dram_ports_per_controller;
@@ -316,14 +323,15 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	ray_coalescer_config.num_channels = num_partitions;
 	ray_coalescer_config.traversal_scheme = global_config.traversal_scheme;
 	ray_coalescer_config.weight_scheme = global_config.weight_scheme;
-	ray_coalescer_config.num_tms = num_tms * 2;
+	ray_coalescer_config.num_tms = num_tms * num_rtc;
 	ray_coalescer_config.block_size = block_size;
 	ray_coalescer_config.row_size = partition_stride;
 	ray_coalescer_config.num_root_rays = kernel_args.framebuffer_size;
 	ray_coalescer_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	ray_coalescer_config.heap_addr = *(paddr_t*)&heap_address;
 	ray_coalescer_config.cheat_treelets = (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
-	ray_coalescer_config.max_active_segments = num_tms * 2;
+	ray_coalescer_config.max_active_segments_size = global_config.max_active_set_size;
+	ray_coalescer_config.l2_cache = &l2;
 	ray_coalescer_config.main_mem = &dram;
 	ray_coalescer_config.main_mem_port_stride = dram_ports_per_controller;
 	ray_coalescer_config.main_mem_port_offset = *unused_dram_ports.begin();
@@ -337,36 +345,11 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	Units::RIC::UnitRayCoalescer ray_coalescer(ray_coalescer_config);
 	simulator.register_unit(&ray_coalescer);
 
-	Units::DualStreaming::UnitHitRecordUpdater::Configuration hit_record_updater_config;
-	hit_record_updater_config.num_tms = num_tms * 2;
-	hit_record_updater_config.hit_record_start = *(paddr_t*)&kernel_args.hit_records;
-	hit_record_updater_config.cache_size = global_config.hit_buffer_size; // 128 * 16 = 2048B = 2KB
-	hit_record_updater_config.associativity = 8;
-	hit_record_updater_config.row_size = partition_stride;
-	hit_record_updater_config.num_channels = num_partitions;
-	hit_record_updater_config.main_mem = &dram;
-	hit_record_updater_config.main_mem_port_stride = dram_ports_per_controller;
-	hit_record_updater_config.main_mem_port_offset = *unused_dram_ports.begin();
-	unused_dram_ports.erase(*unused_dram_ports.begin());
-
-	if(global_config.hits_on_chip)
-	{
-		std::vector<rtm::Hit> hits(kernel_args.framebuffer_size);
-		for(auto& hit : hits) hit.t = T_MAX;
-		paddr_t address = *(paddr_t*)&kernel_args.hit_records;
-		write_vector(&sram, partition_stride, hits, address);
-		hit_record_updater_config.main_mem = &sram;
-	}
-
-	Units::DualStreaming::UnitHitRecordUpdater hit_record_updater(hit_record_updater_config);
-	simulator.register_unit(&hit_record_updater);
-	simulator.new_unit_group();
-
 	l1d_config.num_ports = num_tps;
 	//l1d_config.num_ports += 1 * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
 	//l1d_config.crossbar_width += 1;
-	l1d_config.num_ports += 2 * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
-	l1d_config.crossbar_width += 2;
+	l1d_config.num_ports += num_rtc * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
+	l1d_config.crossbar_width += num_rtc;
 	l1d_config.mem_highers = {&l2};
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
 	{
@@ -417,18 +400,16 @@ static void run_sim_ric(const GlobalConfig& global_config)
 			sfus.push_back(sfu);
 
 		Units::RIC::UnitTreeletRTCore<SceneSegment>::Configuration rtc_config;
-		rtc_config.max_rays = 256;
+		rtc_config.early_t = global_config.use_early;
+		rtc_config.max_rays = 256 / num_rtc;
 		rtc_config.num_tp = num_tps;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
-		rtc_config.hit_record_base_addr = (paddr_t)kernel_args.hit_records;
-		rtc_config.ray_buffer_base_addr = (paddr_t)kernel_args.rays;
+		rtc_config.ray_state_base_addr = (paddr_t)kernel_args.ray_states;
 		rtc_config.cache = l1ds.back();
 		rtc_config.ray_coalescer = &ray_coalescer;
-		rtc_config.hit_record_updater = &hit_record_updater;
-		const uint rt_cores = 1;
-		for(uint i = 0; i < rt_cores; ++i)
+		for(uint i = 0; i < num_rtc; ++i)
 		{
-			rtc_config.rtc_index = tm_index * rt_cores + i;
+			rtc_config.rtc_index = tm_index * num_rtc + i;
 			rtc_config.cache_port = num_tps + i * 32;
 			rtcs.push_back(_new Units::RIC::UnitTreeletRTCore<SceneSegment>(rtc_config));
 			simulator.register_unit(rtcs.back());
@@ -451,8 +432,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 		{
 			tp_config.tp_index = tp_index;
 			tp_config.num_threads = num_threads;
-			tp_config.unit_table = &unit_tables.back();
-			//if(tp_index < num_tps / 2) tp_config.unit_table = &unit_tables.back() - 1;
+			tp_config.unit_table = &unit_tables[num_rtc * tm_index + tp_index * num_rtc / num_tps];
 			tps.push_back(new Units::RIC::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}
@@ -479,6 +459,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	simulator.execute(delta, [&]() -> void
 	{
 		float delta_us = delta / (clock_rate / 1'000'000);
+		float delta_ns = delta / (clock_rate / 1'000'000'000);
 
 		Units::UnitBuffer::Log sram_delta_log = delta_log(sram_log, sram);
 		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
@@ -488,32 +469,30 @@ static void run_sim_ric(const GlobalConfig& global_config)
 		Units::RIC::UnitTreeletRTCore<SceneSegment>::Log rtc_delta_log = delta_log(rtc_log, rtcs);
 		Units::RIC::UnitRayCoalescer::Log rc_delta_log = delta_log(rc_log, ray_coalescer);
 
-		printf("                             \n");
-		printf("Cycle: %lld                  \n", simulator.current_cycle);
-		printf("Threads Launched: %d         \n", atomic_regs.iregs[0]);
-		printf("Buckets Launched: %lld       \n", rc_log.buckets_launched);
-		printf("Segments Launched: %lld      \n", rc_log.segments_launched);
-		printf("                             \n");
-		printf(" Ray Total: %8.1f bytes/cycle\n", (float)(rc_delta_log.buckets_generated + rc_delta_log.buckets_launched) * RAY_BUCKET_SIZE / delta);
-		printf(" Ray Write: %8.1f bytes/cycle\n", (float)rc_delta_log.buckets_generated * RAY_BUCKET_SIZE / delta);
-		printf("  Ray Read: %8.1f bytes/cycle\n", (float)rc_delta_log.buckets_launched * RAY_BUCKET_SIZE / delta);
-		printf(" Ray Write: %8.1f Mrays/s    \n", (float)(rc_delta_log.buckets_generated) * Arches::Units::RIC::RayBucket::MAX_RAYS / delta_us);
-		printf("  Ray Read: %8.1f Mrays/s    \n", (float)(rc_delta_log.buckets_launched) * Arches::Units::RIC::RayBucket::MAX_RAYS / delta_us);
-		printf("                             \n");
-		printf("DRAM Total: %8.1f bytes/cycle\n", (float)(dram_delta_log.bytes_read + dram_delta_log.bytes_written) / delta);
-		printf("DRAM Write: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_written / delta);
-		printf("DRAM  Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
-		printf("                             \n");
-		printf("SRAM Total: %8.1f bytes/cycle\n", (float)(sram_delta_log.bytes_read + sram_delta_log.bytes_written) / delta);
-		printf("SRAM Write: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_written / delta);
-		printf("SRAM  Read: %8.1f bytes/cycle\n", (float)sram_delta_log.bytes_read / delta);
-		printf("                             \n");
-		printf("  L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
-		printf(" L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
-		printf("                             \n");
-		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total());
-		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total());
-		printf("                             \n");
+		printf("                               \n");
+		printf("Cycle: %lld                    \n", simulator.current_cycle);
+		printf(" Threads Launched: %8d         \n", atomic_regs.iregs[0]);
+		printf(" Buckets Launched: %8lld       \n", rc_log.buckets_launched);
+		printf("Segments Launched: %8lld       \n", rc_log.segments_launched);
+		printf("                               \n");
+		printf(" Ray Total: %8.1f bytes/cycle  \n", (float)(rc_delta_log.buckets_generated + rc_delta_log.buckets_launched) * RAY_BUCKET_SIZE / delta);
+		printf(" Ray Write: %8.1f bytes/cycle  \n", (float)rc_delta_log.buckets_generated * RAY_BUCKET_SIZE / delta);
+		printf("  Ray Read: %8.1f bytes/cycle  \n", (float)rc_delta_log.buckets_launched * RAY_BUCKET_SIZE / delta);
+		printf(" Ray Write: %8.1f Grays/s      \n", (float)(rc_delta_log.buckets_generated) * Arches::Units::RIC::RayBucket::MAX_RAYS / delta_ns);
+		printf("  Ray Read: %8.1f Grays/s      \n", (float)(rc_delta_log.buckets_launched) * Arches::Units::RIC::RayBucket::MAX_RAYS / delta_ns);
+		printf("                               \n");
+		printf("DRAM Total: %8.1f bytes/cycle  \n", (float)(dram_delta_log.bytes_read + dram_delta_log.bytes_written) / delta);
+		printf("DRAM Write: %8.1f bytes/cycle  \n", (float)dram_delta_log.bytes_written / delta);
+		printf("DRAM  Read: %8.1f bytes/cycle  \n", (float)dram_delta_log.bytes_read / delta);
+		printf("                               \n");
+		printf("  L2$ Read: %8.1f bytes/cycle  \n", (float)l2_delta_log.bytes_read / delta);
+		printf(" L1d$ Read: %8.1f bytes/cycle  \n", (float)l1d_delta_log.bytes_read / delta);
+		printf("                               \n");
+		printf(" L2$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total(), 100.0 * l2_delta_log.half_misses / l2_delta_log.get_total(), 100.0 * l2_delta_log.misses / l2_delta_log.get_total());
+		printf("L1d$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.half_misses / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.misses / l1d_delta_log.get_total());
+		printf("                               \n");
+		printf("GRays/s: %2.1f\n\n", rtc_delta_log.rays / delta_ns);
+		rtc_delta_log.print(delta, rtcs.size());
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
 
@@ -529,14 +508,6 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);
 
-	print_header("SRAM");
-	delta_log(sram_log, sram);
-	sram_log.print(frame_cycles);
-
-	print_header("Stream Scheduler");
-	delta_log(rc_log, ray_coalescer);
-	rc_log.print();
-
 	print_header("L2$");
 	delta_log(l2_log, l2);
 	l2_log.print(frame_cycles);
@@ -550,6 +521,10 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	print_header("TP");
 	delta_log(tp_log, tps);
 	tp_log.print(frame_cycles, tps.size());
+
+	print_header("Ray Coalescer");
+	delta_log(rc_log, ray_coalescer);
+	rc_log.print();
 
 	if(!rtcs.empty())
 	{

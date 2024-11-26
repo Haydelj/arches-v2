@@ -4,7 +4,7 @@ import subprocess
 import shutil
 
 def get_test_configs():
-    framebuffer_dim = 1024
+    framebuffer_dim = 768
 
     scene_id_map = {"sponza": 0, "intel-sponza" : 1 , "san-miguel" : 2, "hairball" : 3, "cornellbox" : 4 , "living_room" : 5}
     
@@ -16,14 +16,14 @@ def get_test_configs():
         "scene_name": "sponza",
         "framebuffer_width": framebuffer_dim,
         "framebuffer_height": framebuffer_dim,
-        "total_threads": framebuffer_dim << 10,
-        "warm_l2": 1,
+        "total_threads": framebuffer_dim * framebuffer_dim,
+        "warm_l2": 0,
         "pregen_rays": 1,
         "pregen_bounce": 2,
 
         #Dual Streaming
         "use_scene_buffer": 0,
-        "rays_on_chip": 1,
+        "rays_on_chip": 0,
         "hits_on_chip": 1,
         "use_early": 0,
         "hit_delay": 0,
@@ -32,14 +32,14 @@ def get_test_configs():
         "weight_scheme": 1,
     }
     
-    test_sim_types = [0,1]
-    test_scenes = ["sponza", "intel-sponza" , "san-miguel" , "hairball" , "cornellbox"]
+    test_scenes = ["sponza", "intel-sponza" , "san-miguel" , "cornellbox"]
     test_bounce_types = [0,1,2]
+    test_sim_types = [0,2]
 
     configs = []
-    for sim_type in test_sim_types:
-        for scene in test_scenes:
-            for bounce_type in test_bounce_types:
+    for scene in test_scenes:
+        for bounce_type in test_bounce_types:
+            for sim_type in test_sim_types:
                 config = base_config.copy()
                 config["simulator"] = sim_type
                 config["scene_id"] = scene_id_map.get(scene, f"unknown_{scene}")
@@ -63,10 +63,10 @@ def generate_log_filename(config, log_dir="logs"):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
-    sim_type_map = {0: "trax", 1: "dualstreaming"}
-    sim_type_name = sim_type_map.get(config["simulator"], f"unknown_{config['simulator']}")
+    sim_type_map = {0: "trax", 1: "dualstreaming", 2: "ric"}
+    sim_type_name = sim_type_map.get(config["simulator"], f"unknown-{config['simulator']}")
 
-    filename = f"{sim_type_name}_scene_{config['scene_name']}_bounce_{config['pregen_bounce']}.log"
+    filename = f"{sim_type_name}-{config['scene_name']}-bounce-{config['pregen_bounce']}.log"
     return os.path.join(log_dir, filename)
 
 
@@ -76,9 +76,9 @@ def generate_image_filename(config, output_dir="images"):
         os.makedirs(output_dir)
 
     sim_type_map = {0: "trax", 1: "dualstreaming"}
-    sim_type_name = sim_type_map.get(config["simulator"], f"unknown_{config['simulator']}")
+    sim_type_name = sim_type_map.get(config["simulator"], f"unknown-{config['simulator']}")
 
-    filename = f"{sim_type_name}_scene_{config['scene_name']}_bounce_{config['pregen_bounce']}.png"
+    filename = f"{sim_type_name}-{config['scene_name']}-bounce-{config['pregen_bounce']}.png"
     return os.path.join(output_dir, filename)
 
 

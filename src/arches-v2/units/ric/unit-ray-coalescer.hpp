@@ -8,7 +8,7 @@
 
 namespace Arches { namespace Units { namespace RIC {
 
-#define RAY_BUCKET_SIZE 512
+#define RAY_BUCKET_SIZE 1024
 
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
@@ -59,7 +59,9 @@ public:
 
 		uint traversal_scheme{0}; //0-bfs, 1-dfs
 		uint weight_scheme{0}; //If weight scheme = 2, we use the default DFS order
-		uint max_active_segments{1024 * 1024};
+		uint max_active_segments_size{1024 * 1024};
+
+		UnitMemoryBase* l2_cache{nullptr};
 
 		UnitMainMemoryBase* main_mem{nullptr};
 		uint                main_mem_port_offset{0};
@@ -126,11 +128,8 @@ public:
 		}
 	};
 
-	struct Bank
-	{
-		std::queue<uint> bucket_flush_queue;
-		std::map<uint, RayBucket> ray_coalescer{};
-	};
+	std::queue<uint> bucket_flush_queue;
+	std::map<uint, RayBucket> ray_coalescer{};
 
 	class MemoryManager
 	{
@@ -186,21 +185,21 @@ public:
 		uint                total_buckets{0};
 		uint                retired_buckets{0};
 		bool                parent_finished{false};
-		bool                prefetch_issued{false};
-		bool                prefetch_complete{false};
-		bool                use_scene_buffer{false};
-		bool				child_order_generated{false};
+		bool				children_scheduled{false};
 
+		uint64_t            size{0};
 		uint64_t			weight{0};
 		uint64_t			num_rays{0};
 		uint64_t			scheduled_weight{0};
 		uint				depth{0};
+		uint                num_tms{0};
 	};
 
 	struct Scheduler
 	{
 		std::queue<uint> bucket_allocated_queue;
 		std::queue<uint> bucket_request_queue;
+		std::set<uint>  bucket_request_set;
 		std::queue<uint> bucket_complete_queue;
 		Cascade<RayBucket> bucket_write_cascade;
 
@@ -213,23 +212,29 @@ public:
 
 		//the list of segments in the scene buffer or schduled to be in the scene buffer
 		uint last_segment_activated;
-		std::vector<uint> candidate_segments; //the set of segments that are ready to issue buckets
+		std::vector<uint> active_segments; //the set of segments that are ready to issue buckets
 		std::stack<uint> traversal_stack; //for DFS
 		std::queue<uint> traversal_queue; //for BFS
 
+		UnitMemoryBase* l2_cache;
+		std::vector<std::queue<paddr_t>> prefetch_queues;
+		uint sector_size;
+
 		uint root_rays_counter;
 		uint num_root_rays;
+
 		uint traversal_scheme;
 		uint weight_scheme;
-		uint max_active_segments;
 
-		uint concurent_prefetches;
-		uint active_segments;
+		uint max_active_segments_size{1024 << 20};
+		uint active_segments_size{0};
+		uint retired_segments{0};
 
 		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1), last_segment_on_tm(config.num_tms, ~0u),
 			root_rays_counter(0), num_root_rays(config.num_root_rays),
 			traversal_scheme(config.traversal_scheme), weight_scheme(config.weight_scheme),
-			max_active_segments(config.max_active_segments), concurent_prefetches(0), active_segments(0)
+			max_active_segments_size(config.max_active_segments_size),
+			sector_size(config.row_size), l2_cache(config.l2_cache)
 		{
 			for(uint i = 0; i < config.num_channels; ++i)
 				memory_managers.emplace_back(i, config.num_channels, config.row_size, config.heap_addr);
@@ -242,13 +247,16 @@ public:
 
 			rtm::WideTreeletBVH::Treelet::Header root_header = cheat_treelets[0].header;
 
-			candidate_segments.push_back(0);
+			active_segments.push_back(0);
 			last_segment_activated = 0;
+			active_segments_size = cheat_treelets[0].header.bytes;
+
+			prefetch_queues.resize(16);
 		}
 
 		bool is_complete()
 		{
-			return candidate_segments.size() == 0;
+			return active_segments.size() == 0;
 		}
 	};
 
@@ -294,7 +302,6 @@ public:
 
 	//request flow from _request_network -> bank -> scheduler -> channel
 	Cascade<Request> _request_network;
-	std::vector<Bank> _banks;
 	Scheduler _scheduler;
 	std::vector<Channel> _channels;
 	UnitMemoryBase::ReturnCrossBar _return_network;
@@ -302,12 +309,14 @@ public:
 public:
 	UnitRayCoalescer(const Configuration& config) :
 		_request_network(config.num_tms, config.num_banks), 
-		_banks(config.num_banks), _scheduler(config), _channels(config.num_channels), 
+		_scheduler(config), _channels(config.num_channels), 
 		_return_network(config.num_channels, config.num_tms), _block_size(config.block_size)
 	{
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;
+
+		_prefetch(0);
 	}
 
 	void clock_rise() override;
@@ -339,6 +348,7 @@ public:
 	}
 
 private:
+	void _prefetch(uint segment);
 	void _proccess_request(uint bank_index);
 	void _proccess_return(uint channel_index);
 	void _update_scheduler();

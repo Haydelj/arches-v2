@@ -6,7 +6,7 @@
 #include "unit-ray-coalescer.hpp"
 #include "units/dual-streaming/unit-hit-record-updater.hpp"
 
-//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
+//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 10 && ray_id == 0)
 
 #ifndef ENABLE_RT_DEBUG_PRINTS 
 #define ENABLE_RT_DEBUG_PRINTS (false)
@@ -20,13 +20,13 @@ class UnitTreeletRTCore : public UnitMemoryBase
 public:
 	struct Configuration
 	{
+		bool early_t{false};
 		uint max_rays;
 		uint num_tp;
 		uint rtc_index;
 
 		paddr_t treelet_base_addr;
-		paddr_t hit_record_base_addr;
-		paddr_t ray_buffer_base_addr;
+		paddr_t ray_state_base_addr;
 
 		uint cache_port;
 		UnitMemoryBase* cache;
@@ -35,6 +35,24 @@ public:
 	};
 
 private:
+	enum class IssueType
+	{
+		NODE_FETCH,
+		TRI_FETCH,
+		POP_CULL,
+		STORE_WORK_ITEM,
+		RETIRE_RAY,
+		NUM_TYPES,
+	};
+
+	enum class Destination
+	{
+		NODE,
+		TRI,
+		RAY,
+		TP
+	};
+
 	struct NodeStackEntry
 	{
 		float t;
@@ -51,7 +69,6 @@ private:
 	{
 		paddr_t address;
 		uint bytes_filled;
-		uint type;
 
 		union
 		{
@@ -62,8 +79,6 @@ private:
 				TT::Triangle tris[3];
 				uint num_tris;
 			};
-			rtm::Ray ray;
-			rtm::Hit hit;
 		};
 
 		StagingBuffer() {}
@@ -103,13 +118,10 @@ private:
 		NodeStackEntry nstack[32 * (rtm::WideTreeletBVH::WIDTH - 1)];
 		uint nstack_size;
 
-		TreeletStackEntry tqueue[16];
-		uint tqueue_tail;
-		uint tqueue_head;
-
 		uint order_hint;
-
 		StagingBuffer buffer;
+
+		uint steps;
 
 		RayState() : phase(Phase::RAY_FETCH) {};
 
@@ -126,17 +138,9 @@ private:
 			nstack[0].data.is_int = 1;
 			nstack[0].data.is_child_treelet = 0;
 			nstack[0].data.child_index = 0;
-			tqueue_head = 0;
-			tqueue_tail = 0;
 			order_hint = 0;
+			steps = 0;
 		}
-	};
-
-	struct FetchItem
-	{
-		paddr_t addr;
-		uint8_t size;
-		uint16_t ray_id;
 	};
 
 	struct SegmentState
@@ -167,7 +171,6 @@ private:
 	uint _cache_port;
 	UnitMemoryBase* _cache;
 	UnitRayCoalescer* _ray_coalescer;
-	DualStreaming::UnitHitRecordUpdater* _hit_record_updater;
 
 	//ray scheduling hardware
 	std::map<uint, SegmentState> _segment_states;
@@ -177,14 +180,12 @@ private:
 
 	std::set<uint> _free_ray_ids;
 	std::vector<RayState> _ray_states;
-	std::queue<uint> _ray_scheduling_queue;
-	std::queue<uint> _hit_store_queue;
-	std::queue<FetchItem> _cache_fetch_queue;
+	std::deque<uint> _ray_scheduling_queue;
+	std::queue<MemoryRequest> _cache_fetch_queue;
 	std::queue<uint> _completed_buckets;
 
 	//hit record loading
 	std::queue<MemoryRequest> _tp_hit_load_queue;
-	std::map<paddr_t, MemoryReturn> _hit_return_map;
 	std::queue<MemoryReturn> _tp_hit_return_queue;
 
 	//node pipline
@@ -197,13 +198,14 @@ private:
 	uint _tri_isect_index{0};
 
 	//meta data
+	bool _block_for_traversal{true};
+	bool _early_t;
 	uint _max_rays;
 	uint _ray_id_bits;
 	uint _num_tp;
 	uint _rtc_index;
 	paddr_t _treelet_base_addr;
-	paddr_t _hit_record_base_addr;
-	paddr_t _ray_buffer_base_addr;
+	paddr_t _ray_state_base_addr;
 	uint _last_ray_id{0};
 
 public:
@@ -216,21 +218,7 @@ public:
 		_read_returns();
 		_init_ray();
 
-		if(_ray_scheduling_queue.empty())
-		{
-			for(uint i = 0; i < _ray_states.size(); ++i)
-			{
-				uint phase = (uint)_ray_states[_last_ray_id].phase;
-				if(++_last_ray_id == _ray_states.size()) _last_ray_id = 0;
-				if(phase != 0)
-				{
-					log.stall_counters[phase]++;
-					break;
-				}
-			}
-		}
-
-		for(uint i = 0; i <	1; ++i) _schedule_ray(); //n pops per cycle. In reality this would need to be multi banked
+		for(uint i = 0; i < 1; ++i) _schedule_ray(); //n pops per cycle. In reality this would need to be multi banked
 
 		_simualte_node_pipline();
 		_simualte_tri_pipline();
@@ -276,8 +264,9 @@ private:
 
 	bool _try_queue_node(uint ray_id, uint treelet_id, uint node_id);
 	bool _try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset, uint num_tris);
-	bool _try_queue_ray(uint ray_id, uint global_ray_id);
-	bool _try_queue_hit(uint ray_id, uint global_ray_id);
+	bool _try_queue_ray_load(uint ray_id);
+	bool _try_queue_cshit(uint ray_id);
+	bool _try_queue_prefetch(uint treelet_id);
 
 	void _read_requests();
 	void _read_returns();
@@ -292,6 +281,9 @@ private:
 public:
 	class Log
 	{
+	private:
+		constexpr static uint NUM_COUNTERS = 24;
+
 	public:
 		union
 		{
@@ -300,22 +292,24 @@ public:
 				uint64_t rays;
 				uint64_t nodes;
 				uint64_t tris;
+				uint64_t hits;
+				uint64_t issue_counters[(uint)IssueType::NUM_TYPES];
 				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
 			};
-			uint64_t counters[16];
+			uint64_t counters[NUM_COUNTERS];
 		};
 
 		Log() { reset(); }
 
 		void reset()
 		{
-			for(uint i = 0; i < 16; ++i)
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] = 0;
 		}
 
 		void accumulate(const Log& other)
 		{
-			for(uint i = 0; i < 16; ++i)
+			for(uint i = 0; i < NUM_COUNTERS; ++i)
 				counters[i] += other.counters[i];
 		}
 
@@ -335,28 +329,55 @@ public:
 				"NUM_PHASES"
 			};
 
-			printf("Rays: %lld\n", rays);
-			printf("Nodes: %lld\n", nodes);
-			printf("Tris: %lld\n", tris);
+			const static std::string issue_names[] =
+			{
+				"NODE_FETCH",
+				"TRI_FETCH",
+				"POP_CULL",
+				"STORE_WORK_ITEM",
+				"RETIRE_RAY",
+				"NUM_TYPES",
+			};
+
+			printf("Rays: %lld\n", rays / num_units);
+			printf("Nodes: %lld\n", nodes / num_units);
+			printf("Tris: %lld\n", tris / num_units);
+			printf("Hits: %lld\n", hits / num_units);
 			printf("\n");
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
+			printf("Hits/Ray: %.2f\n", (double)hits / rays);
 			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);
 
-			uint64_t total = 0;
+			uint64_t issue_total = 0;
+			std::vector<std::pair<const char*, uint64_t>> _issue_counter_pairs;
+			for(uint i = 0; i < (uint)IssueType::NUM_TYPES; ++i)
+			{
+				issue_total += issue_counters[i];
+				_issue_counter_pairs.push_back({issue_names[i].c_str(), issue_counters[i]});
+			}
+			std::sort(_issue_counter_pairs.begin(), _issue_counter_pairs.end(),
+				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
 
+			uint64_t stall_total = 0;
 			std::vector<std::pair<const char*, uint64_t>> _data_stall_counter_pairs;
 			for(uint i = 0; i < (uint)RayState::Phase::NUM_PHASES; ++i)
 			{
-				total += stall_counters[i];
+				stall_total += stall_counters[i];
 				_data_stall_counter_pairs.push_back({phase_names[i].c_str(), stall_counters[i]});
 			}
 			std::sort(_data_stall_counter_pairs.begin(), _data_stall_counter_pairs.end(),
 				[](const std::pair<const char*, uint64_t>& a, const std::pair<const char*, uint64_t>& b) -> bool { return a.second > b.second; });
 
-			printf("\nStall Cycles: %lld (%.2f%%)\n", total / num_units, 100.0f * total / num_units / cycles);
+			uint64_t total = stall_total + issue_total;
+
+			printf("\nIssue Cycles: %lld (%.2f%%)\n", issue_total / num_units, 100.0f * issue_total / total);
+			for(uint i = 0; i < _issue_counter_pairs.size(); ++i)
+				if(_issue_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _issue_counter_pairs[i].first, _issue_counter_pairs[i].second / num_units, 100.0 * _issue_counter_pairs[i].second / num_units / cycles);
+
+			printf("\nStall Cycles: %lld (%.2f%%)\n", stall_total / num_units, 100.0f * stall_total / total);
 			for(uint i = 0; i < _data_stall_counter_pairs.size(); ++i)
-				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / num_units  / cycles );
+				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / num_units / cycles);
 		};
 	}log;
 };

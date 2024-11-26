@@ -26,7 +26,7 @@ class WideBVH
 public:
 	const static uint WIDTH = 6;
 
-	struct Node
+	struct alignas(64) Node
 	{
 		union Data
 		{

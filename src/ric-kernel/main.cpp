@@ -33,7 +33,7 @@ inline static void kernel(const RICKernelArgs& args)
 		if(!args.pregen_rays)
 		{
 			rtm::Ray ray = args.camera.generate_ray_through_pixel(x, y);
-			args.rays[index] = ray;
+			args.ray_states[index].ray = ray;
 		}
 
 		_swi(index); //write ray id to scheduler
@@ -41,14 +41,14 @@ inline static void kernel(const RICKernelArgs& args)
 
 	for (index = index - args.framebuffer_size; index < args.framebuffer_size; index = fchthrd() - args.framebuffer_size)
 	{
-		rtm::Hit hit = _lhit(args.hit_records + index);
+		rtm::Hit hit = _lhit(&args.ray_states[index].hit);
 #else
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint x = index % args.framebuffer_width;
 		uint y = index / args.framebuffer_width;
 
-		rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
+		rtm::Ray ray = args.pregen_rays ? args.ray_states[index].ray : args.camera.generate_ray_through_pixel(x, y);
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 
 		intersect(args.treelets, ray, hit);
@@ -99,7 +99,6 @@ int main(int argc, char* argv[])
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 1, rays);
-	args.rays = rays.data();
 
 	rtm::WideBVH wbvh(bvh2, build_objects);
 	rtm::CompressedWideBVH cwbvh(wbvh);
@@ -112,10 +111,15 @@ int main(int argc, char* argv[])
 	mesh.get_triangles(tris);
 	args.tris = tris.data();
 
-	std::vector<rtm::Hit> hit_buffer(args.framebuffer_size);
-	for (int i = 0; i < args.framebuffer_size; i++)
-		hit_buffer[i].t = T_MAX;
-	args.hit_records = hit_buffer.data();
+	std::vector<RayState> ray_states(args.framebuffer_size);
+	for(int i = 0; i < args.framebuffer_size; i++)
+	{
+		ray_states[i].ray = rays[i];
+		ray_states[i].hit.t = T_MAX;
+		ray_states[i].hit.bc = rtm::vec2(0.0f);
+		ray_states[i].hit.id = ~0u;
+	}
+	args.ray_states = ray_states.data();
 
 	auto start = std::chrono::high_resolution_clock::now();
 

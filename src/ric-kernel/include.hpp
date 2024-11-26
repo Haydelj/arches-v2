@@ -3,6 +3,12 @@
 
 #define RIC_KERNEL_ARGS_ADDRESS 256ull
 
+struct alignas(64) MinRayState
+{
+	rtm::Ray ray;
+	rtm::Hit hit;
+};
+
 struct RICKernelArgs
 {
 	uint32_t framebuffer_width;
@@ -16,8 +22,7 @@ struct RICKernelArgs
 
 	//heap data pointers
 	uint32_t* framebuffer;
-	rtm::Hit* hit_records;
-	rtm::Ray* rays;
+	MinRayState* ray_states;
 	rtm::CompressedWideTreeletBVH::Treelet* treelets;
 	rtm::Triangle* tris;
 	uint64_t num_treelets;

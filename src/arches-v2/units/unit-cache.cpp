@@ -67,12 +67,9 @@ void UnitCache::_recive_return()
 				{
 					_assert(ret.paddr == _get_block_addr(ret.paddr));
 
-					//Mark the associated lse as filled and put it in the return queue
-					paddr_t block_addr = ret.paddr;
-					if(_update_block(block_addr, ret.data)) //Update block. Might have been evicted in which case this does nothing and returns null
-						log.data_array_writes++;
-
 					//fill all subentries and queue for return
+					bool set_dirty = false;
+					paddr_t block_addr = ret.paddr;
 					MSHR& mshr = partition.mshrs[block_addr];
 					Bank& bank = partition.banks[_get_bank(block_addr)];
 					while(!mshr.sub_entries.empty())
@@ -85,18 +82,26 @@ void UnitCache::_recive_return()
 						if(buffer.type == MemoryRequest::Type::LOAD)
 						{
 							std::memcpy(buffer.data, ret.data + offset, ret.size);
-							bank.return_queue.push(rob_index);
 						}
 						else if(buffer.type == MemoryRequest::Type::CSHIT)
 						{
 							//play the CSHIT against the line
 							rtm::Hit cur_hit, new_hit;
-							std::memcpy(&cur_hit, ret.data + offset, sizeof(rtm::Hit));
 							std::memcpy(&new_hit, buffer.data, sizeof(rtm::Hit));
-							if(new_hit.t < cur_hit.t) std::memcpy(ret.data + offset, &new_hit, sizeof(rtm::Hit));
+							std::memcpy(&cur_hit, ret.data + offset, sizeof(rtm::Hit));
+							if(new_hit.t < cur_hit.t)
+							{
+								set_dirty = true;
+								std::memcpy(ret.data + offset, buffer.data, sizeof(rtm::Hit));
+							}
 						}
 						else _assert(false);
+						bank.return_queue.push(rob_index);
 					}
+
+					//Mark the associated lse as filled and put it in the return queue
+					if(_write_block(block_addr, ret.data, set_dirty)) //Update block. Might have been evicted in which case this does nothing and returns null
+						log.data_array_writes++;
 
 					//free mshr
 					partition.mshrs.erase(block_addr);
@@ -239,19 +244,22 @@ void UnitCache::_recive_request()
 				{
 					//Hit: play the CSHIT against the line
 					rtm::Hit cur_hit, new_hit;
-					std::memcpy(&cur_hit, block_data + block_offset, sizeof(rtm::Hit));
 					std::memcpy(&new_hit, request.data, sizeof(rtm::Hit));
-					if(new_hit.t < cur_hit.t) std::memcpy(block_data + block_offset, &new_hit, sizeof(rtm::Hit));
+					std::memcpy(&cur_hit, block_data + block_offset, sizeof(rtm::Hit));
+					if(new_hit.t < cur_hit.t)
+					{
+						std::memcpy(block_data + block_offset, request.data, sizeof(rtm::Hit));
+						_write_block(block_addr, block_data, true);
+					}
 					log.data_array_reads++;
 					log.hits++;
 				}
 				else
 				{
-					//Miss fill the line
 					bank.rob[rob_index] = MemoryReturn(request, request.data);
 					partition.miss_queue.write({block_addr, rob_index}, b);
-					bank.rob_size++;
 					if(!_in_order) bank.rob_free_set.erase(rob_index);
+					bank.rob_size++;
 				}
 			}
 			else _assert(false);
@@ -275,7 +283,19 @@ void UnitCache::_recive_request()
 			if(partition.mshrs.size() < partition.num_mshr)
 			{
 				//Allocate a new block for the miss to return to
-				_insert_block(block_addr);
+				paddr_t victim_addr; uint8_t* victim_data;  bool victim_dirty;
+				_insert_block(block_addr, victim_addr, victim_data, victim_dirty);
+
+				if(victim_addr && victim_dirty)
+				{
+					MemoryRequest vic_req;
+					vic_req.type = MemoryRequest::Type::STORE;
+					vic_req.paddr = victim_addr;
+					vic_req.size = _block_size;
+					vic_req.port = partition.mem_higher_port;
+					std::memcpy(vic_req.data, victim_data, _block_size);
+					partition.mem_higher_request_queue.push(vic_req);
+				}
 
 				//Allocated a new MSHR and queue up the fill request
 				MemoryRequest miss_req;
@@ -350,7 +370,8 @@ void UnitCache::_send_return()
 					bank.rob_size--;
 
 					const MemoryReturn& ret = bank.rob[rob_index];
-					bank.return_pipline.write(ret);
+					if(ret.type != MemoryRequest::Type::CSHIT)
+						bank.return_pipline.write(ret);
 					log.bytes_read += ret.size;
 				}
 			}
@@ -364,7 +385,8 @@ void UnitCache::_send_return()
 					bank.return_queue.pop();
 
 					const MemoryReturn& ret = bank.rob[rob_index];
-					bank.return_pipline.write(ret);
+					if(ret.type != MemoryRequest::Type::CSHIT)
+						bank.return_pipline.write(ret);
 					log.bytes_read += ret.size;
 
 					bank.rob_free_set.insert(rob_index);

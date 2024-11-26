@@ -29,21 +29,6 @@ void UnitRTCore<NT>::clock_rise()
 	_read_requests();
 	_read_returns();
 
-	if(_ray_scheduling_queue.empty())
-	{
-		uint phase = (uint)_ray_states[last_ray_id].phase;
-		log.stall_counters[phase]++;
-
-		if(ENABLE_RT_DEBUG_PRINTS)
-		{
-			printf("\033[31m");
-			printf("%03d %s\n", last_ray_id, phase_names[phase].c_str());
-			printf("\033[0m");
-		}
-
-		if(++last_ray_id == _ray_states.size()) last_ray_id = 0;
-	}
-
 	for(uint i = 0; i < 1; ++i) //n stack ops per cycle. In reality this would need to be multi banked
 		_schedule_ray();
 
@@ -197,46 +182,51 @@ void UnitRTCore<NT>::_schedule_ray()
 			{
 				if(entry.data.is_int)
 				{
-					if(_try_queue_node(ray_id, entry.data.child_index))
-					{
-						ray_state.phase = RayState::Phase::NODE_FETCH;
+					_try_queue_node(ray_id, entry.data.child_index);
+					ray_state.phase = RayState::Phase::NODE_FETCH;
+					ray_state.stack_size--;
 
-						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("%03d NODE_FETCH: %d\n", ray_id, entry.data.child_index);
-
-						ray_state.stack_size--;
-					}
-					else _ray_scheduling_queue.push(ray_id);
+					log.issue_counters[(uint)IssueType::NODE_FETCH]++;
+					if(ENABLE_RT_DEBUG_PRINTS)
+						printf("%03d NODE_FETCH: %d\n", ray_id, entry.data.child_index);
 				}
 				else
 				{
-					if(_try_queue_tris(ray_id, entry.data.prim_index, entry.data.num_prims))
-					{
-						ray_state.phase = RayState::Phase::TRI_FETCH;
+					_try_queue_tris(ray_id, entry.data.prim_index, entry.data.num_prims);
+					ray_state.phase = RayState::Phase::TRI_FETCH;
+					ray_state.stack_size--;
 
-						if(ENABLE_RT_DEBUG_PRINTS)
-							printf("%03d TRI_FETCH: %d:%d\n", ray_id, entry.data.prim_index, entry.data.num_prims);
-
-						ray_state.stack_size--;
-					}
-					else _ray_scheduling_queue.push(ray_id);
+					log.issue_counters[(uint)IssueType::TRI_FETCH]++;
+					if(ENABLE_RT_DEBUG_PRINTS)
+						printf("%03d TRI_FETCH: %d:%d\n", ray_id, entry.data.prim_index, entry.data.num_prims);
 				}
 			}
 			else
 			{
 				ray_state.stack_size--;
 				_ray_scheduling_queue.push(ray_id);
+
+				log.issue_counters[(uint)IssueType::POP_CULL]++;
+				if(ENABLE_RT_DEBUG_PRINTS)
+					printf("%03d POP_CULL\n", ray_id);
 			}
 		}
 		else
 		{
 			//stack empty or anyhit found return the hit
-			if(ENABLE_RT_DEBUG_PRINTS)
-				printf("%03d HIT_RETURN: %d\n", ray_id, ray_state.hit.id);
-
 			ray_state.phase = RayState::Phase::HIT_RETURN;
 			_ray_return_queue.push(ray_id);
+
+			log.issue_counters[(uint)IssueType::HIT_RETURN]++;
+			if(ENABLE_RT_DEBUG_PRINTS)
+				printf("%03d HIT_RETURN: %d\n", ray_id, ray_state.hit.id);
 		}
+	}
+	else
+	{
+		uint phase = (uint)_ray_states[_last_ray_id].phase;
+		if(++_last_ray_id == _ray_states.size()) _last_ray_id = 0;
+		log.stall_counters[phase]++;
 	}
 }
 
@@ -256,6 +246,8 @@ void UnitRTCore<rtm::WideBVH>::_simualte_node_pipline()
 		uint max_insert_depth = ray_state.stack_size;
 		for(int i = 0; i < 2; i++)
 		{
+			if(!node.is_valid(i)) continue;
+
 			float t = rtm::intersect(node.aabb[i], ray, inv_d);
 			if(t < hit.t)
 			{
@@ -305,6 +297,8 @@ void UnitRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 		uint max_insert_depth = ray_state.stack_size;
 		for(int i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
 		{
+			if(!node.is_valid(i)) continue;
+
 			float t = rtm::intersect(node.aabb[i], ray, inv_d);
 			if(t < hit.t)
 			{

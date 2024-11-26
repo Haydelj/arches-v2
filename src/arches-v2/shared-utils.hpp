@@ -107,28 +107,31 @@ class GlobalConfig
 {
 public:
 	//simulator config
-	uint simulator = 2; //0-trax, 1-dual-streaming, 2-ric
+	uint simulator = 0; //0-trax, 1-dual-streaming, 2-ric
 	uint logging_interval = 10000;
 
 	//workload config
-	uint scene_id = 0;
-	uint framebuffer_width = 256;
-	uint framebuffer_height = 256;
+	uint scene_id = 1;
+	uint framebuffer_width = 1024;
+	uint framebuffer_height = 1024;
 
 	CameraConfig camera_config;
 	bool warm_l2 = 0;
 	bool pregen_rays = 1;
-	uint pregen_bounce = 2; //0-primary, 1-secondary, etc.
+	uint pregen_bounce = 1; //0-primary, 1-secondary, etc.
 
 	//dual streaming
 	bool use_scene_buffer = 0;
 	bool rays_on_chip = 0;
 	bool hits_on_chip = 1;
-	bool use_early = 0;
+	bool use_early = 1;
 	bool hit_delay = 0;
 	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
-	uint traversal_scheme = 1; // 0-BFS, 1-DFS
-	uint weight_scheme = 1; // 0 total, 1 average, 2 none
+	uint traversal_scheme = 0; // 0-BFS, 1-DFS
+	uint weight_scheme = 2; // 0 total, 1 average, 2 none
+
+	//ric
+	uint max_active_set_size = 36 << 20;
 
 public:
 	GlobalConfig(int argc, char* argv[])
@@ -223,6 +226,10 @@ public:
 			{
 				if(std::stoi(value) == 0)
 					setvbuf(stdout, (char*)NULL, _IONBF, 0);
+			}
+			if(key == "max_active_set_size")
+			{
+				max_active_set_size = std::stoi(value);
 			}
 
 			std::cout << key << ' ' << value << '\n';
