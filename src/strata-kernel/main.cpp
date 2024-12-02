@@ -19,8 +19,46 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 inline static void kernel(const STRaTAKernelArgs& args)
 {
 #if defined(__riscv)
+    uint32_t index, x, y;
+    for (index = fchthrd(); index < args.framebuffer_size + args.max_init_ray; index = fchthrd())
+    {
+        if(index >= args.max_init_ray)
+        {
+			uint32_t hit_addr = index - args.max_init_ray;
+			if(index >= args.framebuffer_size)
+			{
+				hit_addr = hit_addr | (1u << 27);
+			}
+            STRaTAHitReturn hit_return = _lhit(args.hit_records + hit_addr);
+            uint32_t out = 0xff000000;
+            if (hit_return.hit.id != ~0u)
+            {
+                out |= rtm::RNG::hash(hit_return.hit.id);
+            }
+            args.framebuffer[hit_return.index] = out;
+        }
+        // trace a new primary ray
+        if(index < args.framebuffer_size)
+        {
+            x = index % args.framebuffer_width;
+            y = index / args.framebuffer_width;
+            rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
+            RayData raydata;
+            raydata.ray = ray;
+            raydata.raystate.treelet_id = 0;
+            raydata.raystate.treelet_child_id = 0;
+            raydata.raystate.hit_id = ~0u;
+            raydata.raystate.hit_t = T_MAX;
+            raydata.raystate.id = index;
+            raydata.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
+            raydata.traversal_stack = 1;
+            raydata.visited_stack = 1;
+            _swi(raydata);
+        }
+    } 
+
 	// write initial rays for root node
-	uint32_t index, x, y;
+	/* uint32_t index, x, y;
 	for (index = fchthrd(); index < args.max_init_ray; index = fchthrd())
 	{
 		x = index % args.framebuffer_width;
@@ -70,14 +108,15 @@ inline static void kernel(const STRaTAKernelArgs& args)
 
 	for (; index < args.framebuffer_size + args.max_init_ray; index = fchthrd())
 	{
-		STRaTAHitReturn hit_return = _lhit(args.hit_records + index - args.max_init_ray);
+		uint32_t hit_addr = (index - args.max_init_ray) | (1u << 27);
+		STRaTAHitReturn hit_return = _lhit(args.hit_records + hit_addr);
 		uint32_t out = 0xff000000;
 		if (hit_return.hit.id != ~0u)
 		{
 			out |= rtm::RNG::hash(hit_return.hit.id);
 		}
 		args.framebuffer[hit_return.index] = out;
-	}
+	} */
 
 #else
 	for (uint32_t index = fchthrd(); index < args.framebuffer_size; index = fchthrd())

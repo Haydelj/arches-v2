@@ -98,12 +98,12 @@ public:
 
 	//simulator config
 	uint simulator = 2; //0-trax, 1-dual-streaming, 2-strata
-	uint logging_interval = 2000;
+	uint logging_interval = 200000;
 
 	//workload config
 	uint scene_id = 0;
-	uint framebuffer_width = 128;
-	uint framebuffer_height = 128;
+	uint framebuffer_width = 512;
+	uint framebuffer_height = 512;
 	CameraConfig camera_config;
 	bool warm_l2 = 0;
 	bool pregen_rays = 0;

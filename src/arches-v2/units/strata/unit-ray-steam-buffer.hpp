@@ -25,7 +25,11 @@ public:
 		_tm_buffer_table.resize(config.num_tm, ~0u);
 		_idle_ray_buffer.clear();
 		_raydata_request_queue.resize(config.num_banks);
-		_hit_load_queue.resize(config.num_banks);
+		_hit_load_queue.resize(2);
+		for(uint i = 0; i < 2; i++)
+		{
+			_hit_load_queue[i].resize(config.num_banks);
+		}
 	}
 
 	struct Bank
@@ -37,6 +41,14 @@ public:
 	std::map<uint32_t, std::vector<RayData>> _ray_buffers{};	// map treelet index to ray buffer
 	std::vector<RayData> _complete_ray_buffers{};
 	uint64_t _ray_buffers_size{0};
+
+	struct HitRequest
+	{
+		paddr_t paddr;
+		uint16_t port;
+		uint16_t dst;
+	};
+	
 	
 private:
 	RequestCascade _request_network;
@@ -45,11 +57,12 @@ private:
 	uint64_t _buffer_address_mask;
 	std::vector<uint32_t> _tm_buffer_table;		// <tm_id, treelet_id> pair
 	std::set<uint32_t> _idle_ray_buffer;
-	std::vector<std::queue<std::pair<uint32_t, uint32_t>>> _raydata_request_queue;
-	std::vector<std::map<paddr_t, std::queue<std::pair<uint32_t, uint32_t>>>> _hit_load_queue;
+	std::vector<std::map<uint32_t, std::queue<uint32_t>>> _raydata_request_queue;
+	std::vector<std::vector<std::queue<HitRequest>>> _hit_load_queue;
 
 	void _issue_returns();
 	void _proccess_request(uint bank_index);
+	void _return_hit(std::queue<HitRequest>& queue, uint32_t bank_index);
 
 public:
 	void clock_rise() override;

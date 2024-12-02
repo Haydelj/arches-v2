@@ -3,7 +3,7 @@
 namespace Arches {
 namespace Units {
 
-//#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0)
+//#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 12)
 //#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x0000000000000383)
 
 #ifndef ENABLE_TP_DEBUG_PRINTS 
@@ -317,8 +317,18 @@ void UnitTP::clock_fall()
 			log.log_resource_stall((ISA::RISCV::InstrType)(last_thread_stall_type - 128), last_thread.pc);
 		}
 
+		/*if ((simulator->current_cycle > 10400000) && (last_thread.instr.data != 0))
+		{
+			printf("\033[31mTM: %03d, TP: %03d, %02d  %05I64x: \t%08x          \t", _tm_index, _tp_index, _last_thread_id, last_thread.pc, last_thread.instr.data);
+			last_thread.instr_info.print_instr(last_thread.instr);
+			if (last_thread_stall_type < 128) printf("\t%s data hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());
+			else                             printf("\t%s pipline hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)(last_thread_stall_type - 128)].c_str());
+			printf("\033[0m\n");
+		}*/
+
 		if (ENABLE_TP_DEBUG_PRINTS && last_thread.instr.data != 0)
 		{
+			return;
 			printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
 			last_thread.instr_info.print_instr(last_thread.instr);
 			if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());

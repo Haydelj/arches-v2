@@ -146,7 +146,7 @@ typedef Units::UnitNonBlockingCache UnitL2Cache;
 
 #include "strata-kernel/include.hpp"
 #include "strata-kernel/intersect.hpp"
-static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size, uint raybuffer_size)
+static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size, uint64_t raybuffer_size)
 {
 	std::string scene_name = scene_names[global_config.scene_id];
 
@@ -355,7 +355,8 @@ static void run_sim_strata(GlobalConfig global_config)
 	ELF elf(current_folder_path + "../../strata-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
 
-	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size, 4ull * 1024 * 1024);
+	uint64_t ray_stream_buffer_size = 4ull * 1024 * 1024;
+	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size, ray_stream_buffer_size);
 
 	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
 	l2_config.mem_highers = {&dram};
@@ -372,7 +373,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	ray_stream_buffer_config.latency = l2_config.latency + l1d_config.latency;
 	ray_stream_buffer_config.num_banks = 64;
 	ray_stream_buffer_config.num_tm = num_tms;
-	ray_stream_buffer_config.size = 4ull * 1024 * 1024; //4MB
+	ray_stream_buffer_config.size = ray_stream_buffer_size; //4MB
 	Units::STRaTA::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);
 	simulator.register_unit(&ray_stream_buffer);
 
@@ -516,14 +517,11 @@ static void run_sim_strata(GlobalConfig global_config)
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("RSB$ Read: %8.1f bytes/cycle\n", (float)rsb_delta_log.bytes_read / delta);
 		printf("RSB$ Write: %7.1f bytes/cycle\n", (float)rsb_delta_log.bytes_written / delta);
-		printf("RSB$ Req Push: %d\n", rsb_delta_log.ray_request_push_count);
-		printf("RSB$ Req Pop: %d\n", rsb_delta_log.ray_request_pop_count);
-		printf("RTC Rays: %d\n", rtc_delta_log.rays);
-		printf("RTC Store Rays: %d\n", rtc_delta_log.store_rays);
-		printf("RTC Hits: %d\n", rtc_delta_log.hits);
-		printf("RTC Get Hits: %d\n", rtc_delta_log.get_hits);
-		printf("RTC Load Hits: %d\n", rtc_delta_log.load_hits);
-		printf("RTC Return Hits: %d\n", rtc_delta_log.return_hits);
+		printf("RTC Store Rays: %lld\n", rtc_delta_log.store_rays);
+		printf("RTC Load Hits: %lld\n", rtc_delta_log.load_hits);
+		printf("RTC Hits: %lld\n", rtc_delta_log.hits);
+		printf("RTC Get Hits: %lld\n", rtc_delta_log.get_hits);
+		printf("RTC Return Hits: %lld\n", rtc_delta_log.return_hits);
 		printf("                            \n");
 		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
 		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());
