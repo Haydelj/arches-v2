@@ -26,6 +26,5 @@
 #include "wide-treelet-bvh.hpp"
 #include "compressed-wide-bvh.hpp"
 #include "compressed-wide-treelet-bvh.hpp"
-#include "wide-treelet-strata-bvh.hpp"
 
 #include "intersect.hpp"

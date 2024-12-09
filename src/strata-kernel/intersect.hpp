@@ -271,12 +271,12 @@ inline bool intersect(const rtm::WideBVH::Node* nodes, const rtm::Triangle* tris
 	return found_hit;
 }
 
-static rtm::WideTreeletSTRaTABVH::Treelet::Node decompress(const rtm::WideTreeletSTRaTABVH::Treelet::Node& node)
+static rtm::WideTreeletBVH::Treelet::Node decompress(const rtm::WideTreeletBVH::Treelet::Node& node)
 {
 	return node;
 }
 
-inline bool intersect(const rtm::WideTreeletSTRaTABVH::Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
+inline bool intersect(const rtm::WideTreeletBVH::Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
@@ -284,10 +284,10 @@ inline bool intersect(const rtm::WideTreeletSTRaTABVH::Treelet* treelets, const 
 	{
 		float t;
 		uint treelet_id;
-		rtm::WideTreeletSTRaTABVH::Treelet::Node::Data data;
+		rtm::WideTreeletBVH::Treelet::Node::Data data;
 	};
 
-	NodeStackEntry node_stack[32 * (rtm::WideTreeletSTRaTABVH::WIDTH - 1)];
+	NodeStackEntry node_stack[32 * (rtm::WideTreeletBVH::WIDTH - 1)];
 	uint32_t node_stack_size = 1u;
 
 	//Decompress and insert nodes
@@ -312,8 +312,8 @@ inline bool intersect(const rtm::WideTreeletSTRaTABVH::Treelet* treelets, const 
 			}
 
 			uint max_insert_depth = node_stack_size;
-			const rtm::WideTreeletSTRaTABVH::Treelet::Node node = decompress(treelets[current_entry.treelet_id].nodes[current_entry.data.child_index]);
-			for(int i = 0; i < rtm::WideTreeletSTRaTABVH::WIDTH; i++)
+			const rtm::WideTreeletBVH::Treelet::Node node = decompress(treelets[current_entry.treelet_id].nodes[current_entry.data.child_index]);
+			for(int i = 0; i < rtm::WideTreeletBVH::WIDTH; i++)
 			{
 				if(!node.is_valid(i)) continue;
 
@@ -338,8 +338,99 @@ inline bool intersect(const rtm::WideTreeletSTRaTABVH::Treelet* treelets, const 
 		#if 1
 			for(uint i = 0; i < current_entry.data.num_tri; ++i)
 			{
-				uint32_t offset = current_entry.data.triangle_index + i * (sizeof(rtm::WideTreeletSTRaTABVH::Treelet::Triangle) / 4);
-				const rtm::WideTreeletSTRaTABVH::Treelet::Triangle& tri = *(rtm::WideTreeletSTRaTABVH::Treelet::Triangle*)((uint32_t*)treelets[current_entry.treelet_id].nodes + offset);
+				uint32_t offset = current_entry.data.triangle_index + i * (sizeof(rtm::WideTreeletBVH::Treelet::Triangle) / 4);
+				const rtm::WideTreeletBVH::Treelet::Triangle& tri = *(rtm::WideTreeletBVH::Treelet::Triangle*)((uint32_t*)treelets[current_entry.treelet_id].nodes + offset);
+				if(_intersect(tri.tri, ray, hit))
+				{
+					hit.id = tri.id;
+					if(first_hit) return true;
+					else found_hit = true;
+				}
+			}
+		#else
+			if(current_entry.t < hit.t)
+			{
+				hit.id = current_entry.data.triangle_index;
+				hit.t = current_entry.t;
+				found_hit = true;
+			}
+		#endif
+		}
+	}
+	while(node_stack_size);
+
+	return found_hit;
+}
+
+static rtm::WideTreeletBVH::Treelet::Node decompress(const rtm::CompressedWideTreeletBVH::Treelet::Node& node)
+{
+	return node.decompress();
+}
+
+inline bool intersect(const rtm::CompressedWideTreeletBVH::Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		uint treelet_id;
+		rtm::WideTreeletBVH::Treelet::Node::Data data;
+	};
+
+	NodeStackEntry node_stack[32 * (rtm::WideTreeletBVH::WIDTH - 1)];
+	uint32_t node_stack_size = 1u;
+
+	//Decompress and insert nodes
+	node_stack[0].t = ray.t_min;
+	node_stack[0].treelet_id = 0;
+	node_stack[0].data.is_int = 1;
+	node_stack[0].data.child_index = 0;
+
+	bool found_hit = false;
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if(current_entry.t >= hit.t) continue;
+
+		steps++;
+		if(current_entry.data.is_int)
+		{
+			if(current_entry.data.is_child_treelet)
+			{
+				current_entry.treelet_id = current_entry.data.child_index;
+				current_entry.data.child_index = 0;
+			}
+
+			uint max_insert_depth = node_stack_size;
+			const rtm::WideTreeletBVH::Treelet::Node node = decompress(treelets[current_entry.treelet_id].nodes[current_entry.data.child_index]);
+			for(int i = 0; i < rtm::WideTreeletBVH::WIDTH; i++)
+			{
+				if(!node.is_valid(i)) continue;
+
+				float t = _intersect(node.aabb[i], ray, inv_d);
+				if(t < hit.t)
+				{
+					uint j = node_stack_size++;
+					for(; j > max_insert_depth; --j)
+					{
+						if(node_stack[j - 1].t > t) break;
+						node_stack[j] = node_stack[j - 1];
+					}
+
+					node_stack[j].t = t;
+					node_stack[j].treelet_id = current_entry.treelet_id;
+					node_stack[j].data = node.data[i];
+				}
+			}
+		}
+		else
+		{
+		#if 1
+			for(uint i = 0; i < current_entry.data.num_tri; ++i)
+			{
+				uint32_t offset = current_entry.data.triangle_index + i * (sizeof(rtm::WideTreeletBVH::Treelet::Triangle) / 4);
+				const rtm::WideTreeletBVH::Treelet::Triangle& tri = *(rtm::WideTreeletBVH::Treelet::Triangle*)((uint32_t*)treelets[current_entry.treelet_id].nodes + offset);
 				if(_intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;

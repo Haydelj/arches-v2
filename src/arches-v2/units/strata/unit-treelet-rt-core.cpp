@@ -20,8 +20,8 @@ UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 
 bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_id)
 {
-	paddr_t start = (paddr_t)&((rtm::WideTreeletSTRaTABVH::Treelet*)_treelet_base_addr)[treelet_id].nodes[node_id];
-	paddr_t end = start + sizeof(rtm::WideTreeletSTRaTABVH::Treelet::Node);
+	paddr_t start = (paddr_t)&((TREELET*)_treelet_base_addr)[treelet_id].nodes[node_id];
+	paddr_t end = start + sizeof(TREELET::Node);
 
 	_node_staging_buffers[ray_id].addr = start;
 	_node_staging_buffers[ray_id].bytes_filled = 0;
@@ -41,8 +41,8 @@ bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_
 
 bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_offset, uint num_tris)
 {
-	paddr_t start = (paddr_t) & ((rtm::WideTreeletSTRaTABVH::Treelet*)_treelet_base_addr)[treelet_id].data[tri_offset];
-	paddr_t end = start + sizeof(rtm::WideTreeletSTRaTABVH::Treelet::Triangle) * num_tris;
+	paddr_t start = (paddr_t) & ((TREELET*)_treelet_base_addr)[treelet_id].data[tri_offset];
+	paddr_t end = start + sizeof(TREELET::Triangle) * num_tris;
 
 	_assert(start < 4ull * 1204 * 1024 * 1024);
 
@@ -55,7 +55,7 @@ bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_of
 	paddr_t addr = start;
 	while(addr < end)
 	{
-		if(addr >= (paddr_t)(&((rtm::WideTreeletSTRaTABVH::Treelet*)_treelet_base_addr)[treelet_id + 1])) __debugbreak();
+		if(addr >= (paddr_t)(&((TREELET*)_treelet_base_addr)[treelet_id + 1])) __debugbreak();
 
 		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
@@ -110,7 +110,6 @@ void UnitTreeletRTCore::_read_returns()
 			ray_state.stack.treelet = ray_data.treelet_id;
 			ray_state.stack.data.is_int = 1;
 			ray_state.stack.data.is_child_treelet = 0;
-			ray_state.stack.parent_data.is_parent_treelet = 0;
 			ray_state.stack.parent_data.parent_treelet_index = ray_data.treelet_id;
 			ray_state.stack.parent_data.parent_node_index = ray_data.node_id;
 			ray_state.stack.data.child_index = ray_data.node_id;
@@ -142,7 +141,7 @@ void UnitTreeletRTCore::_read_returns()
 			std::memcpy((uint8_t*)&buffer.tris + offset, ret.data, ret.size);
 
 			buffer.bytes_filled += ret.size;
-			if(buffer.bytes_filled == sizeof(rtm::WideTreeletSTRaTABVH::Treelet::Triangle) * buffer.num_tris)
+			if(buffer.bytes_filled == sizeof(TREELET::Triangle) * buffer.num_tris)
 			{
 				_ray_states[ray_id].phase = RayState::Phase::TRI_ISECT;
 				_tri_isect_queue.push(ray_id);
@@ -154,7 +153,7 @@ void UnitTreeletRTCore::_read_returns()
 			uint offset = (ret.paddr - buffer.addr);
 			std::memcpy((uint8_t*)&buffer.node + offset, ret.data, ret.size);
 			buffer.bytes_filled += ret.size;
-			if (buffer.bytes_filled == sizeof(rtm::WideTreeletSTRaTABVH::Treelet::Node))
+			if (buffer.bytes_filled == sizeof(TREELET::Node))
 			{
 				_ray_states[ray_id].phase = RayState::Phase::NODE_ISECT;
 				_node_isect_queue.push(ray_id);
@@ -229,7 +228,7 @@ void UnitTreeletRTCore::_schedule_ray()
 			}
 			else if(ray_state.ray_data.traversal_state == RayData::Traversal_State::UP)	// fetch parent node
 			{
-				if(!entry.parent_data.is_parent_treelet)
+				if(entry.parent_data.parent_treelet_index == entry.treelet)
 				{
 					if(_try_queue_node(ray_id, entry.treelet, entry.parent_data.parent_node_index))
 					{
@@ -298,7 +297,11 @@ void UnitTreeletRTCore::_simualte_intersectors()
 		rtm::Ray& ray = ray_state.ray_data.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.ray_data.hit;
-		rtm::WideTreeletSTRaTABVH::Treelet::Node& node = buffer.node;
+		#ifdef USE_COMPRESSED_WIDE_BVH
+		const rtm::WideTreeletBVH::Treelet::Node node = buffer.node.decompress();
+		#else
+		const rtm::WideTreeletBVH::Treelet::Node node = buffer.node;
+		#endif
 
 		if(ray_state.ray_data.traversal_state == RayData::Traversal_State::DOWN)
 		{
@@ -426,7 +429,11 @@ void UnitTreeletRTCore::_simualte_intersectors()
 		{
 			_assert(ray_state.ray_data.traversal_state == RayData::Traversal_State::DOWN);
 			NodeStagingBuffer buffer = _leaf_isect_buffers[ray_id];
-			rtm::WideTreeletSTRaTABVH::Treelet::Node& node = buffer.node;
+			#ifdef USE_COMPRESSED_WIDE_BVH
+			const rtm::WideTreeletBVH::Treelet::Node node = buffer.node.decompress();
+			#else
+			const rtm::WideTreeletBVH::Treelet::Node node = buffer.node;
+			#endif
 
 			uint32_t last_visited = ray_state.ray_data.visited_stack & 0b111;
 			std::vector<std::pair<float, uint32_t>> intersections;

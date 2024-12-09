@@ -20,7 +20,7 @@ public:
 
 	struct Treelet
 	{
-		const static uint SIZE = (8 * 1024) * (8 * 1024);
+		const static uint SIZE = (8 * 10) * (8 * 1024);
 
 		struct alignas(64) Header
 		{
@@ -52,6 +52,16 @@ public:
 				};
 			};
 
+			union ParentData
+			{
+				struct
+				{
+					uint32_t parent_treelet_index : 12;		// parent treelet index
+					uint32_t parent_node_index : 20;		// parent node index in the parent treelet
+				};
+			};
+
+			ParentData parent_data;
 			Data data[WIDTH];
 			AABB aabb[WIDTH];
 
@@ -77,9 +87,9 @@ public:
 #ifndef __riscv
 	std::vector<Treelet> treelets;
 
-	WideTreeletBVH(const rtm::WideBVH& bvh, const rtm::Mesh& mesh)
+	WideTreeletBVH(const rtm::WideBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
-		build(bvh, mesh);
+		build(bvh, mesh, max_cut_size);
 	}
 
 	uint get_node_size(uint node, const rtm::WideBVH& bvh, const rtm::Mesh& mesh)
@@ -326,11 +336,19 @@ public:
 						{
 							tnode.data[j].is_child_treelet = 1;
 							tnode.data[j].child_index = root_node_treelet[child_node_id];
+							// set parent data
+							Treelet::Node& child_node = treelets[tnode.data[j].child_index].nodes[0];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 						else
 						{
 							tnode.data[j].is_child_treelet = 0;
 							tnode.data[j].child_index = node_map[child_node_id];
+							// set parent data
+							Treelet::Node& child_node = treelets[treelet_index].nodes[tnode.data[j].child_index];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 					}
 					else
