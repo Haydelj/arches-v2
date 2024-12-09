@@ -44,22 +44,22 @@ void UnitRayStreamBuffer::clock_fall()
 			{
 				RayData ray_data;
 				std::memcpy(&ray_data, req.data, req.size);
-				if(ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::OVER)
+				if(ray_data.traversal_state == RayData::Traversal_State::OVER)
 				{
 					_complete_ray_buffers.push_back(ray_data);
 					_ray_buffers_size += sizeof(RayData);
 				}
 				else
 				{
-					if(_ray_buffers.count(ray_data.raystate.treelet_id) == 0)
+					if(_ray_buffers.count(ray_data.treelet_id) == 0)
 					{
-						_ray_buffers[ray_data.raystate.treelet_id].push_back(ray_data);
+						_ray_buffers[ray_data.treelet_id].push_back(ray_data);
 						_ray_buffers_size += sizeof(RayData);
-						_idle_ray_buffer.insert(ray_data.raystate.treelet_id);
+						_idle_ray_buffer.insert(ray_data.treelet_id);
 					}
 					else
 					{
-						_ray_buffers[ray_data.raystate.treelet_id].push_back(ray_data);
+						_ray_buffers[ray_data.treelet_id].push_back(ray_data);
 						_ray_buffers_size += sizeof(RayData);
 					}
 				}
@@ -104,12 +104,9 @@ void UnitRayStreamBuffer::_return_hit(std::queue<HitRequest>& queue, uint32_t ba
 	HitRequest hit_req = queue.front();
 	const RayData& ray_data = _complete_ray_buffers.back();
 	STRaTAHitReturn hit_return;
-	rtm::Hit hit;
-	hit.t = ray_data.raystate.hit_t;
-	hit.id = ray_data.raystate.hit_id;
-	hit.bc = rtm::vec2(0.0f);
+	rtm::Hit hit = ray_data.hit;
 	hit_return.hit = hit;
-	hit_return.index = ray_data.raystate.id;
+	hit_return.index = ray_data.global_ray_id;
 	MemoryReturn ret;
 	ret.size = sizeof(STRaTAHitReturn);
 	ret.port = hit_req.port;

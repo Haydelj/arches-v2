@@ -9,6 +9,7 @@
 
 //#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
 //#define ENABLE_RT_DEBUG_PRINTS (ray_state.ray_data.raystate.id == 15)
+//#define ENABLE_RT_DEBUG_PRINTS (_tm_index == 0)
 #define ENABLE_HIT_DEBUG_PRINTS (false)
 #define ENABLE_REQUEST_DEBUG_PRINTS (false)
 
@@ -62,7 +63,6 @@ private:
 		RayData ray_data;
 		rtm::vec3 inv_d;
 
-		rtm::Hit hit;
 		StackEntry stack;
 
 		uint16_t flags;
@@ -74,7 +74,9 @@ private:
 	struct NodeStagingBuffer
 	{
 		rtm::WideTreeletSTRaTABVH::Treelet::Node node;
-		uint16_t ray_id;
+		
+		paddr_t addr;
+		uint16_t bytes_filled;
 
 		NodeStagingBuffer() {};
 	};
@@ -104,7 +106,6 @@ private:
 
 	//ray scheduling hardware
 	std::queue<uint> _ray_scheduling_queue;
-	// std::queue<uint> _ray_return_queue;
 	std::queue<uint> _ray_data_load_queue;
 	std::queue<FetchItem> _fetch_queue;
 	std::queue<RayData> _ray_buffer_store_queue;
@@ -117,7 +118,8 @@ private:
 	std::queue<uint> _hit_store_queue;
 
 	//node pipline
-	std::queue<NodeStagingBuffer> _node_isect_queue;
+	std::vector<NodeStagingBuffer> _node_staging_buffers;
+	std::queue<uint> _node_isect_queue;
 	std::vector<NodeStagingBuffer> _leaf_isect_buffers;
 	Pipline<uint> _box_pipline;
 

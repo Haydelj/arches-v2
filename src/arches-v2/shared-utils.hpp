@@ -102,8 +102,8 @@ public:
 
 	//workload config
 	uint scene_id = 0;
-	uint framebuffer_width = 512;
-	uint framebuffer_height = 512;
+	uint framebuffer_width = 128;
+	uint framebuffer_height = 128;
 	CameraConfig camera_config;
 	bool warm_l2 = 0;
 	bool pregen_rays = 0;

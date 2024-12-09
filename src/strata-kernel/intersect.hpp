@@ -14,14 +14,18 @@ inline void _swi(const RayData& rb)
 	register float f5 asm("f5") = rb.ray.d.y;
 	register float f6 asm("f6") = rb.ray.d.z;
 	register float f7 asm("f7") = rb.ray.t_max;
-	register float f8 asm("f8") = *(float*)&rb.raystate.treelet_id;
-	register float f9 asm("f9") = *(float*)&rb.raystate.treelet_child_id;
-	register float f10 asm("f10") = *(float*)&rb.raystate.hit_id;
-	register float f11 asm("f11") = rb.raystate.hit_t;
-	register float f12 asm("f12") = *(float*)&rb.raystate.id;
-	register float f13 asm("f13") = *(float*)&(rb.raystate.traversal_state);
-	register float f14 asm("f14") = *(float*)&rb.traversal_stack;
-	register float f15 asm("f15") = *(float*)&rb.visited_stack;
+	register float f8 asm("f8") = rb.hit.t;
+	register float f9 asm("f9") = rb.hit.bc.x;
+	register float f10 asm("f10") = rb.hit.bc.y;
+	register float f11 asm("f11") = *(float*)&rb.hit.id;
+	uint32_t temp = (static_cast<uint32_t>(rb.node_id) << 12) | static_cast<uint32_t>(rb.treelet_id);
+	register float f12 asm("f12") = *(float*)&temp;
+	temp = (static_cast<uint32_t>(rb.traversal_state) << 28) | static_cast<uint32_t>(rb.global_ray_id);
+	register float f13 asm("f13") = *(float*)&temp;
+	temp = static_cast<uint32_t>(rb.visited_stack);
+	register float f14 asm("f14") = *(float*)&temp;
+	temp = static_cast<uint32_t>(rb.visited_stack >> 32);
+	register float f15 asm("f15") = *(float*)&temp;
 	asm volatile("swi f0, 256(x0)" : : "f" (f0), "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10), "f" (f11), "f" (f12), "f" (f13), "f" (f14), "f" (f15));
 #endif
 }
