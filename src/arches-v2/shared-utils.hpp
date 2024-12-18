@@ -101,9 +101,9 @@ public:
 	uint logging_interval = 200000;
 
 	//workload config
-	uint scene_id = 0;
-	uint framebuffer_width = 128;
-	uint framebuffer_height = 128;
+	uint scene_id = 1;
+	uint framebuffer_width = 1024;
+	uint framebuffer_height = 1024;
 	CameraConfig camera_config;
 	bool warm_l2 = 0;
 	bool pregen_rays = 0;

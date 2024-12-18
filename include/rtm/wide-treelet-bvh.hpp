@@ -20,7 +20,7 @@ public:
 
 	struct Treelet
 	{
-		const static uint SIZE = (8 * 10) * (8 * 1024);
+		const static uint SIZE = (8 * 128) * (8 * 1024);
 
 		struct alignas(64) Header
 		{
