@@ -123,7 +123,7 @@ typedef Units::UnitDRAMRamulator UnitDRAM;
 typedef Units::UnitCache UnitL2Cache;
 typedef Units::UnitCache UnitL1Cache;
 #if TRAX_USE_COMPRESSED_WIDE_BVH
-typedef Units::TRaX::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
+typedef Units::TRaX::UnitPRTCore<rtm::CompressedWideBVH> UnitRTCore;
 #else
 typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
 #endif
@@ -206,7 +206,7 @@ static void run_sim_trax(GlobalConfig global_config)
 #if 1 //Modern config
 	//Compute
 	double clock_rate = 2.0e9;
-	uint num_threads = 4;
+	uint num_threads = 16;
 	uint num_tps = 128;
 	uint num_tms = 128;
 	uint num_rtc = 2;
@@ -416,6 +416,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		simulator.new_unit_group();
 	}
 
+	printf("Starting TRaX\n");
 	for(auto& tp : tps)
 		tp->set_entry_point(elf.elf_header->e_entry.u64);
 
@@ -452,7 +453,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		printf("                            \n");
 		if(!rtcs.empty())
 		{
-			printf("MRays/s: %.0f\n\n", rtc_delta_log.hits_returned / epsilon_ns * 1000.0);
+			printf("MRays/s: %.0f\n\n", rtc_delta_log.rays / epsilon_ns * 1000.0);
 			rtc_delta_log.print(delta, rtcs.size());
 		}
 	});

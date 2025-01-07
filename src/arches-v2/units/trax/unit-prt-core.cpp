@@ -8,20 +8,25 @@ namespace TRaX {
 
 template<typename NT>
 UnitPRTCore<NT>::UnitPRTCore<NT>(const Configuration& config) :
-	_max_rays(config.max_rays), _num_tp(config.num_tp), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
-	_cache(config.cache), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
+	_max_rays(config.max_rays), _cache_port(config.cache_port), _num_clients(config.num_clients),
+	_node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
+	_cache(config.cache), _request_network(config.num_clients, 1), _return_network(1, config.num_clients),
 	_box_pipline(3), _tri_pipline(22)
 {
-	_ray_states.resize(config.max_rays / PACKET_SIZE);
+	_ray_states.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
 	{
-		_ray_states[i].phase = RayState::Phase::NONE;
+		_ray_states[i].phase = RayState::Phase::RAY_FETCH;
 		_ray_states[i].num_rays = 0;
 		_ray_states[i].return_ray = 0;
 		_ray_states[i].tile_id = 0;
 		_free_ray_ids.insert(i);
 	}
+
+	_box_issues = 0;
+	_tri_issues = 0;
 }
+
 template<typename NT>
 void UnitPRTCore<NT>::clock_rise()
 {
@@ -31,16 +36,8 @@ void UnitPRTCore<NT>::clock_rise()
 
 	if(_ray_scheduling_queue.empty())
 	{
-		for(uint i = 0; i < _ray_states.size(); ++i)
-		{
-			uint phase = (uint)_ray_states[last_ray_id].phase;
+			log.stall_counters[(uint)_ray_states[last_ray_id].phase]++;
 			if(++last_ray_id == _ray_states.size()) last_ray_id = 0;
-			if(phase != 0)
-			{
-				log.stall_counters[phase]++;
-				break;
-			}
-		}
 	}
 
 	for(uint i = 0; i < 1; ++i) //n stack ops per cycle. In reality this would need to be multi banked
@@ -86,18 +83,17 @@ bool UnitPRTCore<NT>::_try_queue_node(uint ray_id, uint node_id)
 }
 
 template<typename NT>
-bool UnitPRTCore<NT>::_try_queue_tri(uint ray_id, uint tri_id)
+bool UnitPRTCore<NT>::_try_queue_tri(uint ray_id, uint tri_id, uint num_tris)
 {
 	paddr_t start = _tri_base_addr + tri_id * sizeof(rtm::Triangle);
-	paddr_t end = start + sizeof(rtm::Triangle);
-
-	_assert(start < 0x1ull << 32);
+	paddr_t end = start + sizeof(rtm::Triangle) * num_tris;
 
 	RayState& ray_state = _ray_states[ray_id];
 	ray_state.buffer.address = start;
 	ray_state.buffer.bytes_filled = 0;
 	ray_state.buffer.type = 1;
 	ray_state.buffer.tri_id = tri_id;
+	ray_state.buffer.num_tris = num_tris;
 
 	//split request at cache boundries
 	//queue the requests to fill the buffer
@@ -123,13 +119,15 @@ void UnitPRTCore<NT>::_read_requests()
 
 		rtm::Ray ray;
 		std::memcpy(&ray, request.data, sizeof(rtm::Ray));
+		uint packet_id = (*(uint*)&ray.t_min) & 0xffff;
 
 		uint ray_id = ~0u;
 		for(uint i = 0; i < _ray_states.size(); ++i)
 		{
 			if(_free_ray_ids.count(i) > 0) continue;
 			if(_ray_states[i].num_rays >= PACKET_SIZE) continue;
-			if(_ray_states[i].tile_id == ray.t_max)
+
+			if(_ray_states[ray_id].tile_id == packet_id);
 			{
 				ray_id = i;
 				break;
@@ -139,7 +137,7 @@ void UnitPRTCore<NT>::_read_requests()
 		if(ray_id == ~0u && !_free_ray_ids.empty())
 		{
 			ray_id = *_free_ray_ids.begin();
-			_ray_states[ray_id].tile_id = ray.t_max;
+			_ray_states[ray_id].tile_id = packet_id;
 			_assert(_ray_states[ray_id].num_rays == 0);
 			_free_ray_ids.erase(ray_id);
 		}
@@ -147,7 +145,7 @@ void UnitPRTCore<NT>::_read_requests()
 		if(ray_id == ~0u) return;
 
 		RayState& ray_state = _ray_states[ray_id];
-		_assert(ray_state.phase == RayState::Phase::NONE);
+		_assert(ray_state.phase == RayState::Phase::RAY_FETCH);
 		uint ray_index = ray_state.num_rays++;
 		ray_state.ray[ray_index] = ray;
 		ray_state.inv_d[ray_index] = rtm::vec3(1.0f) / ray_state.ray[ray_index].d;
@@ -155,13 +153,14 @@ void UnitPRTCore<NT>::_read_requests()
 		ray_state.hit[ray_index].bc = rtm::vec2(0.0f);
 		ray_state.hit[ray_index].id = ~0u;
 		ray_state.stack_size = 1;
-		ray_state.stack[0].t = ray_state.ray[ray_index].t_min;
+		ray_state.stack[0].min_t = ray_state.ray[ray_index].t_min;
 		ray_state.stack[0].data.is_int = 1;
 		ray_state.stack[0].data.child_index = 0;
-		ray_state.stack[0].mask = ~0u;
+		ray_state.stack[0].mask = generate_nbit_mask(PACKET_SIZE);
+		ray_state.max_t = T_MAX;
 		ray_state.current_entry = 0;
 		ray_state.dst[ray_index] = request.dst;
-		ray_state.port[ray_index] = request.port;
+		ray_state.dst[ray_index].push(request.port, 8);
 
 		if(ray_state.num_rays == PACKET_SIZE)
 		{
@@ -178,9 +177,9 @@ void UnitPRTCore<NT>::_read_requests()
 template<typename NT>
 void UnitPRTCore<NT>::_read_returns()
 {
-	if(_cache->return_port_read_valid(_num_tp))
+	if(_cache->return_port_read_valid(_cache_port))
 	{
-		const MemoryReturn ret = _cache->read_return(_num_tp);
+		const MemoryReturn ret = _cache->read_return(_cache_port);
 		uint16_t ray_id = ret.dst.peek(10);
 		RayState& ray_state = _ray_states[ray_id];
 		StagingBuffer& buffer = ray_state.buffer;
@@ -199,7 +198,7 @@ void UnitPRTCore<NT>::_read_returns()
 		}
 		else if(buffer.type == 1)
 		{
-			if(buffer.bytes_filled == sizeof(rtm::Triangle))
+			if(buffer.bytes_filled == sizeof(rtm::Triangle) * buffer.num_tris)
 			{
 				ray_state.phase = RayState::Phase::TRI_ISECT;
 				_tri_isect_queue.push(ray_id);
@@ -217,59 +216,62 @@ void UnitPRTCore<NT>::_schedule_ray()
 		uint ray_id = _ray_scheduling_queue.front();
 		_ray_scheduling_queue.pop();
 
-		if(ENABLE_RT_DEBUG_PRINTS)
-			printf("Scheduling: %d\n", ray_id);
-
 		RayState& ray_state = _ray_states[ray_id];
 		if(ray_state.stack_size > 0)
 		{
 			StackEntry& entry = ray_state.stack[ray_state.stack_size - 1];
-			if(entry.data.is_int)
+			if(entry.min_t >= ray_state.max_t) //pop cull
 			{
-				if(_try_queue_node(ray_id, entry.data.child_index))
+				if(entry.data.is_int)
 				{
-					ray_state.phase = RayState::Phase::NODE_FETCH;
-					ray_state.mask = entry.mask;
-
-					if(ENABLE_RT_DEBUG_PRINTS)
-						printf("Node: %d\n", entry.data.child_index);
-
-					ray_state.stack_size--;
-				}
-				else
-				{
-					_ray_scheduling_queue.push(ray_id);
-				}
-			}
-			else
-			{
-				if(_try_queue_tri(ray_id, entry.data.prim_index))
-				{
-					ray_state.phase = RayState::Phase::TRI_FETCH;
-					ray_state.mask = entry.mask;
-
-					if(ENABLE_RT_DEBUG_PRINTS)
-						printf("Tri: %d:%d\n", entry.data.prim_index, entry.data.num_prims + 1);
-
-					if(entry.data.num_prims == 0)
+					if(_try_queue_node(ray_id, entry.data.child_index))
 					{
+						ray_state.phase = RayState::Phase::NODE_FETCH;
+						ray_state.mask = entry.mask;
+
+						log.issue_counters[(uint)IssueType::NODE_FETCH]++;
+						if(ENABLE_RT_DEBUG_PRINTS)
+							printf("%03d NODE_FETCH: %d\n", ray_id, entry.data.child_index);
+
 						ray_state.stack_size--;
 					}
 					else
 					{
-						entry.data.prim_index++;
-						entry.data.num_prims--;
+						_ray_scheduling_queue.push(ray_id);
 					}
 				}
 				else
 				{
-					_ray_scheduling_queue.push(ray_id);
+					if(_try_queue_tri(ray_id, entry.data.prim_index, entry.data.num_prims))
+					{
+						ray_state.phase = RayState::Phase::TRI_FETCH;
+						ray_state.mask = entry.mask;
+						ray_state.stack_size--;
+
+						log.issue_counters[(uint)IssueType::TRI_FETCH]++;
+						if(ENABLE_RT_DEBUG_PRINTS)
+							printf("%03d TRI_FETCH: %d:%d\n", ray_id, entry.data.prim_index, entry.data.num_prims);
+					}
+					else
+					{
+						_ray_scheduling_queue.push(ray_id);
+					}
 				}
+			}
+			else
+			{
+				ray_state.stack_size--;
+				_ray_scheduling_queue.push(ray_id);
+
+				log.issue_counters[(uint)IssueType::POP_CULL]++;
+				if(ENABLE_RT_DEBUG_PRINTS)
+					printf("%03d POP_CULL\n", ray_id);
 			}
 		}
 		else
 		{
 			//stack empty or anyhit found return the hit
+			log.issue_counters[(uint)IssueType::HIT_RETURN]++;
 			if(ENABLE_RT_DEBUG_PRINTS)
 				printf("Ret: %d\n", ray_state.hit[0].id);
 
@@ -288,46 +290,55 @@ void UnitPRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 		RayState& ray_state = _ray_states[ray_id];
 		const rtm::WideBVH::Node node = ray_state.buffer.node.decompress();
 
-		uint max_insert_depth = ray_state.stack_size;
-		for(uint i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+		_box_issues++;
+		if(_box_issues < popcnt(ray_state.mask) * node.num_aabb() / 3)
 		{
-			if(!node.is_valid(i)) continue;
-
-			float min_t = T_MAX;
-			uint64_t mask = 0x0;
-			for(uint j = 0; j < PACKET_SIZE; ++j)
-			{
-				if(((ray_state.mask >> j) & 0x1) == 0) continue;
-
-				rtm::Ray& ray = ray_state.ray[j];
-				rtm::vec3& inv_d = ray_state.inv_d[j];
-				rtm::Hit& hit = ray_state.hit[j];
-
-				float t = rtm::intersect(node.aabb[i], ray, inv_d);
-				if(t < hit.t)
-				{
-					mask |= 0x1ull << j;
-					min_t = rtm::min(min_t, t);
-				}
-			}
-
-			if(mask)
-			{
-				uint j = ray_state.stack_size++;
-				for(; j > max_insert_depth; --j)
-				{
-					if(ray_state.stack[j - 1].t > min_t) break;
-					ray_state.stack[j] = ray_state.stack[j - 1];
-				}
-
-				ray_state.stack[j].t = min_t;
-				ray_state.stack[j].data = node.data[i];
-				ray_state.stack[j].mask = mask;
-			}
+			_box_pipline.write(~0u);
 		}
+		else
+		{
+			uint max_insert_depth = ray_state.stack_size;
+			for(uint i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+			{
+				if(!node.is_valid(i)) continue;
 
-		_box_pipline.write(ray_id);
-		_node_isect_queue.pop();
+				float min_t = T_MAX;
+				uint64_t mask = 0x0;
+				for(uint j = 0; j < PACKET_SIZE; ++j)
+				{
+					if(((ray_state.mask >> j) & 0x1) == 0) continue;
+
+					rtm::Ray& ray = ray_state.ray[j];
+					rtm::vec3& inv_d = ray_state.inv_d[j];
+					rtm::Hit& hit = ray_state.hit[j];
+
+					float t = rtm::intersect(node.aabb[i], ray, inv_d);
+					if(t < hit.t)
+					{
+						mask |= 0x1ull << j;
+						min_t = rtm::min(min_t, t);
+					}
+				}
+
+				if(mask)
+				{
+					uint j = ray_state.stack_size++;
+					for(; j > max_insert_depth; --j)
+					{
+						if(ray_state.stack[j - 1].min_t > min_t) break;
+						ray_state.stack[j] = ray_state.stack[j - 1];
+					}
+
+					ray_state.stack[j].min_t = min_t;
+					ray_state.stack[j].data = node.data[i];
+					ray_state.stack[j].mask = mask;
+				}
+			}
+
+			_box_pipline.write(ray_id);
+			_node_isect_queue.pop();
+			_box_issues = 0;
+		}
 	}
 
 	_box_pipline.clock();
@@ -339,9 +350,8 @@ void UnitPRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 		{
 			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+			log.nodes++;
 		}
-
-		log.nodes += 2;
 	}
 }
 
@@ -354,45 +364,54 @@ void UnitPRTCore<rtm::WideBVH>::_simualte_node_pipline()
 		RayState& ray_state = _ray_states[ray_id];
 		uint max_insert_depth = ray_state.stack_size;
 
-		for(uint i = 0; i < rtm::WideBVH::WIDTH; i++)
+		_box_issues++;
+		if(_box_issues < popcnt(ray_state.mask) * rtm::WideBVH::WIDTH)
 		{
-			rtm::WideBVH::Node& node = ray_state.buffer.node;
-
-			float min_t = T_MAX;
-			uint64_t mask = 0x0;
-			for(uint j = 0; j < PACKET_SIZE; ++j)
-			{
-				if(((ray_state.mask >> j) & 0x1) == 0) continue;
-
-				rtm::Ray& ray = ray_state.ray[j];
-				rtm::vec3& inv_d = ray_state.inv_d[j];
-				rtm::Hit& hit = ray_state.hit[j];
-
-				float t = rtm::intersect(node.aabb[i], ray, inv_d);
-				if(t < hit.t)
-				{
-					mask |= 0x1ull << j;
-					min_t = rtm::min(min_t, t);
-				}
-			}
-
-			if(mask)
-			{
-				uint j = ray_state.stack_size++;
-				for(; j > max_insert_depth; --j)
-				{
-					if(ray_state.stack[j - 1].t > min_t) break;
-					ray_state.stack[j] = ray_state.stack[j - 1];
-				}
-
-				ray_state.stack[j].t = min_t;
-				ray_state.stack[j].data = node.data[i];
-				ray_state.stack[j].mask = mask;
-			}
+			_box_pipline.write(~0u);
 		}
+		else
+		{
+			for(uint i = 0; i < rtm::WideBVH::WIDTH; i++)
+			{
+				rtm::WideBVH::Node& node = ray_state.buffer.node;
 
-		_box_pipline.write(ray_id);
-		_node_isect_queue.pop();
+				float min_t = T_MAX;
+				uint64_t mask = 0x0;
+				for(uint j = 0; j < PACKET_SIZE; ++j)
+				{
+					if(((ray_state.mask >> j) & 0x1) == 0) continue;
+
+					rtm::Ray& ray = ray_state.ray[j];
+					rtm::vec3& inv_d = ray_state.inv_d[j];
+					rtm::Hit& hit = ray_state.hit[j];
+
+					float t = rtm::intersect(node.aabb[i], ray, inv_d);
+					if(t < hit.t)
+					{
+						mask |= 0x1ull << j;
+						min_t = rtm::min(min_t, t);
+					}
+				}
+
+				if(mask)
+				{
+					uint j = ray_state.stack_size++;
+					for(; j > max_insert_depth; --j)
+					{
+						if(ray_state.stack[j - 1].min_t > min_t) break;
+						ray_state.stack[j] = ray_state.stack[j - 1];
+					}
+
+					ray_state.stack[j].min_t = min_t;
+					ray_state.stack[j].data = node.data[i];
+					ray_state.stack[j].mask = mask;
+				}
+			}
+
+			_box_pipline.write(ray_id);
+			_node_isect_queue.pop();
+			_box_issues = 0;
+		}
 	}
 
 	_box_pipline.clock();
@@ -404,9 +423,8 @@ void UnitPRTCore<rtm::WideBVH>::_simualte_node_pipline()
 		{
 			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+			log.nodes++;
 		}
-
-		log.nodes += 2;
 	}
 }
 
@@ -418,21 +436,35 @@ void UnitPRTCore<NT>::_simualte_tri_pipline()
 		uint ray_id = _tri_isect_queue.front();
 		RayState& ray_state = _ray_states[ray_id];
 
-		for(uint i = 0; i < PACKET_SIZE; ++i)
+		_tri_issues++;
+		if(_tri_issues < popcnt(ray_state.mask) * ray_state.buffer.num_tris * 2)
 		{
-			if(((ray_state.mask >> i) & 0x1) == 0x0) continue;
-
-			rtm::Ray& ray = ray_state.ray[i];
-			rtm::vec3& inv_d = ray_state.inv_d[i];
-			rtm::Hit& hit = ray_state.hit[i];
-			StagingBuffer& buffer = ray_state.buffer;
-
-			if(rtm::intersect(buffer.tri, ray, hit))
-				hit.id = buffer.tri_id;
+			_tri_pipline.write(~0u);
 		}
+		else
+		{
+			for(uint i = 0; i < PACKET_SIZE; ++i)
+			{
+				if(((ray_state.mask >> i) & 0x1) == 0x0) continue;
 
-		_tri_pipline.write(ray_id);
-		_tri_isect_queue.pop();
+				rtm::Ray& ray = ray_state.ray[i];
+				rtm::vec3& inv_d = ray_state.inv_d[i];
+				rtm::Hit& hit = ray_state.hit[i];
+				StagingBuffer& buffer = ray_state.buffer;
+
+				for(uint j = 0; j < buffer.num_tris; ++j)
+					if(rtm::intersect(buffer.tris[j], ray, hit))
+						hit.id = buffer.tri_id;
+			}
+
+			ray_state.max_t = ray_state.hit[0].t;
+			for(uint i = 1; i < PACKET_SIZE; ++i)
+				ray_state.max_t = rtm::max(ray_state.hit[i].t, ray_state.max_t);
+
+			_tri_pipline.write(ray_id);
+			_tri_isect_queue.pop();
+			_box_issues = 0;
+		}
 	}
 
 	_tri_pipline.clock();
@@ -444,16 +476,15 @@ void UnitPRTCore<NT>::_simualte_tri_pipline()
 		{
 			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+			log.tris++;
 		}
-
-		log.tris++;
 	}
 }
 
 template<typename NT>
 void UnitPRTCore<NT>::_issue_requests()
 {
-	if(!_fetch_queue.empty() && _cache->request_port_write_valid(_num_tp))
+	if(!_fetch_queue.empty() && _cache->request_port_write_valid(_cache_port))
 	{
 		//fetch the next block
 		MemoryRequest request;
@@ -461,7 +492,7 @@ void UnitPRTCore<NT>::_issue_requests()
 		request.size = _fetch_queue.front().size;
 		request.dst.push(_fetch_queue.front().ray_id, 10);
 		request.paddr = _fetch_queue.front().addr;
-		request.port = _num_tp;
+		request.port = _cache_port;
 		_cache->write_request(request);
 		_fetch_queue.pop();
 	}
@@ -482,15 +513,15 @@ void UnitPRTCore<NT>::_issue_returns()
 			//fetch the next block
 			MemoryReturn ret;
 			ret.size = sizeof(rtm::Hit);
+			ret.port = ray_state.dst[ray_index].pop(8);
 			ret.dst = ray_state.dst[ray_index];
-			ret.port = ray_state.port[ray_index];
 			ret.paddr = 0xdeadbeefull;
 			std::memcpy(ret.data, &ray_state.hit[ray_index], sizeof(rtm::Hit));
 			_return_network.write(ret, 0);
 
 			if(ray_state.return_ray == PACKET_SIZE)
 			{
-				ray_state.phase = RayState::Phase::NONE;
+				ray_state.phase = RayState::Phase::RAY_FETCH;
 				ray_state.num_rays = 0;
 				ray_state.return_ray = 0;
 				ray_state.tile_id = 0;

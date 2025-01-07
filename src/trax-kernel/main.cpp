@@ -15,6 +15,16 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	return out;
 }
 
+inline static uint f_to_u(float f)
+{
+	return *(uint*)&f;
+}
+
+inline static float u_to_f(uint u)
+{
+	return *(float*)&u;
+}
+
 inline static void kernel(const TRaXKernelArgs& args)
 {
 	constexpr uint TILE_X = 4;
@@ -37,7 +47,9 @@ inline static void kernel(const TRaXKernelArgs& args)
 		rtm::RNG rng(fb_index);
 
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
-		//ray.t_max = (1 << 23) - tile_id;
+
+		ray.t_min = u_to_f((f_to_u(ray.t_min) & 0xffff0000) | (tile_id & 0xffff));
+
 		uint steps = 0;
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 

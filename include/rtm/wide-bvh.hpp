@@ -46,6 +46,13 @@ public:
 		Data data[WIDTH];
 		AABB aabb[WIDTH];
 		bool is_valid(uint i) const { return data[i].is_int || data[i].num_prims > 0; }
+		uint num_aabb() const 
+		{ 
+			uint count = 0; 
+			for(uint i = 0; i < WIDTH; ++i)
+				if(is_valid(i)) count++;
+			return count;
+		}
 	};
 
 

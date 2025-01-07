@@ -3,8 +3,9 @@
 namespace Arches {
 namespace Units {
 
-//#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0)
+#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0 && this->simulator->current_cycle > 0)
 //#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x00000000000014a4 && thread_id == 0)
+#define TP_PRINT_STALL_CYCLES (true)
 
 #ifndef ENABLE_TP_DEBUG_PRINTS 
 #define ENABLE_TP_DEBUG_PRINTS (false)
@@ -313,7 +314,7 @@ void UnitTP::clock_fall()
 			log.log_resource_stall((ISA::RISCV::InstrType)(last_thread_stall_type - 128), last_thread.pc);
 		}
 
-		if (ENABLE_TP_DEBUG_PRINTS && last_thread.instr.data != 0)
+		if (ENABLE_TP_DEBUG_PRINTS && TP_PRINT_STALL_CYCLES && last_thread.instr.data != 0)
 		{
 			printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
 			last_thread.instr_info.print_instr(last_thread.instr);
