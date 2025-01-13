@@ -373,6 +373,8 @@ static void run_sim_strata(GlobalConfig global_config)
 	ray_stream_buffer_config.num_banks = 64;
 	ray_stream_buffer_config.num_tm = num_tms;
 	ray_stream_buffer_config.size = ray_stream_buffer_size; //4MB
+	uint rtc_max_rays = 256;
+	ray_stream_buffer_config.rtc_max_rays = rtc_max_rays;
 	Units::STRaTA::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);
 	simulator.register_unit(&ray_stream_buffer);
 
@@ -410,7 +412,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	#ifdef USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 256;
+		rtc_config.max_rays = rtc_max_rays;
 		rtc_config.num_tp = num_tps_per_tm;
 		rtc_config.tm_index = tm_index;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;

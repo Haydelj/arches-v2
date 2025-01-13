@@ -89,7 +89,7 @@ void UnitTreeletRTCore::_read_requests()
 				if (ENABLE_RT_DEBUG_PRINTS || ENABLE_HIT_DEBUG_PRINTS)
 					printf("TM: %d, global_id: %d, Hit Nothing with nonsense ray\n", _tm_index, ray_data.global_ray_id);
 			}
-			log.rays++;
+			// log.rays++;
 			log.store_rays++;
 		}
 		else if(request.size == sizeof(STRaTAHitReturn))		// load hit

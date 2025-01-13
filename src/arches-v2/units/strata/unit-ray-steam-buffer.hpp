@@ -6,7 +6,7 @@
 #include "strata-kernel/ray-data.hpp"
 #include "strata-kernel/include.hpp"
 
-#define ENABLE_RSB_DEBUG_PRINTS (true)
+#define ENABLE_RSB_DEBUG_PRINTS (false)
 
 namespace Arches { namespace Units { namespace STRaTA {
 
@@ -19,9 +19,10 @@ public:
 		uint num_tm{1};
 		uint num_banks{1};
 		uint latency{1};
+		uint rtc_max_rays{256};
 	};
 	uint64_t _max_size{1024};
-	UnitRayStreamBuffer(const Configuration& config) : UnitMainMemoryBase(config.size), _max_size(config.size),
+	UnitRayStreamBuffer(const Configuration& config) : UnitMainMemoryBase(config.size), _max_size(config.size), _rtc_max_rays(config.rtc_max_rays),
 		_request_network(config.num_tm, config.num_banks), _return_network(config.num_banks, config.num_tm), _banks(config.num_banks, config.latency)
 	{
 		_buffer_address_mask = generate_nbit_mask(log2i(config.size));
@@ -64,7 +65,7 @@ private:
 	std::vector<uint32_t> _tm_remain_rays;
 	std::vector<std::map<uint32_t, std::queue<uint32_t>>> _raydata_request_queue;
 	std::vector<std::vector<std::queue<HitRequest>>> _hit_load_queue;
-	uint32_t clock_ratio = 1;
+	uint32_t _rtc_max_rays;
 
 	void _issue_returns();
 	void _proccess_request(uint bank_index);
