@@ -199,12 +199,12 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 	mesh.reorder(build_objects);
 
 	rtm::CompressedWideBVH cwbvh(wbvh);
-	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh, 16);
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh, 1024);
 	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
 #else
 	rtm::WideBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
-	rtm::WideTreeletBVH wtbvh(wbvh, mesh, 16);
+	rtm::WideTreeletBVH wtbvh(wbvh, mesh, 1024);
 	args.treelets = write_vector(main_memory, page_size, wtbvh.treelets, heap_address);
 #endif
 
@@ -354,7 +354,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	ELF elf(current_folder_path + "../../strata-kernel/riscv/kernel");
 	paddr_t heap_address = dram.write_elf(elf);
 
-	uint64_t ray_stream_buffer_size = 4ull * 1024 * 1024;
+	uint64_t ray_stream_buffer_size = 16ull * 1024 * 1024;
 	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size, ray_stream_buffer_size);
 
 	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
