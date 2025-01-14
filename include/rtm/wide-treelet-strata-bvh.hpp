@@ -43,16 +43,17 @@ public:
 					uint32_t is_child_treelet : 1;
 					uint32_t is_parent_treelet : 1;
 					uint32_t : 1;
-					uint32_t child_index : 20;
-					uint32_t parent_index : 20;			// parent treelet index
-					uint32_t parent_child_index : 20;	// child index in parent treelet
+					uint32_t child_index : 9;
+					uint32_t parent_index : 9;			// parent treelet index
+					uint32_t parent_child_index : 10;	// child index in parent treelet
 				};
 				struct
 				{
+					uint32_t : 1;
 					uint32_t num_tri : 2;
-					uint32_t triangle_index : 32;
-					uint32_t : 10;
-					uint32_t leaf_parent_child_index : 20;
+					uint32_t triangle_index : 19;
+					// uint32_t : 10;
+					uint32_t leaf_parent_child_index : 10;
 				};
 			};
 
