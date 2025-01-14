@@ -71,7 +71,6 @@ public:
 				piplines[pipline_index].write(req);
 			}
 
-			piplines[pipline_index].clock();
 		}
 	}
 
@@ -84,6 +83,7 @@ public:
 				SFURequest ret = piplines[pipline_index].read();
 				return_crossbar.write(ret, pipline_index);
 			}
+			piplines[pipline_index].clock();
 		}
 
 		return_crossbar.clock();

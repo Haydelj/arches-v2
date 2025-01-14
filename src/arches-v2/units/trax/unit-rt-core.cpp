@@ -120,7 +120,7 @@ void UnitRTCore<NT>::_read_requests()
 		ray_state.current_entry = 0;
 		ray_state.flags = request.flags;
 		ray_state.dst = request.dst;
-		ray_state.port = request.port;
+		ray_state.dst.push(request.port, 8);
 
 		ray_state.phase = RayState::Phase::SCHEDULER;
 		_ray_scheduling_queue.push(ray_id);
@@ -230,91 +230,60 @@ void UnitRTCore<NT>::_schedule_ray()
 	}
 }
 
-template<>
-void UnitRTCore<rtm::WideBVH>::_simualte_node_pipline()
+static rtm::WideBVH::Node decompress(const rtm::WideBVH::Node& node)
 {
-	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
-	{
-		uint ray_id = _node_isect_queue.front();
-		RayState& ray_state = _ray_states[ray_id];
-
-		rtm::Ray& ray = ray_state.ray;
-		rtm::vec3& inv_d = ray_state.inv_d;
-		rtm::Hit& hit = ray_state.hit;
-		const rtm::WideBVH::Node& node = ray_state.buffer.node;
-
-		uint max_insert_depth = ray_state.stack_size;
-		for(int i = 0; i < 2; i++)
-		{
-			if(!node.is_valid(i)) continue;
-
-			float t = rtm::intersect(node.aabb[i], ray, inv_d);
-			if(t < hit.t)
-			{
-				uint j = ray_state.stack_size++;
-				for(; j > max_insert_depth; --j)
-				{
-					if(ray_state.stack[j - 1].t > t) break;
-					ray_state.stack[j] = ray_state.stack[j - 1];
-				}
-				ray_state.stack[j].t = t;
-				ray_state.stack[j].data = node.data[i];
-			}
-		}
-
-		_box_pipline.write(ray_id);
-		_node_isect_queue.pop();
-	}
-
-	_box_pipline.clock();
-
-	if(_box_pipline.is_read_valid())
-	{
-		uint ray_id = _box_pipline.read();
-		if(ray_id != ~0u)
-		{
-			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
-			_ray_scheduling_queue.push(ray_id);
-		}
-
-		log.nodes++;
-	}
+	return node;
 }
 
-template<>
-void UnitRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
+static rtm::WideBVH::Node decompress(const rtm::CompressedWideBVH::Node& node)
+{
+	return node.decompress();
+}
+
+
+template<typename NT>
+void UnitRTCore<NT>::_simualte_node_pipline()
 {
 	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
 	{
 		uint ray_id = _node_isect_queue.front();
 		RayState& ray_state = _ray_states[ray_id];
+		const rtm::WideBVH::Node& node = decompress(ray_state.buffer.node);
 
-		rtm::Ray& ray = ray_state.ray;
-		rtm::vec3& inv_d = ray_state.inv_d;
-		rtm::Hit& hit = ray_state.hit;
-		const rtm::WideBVH::Node& node = ray_state.buffer.node.decompress();
-
-		uint max_insert_depth = ray_state.stack_size;
-		for(int i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+		_box_issue_count += 2;
+		if(_box_issue_count >= node.num_aabb())
 		{
-			if(!node.is_valid(i)) continue;
+			rtm::Ray& ray = ray_state.ray;
+			rtm::vec3& inv_d = ray_state.inv_d;
+			rtm::Hit& hit = ray_state.hit;
 
-			float t = rtm::intersect(node.aabb[i], ray, inv_d);
-			if(t < hit.t)
+			uint max_insert_depth = ray_state.stack_size;
+			for(uint i = 0; i < rtm::WideBVH::WIDTH; ++i)
 			{
-				uint j = ray_state.stack_size++;
-				for(; j > max_insert_depth; --j)
-				{
-					if(ray_state.stack[j - 1].t > t) break;
-					ray_state.stack[j] = ray_state.stack[j - 1];
-				}
-				ray_state.stack[j].t = t;
-				ray_state.stack[j].data = node.data[i];
-			}
-		}
+				if(!node.is_valid(i)) continue;
 
-		_box_pipline.write(ray_id);
-		_node_isect_queue.pop();
+				float t = rtm::intersect(node.aabb[i], ray, inv_d);
+				if(t < hit.t)
+				{
+					uint j = ray_state.stack_size++;
+					for(; j > max_insert_depth; --j)
+					{
+						if(ray_state.stack[j - 1].t > t) break;
+						ray_state.stack[j] = ray_state.stack[j - 1];
+					}
+					ray_state.stack[j].t = t;
+					ray_state.stack[j].data = node.data[i];
+				}
+			}
+
+			_box_pipline.write(ray_id);
+			_node_isect_queue.pop();
+			_box_issue_count = 0;
+		}
+		else
+		{
+			_box_pipline.write(~0);
+		}
 	}
 
 	_box_pipline.clock();
@@ -326,9 +295,8 @@ void UnitRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 		{
 			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+			log.nodes++;
 		}
-
-		log.nodes++;
 	}
 }
 
@@ -339,23 +307,22 @@ void UnitRTCore<NT>::_simualte_tri_pipline()
 	{
 		uint ray_id = _tri_isect_queue.front();
 		RayState& ray_state = _ray_states[ray_id];
-
-		rtm::Ray& ray = ray_state.ray;
-		rtm::vec3& inv_d = ray_state.inv_d;
-		rtm::Hit& hit = ray_state.hit;
 		StagingBuffer& buffer = ray_state.buffer;
 
-		if(rtm::intersect(buffer.tris[_tri_isect_index], ray, hit))
+		_tri_issue_count += 1;
+		if(_tri_issue_count >= buffer.num_tris)
 		{
-			hit.id = buffer.tri_id + _tri_isect_index;
-		}
+			rtm::Ray& ray = ray_state.ray;
+			rtm::vec3& inv_d = ray_state.inv_d;
+			rtm::Hit& hit = ray_state.hit;
 
-		_tri_isect_index++;
-		if(_tri_isect_index >= buffer.num_tris)
-		{
-			_tri_isect_index = 0;
-			_tri_isect_queue.pop();
+			for(uint i = 0; i < buffer.num_tris; ++i)
+				if(rtm::intersect(buffer.tris[i], ray, hit))
+					hit.id = buffer.tri_id + i;
+
 			_tri_pipline.write(ray_id);
+			_tri_isect_queue.pop();
+			_tri_issue_count = 0;
 		}
 		else
 		{
@@ -410,8 +377,8 @@ void UnitRTCore<NT>::_issue_returns()
 			//fetch the next block
 			MemoryReturn ret;
 			ret.size = sizeof(rtm::Hit);
+			ret.port = ray_state.dst.pop(8);
 			ret.dst = ray_state.dst;
-			ret.port = ray_state.port;
 			ret.paddr = 0xdeadbeefull;
 			std::memcpy(ret.data, &ray_state.hit, sizeof(rtm::Hit));
 			_return_network.write(ret, 0);

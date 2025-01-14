@@ -68,178 +68,247 @@ inline static L delta_log(L& master_log, T& unit)
 	return delta_log;
 }
 
-enum SCENES
-{
-	SPONZA = 0,
-	INTEL_SPONZA,
-	SAN_MIGUEL,
-	HAIRBALL,
-	CORNELLBOX,
-	LIVING_ROOM,
-	NUMBER,
-};
+const static std::vector<std::string> arch_names = {"TRaX", "Dual-Streaming", "RIC"};
 
-std::vector<std::string> scene_names = { "sponza", "intel-sponza", "san-miguel", "hairball", "cornellbox" , "living_room"};
-
-struct CameraConfig
+struct SceneConfig
 {
-	rtm::vec3 position;
-	rtm::vec3 target;
+	std::string name;
+	rtm::vec3 cam_pos;
+	rtm::vec3 cam_target;
 	float focal_length;
 };
 
-static const CameraConfig camera_configs[SCENES::NUMBER] =
+const static std::vector<SceneConfig> scene_configs =
 {
-	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
+	{"sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
 
-	{rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
+	{"intel-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
 	
-	{rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
+	{"san-miguel", rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
 	
-	{rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
+	{"hairball", rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
 
-	{rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
+	{"cornellbox", rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
 
-	{rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f} //LIVING_ROOM
+	{"living_room", rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f} //LIVING_ROOM
 };
 
-class GlobalConfig
+
+class SimulationConfig
 {
 public:
-	//simulator config
-	uint simulator = 0; //0-trax, 1-dual-streaming, 2-ric
-	uint logging_interval = 10000;
-
-	//workload config
-	uint scene_id = 0;
-	uint framebuffer_width = 256;
-	uint framebuffer_height = 256;
-
-	CameraConfig camera_config;
-	bool warm_l2 = 0;
-	bool pregen_rays = 0;
-	uint pregen_bounce = 0; //0-primary, 1-secondary, etc.
-
-	//dual streaming
-	bool use_scene_buffer = 0;
-	bool rays_on_chip = 0;
-	bool hits_on_chip = 1;
-	bool use_early = 1;
-	bool hit_delay = 0;
-	uint hit_buffer_size = 1024 * 1024; // number of hits, assuming 128 * 16 * 1024 B = 2MB
-	uint traversal_scheme = 0; // 0-BFS, 1-DFS
-	uint weight_scheme = 2; // 0 total, 1 average, 2 none
-
-	//ric
-	uint max_active_set_size = 36 << 20;
-
-public:
-	GlobalConfig(int argc, char* argv[])
+	struct Param
 	{
-		auto ParseCommand = [&](char* argv)
+		enum Type
 		{
-			std::string s(argv);
-			size_t pos = s.find("=");
-			if(pos == std::string::npos)
-			{
-				return;
-			}
-			// -Dxxx=yyy
-			auto key = s.substr(2, pos - 2);
-			auto value = s.substr(pos + 1, s.size() - (pos + 1));
+			INT,
+			FLOAT,
+			STRING,
+		}
+		type;
 
-			if(key == "simulator")
-			{
-				simulator = std::stoi(value);
-			}
-			if(key == "scene_name")
-			{
-				for(int i = 0; i < Arches::scene_names.size(); i++)
-				{
-					if(Arches::scene_names[i] == value)
-					{
-						scene_id = i;
-					}
-				}
-			}
-			if (key == "scene_id")
-			{
-				scene_id = stoi(value);
-			}
-			if(key == "framebuffer_width")
-			{
-				framebuffer_width = std::stoi(value);
-			}
-			if(key == "framebuffer_height")
-			{
-				framebuffer_height = std::stoi(value);
-			}
-			if(key == "traversal_scheme")
-			{
-				traversal_scheme = std::stoi(value);
-			}
-			if(key == "hit_buffer_size")
-			{
-				hit_buffer_size = std::stoi(value);
-			}
-			if(key == "use_scene_buffer")
-			{
-				use_scene_buffer = std::stoi(value);
-			}
-			if(key == "rays_on_chip")
-			{
-				rays_on_chip = std::stoi(value);
-			}
-			if(key == "hits_on_chip")
-			{
-				hits_on_chip = std::stoi(value);
-			}
-			if(key == "use_early")
-			{
-				use_early = std::stoi(value);
-			}
-			if(key == "hit_delay")
-			{
-				hit_delay = std::stoi(value);
-			}
-			if (key == "warm_l2")
-			{
-				warm_l2 = std::stoi(value);
-			}
-			if(key == "pregen_rays")
-			{
-				pregen_rays = std::stoi(value);
-			}
-			if(key == "pregen_bounce")
-			{
-				pregen_bounce = std::stoi(value);
-			}
-			if(key == "weight_scheme")
-			{
-				weight_scheme = std::stoi(value);
-			}
-			if(key == "logging_interval")
-			{
-				logging_interval = std::stoi(value);
-			}
-			if(key == "buffer")
-			{
-				if(std::stoi(value) == 0)
-					setvbuf(stdout, (char*)NULL, _IONBF, 0);
-			}
-			if(key == "max_active_set_size")
-			{
-				max_active_set_size = std::stoi(value);
-			}
-
-			std::cout << key << ' ' << value << '\n';
+		union
+		{
+			int i;
+			float f;
+			std::string s;
 		};
 
-		// 0 is .exe
-		for(int i = 1; i < argc; i++)
-			ParseCommand(argv[i]);
+		Param() {};
 
-		camera_config = camera_configs[scene_id];
+		Param(const Param& other)
+		{
+			*this = other;
+		}
+
+		Param& operator=(const Param& other)
+		{
+			type = other.type;
+			if(type == Param::Type::STRING)
+			{
+				s = std::string(other.s);
+			}
+			else
+			{
+				i = other.i;
+			}
+			return *this;
+		}
+
+		~Param()
+		{
+		}
+	};
+
+	rtm::Camera camera;
+
+private:
+	std::map<std::string, Param> _params;
+
+public:
+	SimulationConfig(int argc, char* argv[])
+	{
+		//Simulation
+		set_param("logging_interval", 10000);
+
+		//Arch
+		set_param("arch_name", "TRaX");
+		set_param("num_threads", 4);
+		set_param("num_tms", 128);
+		set_param("num_tps", 128);
+		set_param("num_rt_cores", 1);
+
+		set_param("l2_size", 72 << 20);
+		set_param("l2_associativity", 18);
+		set_param("l2_in_order", 1);
+
+		set_param("l1_size", 128 << 10);
+		set_param("l1_associativity", 16);
+		set_param("l1_in_order", 1);
+
+		//Workload
+		set_param("scene_name", "sponza");
+		set_param("framebuffer_width", 1024);
+		set_param("framebuffer_height", 1024);
+
+		//DS
+		set_param("warm_l2", 0);
+		set_param("pregen_rays", 0);
+		set_param("pregen_bounce", 0);
+
+		set_param("use_scene_buffer", 0);
+		set_param("rays_on_chip", 0);
+		set_param("hits_on_chip", 0);
+		set_param("use_early", 0);
+		set_param("hit_delay", 0);
+		set_param("hit_buffer_size", 1024 * 1024);
+		set_param("traversal_scheme", 0);
+		set_param("weight_scheme", 0);
+
+		//RIC
+		set_param("max_active_set_size", 36 << 20);
+
+		for(uint i = 1; i < argc; ++i)
+		{
+			std::string arg(argv[i]);
+			size_t start_pos = arg.find("--");
+			size_t split_pos = arg.find("=");
+			if(start_pos == std::string::npos || split_pos == std::string::npos) continue;
+
+			//--xxx=yyy
+			start_pos += 2;
+			std::string key = arg.substr(start_pos, split_pos - start_pos);
+			split_pos++;
+			std::string value = arg.substr(split_pos, arg.size() - split_pos);
+
+			parse_param(key, value);
+		}
+
+		set_param("arch_id", -1);
+		for(int i = 0; i < arch_names.size(); ++i)
+			if(get_string("arch_name").compare(arch_names[i]) == 0)
+				set_param("arch_id", i);
+		_assert(get_int("arch_id") != -1);
+
+		set_param("scene_id", -1);
+		for(int i = 0; i < scene_configs.size(); ++i)
+			if(get_string("scene_name").compare(scene_configs[i].name) == 0)
+				set_param("scene_id", i);
+		_assert(get_int("scene_id") != -1);
+
+		uint scene_id = get_int("scene_id");
+		camera = rtm::Camera(get_int("framebuffer_width"), get_int("framebuffer_height"), scene_configs[scene_id].focal_length, scene_configs[scene_id].cam_pos, scene_configs[scene_id].cam_target);
+	}
+
+	int get_int(const std::string& key) const
+	{
+		const auto& a = _params.find(key);
+		_assert(a != _params.end());
+		_assert(a->second.type == Param::Type::INT);
+		return a->second.i;
+	}
+
+	float get_float(const std::string& key) const
+	{
+		const auto& a = _params.find(key);
+		_assert(a != _params.end());
+		_assert(a->second.type == Param::Type::FLOAT);
+		return a->second.f;
+	}
+
+	std::string get_string(const std::string& key) const
+	{
+		const auto& a = _params.find(key);
+		_assert(a != _params.end());
+		_assert(a->second.type == Param::Type::STRING);
+		return a->second.s;
+	}
+
+
+	void set_param(const std::string& key, int value)
+	{
+		_params[key].type = Param::Type::INT;
+		_params[key].i = value;
+	}
+
+	void set_param(const std::string& key, float value)
+	{
+		_params[key].type = Param::Type::FLOAT;
+		_params[key].f = value;
+	}
+
+	void set_param(const std::string& key, const std::string& value)
+	{
+		_params[key].type = Param::Type::STRING;
+		_params[key].s = std::string(value);
+	}
+
+	void parse_param(const std::string& key, const std::string& str)
+	{
+		if(_params.count(key))
+		{
+			if(_params[key].type == Param::Type::INT)
+			{
+				_params[key].i = std::stoi(str);
+			}
+			else if(_params[key].type == Param::Type::FLOAT)
+			{
+				_params[key].f = std::stof(str);
+			}
+			else if(_params[key].type == Param::Type::STRING)
+			{
+				_params[key].s = std::string(str);
+			}
+			else _assert(false);
+		}
+		else
+		{
+			printf("Invalid Param!: %s\n", key.c_str());
+			_assert(false);
+		}
+	}
+
+	void print()
+	{
+		printf("Simulation Parameters\n");
+		for(std::pair<const std::string, Param>& a : _params)
+		{
+			if(a.second.type == Param::Type::INT)
+			{
+				printf("%s: %d\n", a.first.c_str(), a.second.i);
+			}
+			else if(a.second.type == Param::Type::FLOAT)
+			{
+				printf("%s: %f\n", a.first.c_str(), a.second.f);
+			}
+			else if(a.second.type == Param::Type::STRING)
+			{
+				printf("%s: %s\n", a.first.c_str(), a.second.s.c_str());
+			}
+			else _assert(false);
+		}
+		printf("\n");
 	}
 };
+
 }

@@ -10,19 +10,21 @@ int arches_verbosity = 1;
 
 int main(int argc, char* argv[])
 {
-	Arches::GlobalConfig global_config(argc, argv);
+	Arches::SimulationConfig sim_config(argc, argv);
+	sim_config.print();
 
-	if (global_config.simulator == 0)
+
+	if (sim_config.get_string("arch_name") == "TRaX")
 	{
-		Arches::TRaX::run_sim_trax(global_config);
+		Arches::TRaX::run_sim_trax(sim_config);
 	}
-	else if (global_config.simulator == 1)
+	else if (sim_config.get_string("arch_name") == "Dual-Streaming")
 	{
-		Arches::DualStreaming::run_sim_dual_streaming(global_config);
+		Arches::DualStreaming::run_sim_dual_streaming(sim_config);
 	}
-	else if(global_config.simulator == 2)
+	else if(sim_config.get_string("arch_name") == "RIC")
 	{
-		Arches::RIC::run_sim_ric(global_config);
+		Arches::RIC::run_sim_ric(sim_config);
 	}
 	
 	return 0;

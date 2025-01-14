@@ -76,30 +76,10 @@ const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom
 
 namespace RIC {
 
-class UnitL1Cache : public Units::UnitCache
-{
-private:
-	std::pair<paddr_t, paddr_t> _treelet_range;
-
-public:
-	UnitL1Cache(const UnitCache::Configuration& config, const std::pair<paddr_t, paddr_t>& treelet_range) :
-		UnitCache(config), _treelet_range(treelet_range)
-	{
-	}
-
-private:
-	UnitMemoryBase* _get_mem_higher(paddr_t addr) override
-	{
-		if(addr >= _treelet_range.first && addr < _treelet_range.second)
-			return _mem_highers[1];
-
-		return _mem_highers[0];
-	}
-};
-
 #include "ric-kernel/include.hpp"
 #include "ric-kernel/intersect.hpp"
 
+typedef Units::UnitCache UnitL1Cache;
 typedef Units::UnitCache UnitL2Cache;
 typedef Units::UnitDRAMRamulator UnitDRAM;
 #if	DS_USE_COMPRESSED_WIDE_BVH
@@ -108,23 +88,23 @@ typedef rtm::CompressedWideTreeletBVH::Treelet SceneSegment;
 typedef rtm::WideTreeletBVH::Treelet SceneSegment;
 #endif
 
-static RICKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
+static RICKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
 {
-	std::string scene_name = scene_names[global_config.scene_id];
+	std::string scene_name = sim_config.get_string("scene_name");
 	std::string project_folder = get_project_folder_path();
 	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
 	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
 
 	RICKernelArgs args;
-	args.framebuffer_width = global_config.framebuffer_width;
-	args.framebuffer_height = global_config.framebuffer_height;
+	args.framebuffer_width = sim_config.get_int("framebuffer_width");
+	args.framebuffer_height = sim_config.get_int("framebuffer_height");
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
+	args.camera = sim_config.camera;
 
 	rtm::Mesh mesh(scene_file);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
@@ -133,10 +113,11 @@ static RICKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, p
 	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
 	mesh.reorder(build_objects);
 
-	args.pregen_rays = global_config.pregen_rays;
+	args.pregen_rays = sim_config.get_int("pregen_rays");
+
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, sim_config.get_int("pregen_bounce"), rays);
 	
 	std::vector<MinRayState> ray_states(args.framebuffer_size);
 	for(uint i = 0; i < ray_states.size(); ++i)
@@ -178,16 +159,16 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-static void run_sim_ric(const GlobalConfig& global_config)
+static void run_sim_ric(const SimulationConfig& sim_config)
 {
 	std::string project_folder = get_project_folder_path();
 	
 #if 1 //Modern config
 	double clock_rate = 2.0e9;
-	uint num_threads = 4;
-	uint num_tps = 128;
-	uint num_tms = 128;
-	uint num_rtc = 1;
+	uint num_threads = sim_config.get_int("num_threads");
+	uint num_tps = sim_config.get_int("num_tps");
+	uint num_tms = sim_config.get_int("num_tms");
+	uint num_rtc = sim_config.get_int("num_rt_cores");
 	uint64_t stack_size = 512;
 
 	//Memory
@@ -205,11 +186,11 @@ static void run_sim_ric(const GlobalConfig& global_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.in_order = false;
+	l2_config.in_order = sim_config.get_int("l2_in_order");
 	l2_config.level = 2;
-	l2_config.size = 72ull << 20; //72MB
 	l2_config.block_size = block_size;
-	l2_config.associativity = 18;
+	l2_config.size = sim_config.get_int("l2_size");
+	l2_config.associativity = sim_config.get_int("l2_associativity");
 	l2_config.num_partitions = num_partitions;
 	l2_config.partition_select_mask = partition_mask;
 	l2_config.num_banks = 2;
@@ -228,11 +209,11 @@ static void run_sim_ric(const GlobalConfig& global_config)
 
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
-	l1d_config.in_order = true;
+	l1d_config.in_order = sim_config.get_int("l1_in_order");
 	l1d_config.level = 1;
-	l1d_config.size = 128ull << 10; //128KB
 	l1d_config.block_size = block_size;
-	l1d_config.associativity = 16;
+	l1d_config.size = sim_config.get_int("l1_size");
+	l1d_config.associativity = sim_config.get_int("l1_associativity");
 	l1d_config.num_banks = 4;
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.crossbar_width = 4;
@@ -295,7 +276,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 
 	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
-	RICKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, partition_stride);
+	RICKernelArgs kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride);
 	heap_address = align_to(partition_stride * num_partitions, heap_address);
 	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(SceneSegment)};
 
@@ -321,8 +302,8 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	Units::RIC::UnitRayCoalescer::Configuration ray_coalescer_config;
 	ray_coalescer_config.num_banks = 32;
 	ray_coalescer_config.num_channels = num_partitions;
-	ray_coalescer_config.traversal_scheme = global_config.traversal_scheme;
-	ray_coalescer_config.weight_scheme = global_config.weight_scheme;
+	ray_coalescer_config.traversal_scheme = sim_config.get_int("traversal_scheme");
+	ray_coalescer_config.weight_scheme = sim_config.get_int("weight_scheme");
 	ray_coalescer_config.num_tms = num_tms * num_rtc;
 	ray_coalescer_config.block_size = block_size;
 	ray_coalescer_config.row_size = partition_stride;
@@ -330,14 +311,14 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	ray_coalescer_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	ray_coalescer_config.heap_addr = *(paddr_t*)&heap_address;
 	ray_coalescer_config.cheat_treelets = (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
-	ray_coalescer_config.max_active_segments_size = global_config.max_active_set_size;
+	ray_coalescer_config.max_active_segments_size = sim_config.get_int("max_active_set_size");
 	ray_coalescer_config.l2_cache = &l2;
 	ray_coalescer_config.main_mem = &dram;
 	ray_coalescer_config.main_mem_port_stride = dram_ports_per_controller;
 	ray_coalescer_config.main_mem_port_offset = *unused_dram_ports.begin();
 	unused_dram_ports.erase(*unused_dram_ports.begin());
 
-	if(global_config.rays_on_chip)
+	if(sim_config.get_int("rays_on_chip"))
 	{
 		ray_coalescer_config.main_mem = &sram;
 	}
@@ -358,7 +339,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 		std::vector<Units::UnitSFU*> sfu_list;
 
 		l1d_config.mem_higher_port = tm_index;
-		l1ds.push_back(_new UnitL1Cache(l1d_config, global_config.use_scene_buffer ? treelet_range : std::pair<paddr_t, paddr_t>(0ull, 0ull)));
+		l1ds.push_back(_new UnitL1Cache(l1d_config));
 		simulator.register_unit(l1ds.back());
 		mem_list.push_back(l1ds.back());
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
@@ -400,7 +381,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 			sfus.push_back(sfu);
 
 		Units::RIC::UnitTreeletRTCore<SceneSegment>::Configuration rtc_config;
-		rtc_config.early_t = global_config.use_early;
+		rtc_config.early_t = sim_config.get_int("use_early");
 		rtc_config.max_rays = 256 / num_rtc;
 		rtc_config.num_tp = num_tps;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
@@ -454,12 +435,14 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	Units::RIC::UnitTreeletRTCore<SceneSegment>::Log rtc_log;
 	Units::RIC::UnitRayCoalescer::Log rc_log;
 
-	uint delta = global_config.logging_interval;
+	uint delta = sim_config.get_int("logging_interval");
 	auto start = std::chrono::high_resolution_clock::now();
 	simulator.execute(delta, [&]() -> void
 	{
 		float delta_us = delta / (clock_rate / 1'000'000);
 		float delta_ns = delta / (clock_rate / 1'000'000'000);
+
+		Units::UnitTP::Log tp_delta_log = delta_log(tp_log, tps);
 
 		Units::UnitBuffer::Log sram_delta_log = delta_log(sram_log, sram);
 		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
@@ -491,8 +474,11 @@ static void run_sim_ric(const GlobalConfig& global_config)
 		printf(" L2$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total(), 100.0 * l2_delta_log.half_misses / l2_delta_log.get_total(), 100.0 * l2_delta_log.misses / l2_delta_log.get_total());
 		printf("L1d$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.half_misses / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.misses / l1d_delta_log.get_total());
 		printf("                               \n");
-		printf("GRays/s: %2.1f\n\n", rtc_delta_log.rays / delta_ns);
-		rtc_delta_log.print(delta, rtcs.size());
+		printf("GRays/s: %2.1f\n", rtc_delta_log.rays / delta_ns);
+		printf("                               \n");
+		tp_delta_log.print(tps.size());
+		printf("                               \n");
+		rtc_delta_log.print(rtcs.size());
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
 
@@ -520,7 +506,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 
 	print_header("TP");
 	delta_log(tp_log, tps);
-	tp_log.print(frame_cycles, tps.size());
+	tp_log.print(tps.size());
 
 	print_header("Ray Coalescer");
 	delta_log(rc_log, ray_coalescer);
@@ -529,8 +515,11 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	if(!rtcs.empty())
 	{
 		print_header("RT Core");
+		float duplication = (float)rtc_log.rays / kernel_args.framebuffer_size;
+		printf("Ray duplication: %.2f\n", duplication);
+		rtc_log.rays = kernel_args.framebuffer_size;
 		delta_log(rtc_log, rtcs);
-		rtc_log.print(frame_cycles, rtcs.size());
+		rtc_log.print(rtcs.size());
 	}
 
 	float total_energy = total_power * frame_time;
@@ -552,7 +541,7 @@ static void run_sim_ric(const GlobalConfig& global_config)
 
 	print_header("Treelet Histogram");
 
-#if 0
+#if 1
 	uint treelet_counts[16];
 	std::map<uint, uint64_t> treelet_histos[16];
 
@@ -563,10 +552,10 @@ static void run_sim_ric(const GlobalConfig& global_config)
 	{
 		if(a.first >= treelet_range.first && a.first < treelet_range.second)
 		{
-			uint treelet_id = (a.first - (paddr_t)kernel_args.treelets) / rtm::PackedTreelet::SIZE;
-			paddr_t treelet_addr = (paddr_t)kernel_args.treelets + treelet_id * rtm::PackedTreelet::SIZE;
-			rtm::PackedTreelet::Header header;
-			dram.direct_read(&header, sizeof(rtm::PackedTreelet::Header), treelet_addr);
+			uint treelet_id = (a.first - (paddr_t)kernel_args.treelets) / rtm::CompressedWideTreeletBVH::Treelet::SIZE;
+			paddr_t treelet_addr = (paddr_t)kernel_args.treelets + treelet_id * rtm::CompressedWideTreeletBVH::Treelet::SIZE;
+			rtm::CompressedWideTreeletBVH::Treelet::Header header;
+			dram.direct_read(&header, sizeof(rtm::CompressedWideTreeletBVH::Treelet::Header), treelet_addr);
 			uint offset = a.first - treelet_addr;
 
 			treelet_histos[header.depth][offset] += a.second;

@@ -18,7 +18,7 @@ private:
 public:
 	Pipline(uint latency)
 	{
-		uint pipline_regs = latency + 1;
+		uint pipline_regs = latency;
 		_pipline_state.resize((pipline_regs + 63) / 64);
 		_latency = latency;
 	}
@@ -49,13 +49,13 @@ public:
 
 	bool is_write_valid()
 	{
-		return !((_pipline_state.back() >> (_latency & 0x3f)) & 0x1);
+		return !((_pipline_state.back() >> ((_latency - 1) & 0x3f)) & 0x1);
 	}
 
 	void write(const T& entry)
 	{
 		_assert(is_write_valid());
-		_pipline_state.back() |= (0x1ull << (_latency & 0x3f));
+		_pipline_state.back() |= (0x1ull << ((_latency - 1) & 0x3f));
 		_queue.push(entry);
 	}
 
@@ -252,8 +252,11 @@ public:
 	}
 };
 
+template <typename T>
+using I = Interconnect<T>;
+
 template<typename T>
-class BufferedInterconnect : public Interconnect<T>
+class BufferedInterconnect : public I<T>
 {
 protected:
 	std::vector<std::queue<T>> _source_fifos;
@@ -263,27 +266,27 @@ protected:
 
 public:
 	BufferedInterconnect(uint sources, uint sinks, uint source_fifo_depth = default_fifo_depth, uint sink_fifo_depth = default_fifo_depth) : 
-		Interconnect<T>(sources, sinks), _source_fifos(sources), _sink_fifos(sinks), _source_fifo_depth(source_fifo_depth), _sink_fifo_depth(sink_fifo_depth) {}
+		I<T>(sources, sinks), _source_fifos(sources), _sink_fifos(sinks), _source_fifo_depth(source_fifo_depth), _sink_fifo_depth(sink_fifo_depth) {}
 
 	virtual void clock() override
 	{
 		for(uint i = 0; i < _source_fifos.size(); ++i)
-			Interconnect<T>::_input_pending[i] = _source_fifos[i].size() >= _source_fifo_depth;
+			I<T>::_input_pending[i] = _source_fifos[i].size() >= _source_fifo_depth;
 
 		for(uint i = 0; i < _sink_fifos.size(); ++i)
-			Interconnect<T>::_output_pending[i] = _sink_fifos[i].size() > 0;
+			I<T>::_output_pending[i] = _sink_fifos[i].size() > 0;
 	}
 
 	const T& peek(uint sink_index) override
 	{
-		_assert(Interconnect<T>::is_read_valid(sink_index));
+		_assert(I<T>::is_read_valid(sink_index));
 		return _sink_fifos[sink_index].front();
 	}
 
 	const T read(uint sink_index) override
 	{
 		const T t = peek(sink_index);
-		Interconnect<T>::_output_pending[sink_index] = 0;
+		I<T>::_output_pending[sink_index] = 0;
 		_sink_fifos[sink_index].pop();
 		return t;
 	}
@@ -291,7 +294,7 @@ public:
 	void write(const T& transaction, uint source_index) override
 	{
 		_assert(Interconnect<T>::is_write_valid(source_index));
-		Interconnect<T>::_input_pending[source_index] = 1;
+		I<T>::_input_pending[source_index] = 1;
 		_source_fifos[source_index].push(transaction);
 	}
 };
@@ -317,7 +320,7 @@ public:
 
 	void clock() override
 	{
-		for(uint source_index = 0; source_index < Interconnect<T>::num_sources(); ++source_index)
+		for(uint source_index = 0; source_index < I<T>::num_sources(); ++source_index)
 		{
 			if(BI<T>::_source_fifos[source_index].empty()) continue;
 
@@ -327,7 +330,7 @@ public:
 			_arbiters[cascade_index].add(cascade_source_index);
 		}
 
-		for(uint sink_index = 0; sink_index < Interconnect<T>::num_sinks(); ++sink_index)
+		for(uint sink_index = 0; sink_index < I<T>::num_sinks(); ++sink_index)
 		{
 			if((BI<T>::_sink_fifos[sink_index].size() >= BI<T>::_sink_fifo_depth) || !_arbiters[sink_index].num_pending()) continue;
 
@@ -361,7 +364,7 @@ public:
 
 	void clock() override
 	{
-		for(uint source_index = 0; source_index < Interconnect<T>::num_sources(); ++source_index)
+		for(uint source_index = 0; source_index < I<T>::num_sources(); ++source_index)
 		{
 			if(BI<T>::_source_fifos[source_index].empty()) continue;
 

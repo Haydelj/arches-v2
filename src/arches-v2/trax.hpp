@@ -123,31 +123,31 @@ typedef Units::UnitDRAMRamulator UnitDRAM;
 typedef Units::UnitCache UnitL2Cache;
 typedef Units::UnitCache UnitL1Cache;
 #if TRAX_USE_COMPRESSED_WIDE_BVH
-typedef Units::TRaX::UnitPRTCore<rtm::CompressedWideBVH> UnitRTCore;
+typedef Units::TRaX::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
 #else
-typedef Units::TRaX::UnitPRTCore<rtm::PackedBVH2> UnitRTCore;
+typedef Units::TRaX::UnitRTCore<rtm::PackedBVH2> UnitRTCore;
 #endif
 
-static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size)
+static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
 {
-	std::string scene_name = scene_names[global_config.scene_id];
+	std::string scene_name = sim_config.get_string("scene_name");
 	std::string project_folder = get_project_folder_path();
 	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
 	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
 
 	TRaXKernelArgs args;
-	args.framebuffer_width = global_config.framebuffer_width;
-	args.framebuffer_height = global_config.framebuffer_height;
+	args.framebuffer_width = sim_config.get_int("framebuffer_width");
+	args.framebuffer_height = sim_config.get_int("framebuffer_height");
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
-	args.pregen_rays = global_config.pregen_rays;
+	args.pregen_rays = sim_config.get_int("pregen_rays");
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
+	args.camera = sim_config.camera;
 
 	rtm::Mesh mesh(scene_file);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
@@ -158,7 +158,7 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays, true);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, sim_config.get_int("pregen_bounce"), rays, true);
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 
 #if TRAX_USE_COMPRESSED_WIDE_BVH
@@ -199,17 +199,17 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-static void run_sim_trax(GlobalConfig global_config)
+static void run_sim_trax(SimulationConfig& sim_config)
 {
 	std::string project_folder_path = get_project_folder_path();
 
 #if 1 //Modern config
 	//Compute
 	double clock_rate = 2.0e9;
-	uint num_threads = 16;
-	uint num_tps = 128;
-	uint num_tms = 128;
-	uint num_rtc = 2;
+	uint num_threads = sim_config.get_int("num_threads");
+	uint num_tps = sim_config.get_int("num_tps");
+	uint num_tms = sim_config.get_int("num_tms");
+	uint num_rtc = sim_config.get_int("num_rt_cores");
 	uint64_t stack_size = 512;
 
 	//Memory
@@ -227,11 +227,11 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.in_order = false;
+	l2_config.in_order = sim_config.get_int("l2_in_order");
 	l2_config.level = 2;
-	l2_config.size = 72ull << 20; //72MB
 	l2_config.block_size = block_size;
-	l2_config.associativity = 18;
+	l2_config.size = sim_config.get_int("l2_size");
+	l2_config.associativity = sim_config.get_int("l2_associativity");
 	l2_config.num_partitions = num_partitions;
 	l2_config.partition_select_mask = partition_mask;
 	l2_config.num_banks = 2;
@@ -250,11 +250,11 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
-	l1d_config.in_order = true;
+	l1d_config.in_order = sim_config.get_int("l1_in_order");
 	l1d_config.level = 1;
-	l1d_config.size = 128ull << 10; //128KB
 	l1d_config.block_size = block_size;
-	l1d_config.associativity = 16;
+	l1d_config.size = sim_config.get_int("l1_size");
+	l1d_config.associativity = sim_config.get_int("l1_associativity");
 	l1d_config.num_banks = 4;
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.crossbar_width = 4;
@@ -302,7 +302,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
-	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, partition_stride);
+	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride);
 
 	l2_config.num_ports = num_tms;
 	l2_config.mem_highers = {&dram};
@@ -311,9 +311,9 @@ static void run_sim_trax(GlobalConfig global_config)
 	simulator.register_unit(&l2);
 	simulator.new_unit_group();
 
-	std::string l2_cache_path = project_folder_path + "\\datasets\\cache\\" + scene_names[global_config.scene_id] + "-" + std::to_string(global_config.pregen_bounce) + "-l2.cache";
+	std::string l2_cache_path = project_folder_path + "\\datasets\\cache\\" + sim_config.get_string("scene_name") + "-" + std::to_string(sim_config.get_int("pregen_bounce")) + "-l2.cache";
 	bool deserialized_cache = false;
-	if (global_config.warm_l2)
+	if (sim_config.get_int("warm_l2"))
 	{
 		deserialized_cache = l2.deserialize(l2_cache_path, dram);
 		//l2.copy(TRAX_KERNEL_ARGS_ADDRESS, dram._data_u8 + TRAX_KERNEL_ARGS_ADDRESS, sizeof(kernel_args));
@@ -429,7 +429,7 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	UnitRTCore::Log rtc_log;
 
-	uint delta = global_config.logging_interval;
+	uint delta = sim_config.get_int("logging_interval");
 	auto start = std::chrono::high_resolution_clock::now();
 	simulator.execute(delta, [&]() -> void
 	{
@@ -454,7 +454,7 @@ static void run_sim_trax(GlobalConfig global_config)
 		if(!rtcs.empty())
 		{
 			printf("MRays/s: %.0f\n\n", rtc_delta_log.rays / epsilon_ns * 1000.0);
-			rtc_delta_log.print(delta, rtcs.size());
+			rtc_delta_log.print(rtcs.size());
 		}
 	});
 
@@ -487,13 +487,13 @@ static void run_sim_trax(GlobalConfig global_config)
 
 	print_header("TP");
 	delta_log(tp_log, tps);
-	tp_log.print(frame_cycles, tps.size());
+	tp_log.print(tps.size());
 
 	if(!rtcs.empty())
 	{
 		print_header("RT Core");
 		delta_log(rtc_log, rtcs);
-		rtc_log.print(frame_cycles, rtcs.size());
+		rtc_log.print(rtcs.size());
 	}
 
 	float total_energy = total_power * frame_time;

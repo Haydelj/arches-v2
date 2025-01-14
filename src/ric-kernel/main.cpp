@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 	mesh.get_triangles(tris);
 	args.tris = tris.data();
 
-	std::vector<RayState> ray_states(args.framebuffer_size);
+	std::vector<MinRayState> ray_states(args.framebuffer_size);
 	for(int i = 0; i < args.framebuffer_size; i++)
 	{
 		ray_states[i].ray = rays[i];

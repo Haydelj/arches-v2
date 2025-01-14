@@ -86,7 +86,6 @@ private:
 
 		MemoryRequest::Flags flags;
 		BitStack27 dst;
-		uint16_t port;
 
 		StagingBuffer buffer;
 
@@ -117,11 +116,12 @@ private:
 	//node pipline
 	std::queue<uint> _node_isect_queue;
 	Pipline<uint> _box_pipline;
+	uint _box_issue_count{0};
 
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
-	uint _tri_isect_index{0};
+	uint _tri_issue_count{0};
 
 	//meta data
 	uint _max_rays;
@@ -214,7 +214,7 @@ public:
 				counters[i] += other.counters[i];
 		}
 
-		void print(cycles_t cycles, uint num_units = 1)
+		void print(uint num_units = 1)
 		{
 			const static std::string phase_names[] =
 			{
@@ -269,11 +269,11 @@ public:
 
 			printf("\nIssue Cycles: %lld (%.2f%%)\n", issue_total / num_units, 100.0f * issue_total / total);
 			for(uint i = 0; i < _issue_counter_pairs.size(); ++i)
-				if(_issue_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _issue_counter_pairs[i].first, _issue_counter_pairs[i].second / num_units, 100.0 * _issue_counter_pairs[i].second / num_units / cycles);
+				if(_issue_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _issue_counter_pairs[i].first, _issue_counter_pairs[i].second / num_units, 100.0 * _issue_counter_pairs[i].second / total);
 
 			printf("\nStall Cycles: %lld (%.2f%%)\n", stall_total / num_units, 100.0f * stall_total / total);
 			for(uint i = 0; i < _data_stall_counter_pairs.size(); ++i)
-				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / num_units / cycles);
+				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / total);
 		};
 	}log;
 };

@@ -246,18 +246,18 @@ void UnitRayCoalescer::_update_scheduler()
 				state.num_tms++;
 			}
 
-			//for(uint i = 0; i < _scheduler.last_segment_on_tm.size(); ++i)
-			//{
-			//	if(i % 16 == 0) printf("\n");
-			//	printf("\033[%d;5;%dm", (i == tm_index ? 48 : 38), (rtm::RNG::hash(_scheduler.last_segment_on_tm[i] + 1) % 216) + 16);
-			//	printf("%04d", _scheduler.last_segment_on_tm[i]);
-			//	printf("\033[0m ");
-			//	if(active_segemnts.count(_scheduler.last_segment_on_tm[i]) == 0)
-			//		active_segemnts.insert(_scheduler.last_segment_on_tm[i]);
-			//}
-			//printf("\n");
-			//printf("%03d, %03d(%2.2fMB), %03d", _scheduler.retired_segments, _scheduler.active_segments.size(), _scheduler.active_segments_size / ((float)(1 << 20)), active_segemnts.size());
-			//printf("\r\033[9A");
+			for(uint i = 0; i < _scheduler.last_segment_on_tm.size(); ++i)
+			{
+				if(i % 16 == 0) printf("\n");
+				printf("\033[3%dm", (rtm::RNG::hash(_scheduler.last_segment_on_tm[i] + 1) % 8));
+				printf("%04d", _scheduler.last_segment_on_tm[i]);
+				printf("\033[0m ");
+				if(active_segemnts.count(_scheduler.last_segment_on_tm[i]) == 0)
+					active_segemnts.insert(_scheduler.last_segment_on_tm[i]);
+			}
+			printf("\n");
+			printf("%03d, %03d(%2.2fMB), %03d", _scheduler.retired_segments, _scheduler.active_segments.size(), _scheduler.active_segments_size / ((float)(1 << 20)), active_segemnts.size());
+			printf("\r\033[9A");
 
 
 			paddr_t bucket_adddress = state.bucket_address_queue.front();
@@ -326,7 +326,7 @@ void UnitRayCoalescer::_prefetch(uint segment)
 {
 	rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment].header;
 	paddr_t start = _scheduler.treelet_addr + segment * sizeof(rtm::CompressedWideTreeletBVH::Treelet);
-	paddr_t end = align_to(_block_size, start + 1 * 128 * 1024);
+	paddr_t end = align_to(_block_size, start + 0);
 	start += sizeof(rtm::CompressedWideTreeletBVH::Treelet::Header);
 	for(paddr_t addr = start; addr < end; addr += _block_size)
 	{

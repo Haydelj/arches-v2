@@ -410,7 +410,6 @@ void UnitCache::clock_rise()
 
 			if(_request_network.is_read_valid(i) && bank.request_pipline.is_write_valid())
 				bank.request_pipline.write(_request_network.read(i));
-			bank.request_pipline.clock();
 		}
 	}
 
@@ -431,11 +430,14 @@ void UnitCache::clock_fall()
 			Bank& bank = partition.banks[b];
 			uint i = p * partition.banks.size() + b;
 
-			bank.return_pipline.clock();
 			if(bank.return_pipline.is_read_valid() && _return_network.is_write_valid(i))
 				_return_network.write(bank.return_pipline.read(), i);
+
+			bank.return_pipline.clock();
+			bank.request_pipline.clock();
 		}
 	}
+
 	_return_network.clock();
 }
 
