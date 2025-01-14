@@ -27,6 +27,10 @@ int main(int argc, char* argv[])
 	{
 		Arches::RIC::run_sim_ric(sim_config);
 	}
+	else if (global_config.simulator == 2)
+	{
+		Arches::STRaTA::run_sim_strata(global_config);
+	}
 	
 	return 0;
 }

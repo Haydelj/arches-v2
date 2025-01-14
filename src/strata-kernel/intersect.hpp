@@ -14,14 +14,14 @@ inline void _swi(const RayData& rb)
 	register float f5 asm("f5") = rb.ray.d.y;
 	register float f6 asm("f6") = rb.ray.d.z;
 	register float f7 asm("f7") = rb.ray.t_max;
-	register float f8 asm("f8") = rb.raystate.treelet_id;
-	register float f9 asm("f9") = rb.raystate.treelet_child_id;
-	register float f10 asm("f10") = rb.raystate.hit_id;
+	register float f8 asm("f8") = *(float*)&rb.raystate.treelet_id;
+	register float f9 asm("f9") = *(float*)&rb.raystate.treelet_child_id;
+	register float f10 asm("f10") = *(float*)&rb.raystate.hit_id;
 	register float f11 asm("f11") = rb.raystate.hit_t;
-	register float f12 asm("f12") = rb.raystate.id;
-	register float f13 asm("f13") = static_cast<float>(rb.raystate.traversal_state);
-	register float f14 asm("f14") = rb.traversal_stack;
-	register float f15 asm("f15") = rb.visited_stack;
+	register float f12 asm("f12") = *(float*)&rb.raystate.id;
+	register float f13 asm("f13") = *(float*)&(rb.raystate.traversal_state);
+	register float f14 asm("f14") = *(float*)&rb.traversal_stack;
+	register float f15 asm("f15") = *(float*)&rb.visited_stack;
 	asm volatile("swi f0, 256(x0)" : : "f" (f0), "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10), "f" (f11), "f" (f12), "f" (f13), "f" (f14), "f" (f15));
 #endif
 }
@@ -34,7 +34,7 @@ inline STRaTAHitReturn _lhit(rtm::Hit* src)
 	register float dst2 asm("f29");
 	register float dst3 asm("f30");
 	register float dst4 asm("f31");
-	asm volatile("lhit %0, 0(%4)" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3), "=f" (dst4) : "r" (src) : "memory");
+	asm volatile("lhit %0, 0(%5)" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3), "=f" (dst4) : "r" (src) : "memory");
 
 	STRaTAHitReturn hit_return;
 	hit_return.hit.t = dst0;

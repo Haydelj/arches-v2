@@ -167,6 +167,12 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 	args.framebuffer_width = global_config.framebuffer_width;
 	args.framebuffer_height = global_config.framebuffer_height;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
+	heap_address = align_to(page_size, heap_address);
+	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
+	heap_address += args.framebuffer_size * sizeof(uint32_t);
+
+	std::vector<rtm::Hit> hits(args.framebuffer_size, {T_MAX, rtm::vec2(0.0), ~0u});
+	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
 
 	// secondary rays only
 	args.pregen_rays = global_config.pregen_rays;
@@ -184,10 +190,6 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
-
-	heap_address = align_to(page_size, heap_address);
-	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
-	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
 #ifdef USE_COMPRESSED_WIDE_BVH
 	rtm::CompressedWideBVH cwbvh(bvh2);
@@ -230,8 +232,8 @@ static void run_sim_strata(GlobalConfig global_config)
 	//Compute
 	uint64_t stack_size = 1ull << 10; //1KB
 	uint num_threads_per_tp = 4;
-	uint num_tps_per_tm = 64;
-	uint num_tms = 64;
+	uint num_tps_per_tm = 128;
+	uint num_tms = 128;
 
 	//DRAM 
 	uint64_t mem_size = 1ull << 32; //4GB
@@ -256,11 +258,11 @@ static void run_sim_strata(GlobalConfig global_config)
 	UnitL2Cache::Configuration l2_config;
 	l2_config.size = 512ull * 1024; //512KB for treelet data
 	l2_config.block_size = block_size;
-	l2_config.num_mshr = 128;
+	l2_config.num_mshr = 256;
 	l2_config.associativity = 8;
-	l2_config.latency = 10;
-	l2_config.cycle_time = 4;
-	l2_config.num_banks = 64;
+	l2_config.latency = 200;
+	l2_config.cycle_time = 1;
+	l2_config.num_banks = 32;
 	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
 		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
 
@@ -276,11 +278,10 @@ static void run_sim_strata(GlobalConfig global_config)
 	l1d_config.size = 128ull * 1024; //128KB
 	l1d_config.block_size = block_size;
 	l1d_config.associativity = 4;
-	l1d_config.latency = 1;
+	l1d_config.latency = 30;
 	l1d_config.num_banks = 8;
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
-	l1d_config.use_lfb = false;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
@@ -407,8 +408,9 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	#ifdef USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
-		rtc_config.max_rays = 128;
+		rtc_config.max_rays = 256;
 		rtc_config.num_tp = num_tps_per_tm;
+		rtc_config.tm_index = tm_index;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.hit_record_base_addr = (paddr_t)kernel_args.hit_records;
 		rtc_config.cache = l1ds.back();
@@ -518,7 +520,6 @@ static void run_sim_strata(GlobalConfig global_config)
 	cycles_t frame_cycles = simulator.current_cycle;
 	double frame_time = frame_cycles / clock_rate;
 	double simulation_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0;
-	float total_power = dram.total_power();
 
 	tp_log.print_profile(dram._data_u8);
 
@@ -526,6 +527,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	print_header("DRAM");
 	delta_log(dram_log, dram);
 	dram_log.print(frame_cycles);
+	float total_power = dram.total_power();
 
 	print_header("L2$");
 	delta_log(l2_log, l2);

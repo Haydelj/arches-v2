@@ -61,7 +61,6 @@ private:
 
 		rtm::Hit hit;
 		StackEntry stack;
-		uint32_t stack_size;
 
 		uint16_t flags;
 		uint16_t port;
@@ -79,7 +78,7 @@ private:
 
 	struct TriStagingBuffer
 	{
-		rtm::WideTreeletSTRaTABVH::Treelet::Triangle tri;
+		rtm::WideTreeletSTRaTABVH::Treelet::Triangle tris[3];
 		paddr_t addr;
 		uint16_t num_tris;
 		uint16_t bytes_filled;
@@ -121,6 +120,7 @@ private:
 	std::vector<TriStagingBuffer> _tri_staging_buffers;
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
+	uint _tri_isect_index{0};
 
 	//meta data
 	uint _max_rays;
