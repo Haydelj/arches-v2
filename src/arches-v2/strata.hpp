@@ -262,7 +262,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.size = 512ull * 1024; //512KB for treelet data
+	l2_config.size = 16ull * 1024 * 1024; //for treelet data
 	l2_config.block_size = block_size;
 	l2_config.num_mshr = 256;
 	l2_config.associativity = 8;

@@ -6,6 +6,8 @@
 #include "strata-kernel/ray-data.hpp"
 #include "strata-kernel/include.hpp"
 
+#define ENABLE_RSB_DEBUG_PRINTS (true)
+
 namespace Arches { namespace Units { namespace STRaTA {
 
 class UnitRayStreamBuffer : public UnitMainMemoryBase
@@ -25,6 +27,7 @@ public:
 		_buffer_address_mask = generate_nbit_mask(log2i(config.size));
 		_tm_buffer_table.resize(config.num_tm, ~0u);
 		_idle_ray_buffer.clear();
+		_tm_remain_rays.resize(config.num_tm, 0u);
 		_raydata_request_queue.resize(config.num_banks);
 		_hit_load_queue.resize(2);
 		for(uint i = 0; i < 2; i++)
@@ -58,8 +61,10 @@ private:
 	uint64_t _buffer_address_mask;
 	std::vector<uint32_t> _tm_buffer_table;		// <tm_id, treelet_id> pair
 	std::set<uint32_t> _idle_ray_buffer;
+	std::vector<uint32_t> _tm_remain_rays;
 	std::vector<std::map<uint32_t, std::queue<uint32_t>>> _raydata_request_queue;
 	std::vector<std::vector<std::queue<HitRequest>>> _hit_load_queue;
+	uint32_t clock_ratio = 1;
 
 	void _issue_returns();
 	void _proccess_request(uint bank_index);

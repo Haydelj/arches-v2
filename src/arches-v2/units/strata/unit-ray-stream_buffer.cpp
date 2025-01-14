@@ -4,73 +4,99 @@ namespace Arches { namespace Units { namespace STRaTA {
 
 void UnitRayStreamBuffer::clock_rise()
 {
-	_request_network.clock();
+	for (uint clk = 0; clk < clock_ratio; ++clk)
+	{
+		_request_network.clock();
 
-	for(uint i = 0; i < _banks.size(); ++i)
-		_proccess_request(i);
+		for (uint i = 0; i < _banks.size(); ++i)
+			_proccess_request(i);
+	}
 }
 
 void UnitRayStreamBuffer::clock_fall()
 {
-	for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	for (uint clk = 0; clk < clock_ratio; ++clk)
 	{
-		Bank& bank = _banks[bank_index];
-		bank.data_pipline.clock();
-
-		if(!bank.data_pipline.is_read_valid()) continue;
-
-		const MemoryRequest& req = bank.data_pipline.peek();
-		if(req.size == sizeof(STRaTAHitReturn))		// process load hit
+		if (ENABLE_RSB_DEBUG_PRINTS && (simulator->current_cycle % 10000 == 0))
 		{
-			_assert(req.type == MemoryRequest::Type::LOAD);
-			HitRequest hit_req;
-			hit_req.paddr = req.paddr;
-			hit_req.port = req.port;
-			hit_req.dst = req.dst;
-			uint16_t priority = req.paddr >> 31;
-			_hit_load_queue[priority][bank_index].push(hit_req);
-			bank.data_pipline.read();
-		}
-		else
-		{
-			_assert(req.size == sizeof(RayData));
-			if(req.type == MemoryRequest::Type::LOAD)
+			uint max_ray = 0, count2 = 0;
+			for (auto itr : _tm_remain_rays)
 			{
-				_raydata_request_queue[bank_index][req.port].push(req.dst);
-				bank.data_pipline.read();
-				log.ray_request_push_count++;
+				if (itr > max_ray)
+					max_ray = itr;
 			}
-			else if(req.type == MemoryRequest::Type::STORE)
+			/*for (auto itr : _tm_buffer_table)
 			{
-				RayData ray_data;
-				std::memcpy(&ray_data, req.data, req.size);
-				if(ray_data.traversal_state == RayData::Traversal_State::OVER)
+				if (itr != ~0u)
+					count2++;
+			}*/
+			printf("Ray Stream Buffer: %03d TMs working, maximum of rays: %03d\n", _ray_buffers.size(), max_ray);
+		}
+
+		for (uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+		{
+			Bank& bank = _banks[bank_index];
+			bank.data_pipline.clock();
+
+			if (!bank.data_pipline.is_read_valid()) continue;
+
+			const MemoryRequest& req = bank.data_pipline.peek();
+			if (req.size == sizeof(STRaTAHitReturn))		// process load hit
+			{
+				_assert(req.type == MemoryRequest::Type::LOAD);
+				HitRequest hit_req;
+				hit_req.paddr = req.paddr;
+				hit_req.port = req.port;
+				hit_req.dst = req.dst;
+				uint16_t priority = req.paddr >> 31;
+				_hit_load_queue[priority][bank_index].push(hit_req);
+				bank.data_pipline.read();
+			}
+			else
+			{
+				_assert(req.size == sizeof(RayData));
+				if (req.type == MemoryRequest::Type::LOAD)
 				{
-					_complete_ray_buffers.push_back(ray_data);
-					_ray_buffers_size += sizeof(RayData);
+					_raydata_request_queue[bank_index][req.port].push(req.dst);
+					bank.data_pipline.read();
+					log.ray_request_push_count++;
 				}
-				else
+				else if (req.type == MemoryRequest::Type::STORE)
 				{
-					if(_ray_buffers.count(ray_data.treelet_id) == 0)
+					RayData ray_data;
+					std::memcpy(&ray_data, req.data, req.size);
+					if ((_tm_buffer_table[req.port] != ~0u) && (_tm_remain_rays[req.port] > 0) && ((ray_data.visited_stack != 1) || (ray_data.traversal_state == RayData::Traversal_State::OVER)))
 					{
-						_ray_buffers[ray_data.treelet_id].push_back(ray_data);
+						_tm_remain_rays[req.port]--;
+					}
+					if (ray_data.traversal_state == RayData::Traversal_State::OVER)
+					{
+						_complete_ray_buffers.push_back(ray_data);
 						_ray_buffers_size += sizeof(RayData);
-						_idle_ray_buffer.insert(ray_data.treelet_id);
 					}
 					else
 					{
-						_ray_buffers[ray_data.treelet_id].push_back(ray_data);
-						_ray_buffers_size += sizeof(RayData);
+						if (_ray_buffers.count(ray_data.treelet_id) == 0)
+						{
+							_ray_buffers[ray_data.treelet_id].push_back(ray_data);
+							_ray_buffers_size += sizeof(RayData);
+							_idle_ray_buffer.insert(ray_data.treelet_id);
+						}
+						else
+						{
+							_ray_buffers[ray_data.treelet_id].push_back(ray_data);
+							_ray_buffers_size += sizeof(RayData);
+						}
 					}
+					log.stores++;
+					log.bytes_written += req.size;
+					bank.data_pipline.read();
 				}
-				log.stores++;
-				log.bytes_written += req.size;
-				bank.data_pipline.read();
 			}
 		}
+		_issue_returns();
+		_return_network.clock();
 	}
-	_issue_returns();
-	_return_network.clock();
 }
 
 void UnitRayStreamBuffer::_proccess_request(uint bank_index)
@@ -89,6 +115,7 @@ MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, uint dst)
 	MemoryReturn ret;
 	uint32_t treelet_id = *_idle_ray_buffer.begin();
 	_tm_buffer_table[tm_index] = treelet_id;
+	_tm_remain_rays[tm_index]++;
 	_assert(_ray_buffers[treelet_id].size() > 0);
 	std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), sizeof(RayData));
 	ret.size = sizeof(RayData);
@@ -116,6 +143,7 @@ void UnitRayStreamBuffer::_return_hit(std::queue<HitRequest>& queue, uint32_t ba
 	log.loads++;
 	log.bytes_read += sizeof(STRaTAHitReturn);
 	_complete_ray_buffers.pop_back();
+	_assert(_ray_buffers_size >= sizeof(RayData));
 	_ray_buffers_size -= sizeof(RayData);
 	_return_network.write(ret, bank_index);
 	queue.pop();
@@ -168,13 +196,18 @@ void UnitRayStreamBuffer::_issue_returns()
 					uint32_t treelet_id = _tm_buffer_table[port];
 					if (_ray_buffers[treelet_id].size() == 0)	// if the ray buffer is empty, allocate a new ray buffer to the tm
 					{
-						_ray_buffers.erase(treelet_id);
-						_tm_buffer_table[port] = ~0u;
-						if (_idle_ray_buffer.empty())
+						if (_tm_remain_rays[port] == 0)
 						{
-							continue;
+							_ray_buffers.erase(treelet_id);
+							_tm_buffer_table[port] = ~0u;
+							if (_idle_ray_buffer.empty())
+							{
+								continue;
+							}
+							ret = allocate_ray_buffer(port, dst);
 						}
-						ret = allocate_ray_buffer(port, dst);
+						else				// the tm is still processing the treelet
+							continue;
 					}
 					else
 					{
@@ -183,8 +216,10 @@ void UnitRayStreamBuffer::_issue_returns()
 						ret.port = port;
 						ret.dst = dst;
 						_ray_buffers[treelet_id].pop_back();
+						_tm_remain_rays[port]++;
 					}
 				}
+				_assert(_ray_buffers_size >= sizeof(RayData));
 				_ray_buffers_size -= sizeof(RayData);
 				itr->second.pop();
 				log.ray_request_pop_count++;

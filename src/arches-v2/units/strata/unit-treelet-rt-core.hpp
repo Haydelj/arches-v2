@@ -8,7 +8,7 @@
 #include "unit-ray-steam-buffer.hpp"
 
 //#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
-//#define ENABLE_RT_DEBUG_PRINTS (ray_state.ray_data.raystate.id == 15)
+//#define ENABLE_RT_DEBUG_PRINTS (ray_state.ray_data.global_ray_id == 9416)
 //#define ENABLE_RT_DEBUG_PRINTS (_tm_index == 0)
 #define ENABLE_HIT_DEBUG_PRINTS (false)
 #define ENABLE_REQUEST_DEBUG_PRINTS (false)
@@ -261,7 +261,8 @@ public:
 			{
 				"NONE",
 				"SCHEDULER",
-				"HIT_RETURN",
+				"RAY_FETCH",
+				"HIT_UPDATE",
 				"NODE_FETCH",
 				"TRI_FETCH",
 				"NODE_ISECT",
