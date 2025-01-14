@@ -195,13 +195,16 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
 
 #ifdef USE_COMPRESSED_WIDE_BVH
-	rtm::CompressedWideBVH cwbvh(bvh2);
-	mesh.reorder(cwbvh.indices);
-	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
+
+	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh, 16);
+	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
 #else
 	rtm::WideBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
-	rtm::WideTreeletSTRaTABVH wtbvh(wbvh, mesh);
+	rtm::WideTreeletBVH wtbvh(wbvh, mesh, 16);
 	args.treelets = write_vector(main_memory, page_size, wtbvh.treelets, heap_address);
 #endif
 
@@ -330,11 +333,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 
-#ifdef USE_COMPRESSED_WIDE_BVH
-	typedef Units::STRaTA::UnitTreeletRTCore<rtm::CompressedWideBVH> UnitRTCore;
-#else
 	typedef Units::STRaTA::UnitTreeletRTCore UnitRTCore;
-#endif
 	std::vector<UnitRTCore*> rtcs;
 
 	std::vector<UnitL1Cache*> l1ds;

@@ -3,7 +3,7 @@
 
 #define USE_RT_CORE
 #define USE_HARDWARE_INTERSECTORS
-// #define USE_COMPRESSED_WIDE_BVH
+#define USE_COMPRESSED_WIDE_BVH
 
 #define KERNEL_ARGS_ADDRESS 256ull
 
@@ -25,7 +25,7 @@ struct STRaTAKernelArgs
 #ifdef USE_COMPRESSED_WIDE_BVH
 	rtm::CompressedWideTreeletBVH::Treelet* treelets;
 #else
-	rtm::WideTreeletSTRaTABVH::Treelet* treelets;
+	rtm::WideTreeletBVH::Treelet* treelets;
 #endif
 	rtm::Triangle* tris;
 	rtm::Hit* hit_records;

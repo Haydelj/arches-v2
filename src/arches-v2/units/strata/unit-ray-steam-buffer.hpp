@@ -4,6 +4,7 @@
 #include "units/unit-base.hpp"
 #include "units/unit-main-memory-base.hpp"
 #include "strata-kernel/ray-data.hpp"
+#include "strata-kernel/include.hpp"
 
 namespace Arches { namespace Units { namespace STRaTA {
 

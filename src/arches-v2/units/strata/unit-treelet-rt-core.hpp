@@ -17,6 +17,12 @@
 #define ENABLE_RT_DEBUG_PRINTS (false)
 #endif
 
+#ifdef USE_COMPRESSED_WIDE_BVH
+typedef rtm::CompressedWideTreeletBVH::Treelet TREELET;
+#else
+typedef rtm::WideTreeletBVH::Treelet TREELET;
+#endif
+
 namespace Arches { namespace Units { namespace STRaTA {
 
 class UnitTreeletRTCore : public UnitMemoryBase
@@ -42,8 +48,8 @@ private:
 		{
 			float t;
 			uint32_t treelet;
-			rtm::WideTreeletSTRaTABVH::Treelet::Node::Data data;
-			rtm::WideTreeletSTRaTABVH::Treelet::Node::ParentData parent_data;
+			rtm::WideTreeletBVH::Treelet::Node::Data data;
+			rtm::WideTreeletBVH::Treelet::Node::ParentData parent_data;
 		};
 
 		enum class Phase
@@ -73,7 +79,7 @@ private:
 
 	struct NodeStagingBuffer
 	{
-		rtm::WideTreeletSTRaTABVH::Treelet::Node node;
+		TREELET::Node node;
 		
 		paddr_t addr;
 		uint16_t bytes_filled;
@@ -83,7 +89,7 @@ private:
 
 	struct TriStagingBuffer
 	{
-		rtm::WideTreeletSTRaTABVH::Treelet::Triangle tris[3];
+		TREELET::Triangle tris[3];
 		paddr_t addr;
 		uint16_t num_tris;
 		uint16_t bytes_filled;

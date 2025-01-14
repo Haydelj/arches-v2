@@ -57,12 +57,19 @@ public:
 			uint64_t base_triangle_index : 24;	//base offset in streamlined primitive array
 			uint64_t base_treelet_index : 12;	//base offset in streamlined primitive array
 			uint64_t e0 : 8;
-			uint32_t parent_treelet_index : 12;
-			uint32_t parent_node_index : 20;
 			vec3 p;
 			uint8_t e1;
 			uint8_t e2;
+			union ParentData
+			{
+				struct
+				{
+					uint32_t parent_treelet_index : 12;		// parent treelet index
+					uint32_t parent_node_index : 20;		// parent node index in the parent treelet
+				};
+			};
 
+			ParentData parent_data;
 			CompressedData cdata[WIDTH];
 			CompressedWideBVH::Node::CompressedAABB caabb[WIDTH];
 
@@ -106,6 +113,8 @@ public:
 						node.data[i].triangle_index = (uint32_t)base_triangle_index + cdata[i].offset * sizeof(Triangle) / sizeof(uint32_t);
 					}
 				}
+				node.parent_data.parent_treelet_index = parent_data.parent_treelet_index;
+				node.parent_data.parent_node_index = parent_data.parent_node_index;
 
 				return node;
 			}
@@ -134,9 +143,9 @@ public:
 	std::vector<CompressedWideTreeletBVH::Treelet> treelets;
 
 	CompressedWideTreeletBVH() {}
-	CompressedWideTreeletBVH(const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh)
+	CompressedWideTreeletBVH(const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
-		build(bvh, mesh);
+		build(bvh, mesh, max_cut_size);
 	}
 
 	uint get_node_size(uint node, const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh)
@@ -412,6 +421,10 @@ public:
 							uint offset = root_node_treelet[child_node_id] - tnode.base_treelet_index;
 							assert(offset < 32);
 							tnode.cdata[j].offset = offset;
+							// set parent data
+							CompressedWideTreeletBVH::Treelet::Node& child_node = treelets[root_node_treelet[child_node_id]].nodes[0];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 						else
 						{
@@ -419,6 +432,10 @@ public:
 							uint offset = node_map[child_node_id] - tnode.base_child_index;;
 							assert(offset < 32);
 							tnode.cdata[j].offset = offset;
+							// set parent data
+							CompressedWideTreeletBVH::Treelet::Node& child_node = treelets[treelet_index].nodes[node_map[child_node_id]];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 					}
 					else

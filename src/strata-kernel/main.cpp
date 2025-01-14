@@ -116,12 +116,14 @@ int main(int argc, char* argv[])
 
 #ifdef USE_COMPRESSED_WIDE_BVH
 	//rtm::WideBVH wbvh(bvh2);
-	rtm::CompressedWideBVH cwbvh(bvh2);
-	mesh.reorder(cwbvh.indices);
-	args.nodes = cwbvh.nodes.data();
+	rtm::WideBVH wbvh(bvh2, build_objects);
+	mesh.reorder(build_objects);
+	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh, 16);
+	args.treelets = cwtbvh.treelets.data();
 #else
 	rtm::WideBVH packed_bvh2(bvh2, build_objects);
-	rtm::WideTreeletSTRaTABVH treelet_bvh(packed_bvh2, mesh);
+	rtm::WideTreeletBVH treelet_bvh(packed_bvh2, mesh);
 	args.treelets = treelet_bvh.treelets.data();
 #endif
 
