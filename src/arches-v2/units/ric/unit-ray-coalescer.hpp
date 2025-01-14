@@ -4,38 +4,34 @@
 #include "units/unit-base.hpp"
 #include "units/unit-buffer.hpp"
 
-#include "dual-streaming-kernel/include.hpp"
-#include "unit-scene-buffer.hpp"
+#include "ric-kernel/include.hpp"
 
-namespace Arches {
-namespace Units {
-namespace DualStreaming {
+namespace Arches { namespace Units { namespace RIC {
 
-#define RAY_BUCKET_SIZE 2048
+#define RAY_BUCKET_SIZE 1024
 
 struct alignas(RAY_BUCKET_SIZE) RayBucket
 {
 	struct Header
 	{
 		paddr_t next_bucket{0};
-		uint segment_id{0};
-		uint8_t use_scene_buffer{1};
-		uint8_t num_rays{0};
+		uint32_t segment_id{0};
+		uint32_t num_rays{0};
 	};
 
-	const static uint MAX_RAYS = (RAY_BUCKET_SIZE - sizeof(Header)) / sizeof(BucketRay);
+	const static uint MAX_RAYS = (RAY_BUCKET_SIZE - sizeof(Header)) / sizeof(uint32_t);
 
 	Header header;
-	BucketRay bucket_rays[MAX_RAYS];
+	uint32_t ray_ids[MAX_RAYS];
 
 	bool is_full()
 	{
 		return header.num_rays == MAX_RAYS;
 	}
 
-	void write_ray(const BucketRay& bray)
+	void write_ray(const uint32_t& ray_id)
 	{
-		bucket_rays[header.num_rays++] = bray;
+		ray_ids[header.num_rays++] = ray_id;
 	}
 };
 
@@ -45,7 +41,7 @@ enum class TraversalScheme
 	DFS
 };
 
-class UnitStreamScheduler : public UnitBase
+class UnitRayCoalescer : public UnitBase
 {
 public:
 	struct Configuration
@@ -63,45 +59,77 @@ public:
 
 		uint traversal_scheme{0}; //0-bfs, 1-dfs
 		uint weight_scheme{0}; //If weight scheme = 2, we use the default DFS order
-		uint max_active_segments{1024 * 1024};
+		uint max_active_segments_size{1024 * 1024};
 
-		uint                l2_cache_port{0};
-		UnitMemoryBase*     l2_cache{nullptr};
-		UnitSceneBuffer*    scene_buffer{nullptr};
+		UnitMemoryBase* l2_cache{nullptr};
+
 		UnitMainMemoryBase* main_mem{nullptr};
 		uint                main_mem_port_offset{0};
 		uint                main_mem_port_stride{1};
 	};
 
 public:
-	class StreamSchedulerRequestCrossbar : public CasscadedCrossBar<StreamSchedulerRequest>
+	struct WorkItem
 	{
-	public:
-		StreamSchedulerRequestCrossbar(uint ports, uint banks) : CasscadedCrossBar<StreamSchedulerRequest>(ports, banks, banks) {}
+		uint32_t ray_id;
+		uint16_t segment_id;
+		uint16_t order_hint;
+	};
 
-		uint get_sink(const StreamSchedulerRequest& request) override
+	struct Request
+	{
+		enum class Type : uint8_t
 		{
-			//segment zero is a special case it needs to be distrubted accross all banks for performance reasons
-			//if(request.type == StreamSchedulerRequest::Type::STORE_WORKITEM)
-			//{
-			//	if(request.swi.segment_id == 0)
-			//		return request.port * num_sinks() / num_sources();
+			NA,
+			STORE_WORKITEM,
+			LOAD_BUCKET,
+			BUCKET_COMPLETE,
+		};
 
-			//	return request.swi.segment_id % num_sinks();
-			//}
-			//else
+		Type     type{Type::NA};
+		uint16_t port;
+
+		union
+		{
+			WorkItem swi;
+			struct
 			{
-				//otherwise cascade
-				return request.port * num_sinks() / num_sources();
+				uint previous_segment_id;
+			}lb;
+			struct
+			{
+				uint segment_id;
+			}bc;
+		};
+
+		Request() {};
+
+		Request(const MemoryReturn& other)
+		{
+			*this = other;
+		}
+
+		Request& operator=(const Request& other)
+		{
+			type = other.type;
+			port = other.port;
+			if(type == Request::Type::STORE_WORKITEM)
+			{
+				swi = other.swi;
+			}
+			else if(type == Request::Type::LOAD_BUCKET)
+			{
+				lb = other.lb;
+			}
+			else if(type == Request::Type::BUCKET_COMPLETE)
+			{
+				bc = other.bc;
 			}
 		}
 	};
 
-	struct Bank
-	{
-		std::queue<uint> bucket_flush_queue;
-		std::map<uint, RayBucket> ray_coalescer{};
-	};
+	std::queue<uint> bucket_flush_queue;
+	std::map<uint, RayBucket> ray_coalescer{};
 
 	class MemoryManager
 	{
@@ -157,21 +185,21 @@ public:
 		uint                total_buckets{0};
 		uint                retired_buckets{0};
 		bool                parent_finished{false};
-		bool                prefetch_issued{false};
-		bool                prefetch_complete{false};
-		bool                use_scene_buffer{false};
-		bool				child_order_generated{false};
+		bool				children_scheduled{false};
 
+		uint64_t            size{0};
 		uint64_t			weight{0};
 		uint64_t			num_rays{0};
 		uint64_t			scheduled_weight{0};
 		uint				depth{0};
+		uint                num_tms{0};
 	};
 
 	struct Scheduler
 	{
 		std::queue<uint> bucket_allocated_queue;
 		std::queue<uint> bucket_request_queue;
+		std::set<uint>  bucket_request_set;
 		std::queue<uint> bucket_complete_queue;
 		Cascade<RayBucket> bucket_write_cascade;
 
@@ -184,25 +212,29 @@ public:
 
 		//the list of segments in the scene buffer or schduled to be in the scene buffer
 		uint last_segment_activated;
-		std::vector<uint> candidate_segments; //the set of segments that are ready to issue buckets
+		std::vector<uint> active_segments; //the set of segments that are ready to issue buckets
 		std::stack<uint> traversal_stack; //for DFS
 		std::queue<uint> traversal_queue; //for BFS
 
-		std::queue<UnitSceneBuffer::Command> scene_buffer_command_queue;
+		UnitMemoryBase* l2_cache;
+		std::vector<std::queue<paddr_t>> prefetch_queues;
+		uint sector_size;
 
 		uint root_rays_counter;
 		uint num_root_rays;
+
 		uint traversal_scheme;
 		uint weight_scheme;
-		uint max_active_segments;
 
-		uint concurent_prefetches;
-		uint active_segments;
+		uint max_active_segments_size{1024 << 20};
+		uint active_segments_size{0};
+		uint retired_segments{0};
 
 		Scheduler(const Configuration& config) : bucket_write_cascade(config.num_banks, 1), last_segment_on_tm(config.num_tms, ~0u),
 			root_rays_counter(0), num_root_rays(config.num_root_rays),
 			traversal_scheme(config.traversal_scheme), weight_scheme(config.weight_scheme),
-			max_active_segments(config.max_active_segments), concurent_prefetches(0), active_segments(0)
+			max_active_segments_size(config.max_active_segments_size),
+			sector_size(config.row_size), l2_cache(config.l2_cache)
 		{
 			for(uint i = 0; i < config.num_channels; ++i)
 				memory_managers.emplace_back(i, config.num_channels, config.row_size, config.heap_addr);
@@ -215,13 +247,16 @@ public:
 
 			rtm::WideTreeletBVH::Treelet::Header root_header = cheat_treelets[0].header;
 
-			candidate_segments.push_back(0);
+			active_segments.push_back(0);
 			last_segment_activated = 0;
+			active_segments_size = cheat_treelets[0].header.bytes;
+
+			prefetch_queues.resize(16);
 		}
 
 		bool is_complete()
 		{
-			return candidate_segments.size() == 0;
+			return active_segments.size() == 0;
 		}
 	};
 
@@ -260,35 +295,28 @@ public:
 		Channel() {};
 	};
 
-
 	uint64_t _block_size;
-	UnitSceneBuffer* _scene_buffer;
 	UnitMainMemoryBase* _main_mem;
 	uint                _main_mem_port_offset;
 	uint                _main_mem_port_stride;
 
-	UnitMemoryBase* _l2_cache;
-	std::queue<paddr_t> _l2_cache_prefetch_queue;
-	uint _l2_cache_port;
-
 	//request flow from _request_network -> bank -> scheduler -> channel
-	StreamSchedulerRequestCrossbar _request_network;
-	std::vector<Bank> _banks;
+	Cascade<Request> _request_network;
 	Scheduler _scheduler;
 	std::vector<Channel> _channels;
 	UnitMemoryBase::ReturnCrossBar _return_network;
 
 public:
-	UnitStreamScheduler(const Configuration& config) : 
+	UnitRayCoalescer(const Configuration& config) :
 		_request_network(config.num_tms, config.num_banks), 
-		_banks(config.num_banks), _scheduler(config), _channels(config.num_channels), 
-		_return_network(config.num_channels, config.num_tms),
-		_scene_buffer(config.scene_buffer), _block_size(config.block_size),
-		_l2_cache(config.l2_cache), _l2_cache_port(config.l2_cache_port)
+		_scheduler(config), _channels(config.num_channels), 
+		_return_network(config.num_channels, config.num_tms), _block_size(config.block_size)
 	{
 		_main_mem = config.main_mem;
 		_main_mem_port_offset = config.main_mem_port_offset;
 		_main_mem_port_stride = config.main_mem_port_stride;
+
+		_prefetch(0);
 	}
 
 	void clock_rise() override;
@@ -299,7 +327,7 @@ public:
 		return _request_network.is_write_valid(port_index);
 	}
 
-	void write_request(const StreamSchedulerRequest& request, uint port_index)
+	void write_request(const Request& request, uint port_index)
 	{
 		_request_network.write(request, port_index);
 	}
@@ -320,6 +348,7 @@ public:
 	}
 
 private:
+	void _prefetch(uint segment);
 	void _proccess_request(uint bank_index);
 	void _proccess_return(uint channel_index);
 	void _update_scheduler();
@@ -374,6 +403,4 @@ public:
 	log;
 };
 
-}
-}
-}
+}}}

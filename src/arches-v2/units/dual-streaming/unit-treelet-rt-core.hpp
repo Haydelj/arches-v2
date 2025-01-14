@@ -32,20 +32,45 @@ public:
 	};
 
 private:
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::WideTreeletBVH::Treelet::Node::Data data;
+	};
+
+	struct TreeletStackEntry
+	{
+		float t;
+		uint index;
+	};
+
+	struct StagingBuffer
+	{
+		paddr_t address;
+		uint bytes_filled;
+		uint type;
+
+		union
+		{
+			uint8_t data[1];
+			TT::Node node;
+			struct
+			{
+				TT::Triangle tris[3];
+				uint num_tris;
+			};
+		};
+
+		StagingBuffer() {}
+		StagingBuffer& operator=(const StagingBuffer& other)
+		{
+			std::memcpy(this, &other, sizeof(StagingBuffer));
+			return *this;
+		}
+	};
+
 	struct RayState
 	{
-		struct NodeStackEntry
-		{
-			float t;
-			rtm::WideTreeletBVH::Treelet::Node::Data data;
-		};
-
-		struct TreeletStackEntry
-		{
-			float t;
-			uint index;
-		};
-
 		enum class Phase
 		{
 			NONE,
@@ -79,6 +104,8 @@ private:
 
 		uint order_hint;
 
+		StagingBuffer buffer;
+
 		RayState() : phase(Phase::NONE) {};
 
 		RayState(const WorkItem& wi)
@@ -104,19 +131,19 @@ private:
 		}
 	};
 
-	struct NodeStagingBuffer
-	{
-		TT::Node node;
-		uint16_t ray_id;
-	};
+	//struct NodeStagingBuffer
+	//{
+	//	TT::Node node;
+	//	uint16_t ray_id;
+	//};
 
-	struct TriStagingBuffer
-	{
-		TT::Triangle tris[3];
-		paddr_t addr;
-		uint16_t num_tris;
-		uint16_t bytes_filled;
-	};
+	//struct TriStagingBuffer
+	//{
+	//	TT::Triangle tris[3];
+	//	paddr_t addr;
+	//	uint16_t num_tris;
+	//	uint16_t bytes_filled;
+	//};
 
 	struct FetchItem
 	{
@@ -147,11 +174,10 @@ private:
 	uint _active_ray_slots;
 
 	//node pipline
-	std::queue<NodeStagingBuffer> _node_isect_queue;
+	std::queue<uint> _node_isect_queue;
 	Pipline<uint> _box_pipline;
 
 	//tri pipline
-	std::vector<TriStagingBuffer> _tri_staging_buffers;
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
 	uint _tri_isect_index{0};
@@ -226,7 +252,7 @@ public:
 	}
 
 private:
-	paddr_t block_address(paddr_t addr)
+	paddr_t _block_address(paddr_t addr)
 	{
 		return (addr >> log2i(CACHE_BLOCK_SIZE)) << log2i(CACHE_BLOCK_SIZE);
 	}

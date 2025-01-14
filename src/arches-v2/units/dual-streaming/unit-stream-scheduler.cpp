@@ -5,7 +5,7 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
-#define STREAM_SCHEDULER_DEBUG_PRINTS false
+#define DEBUG_PRINTS false
 
 /*!
 * \brief In this function, we deal with the traversal logic and decide the next ray bucket to load from DRAM
@@ -131,9 +131,8 @@ void UnitStreamScheduler::_update_scheduler()
 				child_segment_state.parent_finished = true;
 
 				//flush the child from the coalescer
-				uint child_bank_index = child_segment_index % _banks.size();
-				Bank& child_bank = _banks[child_bank_index];
-				child_bank.bucket_flush_queue.push(child_segment_index);
+				for(auto& bank : _banks)
+					bank.bucket_flush_queue.push(child_segment_index);
 			}
 
 			if(state.prefetch_issued)
@@ -142,14 +141,14 @@ void UnitStreamScheduler::_update_scheduler()
 					_scheduler.scene_buffer_command_queue.push({UnitSceneBuffer::Command::Type::RETIRE, candidate_segment});
 
 				_scheduler.active_segments--;
-				if(STREAM_SCHEDULER_DEBUG_PRINTS)
+				if(DEBUG_PRINTS)
 					printf("Segment %d retired after %d buckets\n", candidate_segment, state.total_buckets);
 				if(state.total_buckets == 1)
 					log.single_bucket_segments++;
 			}
 			else
 			{
-				if(STREAM_SCHEDULER_DEBUG_PRINTS)
+				if(DEBUG_PRINTS)
 					printf("Segment %d culled\n", candidate_segment);
 			}
 
@@ -199,7 +198,7 @@ void UnitStreamScheduler::_update_scheduler()
 				SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
 				_scheduler.candidate_segments.push_back(next_segment);
 				_scheduler.last_segment_activated = next_segment;
-				if(STREAM_SCHEDULER_DEBUG_PRINTS)
+				if(DEBUG_PRINTS)
 					printf("Segment %d scheduled\n", next_segment);
 			}
 		}
@@ -253,7 +252,7 @@ void UnitStreamScheduler::_update_scheduler()
 				SegmentState& next_segment_state = _scheduler.segment_state_map[next_segment];
 				_scheduler.candidate_segments.push_back(next_segment);
 				_scheduler.last_segment_activated = next_segment;
-				if(STREAM_SCHEDULER_DEBUG_PRINTS)
+				if(DEBUG_PRINTS)
 					printf("Segment %d scheduled, weight %llu\n", next_segment, next_segment_state.scheduled_weight);
 			}
 		}
@@ -415,8 +414,8 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 				_scheduler.bucket_write_cascade.write(bank.ray_coalescer[flush_segment_index], bank_index);
 				bank.ray_coalescer.erase(flush_segment_index);
 				bank.bucket_flush_queue.pop();
-				return;
 			}
+			return;
 		}
 		else
 		{
@@ -510,7 +509,7 @@ void UnitStreamScheduler::_issue_request(uint channel_index)
 		req.type = MemoryRequest::Type::LOAD;
 		req.size = _block_size;
 		req.port = mem_higher_port_index;
-		req.dst = dst_tm;
+		req.dst.push(dst_tm, 8);
 		req.paddr = channel.work_queue.front().address + channel.bytes_requested;
 		_main_mem->write_request(req);
 
@@ -548,18 +547,10 @@ void UnitStreamScheduler::_issue_return(uint channel_index)
 
 	if(channel.forward_return_valid)
 	{
-		if(channel.forward_return.dst < _return_network.num_sinks())
-		{
-			//forward to ray buffer
-			channel.forward_return.port = channel.forward_return.dst;
-			_return_network.write(channel.forward_return, channel_index);
-			channel.forward_return_valid = false;
-		}
-		else
-		{
-			//forward to scene buffer
-			channel.forward_return_valid = false;
-		}
+		//forward to ray buffer
+		channel.forward_return.port = channel.forward_return.dst.pop(8);
+		_return_network.write(channel.forward_return, channel_index);
+		channel.forward_return_valid = false;
 	}
 }
 

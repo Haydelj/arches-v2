@@ -2,13 +2,14 @@
 
 namespace Arches { namespace Units { namespace DualStreaming {
 
+constexpr uint RAY_ID_BITS = 10;
+
 template<typename TT>
 UnitTreeletRTCore<TT>::UnitTreeletRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _treelet_base_addr(config.treelet_base_addr), _hit_record_base_addr(config.hit_record_base_addr),
 	_use_early_termination(config.use_early_termination), _cache(config.cache), _rsb(config.rsb), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
 	_box_pipline(3), _tri_pipline(22)
 {
-	_tri_staging_buffers.resize(config.max_rays);
 	_ray_states.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
 	{
@@ -22,8 +23,24 @@ template<typename TT>
 bool UnitTreeletRTCore<TT>::_try_queue_node(uint ray_id, uint treelet_id, uint node_id)
 {
 	paddr_t start = (paddr_t)&((TT*)_treelet_base_addr)[treelet_id].nodes[node_id];
-	_assert(start < 4ull * 1204 * 1024 * 1024);
-	_fetch_queue.push({start, (uint8_t)(sizeof(TT::Node)), (uint16_t)ray_id});
+	paddr_t end = start + sizeof(TT::Node);
+
+	RayState& ray_state = _ray_states[ray_id];
+	ray_state.buffer.address = start;
+	ray_state.buffer.bytes_filled = 0;
+	ray_state.buffer.type = 0;
+
+	//split request at cache boundries
+	//queue the requests to fill the buffer
+	paddr_t addr = start;
+	while(addr < end)
+	{
+		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
+		uint8_t size = next_boundry - addr;
+		_fetch_queue.push({addr, size, (uint16_t)(ray_id)});
+		addr += size;
+	}
+
 	return true;
 }
 
@@ -33,22 +50,20 @@ bool UnitTreeletRTCore<TT>::_try_queue_tri(uint ray_id, uint treelet_id, uint tr
 	paddr_t start = (paddr_t)&((TT*)_treelet_base_addr)[treelet_id].data[tri_offset];
 	paddr_t end = start + sizeof(TT::Triangle) * num_tris;
 
-	_assert(start < 4ull * 1204 * 1024 * 1024);
-
-	_tri_staging_buffers[ray_id].addr = start;
-	_tri_staging_buffers[ray_id].num_tris = num_tris;
-	_tri_staging_buffers[ray_id].bytes_filled = 0;
+	RayState& ray_state = _ray_states[ray_id];
+	ray_state.buffer.address = start;
+	ray_state.buffer.bytes_filled = 0;
+	ray_state.buffer.type = 1;
+	ray_state.buffer.num_tris = num_tris;
 
 	//split request at cache boundries
 	//queue the requests to fill the buffer
 	paddr_t addr = start;
 	while(addr < end)
 	{
-		if(addr >= (paddr_t)(&((TT*)_treelet_base_addr)[treelet_id + 1])) __debugbreak();
-
-		paddr_t next_boundry = std::min(end, block_address(addr + CACHE_BLOCK_SIZE));
+		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
-		_fetch_queue.push({addr, size, (uint16_t)(ray_id | 0x8000u)});
+		_fetch_queue.push({addr, size, (uint16_t)(ray_id)});
 		addr += size;
 	}
 
@@ -90,7 +105,7 @@ void UnitTreeletRTCore<TT>::_read_returns()
 			//creates a ray entry and queues up the ray
 			WorkItem work_item;
 			std::memcpy(&work_item, ret.data, sizeof(WorkItem));
-			uint ray_id = ret.dst;
+			uint ray_id = ret.dst.pop(RAY_ID_BITS);
 			RayState& ray_state = _ray_states[ray_id];
 
 			if(work_item.segment_id != INVALID_SEGMENT_ID)
@@ -115,10 +130,10 @@ void UnitTreeletRTCore<TT>::_read_returns()
 		}
 		else if(ret.size == sizeof(rtm::Hit))
 		{
-			if(ret.dst >> 15)
+			if(ret.dst.pop(1))
 			{
 				//update hit record for dst
-				uint ray_id = ret.dst & ~(0x1 << 15);
+				uint ray_id = ret.dst.pop(RAY_ID_BITS);
 				RayState& ray_state = _ray_states[ray_id];
 
 				rtm::Hit hit;
@@ -145,31 +160,29 @@ void UnitTreeletRTCore<TT>::_read_returns()
 	if(_cache->return_port_read_valid(_num_tp))
 	{
 		const MemoryReturn ret = _cache->read_return(_num_tp);
-		uint16_t ray_id = ret.dst & ~0x8000u;
-		if(ret.dst & 0x8000)
+		uint16_t ray_id = ret.dst.peek(RAY_ID_BITS);
+		RayState& ray_state = _ray_states[ray_id];
+		StagingBuffer& buffer = ray_state.buffer;
+
+		uint offset = (ret.paddr - buffer.address);
+		std::memcpy((uint8_t*)&buffer.data + offset, ret.data, ret.size);
+		buffer.bytes_filled += ret.size;
+
+		if(buffer.type == 0)
 		{
-			TriStagingBuffer& buffer = _tri_staging_buffers[ray_id];
-
-			uint offset = (ret.paddr - buffer.addr);
-			std::memcpy((uint8_t*)buffer.tris + offset, ret.data, ret.size);
-
-			buffer.bytes_filled += ret.size;
-			if(buffer.bytes_filled == sizeof(TT::Triangle) * buffer.num_tris)
+			if(buffer.bytes_filled == sizeof(TT::Node))
 			{
-				_ray_states[ray_id].phase = RayState::Phase::TRI_ISECT;
-				_tri_isect_queue.push(ray_id);
+				ray_state.phase = RayState::Phase::NODE_ISECT;
+				_node_isect_queue.push(ray_id);
 			}
 		}
-		else
+		else if(buffer.type == 1)
 		{
-			_assert(sizeof(TT::Node) == ret.size);
-
-			NodeStagingBuffer buffer;
-			buffer.ray_id = ray_id;
-			std::memcpy(&buffer.node, ret.data, ret.size);
-
-			_ray_states[ray_id].phase = RayState::Phase::NODE_ISECT;
-			_node_isect_queue.push(buffer);
+			if(buffer.bytes_filled == sizeof(TT::Triangle) * buffer.num_tris)
+			{
+				ray_state.phase = RayState::Phase::TRI_ISECT;
+				_tri_isect_queue.push(ray_id);
+			}
 		}
 	}
 }
@@ -187,7 +200,7 @@ void UnitTreeletRTCore<TT>::_schedule_ray()
 		_assert(ray_state.treelet_id < 1024 * 1024);
 		if(ray_state.nstack_size > 0)
 		{
-			typename RayState::NodeStackEntry& entry = ray_state.nstack[ray_state.nstack_size - 1];
+			NodeStackEntry& entry = ray_state.nstack[ray_state.nstack_size - 1];
 			if(entry.t < ray_state.hit.t) //pop cull
 			{
 				if(entry.data.is_int)
@@ -238,7 +251,7 @@ void UnitTreeletRTCore<TT>::_schedule_ray()
 		}
 		else if(ray_state.tqueue_head < ray_state.tqueue_tail)
 		{
-			typename RayState::TreeletStackEntry& entry = ray_state.tqueue[ray_state.tqueue_head++];
+			TreeletStackEntry& entry = ray_state.tqueue[ray_state.tqueue_head++];
 			if(entry.t < ray_state.hit.t)
 			{
 				WorkItem work_item;
@@ -272,10 +285,9 @@ void UnitTreeletRTCore<TT>::_simualte_node_pipline()
 {
 	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
 	{
-		NodeStagingBuffer& buffer = _node_isect_queue.front();
-
-		uint ray_id = buffer.ray_id;
+		uint ray_id = _node_isect_queue.front();
 		RayState& ray_state = _ray_states[ray_id];
+		StagingBuffer& buffer = ray_state.buffer;
 
 		rtm::Ray& ray = ray_state.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
@@ -312,9 +324,9 @@ void UnitTreeletRTCore<TT>::_simualte_node_pipline()
 		{
 			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+			log.nodes++;
 		}
 
-		log.nodes += 2;
 	}
 }
 
@@ -323,10 +335,9 @@ void UnitTreeletRTCore<rtm::CompressedWideTreeletBVH::Treelet>::_simualte_node_p
 {
 	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
 	{
-		NodeStagingBuffer& buffer = _node_isect_queue.front();
-
-		uint ray_id = buffer.ray_id;
+		uint ray_id = _node_isect_queue.front();
 		RayState& ray_state = _ray_states[ray_id];
+		StagingBuffer& buffer = ray_state.buffer;
 
 		rtm::Ray& ray = ray_state.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
@@ -363,9 +374,8 @@ void UnitTreeletRTCore<rtm::CompressedWideTreeletBVH::Treelet>::_simualte_node_p
 		{
 			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
+			log.nodes++;
 		}
-
-		log.nodes += 2;
 	}
 }
 
@@ -375,9 +385,8 @@ void UnitTreeletRTCore<TT>::_simualte_tri_pipline()
 	if(!_tri_isect_queue.empty() && _tri_pipline.is_write_valid())
 	{
 		uint ray_id = _tri_isect_queue.front();
-		TriStagingBuffer& buffer = _tri_staging_buffers[ray_id];
-
 		RayState& ray_state = _ray_states[ray_id];
+		StagingBuffer& buffer = ray_state.buffer;
 
 		rtm::Ray& ray = ray_state.ray;
 		rtm::vec3& inv_d = ray_state.inv_d;
@@ -412,7 +421,6 @@ void UnitTreeletRTCore<TT>::_simualte_tri_pipline()
 			_ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			_ray_scheduling_queue.push(ray_id);
 		}
-
 		log.tris++;
 	}
 }
@@ -426,7 +434,7 @@ void UnitTreeletRTCore<TT>::_issue_requests()
 		MemoryRequest request;
 		request.type = MemoryRequest::Type::LOAD;
 		request.size = _fetch_queue.front().size;
-		request.dst = _fetch_queue.front().dst;
+		request.dst.push(_fetch_queue.front().dst, RAY_ID_BITS);
 		request.paddr = _fetch_queue.front().addr;
 		request.port = _num_tp;
 		_cache->write_request(request);
@@ -476,7 +484,7 @@ void UnitTreeletRTCore<TT>::_issue_requests()
 			req.type = MemoryRequest::Type::LOAD;
 			req.size = sizeof(WorkItem);
 			req.port = 0;
-			req.dst = ray_id;
+			req.dst.push(ray_id, RAY_ID_BITS);
 			req.paddr = 0xdeadbeefull;
 			_rsb->write_request(req);
 		}
@@ -492,7 +500,8 @@ void UnitTreeletRTCore<TT>::_issue_requests()
 			req.type = MemoryRequest::Type::LOAD;
 			req.size = sizeof(rtm::Hit);
 			req.port = 0;
-			req.dst = ray_id | (1 << 15);
+			req.dst.push(ray_id, RAY_ID_BITS);
+			req.dst.push(1, 1);
 			req.paddr = _hit_record_base_addr + ray_state.global_ray_id * sizeof(rtm::Hit);
 
 			_rsb->write_request(req);
@@ -501,7 +510,7 @@ void UnitTreeletRTCore<TT>::_issue_requests()
 		{
 			//issue hit requests
 			MemoryRequest req = _tp_hit_load_queue.front();
-			req.dst &= ~(1 << 15);
+			req.dst.push(0, 1);
 			_rsb->write_request(req);
 			_tp_hit_load_queue.pop();
 		}

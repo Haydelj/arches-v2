@@ -15,16 +15,26 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	return out;
 }
 
+inline static uint f_to_u(float f)
+{
+	return *(uint*)&f;
+}
+
+inline static float u_to_f(uint u)
+{
+	return *(float*)&u;
+}
+
 inline static void kernel(const TRaXKernelArgs& args)
 {
 	constexpr uint TILE_X = 4;
 	constexpr uint TILE_Y = 8;
 	constexpr uint TILE_SIZE = TILE_X * TILE_Y;
 	
-	for (uint index = fchthrd(); index < args.total_threads; index = fchthrd())
+	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint tile_id = index / TILE_SIZE;
-		tile_id = rtm::RNG::fast_hash(tile_id) % (args.framebuffer_size / TILE_SIZE);
+		//tile_id = rtm::RNG::hash(tile_id) % (args.framebuffer_size / TILE_SIZE);
 
 		uint32_t tile_x = tile_id % (args.framebuffer_width / TILE_X);
 		uint32_t tile_y = tile_id / (args.framebuffer_width / TILE_X);
@@ -37,19 +47,18 @@ inline static void kernel(const TRaXKernelArgs& args)
 		rtm::RNG rng(fb_index);
 
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
-		//ray.t_max = (1 << 23) - tile_id;
+
+		ray.t_min = u_to_f((f_to_u(ray.t_min) & 0xffff0000) | (tile_id & 0xffff));
+
 		uint steps = 0;
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
-		if(ray.t_min < ray.t_max)
-		{
 
 		#if defined(__riscv) && (TRAX_USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-			intersect(args.nodes, args.tris, ray, hit, steps);
-			//intersect(args.treelets, ray, hit, steps);
+			//intersect(args.nodes, args.tris, ray, hit, steps);
+			intersect(args.treelets, ray, hit, steps);
 		#endif
-		}
 
 		if(hit.id != ~0u)
 		{
@@ -115,10 +124,9 @@ int main()
 int main(int argc, char* argv[])
 {
 	TRaXKernelArgs args;
-	args.framebuffer_width = 1024;
-	args.framebuffer_height = 1024;
+	args.framebuffer_width = 3 * 256;
+	args.framebuffer_height = 3 * 256;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
-	args.total_threads = 64 << 10;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
 	args.pregen_rays = true;
@@ -136,16 +144,16 @@ int main(int argc, char* argv[])
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0, 10, 10), rtm::vec3(10, 0, 0));
 
 
-	rtm::Mesh mesh("../../../datasets/sponza.obj");
+	rtm::Mesh mesh("../../../datasets/intel-sponza.obj");
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
-	rtm::BVH2 bvh2("../../../datasets/cache/sponza.bvh", build_objects, 2);
+	rtm::BVH2 bvh2("../../../datasets/cache/intel-sponza.bvh", build_objects, 2);
 	mesh.reorder(build_objects);
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if (args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 0, rays, true);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 2, rays, true);
 	args.rays = rays.data();
 
 #if TRAX_USE_COMPRESSED_WIDE_BVH

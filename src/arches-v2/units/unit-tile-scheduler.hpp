@@ -68,7 +68,7 @@ public:
 				{
 					MemoryRequest request;
 					request.type = MemoryRequest::Type::AMO_ADD;
-					request.size = 4;
+					request.size = sizeof(uint32_t);
 					request.port = _tm_index;
 					request.paddr = 0x0ull;
 					request.data_u32 = _block_size;

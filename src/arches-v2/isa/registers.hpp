@@ -44,14 +44,19 @@ struct DstReg
 		struct
 		{
 			uint16_t index : 5;
-			uint16_t thread_id : 4;
 			ISA::RISCV::RegType type : 4;
+			uint16_t _reserved : 7;
 		};
-		uint16_t u16;
+		struct
+		{
+			uint16_t u9 : 9;
+		};
+		uint16_t raw;
 	};
 
 	DstReg() = default;
-	DstReg(uint16_t u16) : u16(u16) {};
+	DstReg(uint16_t u9) : u9(u9) {};
+	DstReg(uint16_t index, ISA::RISCV::RegType type) : index(index), type(type) {};
 	std::string mnemonic() { return (is_int(type) ? "x" : "f") + std::to_string(index); }
 };
 

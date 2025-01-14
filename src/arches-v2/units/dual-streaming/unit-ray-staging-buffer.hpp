@@ -65,7 +65,7 @@ private:
 	std::queue<std::pair<uint, uint>> thread_workitem_request_queue;
 
 	MemoryReturn returned_hit;
-	std::map<paddr_t, std::queue<std::pair<uint16_t, uint16_t>>> tp_load_hit_request;
+	std::map<paddr_t, std::queue<std::pair<uint16_t, uint32_t>>> tp_load_hit_request;
 
 	bool request_valid{false};
 	MemoryRequest request{};
@@ -184,7 +184,7 @@ private:
 			else
 			{
 				req.type = HitRecordUpdaterRequest::TYPE::LOAD;
-				tp_load_hit_request[request.paddr].push({request.port, request.dst});
+				tp_load_hit_request[request.paddr].push({request.port, request.dst.raw});
 			}
 
 			_hit_record_updater->write_request(req, req.port);
@@ -208,7 +208,7 @@ private:
 			if(_return_network.is_write_valid(tp_request.first))
 			{
 				returned_hit.port = tp_request.first;
-				returned_hit.dst = tp_request.second;
+				returned_hit.dst.raw = tp_request.second;
 
 				_return_network.write(returned_hit, returned_hit.port);
 
@@ -224,11 +224,11 @@ private:
 		if(request_valid && request.size == sizeof(WorkItem) && request.type == MemoryRequest::Type::LOAD)
 		{
 			//workitem_request_queue.push(request.port);
-			thread_workitem_request_queue.push({request.port, request.dst});
+			thread_workitem_request_queue.push({request.port, request.dst.raw});
 			//mark previous ray as complete
-			if(segment_executing_on_thread.count({request.port, request.dst}))
+			if(segment_executing_on_thread.count({request.port, request.dst.raw}))
 			{
-				uint segment_index = segment_executing_on_thread[{request.port, request.dst}];
+				uint segment_index = segment_executing_on_thread[{request.port, request.dst.raw}];
 				SegmentState& segment_state = segment_state_map[segment_index];
 
 				segment_state.active_rays--;
@@ -257,7 +257,7 @@ private:
 			MemoryReturn ret;
 			ret.size = sizeof(WorkItem);
 			ret.port = port;
-			ret.dst = dst;
+			ret.dst.raw = dst;
 			std::memcpy(ret.data, &wi, ret.size);
 
 			_return_network.write(ret, ret.port);
@@ -269,7 +269,7 @@ private:
 			}
 
 			//segment_executing_on_tp[ret.port] = wi.segment;
-			segment_executing_on_thread[{ret.port, ret.dst}] = wi.segment_id;
+			segment_executing_on_thread[{ret.port, ret.dst.raw}] = wi.segment_id;
 
 			//workitem_request_queue.pop();
 			ray_buffer[front_buffer_id].next_ray++;

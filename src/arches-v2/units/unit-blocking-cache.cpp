@@ -71,7 +71,8 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		const MemoryReturn ret = _mem_higher->read_return(mem_higher_port_index);
 		_assert(ret.paddr == _get_block_addr(ret.paddr));
 
-		_insert_block(ret.paddr, ret.data);
+		_insert_block(ret.paddr);
+		_write_block(ret.paddr, ret.data);
 		log.data_array_writes++;
 
 		uint block_offset = _get_block_offset(bank.current_request.paddr);
@@ -102,7 +103,6 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.size = _block_size;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
-				request.dst = 0;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}
@@ -120,7 +120,6 @@ void UnitBlockingCache::_clock_fall(uint bank_index)
 				request.size = _block_size;
 				request.paddr = _get_block_addr(bank.current_request.paddr);
 				request.port = mem_higher_port_index;
-				request.dst = (uint16_t)~0;
 				_mem_higher->write_request(request);
 				bank.state = Bank::State::ISSUED;
 			}

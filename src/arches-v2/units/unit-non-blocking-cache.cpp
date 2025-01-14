@@ -148,7 +148,8 @@ bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 			//Insert block
 			log.tag_array_access++;
 			log.data_array_writes++;
-			_insert_block(ret.paddr, ret.data);
+			_insert_block(ret.paddr);
+			_write_block(ret.paddr, ret.data);
 
 			if(bank.data_array_pipline.lantecy() != 0)
 				bank.data_array_pipline.write(~0u);

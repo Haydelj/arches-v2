@@ -30,6 +30,7 @@ public:
 			uint subtree_size;
 			uint depth;
 			uint num_nodes;
+			uint bytes;
 
 			float median_page_sah[8];
 		};
@@ -310,7 +311,14 @@ public:
 			}
 
 			uint depth = parent_treelet == ~0u ? 0 : treelet_headers[parent_treelet].depth + 1;
-			treelet_headers.push_back({(uint)(root_node_queue.size() + treelet_assignments.size()), (uint)cut.size(), 1, depth});
+			treelet_headers.emplace_back();
+			treelet_headers.back().first_child = (uint)(root_node_queue.size() + treelet_assignments.size());
+			treelet_headers.back().num_children = (uint)cut.size();
+			treelet_headers.back().subtree_size = 1;
+			treelet_headers.back().depth = depth;
+			treelet_headers.back().num_nodes = treelet_assignments.back().size();
+			treelet_headers.back().bytes = usable_space - bytes_remaining;
+
 			parent.push_back(parent_treelet);
 
 			//we use a queue so that treelets are breadth first in memory
@@ -351,7 +359,6 @@ public:
 
 			CompressedWideTreeletBVH::Treelet& treelet = treelets[treelet_index];
 			treelet.header = treelet_headers[treelet_index];
-			treelet.header.num_nodes = odered_nodes.size();
 
 			uint base_triangle_index = odered_nodes.size() * (sizeof(CompressedWideTreeletBVH::Treelet::Node&) / 4);
 			for(uint i = 0; i < odered_nodes.size(); ++i)
