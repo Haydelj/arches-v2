@@ -6,7 +6,7 @@
 #include "strata-kernel/ray-data.hpp"
 #include "strata-kernel/include.hpp"
 
-#define ENABLE_RSB_DEBUG_PRINTS (false)
+#define ENABLE_RSB_DEBUG_PRINTS (true)
 
 namespace Arches { namespace Units { namespace STRaTA {
 

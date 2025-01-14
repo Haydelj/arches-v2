@@ -1,6 +1,6 @@
 #pragma once
 
-#include "wide-treelet-bvh.hpp"
+#include "wide-treelet-bvh-strata.hpp"
 #include "compressed-wide-bvh.hpp"
 #include "mesh.hpp"
 
@@ -14,14 +14,14 @@
 
 namespace rtm {
 
-class CompressedWideTreeletBVH
+class CompressedWideTreeletBVHSTRaTA
 {
 public:
-	const static uint WIDTH = CompressedWideBVH::WIDTH;
+	const static uint WIDTH = WideTreeletBVHSTRaTA::WIDTH;
 
 	struct Treelet
 	{
-		const static uint SIZE = WideTreeletBVH::Treelet::SIZE;
+		const static uint SIZE = WideTreeletBVHSTRaTA::Treelet::SIZE;
 
 		struct alignas(64) Header
 		{
@@ -30,7 +30,6 @@ public:
 			uint subtree_size;
 			uint depth;
 			uint num_nodes;
-			uint bytes;
 
 			float median_page_sah[8];
 		};
@@ -60,13 +59,22 @@ public:
 			vec3 p;
 			uint8_t e1;
 			uint8_t e2;
-
-			CompressedData cdata[WIDTH];
-			CompressedWideBVH::Node::CompressedAABB caabb[WIDTH];
-
-			WideTreeletBVH::Treelet::Node decompress() const
+			union ParentData
 			{
-				WideTreeletBVH::Treelet::Node node;
+				struct
+				{
+					uint32_t parent_treelet_index : 12;		// parent treelet index
+					uint32_t parent_node_index : 20;		// parent node index in the parent treelet
+				};
+			};
+
+			ParentData parent_data;
+			CompressedData cdata[WIDTH];
+			CompressedWideBVHSTRaTA::Node::CompressedAABB caabb[WIDTH];
+
+			WideTreeletBVHSTRaTA::Treelet::Node decompress() const
+			{
+				WideTreeletBVHSTRaTA::Treelet::Node node;
 
 				uint32_t e0u32 = uint32_t(e0) << 23;
 				uint32_t e1u32 = uint32_t(e1) << 23;
@@ -104,6 +112,8 @@ public:
 						node.data[i].triangle_index = (uint32_t)base_triangle_index + cdata[i].offset * sizeof(Triangle) / sizeof(uint32_t);
 					}
 				}
+				node.parent_data.parent_treelet_index = parent_data.parent_treelet_index;
+				node.parent_data.parent_node_index = parent_data.parent_node_index;
 
 				return node;
 			}
@@ -129,26 +139,26 @@ public:
 #ifndef __riscv
 
 public:
-	std::vector<CompressedWideTreeletBVH::Treelet> treelets;
+	std::vector<CompressedWideTreeletBVHSTRaTA::Treelet> treelets;
 
-	CompressedWideTreeletBVH() {}
-	CompressedWideTreeletBVH(const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh)
+	CompressedWideTreeletBVHSTRaTA() {}
+	CompressedWideTreeletBVHSTRaTA(const rtm::CompressedWideBVHSTRaTA& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
-		build(bvh, mesh);
+		build(bvh, mesh, max_cut_size);
 	}
 
-	uint get_node_size(uint node, const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh)
+	uint get_node_size(uint node, const rtm::CompressedWideBVHSTRaTA& bvh, const rtm::Mesh& mesh)
 	{
-		uint node_size = sizeof(CompressedWideTreeletBVH::Treelet::Node);
+		uint node_size = sizeof(CompressedWideTreeletBVHSTRaTA::Treelet::Node);
 		for(uint i = 0; i < WIDTH; ++i)
 			if(!bvh.nodes[node].cdata[i].is_int)
-				node_size += sizeof(CompressedWideTreeletBVH::Treelet::Triangle) * bvh.nodes[node].cdata[i].num_prims;
+				node_size += sizeof(CompressedWideTreeletBVHSTRaTA::Treelet::Triangle) * bvh.nodes[node].cdata[i].num_prims;
 		return node_size;
 	}
 
-	void build(const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
+	void build(const rtm::CompressedWideBVHSTRaTA& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
-		printf("Building Compressed Wide Treelet BVH\n");
+		printf("Building Compressed Wide Treelet BVH for STRaTA\n");
 		size_t usable_space = Treelet::SIZE - sizeof(Treelet::Header);
 
 		//Phase 0 setup
@@ -311,14 +321,7 @@ public:
 			}
 
 			uint depth = parent_treelet == ~0u ? 0 : treelet_headers[parent_treelet].depth + 1;
-			treelet_headers.emplace_back();
-			treelet_headers.back().first_child = (uint)(root_node_queue.size() + treelet_assignments.size());
-			treelet_headers.back().num_children = (uint)cut.size();
-			treelet_headers.back().subtree_size = 1;
-			treelet_headers.back().depth = depth;
-			treelet_headers.back().num_nodes = treelet_assignments.back().size();
-			treelet_headers.back().bytes = usable_space - bytes_remaining;
-
+			treelet_headers.push_back({(uint)(root_node_queue.size() + treelet_assignments.size()), (uint)cut.size(), 1, depth});
 			parent.push_back(parent_treelet);
 
 			//we use a queue so that treelets are breadth first in memory
@@ -357,17 +360,18 @@ public:
 			for(uint i = 0; i < odered_nodes.size(); ++i)
 				node_map[odered_nodes[i]] = i;
 
-			CompressedWideTreeletBVH::Treelet& treelet = treelets[treelet_index];
+			CompressedWideTreeletBVHSTRaTA::Treelet& treelet = treelets[treelet_index];
 			treelet.header = treelet_headers[treelet_index];
+			treelet.header.num_nodes = odered_nodes.size();
 
-			uint base_triangle_index = odered_nodes.size() * (sizeof(CompressedWideTreeletBVH::Treelet::Node&) / 4);
+			uint base_triangle_index = odered_nodes.size() * (sizeof(CompressedWideTreeletBVHSTRaTA::Treelet::Node&) / 4);
 			for(uint i = 0; i < odered_nodes.size(); ++i)
 			{
 				uint node_id = odered_nodes[i];
 				assert(node_map.find(node_id) != node_map.end());
 
-				const rtm::CompressedWideBVH::Node& cwnode = bvh.nodes[node_id];
-				CompressedWideTreeletBVH::Treelet::Node& tnode = treelets[treelet_index].nodes[i];
+				const rtm::CompressedWideBVHSTRaTA::Node& cwnode = bvh.nodes[node_id];
+				CompressedWideTreeletBVHSTRaTA::Treelet::Node& tnode = treelets[treelet_index].nodes[i];
 
 				tnode.e0 = cwnode.e0;
 				tnode.e1 = cwnode.e1;
@@ -410,6 +414,10 @@ public:
 							uint offset = root_node_treelet[child_node_id] - tnode.base_treelet_index;
 							assert(offset < 32);
 							tnode.cdata[j].offset = offset;
+							// set parent data
+							CompressedWideTreeletBVHSTRaTA::Treelet::Node& child_node = treelets[root_node_treelet[child_node_id]].nodes[0];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 						else
 						{
@@ -417,6 +425,10 @@ public:
 							uint offset = node_map[child_node_id] - tnode.base_child_index;;
 							assert(offset < 32);
 							tnode.cdata[j].offset = offset;
+							// set parent data
+							CompressedWideTreeletBVHSTRaTA::Treelet::Node& child_node = treelets[treelet_index].nodes[node_map[child_node_id]];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 					}
 					else
@@ -425,7 +437,7 @@ public:
 						tnode.cdata[j].num_tris = cwnode.cdata[j].num_prims;
 						tnode.cdata[j].offset = triangle_offset;
 
-						CompressedWideTreeletBVH::Treelet::Triangle* tris = (CompressedWideTreeletBVH::Treelet::Triangle*)((uint32_t*)treelet.nodes + base_triangle_index) + tnode.cdata[j].offset;
+						CompressedWideTreeletBVHSTRaTA::Treelet::Triangle* tris = (CompressedWideTreeletBVHSTRaTA::Treelet::Triangle*)((uint32_t*)treelet.nodes + base_triangle_index) + tnode.cdata[j].offset;
 						triangle_offset += cwnode.cdata[j].num_prims;
 						
 						for(uint k = 0; k < cwnode.cdata[j].num_prims; ++k)
@@ -437,15 +449,15 @@ public:
 
 					}
 				}
-				base_triangle_index += triangle_offset * sizeof(CompressedWideTreeletBVH::Treelet::Triangle) / 4;
+				base_triangle_index += triangle_offset * sizeof(CompressedWideTreeletBVHSTRaTA::Treelet::Triangle) / 4;
 			}
 
 			//fill_page_median_sah(treelet);
 		}
 
-		printf("Built Compressed Wide Treelet BVH\n");
+		printf("Built Compressed Wide Treelet BVH for STRaTA\n");
 		printf("Treelets: %zu\n", treelets.size());
-		printf("Treelet Size: %d\n", CompressedWideTreeletBVH::Treelet::SIZE);
+		printf("Treelet Size: %d\n", CompressedWideTreeletBVHSTRaTA::Treelet::SIZE);
 		printf("Treelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);
 	}
 #endif

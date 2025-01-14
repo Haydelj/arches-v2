@@ -312,16 +312,16 @@ void UnitTreeletRTCore::_simualte_intersectors()
 		rtm::vec3& inv_d = ray_state.inv_d;
 		rtm::Hit& hit = ray_state.ray_data.hit;
 		#ifdef USE_COMPRESSED_WIDE_BVH
-		const rtm::WideTreeletBVH::Treelet::Node node = buffer.node.decompress();
+		const rtm::WideTreeletBVHSTRaTA::Treelet::Node node = buffer.node.decompress();
 		#else
-		const rtm::WideTreeletBVH::Treelet::Node node = buffer.node;
+		const rtm::WideTreeletBVHSTRaTA::Treelet::Node node = buffer.node;
 		#endif
 
 		if(ray_state.ray_data.traversal_state == RayData::Traversal_State::DOWN)
 		{
-			uint32_t nearest_index = rtm::WideBVH::WIDTH;
+			uint32_t nearest_index = rtm::WideBVHSTRaTA::WIDTH;
 			float nearest_t = hit.t;
-			for(int i = 0; i < rtm::WideBVH::WIDTH; i++)
+			for(int i = 0; i < rtm::WideBVHSTRaTA::WIDTH; i++)
 			{
 				if(!node.is_valid(i))
 					continue;
@@ -333,7 +333,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				}
 			}
 			
-			if(nearest_index != rtm::WideBVH::WIDTH)
+			if(nearest_index != rtm::WideBVHSTRaTA::WIDTH)
 			{
 				ray_state.stack.t = nearest_t;
 				ray_state.stack.treelet = ray_state.ray_data.treelet_id;
@@ -341,7 +341,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				ray_state.stack.parent_data = node.parent_data;
 				_assert(node.is_valid(nearest_index));
 				_assert(((ray_state.ray_data.visited_stack >> 61) & 0b111) == 0);
-				_assert(nearest_index < rtm::WideBVH::WIDTH);
+				_assert(nearest_index < rtm::WideBVHSTRaTA::WIDTH);
 				ray_state.ray_data.visited_stack = (ray_state.ray_data.visited_stack << 3) | nearest_index;
 				if(!ray_state.stack.data.is_int)	// stay
 					_leaf_isect_buffers[ray_id] = buffer;
@@ -358,7 +358,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 		{
 			uint32_t last_visited = ray_state.ray_data.visited_stack & 0b111;
 			std::vector<std::pair<float, uint32_t>> intersections;
-			for(int i = 0; i < rtm::WideBVH::WIDTH; i++)
+			for(int i = 0; i < rtm::WideBVHSTRaTA::WIDTH; i++)
 			{
 				if(!node.is_valid(i))
 					continue;
@@ -370,7 +370,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				return a.first < b.first;
 			});
 
-			uint32_t next_visit = rtm::WideBVH::WIDTH;
+			uint32_t next_visit = rtm::WideBVHSTRaTA::WIDTH;
 			for(auto itr = intersections.begin(); itr != intersections.end(); itr++)
 			{
 				if((itr->second == last_visited) && (itr != intersections.end() - 1) && ((itr + 1)->first < hit.t))
@@ -379,7 +379,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				}
 			}
 
-			if(next_visit != rtm::WideBVH::WIDTH)
+			if(next_visit != rtm::WideBVHSTRaTA::WIDTH)
 			{
 				ray_state.stack.t = rtm::intersect(node.aabb[next_visit], ray, inv_d);
 				ray_state.stack.treelet = ray_state.ray_data.treelet_id;
@@ -387,7 +387,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				ray_state.stack.parent_data = node.parent_data;
 				_assert(node.is_valid(next_visit));
 				_assert(((ray_state.ray_data.visited_stack >> 61) & 0b111) == 0);
-				_assert(next_visit < rtm::WideBVH::WIDTH);
+				_assert(next_visit < rtm::WideBVHSTRaTA::WIDTH);
 				ray_state.ray_data.visited_stack = ((ray_state.ray_data.visited_stack >> 3) << 3) | next_visit;
 				ray_state.ray_data.traversal_state = RayData::Traversal_State::DOWN;
 				if(!ray_state.stack.data.is_int)	// stay
@@ -444,14 +444,14 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			_assert(ray_state.ray_data.traversal_state == RayData::Traversal_State::DOWN);
 			NodeStagingBuffer buffer = _leaf_isect_buffers[ray_id];
 			#ifdef USE_COMPRESSED_WIDE_BVH
-			const rtm::WideTreeletBVH::Treelet::Node node = buffer.node.decompress();
+			const rtm::WideTreeletBVHSTRaTA::Treelet::Node node = buffer.node.decompress();
 			#else
-			const rtm::WideTreeletBVH::Treelet::Node node = buffer.node;
+			const rtm::WideTreeletBVHSTRaTA::Treelet::Node node = buffer.node;
 			#endif
 
 			uint32_t last_visited = ray_state.ray_data.visited_stack & 0b111;
 			std::vector<std::pair<float, uint32_t>> intersections;
-			for(int i = 0; i < rtm::WideBVH::WIDTH; i++)
+			for(int i = 0; i < rtm::WideBVHSTRaTA::WIDTH; i++)
 			{
 				if (!node.is_valid(i))
 					continue;
@@ -463,7 +463,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				return a.first < b.first;
 			});
 
-			uint32_t next_visit = rtm::WideBVH::WIDTH;
+			uint32_t next_visit = rtm::WideBVHSTRaTA::WIDTH;
 			for(auto itr = intersections.begin(); itr != intersections.end(); itr++)
 			{
 				if((itr->second == last_visited) && (itr != intersections.end() - 1) && ((itr + 1)->first < hit.t))
@@ -472,7 +472,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				}
 			}
 
-			if(next_visit != rtm::WideBVH::WIDTH)
+			if(next_visit != rtm::WideBVHSTRaTA::WIDTH)
 			{
 				ray_state.stack.t = rtm::intersect(node.aabb[next_visit], ray, inv_d);
 				ray_state.stack.treelet = ray_state.ray_data.treelet_id;
@@ -480,7 +480,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				ray_state.stack.parent_data = node.parent_data;
 				_assert(node.is_valid(next_visit));
 				_assert(((ray_state.ray_data.visited_stack >> 61) & 0b111) == 0);
-				_assert(next_visit < rtm::WideBVH::WIDTH);
+				_assert(next_visit < rtm::WideBVHSTRaTA::WIDTH);
 				ray_state.ray_data.visited_stack = ((ray_state.ray_data.visited_stack >> 3) << 3) | next_visit;
 				ray_state.ray_data.traversal_state = RayData::Traversal_State::DOWN;
 			}

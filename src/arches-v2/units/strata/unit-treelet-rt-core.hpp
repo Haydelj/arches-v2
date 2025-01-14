@@ -18,9 +18,9 @@
 #endif
 
 #ifdef USE_COMPRESSED_WIDE_BVH
-typedef rtm::CompressedWideTreeletBVH::Treelet TREELET;
+typedef rtm::CompressedWideTreeletBVHSTRaTA::Treelet TREELET;
 #else
-typedef rtm::WideTreeletBVH::Treelet TREELET;
+typedef rtm::WideTreeletBVHSTRaTA::Treelet TREELET;
 #endif
 
 namespace Arches { namespace Units { namespace STRaTA {
@@ -48,8 +48,8 @@ private:
 		{
 			float t;
 			uint32_t treelet;
-			rtm::WideTreeletBVH::Treelet::Node::Data data;
-			rtm::WideTreeletBVH::Treelet::Node::ParentData parent_data;
+			rtm::WideTreeletBVHSTRaTA::Treelet::Node::Data data;
+			rtm::WideTreeletBVHSTRaTA::Treelet::Node::ParentData parent_data;
 		};
 
 		enum class Phase

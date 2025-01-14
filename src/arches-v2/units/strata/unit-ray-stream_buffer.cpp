@@ -12,11 +12,12 @@ void UnitRayStreamBuffer::clock_rise()
 
 void UnitRayStreamBuffer::clock_fall()
 {
-	if (ENABLE_RSB_DEBUG_PRINTS && (simulator->current_cycle % 1000 == 0))
+	if (ENABLE_RSB_DEBUG_PRINTS && (simulator->current_cycle % 10000 == 0))
 	{
 		uint max_ray = 0, tm_count = 0;
 		for (auto itr : _tm_remain_rays)
 		{
+			printf("%03d ", itr);
 			if (itr > max_ray)
 				max_ray = itr;
 		}
@@ -25,7 +26,7 @@ void UnitRayStreamBuffer::clock_fall()
 			if (itr != ~0u)
 				tm_count++;
 		}
-		printf("Ray Stream Buffer: %03d TMs working, maximum of rays: %03d\n", tm_count, max_ray);
+		printf("\nRay Stream Buffer: %03d TMs working, maximum of rays: %03d\n", tm_count, max_ray);
 	}
 
 	for (uint bank_index = 0; bank_index < _banks.size(); ++bank_index)

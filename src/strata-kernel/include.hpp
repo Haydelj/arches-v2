@@ -23,9 +23,9 @@ struct STRaTAKernelArgs
 	rtm::Ray* rays;
 
 #ifdef USE_COMPRESSED_WIDE_BVH
-	rtm::CompressedWideTreeletBVH::Treelet* treelets;
+	rtm::CompressedWideTreeletBVHSTRaTA::Treelet* treelets;
 #else
-	rtm::WideTreeletBVH::Treelet* treelets;
+	rtm::WideTreeletBVHSTRaTA::Treelet* treelets;
 #endif
 	rtm::Triangle* tris;
 	rtm::Hit* hit_records;
