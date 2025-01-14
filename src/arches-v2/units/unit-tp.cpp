@@ -313,9 +313,14 @@ void UnitTP::clock_fall()
 		{
 			log.log_resource_stall((ISA::RISCV::InstrType)(last_thread_stall_type - 128), last_thread.pc);
 		}
+		if (last_thread.instr.data != 0)
+		{
+			int test = 0;
+		}
 
 		if (ENABLE_TP_DEBUG_PRINTS && TP_PRINT_STALL_CYCLES && last_thread.instr.data != 0)
 		{
+			return;
 			printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
 			last_thread.instr_info.print_instr(last_thread.instr);
 			if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());

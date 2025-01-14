@@ -565,6 +565,7 @@ void UnitTreeletRTCore::_issue_returns()
 		const MemoryReturn& ret = _tp_hit_return_queue.front();
 		_return_network.write(ret, 0);
 		_tp_hit_return_queue.pop();
+		log.return_hits++;
 	}
 }
 

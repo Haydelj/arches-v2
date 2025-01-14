@@ -222,6 +222,7 @@ public:
 				uint64_t hits;
 				uint64_t get_hits;
 				uint64_t load_hits;
+				uint64_t return_hits;
 				uint64_t store_rays;
 				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
 			};
