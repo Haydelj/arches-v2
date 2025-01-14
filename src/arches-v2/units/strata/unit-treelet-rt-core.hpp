@@ -10,7 +10,7 @@
 //#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
 
 #ifndef ENABLE_RT_DEBUG_PRINTS 
-#define ENABLE_RT_DEBUG_PRINTS (true)
+#define ENABLE_RT_DEBUG_PRINTS (false)
 #endif
 
 namespace Arches { namespace Units { namespace STRaTA {
@@ -114,7 +114,7 @@ private:
 
 	//node pipline
 	std::queue<NodeStagingBuffer> _node_isect_queue;
-	std::queue<NodeStagingBuffer> _leaf_isect_queue;
+	std::vector<NodeStagingBuffer> _leaf_isect_buffers;
 	Pipline<uint> _box_pipline;
 
 	//tri pipline
@@ -221,6 +221,7 @@ public:
 				uint64_t tris;
 				uint64_t hits;
 				uint64_t get_hits;
+				uint64_t load_hits;
 				uint64_t store_rays;
 				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
 			};

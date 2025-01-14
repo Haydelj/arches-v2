@@ -9,10 +9,12 @@ UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 {
 	_tri_staging_buffers.resize(config.max_rays);
 	_ray_states.resize(config.max_rays);
+	_leaf_isect_buffers.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
 	{
 		_ray_states[i].phase = RayState::Phase::RAY_FETCH;
 		_ray_data_load_queue.push(i);
+		_leaf_isect_buffers[i].ray_id = ~0u;
 	}
 }
 
@@ -68,6 +70,7 @@ void UnitTreeletRTCore::_read_requests()
 		{
 			_hit_return_port_map[request.paddr] = request.port;
 			_tp_hit_load_queue.push(request);
+			log.load_hits++;
 		}
 		else _assert(false);
 	}
@@ -316,7 +319,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				else
 					ray_state.ray_data.visited_stack = ray_state.ray_data.visited_stack << 1;
 				if(!ray_state.stack.data.is_int)	// stay
-					_leaf_isect_queue.push(buffer);
+					_leaf_isect_buffers[ray_id] = buffer;
 			}
 			else
 			{
@@ -342,7 +345,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				ray_state.ray_data.visited_stack = (ray_state.ray_data.visited_stack >> 1) << 1;
 				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
 				if(!ray_state.stack.data.is_int)	// stay
-					_leaf_isect_queue.push(buffer);
+					_leaf_isect_buffers[ray_id] = buffer;
 			}
 			else
 			{	//TODO: no need to intersect
@@ -373,7 +376,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 	}
 
 	// process leaf node
-	if(!_leaf_isect_queue.empty())
+	/* if(!_leaf_isect_queue.empty())
 	{
 		NodeStagingBuffer buffer = _leaf_isect_queue.front();
 		uint ray_id = buffer.ray_id;
@@ -405,7 +408,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			// _ray_states[ray_id].phase = RayState::Phase::SCHEDULER;
 			// _ray_scheduling_queue.push(ray_id);
 		}
-	}
+	} */
 
 	// triangle intersection
 	if(!_tri_isect_queue.empty() && _tri_pipline.is_write_valid())
@@ -432,7 +435,32 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			_assert(ray_state.ray_data.raystate.traversal_state == RayData::RayState::Traversal_State::DOWN);
 			// ray_state.ray_data.traversal_stack = ray_state.ray_data.traversal_stack >> 1;
 			// ray_state.ray_data.visited_stack = ray_state.ray_data.visited_stack >> 1;
-			ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::LEAF_STAY;
+			// ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::LEAF_STAY;
+			_assert(_leaf_isect_buffers[ray_id].ray_id != ~0u);
+			NodeStagingBuffer buffer = _leaf_isect_buffers[ray_id];
+			rtm::WideTreeletSTRaTABVH::Treelet::Node& node = buffer.node;
+			uint32_t near_visited = ray_state.ray_data.visited_stack & 1;
+			if(near_visited)
+			{
+				uint32_t next_visit = !(ray_state.ray_data.traversal_stack & 1);
+				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
+				ray_state.stack.data = node.data[next_visit];
+				_assert(ray_state.ray_data.traversal_stack >> 31 != 1);
+				_assert(ray_state.ray_data.visited_stack >> 31 != 1);
+				ray_state.ray_data.traversal_stack = ((ray_state.ray_data.traversal_stack >> 1) << 1) | next_visit;
+				ray_state.ray_data.visited_stack = (ray_state.ray_data.visited_stack >> 1) << 1;
+				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::DOWN;
+			}
+			else
+			{
+				ray_state.stack.treelet = ray_state.ray_data.raystate.treelet_id;
+				ray_state.stack.data = node.data[0];
+				ray_state.ray_data.traversal_stack = ray_state.ray_data.traversal_stack >> 1;
+				ray_state.ray_data.visited_stack = ray_state.ray_data.visited_stack >> 1;
+				ray_state.ray_data.raystate.traversal_state = RayData::RayState::Traversal_State::UP;
+				_leaf_isect_buffers[ray_id].ray_id = ~0u;
+			}
+
 			_tri_isect_index = 0;
 			_tri_isect_queue.pop();
 			_tri_pipline.write(ray_id);
