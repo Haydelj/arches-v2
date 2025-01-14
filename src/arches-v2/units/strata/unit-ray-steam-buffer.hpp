@@ -46,7 +46,7 @@ private:
 	std::vector<uint32_t> _tm_buffer_table;		// <tm_id, treelet_id> pair
 	std::set<uint32_t> _idle_ray_buffer;
 	std::vector<std::queue<std::pair<uint32_t, uint32_t>>> _raydata_request_queue;
-	std::vector<std::queue<std::pair<uint32_t, uint32_t>>> _hit_load_queue;
+	std::vector<std::map<paddr_t, std::queue<std::pair<uint32_t, uint32_t>>>> _hit_load_queue;
 
 	void _issue_returns();
 	void _proccess_request(uint bank_index);

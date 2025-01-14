@@ -23,7 +23,7 @@ void UnitRayStreamBuffer::clock_fall()
 		if(req.size == sizeof(STRaTAHitReturn))		// process load hit
 		{
 			_assert(req.type == MemoryRequest::Type::LOAD);
-			_hit_load_queue[bank_index].push({req.port, req.dst});
+			_hit_load_queue[bank_index][req.paddr].push({req.port, req.dst});
 			bank.data_pipline.read();
 		}
 		else
@@ -100,7 +100,9 @@ void UnitRayStreamBuffer::_issue_returns()
 	{
 		if(!_hit_load_queue[bank_index].empty() && _return_network.is_write_valid(bank_index) && !_complete_ray_buffers.empty())
 		{
-			auto [port, dst] = _hit_load_queue[bank_index].front();
+			auto itr = _hit_load_queue[bank_index].begin();
+			auto& queue = itr->second;
+			auto [port, dst] = queue.front();
 			const RayData& ray_data = _complete_ray_buffers.back();
 			STRaTAHitReturn hit_return;
 			rtm::Hit hit;
@@ -113,13 +115,16 @@ void UnitRayStreamBuffer::_issue_returns()
 			ret.size = sizeof(STRaTAHitReturn);
 			ret.port = port;
 			ret.dst = dst;
+			ret.paddr = itr->first;
 			std::memcpy(ret.data, &hit_return, sizeof(STRaTAHitReturn));
 			log.loads++;
 			log.bytes_read += sizeof(STRaTAHitReturn);
 			_complete_ray_buffers.pop_back();
 			_ray_buffers_size -= sizeof(RayData);
 			_return_network.write(ret, bank_index);
-			_hit_load_queue[bank_index].pop();
+			queue.pop();
+			if(queue.empty())
+				_hit_load_queue[bank_index].erase(itr->first);
 		}
 		else if (!_raydata_request_queue[bank_index].empty() && _return_network.is_write_valid(bank_index))	// process raydata load request
 		{
