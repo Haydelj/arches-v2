@@ -65,12 +65,16 @@ void UnitTreeletRTCore::_read_requests()
 			_ray_buffer_store_queue.push(ray_data);
 			log.rays++;
 			log.store_rays++;
+			if (ENABLE_REQUEST_DEBUG_PRINTS)
+				printf("TM: %03d, TP: %03d, Store Rays Request: %d\n", _tm_index, request.port, ray_data.raystate.id);
 		}
 		else if(request.size == sizeof(STRaTAHitReturn))		// load hit
 		{
 			_hit_return_port_map[request.paddr] = request.port;
 			_tp_hit_load_queue.push(request);
 			log.load_hits++;
+			if (ENABLE_REQUEST_DEBUG_PRINTS)
+				printf("TM: %03d, TP: %03d, Load Hit Request: %lld\n", _tm_index, request.port, request.paddr - _hit_record_base_addr);
 		}
 		else _assert(false);
 	}
@@ -109,7 +113,7 @@ void UnitTreeletRTCore::_read_returns()
 		else if(ret.size == sizeof(STRaTAHitReturn))
 		{
 			ret.port = _hit_return_port_map[ret.paddr];
-			_hit_return_port_map.erase(ret.port);
+			_hit_return_port_map.erase(ret.paddr);
 			_tp_hit_return_queue.push(ret);
 		}
 		else
@@ -522,6 +526,12 @@ void UnitTreeletRTCore::_issue_returns()
 		_return_network.write(ret, 0);
 		_tp_hit_return_queue.pop();
 		log.return_hits++;
+		if (ENABLE_REQUEST_DEBUG_PRINTS)
+		{
+			STRaTAHitReturn hit;
+			std::memcpy(&hit, ret.data, sizeof(STRaTAHitReturn));
+			printf("TM: %03d, TP: %03d, Return hits: %d\n", _tm_index, ret.port, hit.index);
+		}
 	}
 }
 

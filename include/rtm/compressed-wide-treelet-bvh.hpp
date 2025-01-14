@@ -57,6 +57,8 @@ public:
 			uint64_t base_triangle_index : 24;	//base offset in streamlined primitive array
 			uint64_t base_treelet_index : 12;	//base offset in streamlined primitive array
 			uint64_t e0 : 8;
+			uint32_t parent_treelet_index : 12;
+			uint32_t parent_node_index : 20;
 			vec3 p;
 			uint8_t e1;
 			uint8_t e2;

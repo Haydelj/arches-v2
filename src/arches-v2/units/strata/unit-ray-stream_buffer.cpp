@@ -23,7 +23,12 @@ void UnitRayStreamBuffer::clock_fall()
 		if(req.size == sizeof(STRaTAHitReturn))		// process load hit
 		{
 			_assert(req.type == MemoryRequest::Type::LOAD);
-			_hit_load_queue[bank_index][req.paddr].push({req.port, req.dst});
+			HitRequest hit_req;
+			hit_req.paddr = req.paddr;
+			hit_req.port = req.port;
+			hit_req.dst = req.dst;
+			uint16_t priority = req.paddr >> 31;
+			_hit_load_queue[priority][bank_index].push(hit_req);
 			bank.data_pipline.read();
 		}
 		else
@@ -31,7 +36,7 @@ void UnitRayStreamBuffer::clock_fall()
 			_assert(req.size == sizeof(RayData));
 			if(req.type == MemoryRequest::Type::LOAD)
 			{
-				_raydata_request_queue[bank_index].push({req.port, req.dst});
+				_raydata_request_queue[bank_index][req.port].push(req.dst);
 				bank.data_pipline.read();
 				log.ray_request_push_count++;
 			}
@@ -94,52 +99,69 @@ MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, uint dst)
 	return ret;
 }
 
+void UnitRayStreamBuffer::_return_hit(std::queue<HitRequest>& queue, uint32_t bank_index)
+{
+	HitRequest hit_req = queue.front();
+	const RayData& ray_data = _complete_ray_buffers.back();
+	STRaTAHitReturn hit_return;
+	rtm::Hit hit;
+	hit.t = ray_data.raystate.hit_t;
+	hit.id = ray_data.raystate.hit_id;
+	hit.bc = rtm::vec2(0.0f);
+	hit_return.hit = hit;
+	hit_return.index = ray_data.raystate.id;
+	MemoryReturn ret;
+	ret.size = sizeof(STRaTAHitReturn);
+	ret.port = hit_req.port;
+	ret.dst = hit_req.dst;
+	ret.paddr = hit_req.paddr;
+	std::memcpy(ret.data, &hit_return, sizeof(STRaTAHitReturn));
+	log.loads++;
+	log.bytes_read += sizeof(STRaTAHitReturn);
+	_complete_ray_buffers.pop_back();
+	_ray_buffers_size -= sizeof(RayData);
+	_return_network.write(ret, bank_index);
+	queue.pop();
+}
+
 void UnitRayStreamBuffer::_issue_returns()
 {
+	std::vector<uint32_t> idle_banks(_banks.size(), 0u);
+	// return higher priority hits first
 	for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
 	{
-		if(!_hit_load_queue[bank_index].empty() && _return_network.is_write_valid(bank_index) && !_complete_ray_buffers.empty())
+		if(!_hit_load_queue[0][bank_index].empty() && _return_network.is_write_valid(bank_index) && !_complete_ray_buffers.empty())
 		{
-			auto itr = _hit_load_queue[bank_index].begin();
-			auto& queue = itr->second;
-			auto [port, dst] = queue.front();
-			const RayData& ray_data = _complete_ray_buffers.back();
-			STRaTAHitReturn hit_return;
-			rtm::Hit hit;
-			hit.t = ray_data.raystate.hit_t;
-			hit.id = ray_data.raystate.hit_id;
-			hit.bc = rtm::vec2(0.0f);
-			hit_return.hit = hit;
-			hit_return.index = ray_data.raystate.id;
-			MemoryReturn ret;
-			ret.size = sizeof(STRaTAHitReturn);
-			ret.port = port;
-			ret.dst = dst;
-			ret.paddr = itr->first;
-			std::memcpy(ret.data, &hit_return, sizeof(STRaTAHitReturn));
-			log.loads++;
-			log.bytes_read += sizeof(STRaTAHitReturn);
-			_complete_ray_buffers.pop_back();
-			_ray_buffers_size -= sizeof(RayData);
-			_return_network.write(ret, bank_index);
-			queue.pop();
-			if(queue.empty())
-				_hit_load_queue[bank_index].erase(itr->first);
+			_return_hit(_hit_load_queue[0][bank_index], bank_index);
+			idle_banks[bank_index] = ~0u;
 		}
-		else if (!_raydata_request_queue[bank_index].empty() && _return_network.is_write_valid(bank_index))	// process raydata load request
+	}
+	// return lower priority hits
+	for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	{
+		if((idle_banks[bank_index] != ~0u) && !_hit_load_queue[1][bank_index].empty() && _return_network.is_write_valid(bank_index) && !_complete_ray_buffers.empty())
 		{
-			uint itr_count = 0;
-			while(itr_count < _raydata_request_queue[bank_index].size())
+			_return_hit(_hit_load_queue[1][bank_index], bank_index);
+			idle_banks[bank_index] = ~0u;
+		}
+	}
+
+	// process raydata load request
+	for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	{
+		if ((idle_banks[bank_index] != ~0u) && !_raydata_request_queue[bank_index].empty() && _return_network.is_write_valid(bank_index))
+		{
+			for(auto itr = _raydata_request_queue[bank_index].begin(); itr != _raydata_request_queue[bank_index].end(); ++itr)
 			{
-				auto [port, dst] = _raydata_request_queue[bank_index].front();
+				if (itr->second.empty())
+					continue;
+				uint32_t port = itr->first;
+				uint32_t dst = itr->second.front();
 				MemoryReturn ret;
 				if (_tm_buffer_table[port] == ~0u)		// allocate a ray buffer to the tm
 				{
 					if (_idle_ray_buffer.empty())
 					{
-						_raydata_request_queue[bank_index].pop();
-						_raydata_request_queue[bank_index].push({port, dst});
-						itr_count++;
 						continue;
 					}
 					ret = allocate_ray_buffer(port, dst);
@@ -153,9 +175,6 @@ void UnitRayStreamBuffer::_issue_returns()
 						_tm_buffer_table[port] = ~0u;
 						if (_idle_ray_buffer.empty())
 						{
-							_raydata_request_queue[bank_index].pop();
-							_raydata_request_queue[bank_index].push({port, dst});
-							itr_count++;
 							continue;
 						}
 						ret = allocate_ray_buffer(port, dst);
@@ -170,7 +189,7 @@ void UnitRayStreamBuffer::_issue_returns()
 					}
 				}
 				_ray_buffers_size -= sizeof(RayData);
-				_raydata_request_queue[bank_index].pop();
+				itr->second.pop();
 				log.ray_request_pop_count++;
 				log.loads++;
 				log.bytes_read += sizeof(RayData);
