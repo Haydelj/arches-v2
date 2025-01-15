@@ -51,7 +51,7 @@ public:
 	{
 		paddr_t paddr;
 		uint16_t port;
-		uint16_t dst;
+		BitStack27 dst;
 	};
 	
 	
@@ -63,7 +63,7 @@ private:
 	std::vector<uint32_t> _tm_buffer_table;		// <tm_id, treelet_id> pair
 	std::set<uint32_t> _idle_ray_buffer;
 	std::vector<uint32_t> _tm_remain_rays;
-	std::vector<std::map<uint32_t, std::queue<uint32_t>>> _raydata_request_queue;
+	std::vector<std::map<uint32_t, std::queue<BitStack27>>> _raydata_request_queue;
 	std::vector<std::vector<std::queue<HitRequest>>> _hit_load_queue;
 	uint32_t _rtc_max_rays;
 
@@ -100,7 +100,7 @@ public:
 		return _return_network.read(port_index);
 	}
 
-	MemoryReturn allocate_ray_buffer(uint tm_index, uint dst);
+	MemoryReturn allocate_ray_buffer(uint tm_index, BitStack27 dst);
 
 private:
 	paddr_t _get_buffer_addr(paddr_t paddr) { return paddr & _buffer_address_mask; }

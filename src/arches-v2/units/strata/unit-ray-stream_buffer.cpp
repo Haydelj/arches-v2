@@ -105,7 +105,7 @@ void UnitRayStreamBuffer::_proccess_request(uint bank_index)
 	bank.data_pipline.write(_request_network.read(bank_index));
 }
 
-MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, uint dst)
+MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, BitStack27 dst)
 {
 	_assert(_tm_remain_rays[tm_index] == 0);
 	MemoryReturn ret;
@@ -208,7 +208,7 @@ void UnitRayStreamBuffer::_issue_returns()
 				if (itr->second.empty())
 					continue;
 				uint32_t port = itr->first;
-				uint32_t dst = itr->second.front();
+				BitStack27 dst = itr->second.front();
 				MemoryReturn ret;
 				if (_tm_buffer_table[port] == ~0u)		// allocate a ray buffer to the tm
 				{

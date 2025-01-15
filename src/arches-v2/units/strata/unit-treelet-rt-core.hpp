@@ -101,7 +101,7 @@ private:
 	{
 		paddr_t addr;
 		uint8_t size;
-		uint16_t dst;
+		BitStack27 dst;
 	};
 
 	//interconnects

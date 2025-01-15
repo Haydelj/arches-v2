@@ -5,7 +5,7 @@ namespace Arches { namespace Units { namespace STRaTA {
 UnitTreeletRTCore::UnitTreeletRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _num_tp(config.num_tp), _tm_index(config.tm_index), _treelet_base_addr(config.treelet_base_addr), _hit_record_base_addr(config.hit_record_base_addr),
 	_cache(config.cache), _ray_stream_buffer(config.ray_stream_buffer), _request_network(config.num_tp, 1), _return_network(1, config.num_tp),
-	_box_pipline(3, 1), _tri_pipline(22, 8)
+	_box_pipline(3), _tri_pipline(22)
 {
 	_tri_staging_buffers.resize(config.max_rays);
 	_node_staging_buffers.resize(config.max_rays);
@@ -33,7 +33,10 @@ bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_
 	{
 		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
-		_fetch_queue.push({ addr, size, (uint16_t)(ray_id) });
+		BitStack27 dst;
+		dst.push(ray_id, 9);
+		dst.push(0, 1);
+		_fetch_queue.push({ addr, size, dst });
 		addr += size;
 	}
 	return true;
@@ -59,7 +62,12 @@ bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_of
 
 		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
-		_fetch_queue.push({addr, size, (uint16_t)(ray_id | 0x8000u)});
+
+		BitStack27 dst;
+		dst.push(ray_id, 9);
+		dst.push(1, 1);
+
+		_fetch_queue.push({addr, size, dst });
 		addr += size;
 	}
 
@@ -113,7 +121,7 @@ void UnitTreeletRTCore::_read_returns()
 		{
 			RayData ray_data;
 			std::memcpy(&ray_data, ret.data, sizeof(RayData));
-			uint ray_id = ret.dst;
+			uint ray_id = ret.dst.pop(9);
 			RayState& ray_state = _ray_states[ray_id];
 			ray_state.ray_data = ray_data;
 			ray_state.inv_d = rtm::vec3(1.0f) / ray_data.ray.d;
@@ -142,9 +150,10 @@ void UnitTreeletRTCore::_read_returns()
 
 	if(_cache->return_port_read_valid(_num_tp))
 	{
-		const MemoryReturn ret = _cache->read_return(_num_tp);
-		uint16_t ray_id = ret.dst & ~0x8000u;
-		if(ret.dst & 0x8000)
+		MemoryReturn ret = _cache->read_return(_num_tp);
+		uint type = ret.dst.pop(1);
+		uint16_t ray_id = ret.dst.pop(9);
+		if(type == 1)
 		{
 			TriStagingBuffer& buffer = _tri_staging_buffers[ray_id];
 
@@ -593,7 +602,7 @@ void UnitTreeletRTCore::_issue_requests()
 			req.type = MemoryRequest::Type::LOAD;
 			req.size = sizeof(RayData);
 			req.port = _tm_index;
-			req.dst = ray_id;
+			req.dst.push(ray_id, 9);
 			req.paddr = 0xdeadbeefull;
 			_ray_stream_buffer->write_request(req);
 		}

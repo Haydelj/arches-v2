@@ -19,6 +19,10 @@ int main(int argc, char* argv[])
 	{
 		Arches::TRaX::run_sim_trax(sim_config);
 	}
+	else if (sim_config.get_string("arch_name") == "STRaTA")
+	{
+		Arches::STRaTA::run_sim_strata(sim_config);
+	}
 	else if (sim_config.get_string("arch_name") == "Dual-Streaming")
 	{
 		Arches::DualStreaming::run_sim_dual_streaming(sim_config);
@@ -26,10 +30,6 @@ int main(int argc, char* argv[])
 	else if(sim_config.get_string("arch_name") == "RIC")
 	{
 		Arches::RIC::run_sim_ric(sim_config);
-	}
-	else if (global_config.simulator == 2)
-	{
-		Arches::STRaTA::run_sim_strata(global_config);
 	}
 	
 	return 0;

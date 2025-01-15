@@ -10,22 +10,16 @@ namespace ISA { namespace RISCV { namespace STRaTA {
 //see the opcode map for details
 const static InstructionInfo isa_custom0_000_imm[8] =
 {
-	InstructionInfo(0x0, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x0, "fchthrd", InstrType::CUSTOM0, Encoding::U, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::INT;
-		reg_addr.sign_ext = false;
-
 		MemoryRequest req;
 		req.type = MemoryRequest::Type::LOAD;
 		req.size = sizeof(uint32_t);
-		req.dst = reg_addr.u8;
+		req.dst.push(DstReg(instr.rd, RegType::UINT32).u9, 9);
 		req.vaddr = 0x0ull;
-
 		return req;
 	}),
-	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegType::FLOAT, EXEC_DECL
+	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegFile::FLOAT, EXEC_DECL
 	{
 		Register32 * fr = unit->float_regs->registers;
 
@@ -50,7 +44,7 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 
 		unit->float_regs->registers[instr.u.rd].f32 = rtm::intersect(aabb, ray, inv_d);
 	}),
-	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegType::FLOAT, EXEC_DECL
+	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegFile::FLOAT, EXEC_DECL
 	{
 		Register32 * fr = unit->float_regs->registers;
 
@@ -94,18 +88,14 @@ const static InstructionInfo isa_custom0_funct3[8] =
 {
 	InstructionInfo(0x0, META_DECL{return isa_custom0_000_imm[instr.u.imm_31_12 >> 3]; }),
 	InstructionInfo(0x1, IMPL_NONE),
-	InstructionInfo(0x2, "swi", InstrType::CUSTOM4, Encoding::S, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x2, "swi", InstrType::CUSTOM4, Encoding::S, RegFile::FLOAT, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
-		// store ray buffer
+		//store bucket ray to hit record updater
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::STORE;
 		mem_req.size = sizeof(RayData);
 		mem_req.vaddr = unit->int_regs->registers[instr.s.rs1].u64 + s_imm(instr);
+
 
 		Register32* fr = unit->float_regs->registers;
 		for(uint i = 0; i < sizeof(RayData) / sizeof(float); ++i)
@@ -114,18 +104,13 @@ const static InstructionInfo isa_custom0_funct3[8] =
 		return mem_req;
 	}),
 	InstructionInfo(0x3, IMPL_NONE),
-	InstructionInfo(0x4, "lhit", InstrType::CUSTOM6, Encoding::I, RegType::FLOAT, RegType::INT, MEM_REQ_DECL
+	InstructionInfo(0x4, "lhit", InstrType::CUSTOM6, Encoding::I, RegFile::FLOAT, RegFile::INT, MEM_REQ_DECL
 	{
-		RegAddr reg_addr;
-		reg_addr.reg = instr.i.rd;
-		reg_addr.reg_type = RegType::FLOAT;
-		reg_addr.sign_ext = false;
-
 		//load hit record into registers [rd - (rd + N)]
 		MemoryRequest mem_req;
 		mem_req.type = MemoryRequest::Type::LOAD;
 		mem_req.size = sizeof(STRaTAHitReturn);
-		mem_req.dst = reg_addr.u8;
+		mem_req.dst.push(DstReg(instr.rd, RegType::FLOAT32).u9, 9);
 		mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
 
 		return mem_req;
@@ -135,37 +120,27 @@ const static InstructionInfo isa_custom0_funct3[8] =
 
 const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3];});
 
-}
-}
-}
+}}}
 
 namespace STRaTA {
 
-typedef Units::UnitNonBlockingCache UnitL1Cache;
-typedef Units::UnitNonBlockingCache UnitL2Cache;
+typedef Units::UnitDRAMRamulator UnitDRAM;
+typedef Units::UnitCache UnitL2Cache;
+typedef Units::UnitCache UnitL1Cache;
+typedef Units::STRaTA::UnitTreeletRTCore UnitRTCore;
 
 #include "strata-kernel/include.hpp"
 #include "strata-kernel/intersect.hpp"
-static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, GlobalConfig global_config, uint page_size, uint64_t raybuffer_size)
+static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size, uint64_t raybuffer_size)
 {
-	std::string scene_name = scene_names[global_config.scene_id];
-
-	TCHAR tc_exe_path[MAX_PATH];
-	GetModuleFileName(NULL, tc_exe_path, MAX_PATH);
-	std::wstring w_exe_path(tc_exe_path);
-	std::string exe_path(w_exe_path.begin(), w_exe_path.end());
-
-	std::string poject_folder = exe_path.substr(0, exe_path.rfind("build"));
-	std::string data_folder = poject_folder + "datasets/";
-
-	printf("%s\n", poject_folder.c_str());
-
-	std::string filename = data_folder + scene_name + ".obj";
-	std::string bvh_cache_filename = data_folder + "cache/" + scene_name + "_bvh.cache";
+	std::string scene_name = sim_config.get_string("scene_name");
+	std::string project_folder = get_project_folder_path();
+	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
+	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
 
 	STRaTAKernelArgs args;
-	args.framebuffer_width = global_config.framebuffer_width;
-	args.framebuffer_height = global_config.framebuffer_height;
+	args.framebuffer_width = sim_config.get_int("framebuffer_width");
+	args.framebuffer_height = sim_config.get_int("framebuffer_height");
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	heap_address = align_to(page_size, heap_address);
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
@@ -178,12 +153,12 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 	args.max_init_ray = std::min(args.raybuffer_size / (uint32_t)sizeof(RayData), args.framebuffer_size);
 
 	// secondary rays only
-	args.pregen_rays = global_config.pregen_rays;
+	args.pregen_rays = sim_config.get_int("pregen_rays");
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, global_config.camera_config.focal_length, global_config.camera_config.position, global_config.camera_config.target);
+	args.camera = sim_config.camera;
 
-	rtm::Mesh mesh(filename);
+	rtm::Mesh mesh(scene_file);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
@@ -192,7 +167,7 @@ static STRaTAKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, global_config.pregen_bounce, rays);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, sim_config.get_int("pregen_bounce"), rays);
 
 #ifdef USE_COMPRESSED_WIDE_BVH
 	rtm::WideBVHSTRaTA wbvh(bvh2, build_objects);
@@ -228,49 +203,56 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-static void run_sim_strata(GlobalConfig global_config)
+static void run_sim_strata(const SimulationConfig& sim_config)
 {
-	//hardware spec
-	double clock_rate = 2'000'000'000.0;
+	std::string project_folder_path = get_project_folder_path();
 
 #if 1 //Modern config
+	double clock_rate = 2.0e9;
+	uint num_threads = sim_config.get_int("num_threads");
+	uint num_tps = sim_config.get_int("num_tps");
+	uint num_tms = sim_config.get_int("num_tms");
+	uint64_t stack_size = 512;
 
-	//Compute
-	uint64_t stack_size = 1ull << 10; //1KB
-	uint num_threads_per_tp = 4;
-	uint num_tps_per_tm = 128;
-	uint num_tms = 128;
+	//Memory
+	uint64_t block_size = CACHE_BLOCK_SIZE;
+	uint num_partitions = 16;
+	uint partition_stride = 1 << 11;
+	uint64_t partition_mask = generate_nbit_mask(log2i(num_partitions)) << log2i(partition_stride);
 
-	//DRAM 
-	uint64_t mem_size = 1ull << 32; //4GB
-	uint num_channels = 16;// dram.num_channels();
-	uint64_t row_size = 8 * 1024; // dram.row_size();
-	uint64_t block_size = 64; // dram.block_size();
+	//DRAM
+	UnitDRAM::Configuration dram_config;
+	dram_config.config_path = project_folder_path + "build\\src\\arches-v2\\config-files\\gddr6_pch_config.yaml";
+	dram_config.size = 4ull << 30; //4GB
+	dram_config.num_controllers = num_partitions;
+	dram_config.partition_mask = partition_mask;
 
-#if 1
-	typedef Units::UnitDRAMRamulator UnitDRAM;
-	UnitDRAM dram(32, num_channels, mem_size); dram.clear();
-#else
-	typedef Units::UnitDRAM UnitDRAM;
-	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
-	UnitDRAM dram(64, mem_size);
-#endif
 
-	_assert(block_size <= MemoryRequest::MAX_SIZE);
-	_assert(block_size == CACHE_BLOCK_SIZE);
-	//_assert(row_size == DRAM_ROW_SIZE);
+//#if 1
+//	typedef Units::UnitDRAMRamulator UnitDRAM;
+//	UnitDRAM dram(32, num_channels, mem_size); dram.clear();
+//#else
+//	typedef Units::UnitDRAM UnitDRAM;
+//	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
+//	UnitDRAM dram(64, mem_size);
+//#endif
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.size = 16ull * 1024 * 1024; //for treelet data
+	l2_config.in_order = sim_config.get_int("l2_in_order");
+	l2_config.level = 2;
 	l2_config.block_size = block_size;
-	l2_config.num_mshr = 256;
-	l2_config.associativity = 8;
-	l2_config.latency = 200;
-	l2_config.cycle_time = 1;
-	l2_config.num_banks = 32;
-	l2_config.bank_select_mask = (generate_nbit_mask(log2i(num_channels)) << log2i(row_size))  //The high order bits need to match the channel assignment bits
-		| (generate_nbit_mask(log2i(l2_config.num_banks / num_channels)) << log2i(block_size));
+	l2_config.size = sim_config.get_int("l2_size");
+	l2_config.associativity = sim_config.get_int("l2_associativity");
+	l2_config.num_partitions = num_partitions;
+	l2_config.partition_select_mask = partition_mask;
+	l2_config.num_banks = 2;
+	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
+	l2_config.crossbar_width = 64;
+	l2_config.num_mshr = 192;
+	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
+	l2_config.input_latency = 85;
+	l2_config.output_latency = 85;
 
 	UnitL2Cache::PowerConfig l2_power_config;
 	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
@@ -279,15 +261,19 @@ static void run_sim_strata(GlobalConfig global_config)
 	l2_power_config.write_energy = 0.365393e-9f - l2_power_config.tag_energy;
 
 	//L1d$
-	uint num_mshr = 256;
 	UnitL1Cache::Configuration l1d_config;
-	l1d_config.size = 128ull * 1024; //128KB
+	l1d_config.in_order = sim_config.get_int("l1_in_order");
+	l1d_config.level = 1;
 	l1d_config.block_size = block_size;
-	l1d_config.associativity = 4;
-	l1d_config.latency = 30;
-	l1d_config.num_banks = 8;
+	l1d_config.size = sim_config.get_int("l1_size");
+	l1d_config.associativity = sim_config.get_int("l1_associativity");
+	l1d_config.num_banks = 4;
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
-	l1d_config.num_mshr = num_mshr / l1d_config.num_banks;
+	l1d_config.crossbar_width = 4;
+	l1d_config.num_mshr = 256;
+	l1d_config.rob_size = 8 * l1d_config.num_mshr / l1d_config.num_banks;
+	l1d_config.input_latency = 20;
+	l1d_config.output_latency = 10;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
@@ -315,6 +301,11 @@ static void run_sim_strata(GlobalConfig global_config)
 
 #endif
 
+	_assert(block_size <= MemoryRequest::MAX_SIZE);
+	_assert(block_size == CACHE_BLOCK_SIZE);
+
+	ELF elf(project_folder_path + "src\\strata-kernel\\riscv\\kernel");
+
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
@@ -322,54 +313,31 @@ static void run_sim_strata(GlobalConfig global_config)
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM6] = "LHIT";
 	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::STRaTA::custom0;
 
-	uint num_tps = num_tps_per_tm * num_tms;
 	uint num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
-	uint num_tps_per_i_cache = num_tps_per_tm / num_icache_per_tm;
-	uint num_l2_ports_per_tm = l1d_config.num_banks * 2;
 
 	Simulator simulator;
 	std::vector<Units::STRaTA::UnitTP*> tps;
-
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
-
-	typedef Units::STRaTA::UnitTreeletRTCore UnitRTCore;
 	std::vector<UnitRTCore*> rtcs;
-
 	std::vector<UnitL1Cache*> l1ds;
 	std::vector<Units::UnitBlockingCache*> l1is;
-
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
 
+	dram_config.num_ports = dram_config.num_controllers;
+	UnitDRAM dram(dram_config);
 	simulator.register_unit(&dram);
 	simulator.new_unit_group();
 
-	TCHAR exePath[MAX_PATH];
-	GetModuleFileName(NULL, exePath, MAX_PATH);
-	std::wstring fullPath(exePath);
-	std::wstring exeFolder = fullPath.substr(0, fullPath.find_last_of(L"\\") + 1);
-	std::string current_folder_path(exeFolder.begin(), exeFolder.end());
-	ELF elf(current_folder_path + "../../strata-kernel/riscv/kernel");
+	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
-
 	uint64_t ray_stream_buffer_size = 16ull * 1024 * 1024;
-	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, global_config, row_size, ray_stream_buffer_size);
-
-	l2_config.num_ports = num_tms * num_l2_ports_per_tm;
-	l2_config.mem_highers = {&dram};
-	l2_config.mem_higher_port_offset = 0;
-	l2_config.mem_higher_port_stride = 1;
-
-	UnitL2Cache l2(l2_config);
-	simulator.register_unit(&l2);
-
-	Units::UnitAtomicRegfile atomic_regs(num_tms);
-	simulator.register_unit(&atomic_regs);
+	STRaTAKernelArgs kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride, ray_stream_buffer_size);
 
 	Units::STRaTA::UnitRayStreamBuffer::Configuration ray_stream_buffer_config;
-	ray_stream_buffer_config.latency = l2_config.latency + l1d_config.latency;
+	ray_stream_buffer_config.latency = 100;
 	ray_stream_buffer_config.num_banks = 64;
 	ray_stream_buffer_config.num_tm = num_tms;
 	ray_stream_buffer_config.size = ray_stream_buffer_size; //4MB
@@ -378,42 +346,65 @@ static void run_sim_strata(GlobalConfig global_config)
 	Units::STRaTA::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);
 	simulator.register_unit(&ray_stream_buffer);
 
+	l2_config.num_ports = num_tms;
+	l2_config.mem_highers = {&dram};
+	l2_config.mem_higher_port = 0;
+	UnitL2Cache l2(l2_config);
+	simulator.register_unit(&l2);
+	simulator.new_unit_group();
+
+	Units::UnitAtomicRegfile atomic_regs(num_tms);
+	simulator.register_unit(&atomic_regs);
+	simulator.new_unit_group();
+
+	l1d_config.num_ports = num_tps;
+#ifdef USE_RT_CORE
+	l1d_config.num_ports +=  l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
+	l1d_config.crossbar_width += 1;
+#endif
+	l1d_config.mem_highers = { &l2 };
+
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
 	{
-		simulator.new_unit_group();
 		std::vector<Units::UnitBase*> unit_table((uint)ISA::RISCV::InstrType::NUM_TYPES, nullptr);
-
 		std::vector<Units::UnitMemoryBase*> mem_list;
+		std::vector<Units::UnitSFU*> sfu_list;
 
-		l1d_config.num_ports = num_tps_per_tm;
-	#ifdef USE_RT_CORE
-		l1d_config.num_ports += 1; //add extra port for RT core
-	#endif
-		l1d_config.mem_highers = {&l2};
-		l1d_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index;
-		l1d_config.mem_higher_port_stride = 2;
-
+		l1d_config.mem_higher_port = tm_index;
 		l1ds.push_back(new UnitL1Cache(l1d_config));
 		simulator.register_unit(l1ds.back());
 		mem_list.push_back(l1ds.back());
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
 		unit_table[(uint)ISA::RISCV::InstrType::STORE] = l1ds.back();
 
-		// L1 instruction cache
-		for(uint i_cache_index = 0; i_cache_index < num_icache_per_tm; ++i_cache_index)
-		{
-			l1i_config.num_ports = num_tps_per_i_cache;
-			l1i_config.mem_higher = &l2;
-			l1i_config.mem_higher_port_offset = num_l2_ports_per_tm * tm_index + i_cache_index * 2 + 1;
-			Units::UnitBlockingCache* i_l1 = new Units::UnitBlockingCache(l1i_config);
-			l1is.push_back(i_l1);
-			simulator.register_unit(l1is.back());
-		}
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps, tm_index, &atomic_regs, 32));
+		simulator.register_unit(thread_schedulers.back());
+		mem_list.push_back(thread_schedulers.back());
+		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
+
+		//sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm, 2, 1, num_tps_per_tm));
+		//simulator.register_unit(sfu_list.back());
+		//unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
+		//unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
+		//unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
+
+		sfu_list.push_back(_new Units::UnitSFU(num_tps / 8, 1, 1, num_tps));
+		simulator.register_unit(sfu_list.back());
+		unit_table[(uint)ISA::RISCV::InstrType::IMUL] = sfu_list.back();
+		unit_table[(uint)ISA::RISCV::InstrType::IDIV] = sfu_list.back();
+
+		sfu_list.push_back(_new Units::UnitSFU(num_tps / 16, 6, 1, num_tps));
+		simulator.register_unit(sfu_list.back());
+		unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
+		unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
+
+		for (auto& sfu : sfu_list)
+			sfus.push_back(sfu);
 
 	#ifdef USE_RT_CORE
 		UnitRTCore::Configuration rtc_config;
 		rtc_config.max_rays = rtc_max_rays;
-		rtc_config.num_tp = num_tps_per_tm;
+		rtc_config.num_tp = num_tps;
 		rtc_config.tm_index = tm_index;
 		rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.hit_record_base_addr = (paddr_t)kernel_args.hit_records;
@@ -427,63 +418,29 @@ static void run_sim_strata(GlobalConfig global_config)
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM6] = rtcs.back(); //LHIT
 	#endif
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps_per_tm, tm_index, &atomic_regs, 64));
-		simulator.register_unit(thread_schedulers.back());
-		mem_list.push_back(thread_schedulers.back());
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
-
-		std::vector<Units::UnitSFU*> sfu_list;
-
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm, 2, 1, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::FADD] = sfu_list.back();
-		unit_table[(uint)ISA::RISCV::InstrType::FMUL] = sfu_list.back();
-		unit_table[(uint)ISA::RISCV::InstrType::FFMAD] = sfu_list.back();
-
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm / 8, 1, 1, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::IMUL] = sfu_list.back();
-		unit_table[(uint)ISA::RISCV::InstrType::IDIV] = sfu_list.back();
-
-		sfu_list.push_back(_new Units::UnitSFU(num_tps_per_tm / 16, 6, 1, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::FDIV] = sfu_list.back();
-		unit_table[(uint)ISA::RISCV::InstrType::FSQRT] = sfu_list.back();
-
-		sfu_list.push_back(_new Units::UnitSFU(2, 3, 1, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM1] = sfu_list.back();
-
-		sfu_list.push_back(_new Units::UnitSFU(1, 22, 8, num_tps_per_tm));
-		simulator.register_unit(sfu_list.back());
-		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM2] = sfu_list.back();
-
-		for(auto& sfu : sfu_list)
-			sfus.push_back(sfu);
-
 		unit_tables.emplace_back(unit_table);
 		sfu_lists.emplace_back(sfu_list);
 		mem_lists.emplace_back(mem_list);
 
-		for(uint tp_index = 0; tp_index < num_tps_per_tm; ++tp_index)
+		Units::UnitTP::Configuration tp_config;
+		tp_config.tm_index = tm_index;
+		tp_config.stack_size = stack_size;
+		tp_config.cheat_memory = dram._data_u8;
+		tp_config.unique_mems = &mem_lists.back();
+		tp_config.unique_sfus = &sfu_lists.back();
+		tp_config.num_threads = num_threads;
+		for(uint tp_index = 0; tp_index < num_tps; ++tp_index)
 		{
-			Units::UnitTP::Configuration tp_config;
 			tp_config.tp_index = tp_index;
-			tp_config.tm_index = tm_index;
-			tp_config.stack_size = stack_size;
-			tp_config.cheat_memory = dram._data_u8;
-			tp_config.inst_cache = l1is[uint(tm_index * num_icache_per_tm + tp_index / num_tps_per_i_cache)];
-			tp_config.num_tps_per_i_cache = num_tps_per_i_cache;
-			tp_config.unit_table = &unit_tables.back();
-			tp_config.unique_mems = &mem_lists.back();
-			tp_config.unique_sfus = &sfu_lists.back();
-			tp_config.num_threads = num_threads_per_tp;
-
+			tp_config.unit_table = &unit_tables[tm_index];
 			tps.push_back(new Units::STRaTA::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}
+
+		simulator.new_unit_group();
 	}
 
+	printf("Starting STRaTA\n");
 	for(auto& tp : tps)
 		tp->set_entry_point(elf.elf_header->e_entry.u64);
 
@@ -497,7 +454,7 @@ static void run_sim_strata(GlobalConfig global_config)
 	UnitRTCore::Log rtc_log;
 	Units::STRaTA::UnitRayStreamBuffer::Log rsb_log;
 
-	uint delta = global_config.logging_interval;
+	uint delta = sim_config.get_int("logging_interval");
 	auto start = std::chrono::high_resolution_clock::now();
 	simulator.execute(delta, [&]() -> void
 	{
@@ -511,7 +468,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 		printf("                            \n");
 		printf("Cycle: %lld                 \n", simulator.current_cycle);
-		printf("Threads Launched: %d        \n", atomic_regs.iregs[0] * 64);
+		printf("Threads Launched: %d        \n", atomic_regs.iregs[0]);
 		printf("                            \n");
 		printf("DRAM Read: %8.1f bytes/cycle\n", (float)dram_delta_log.bytes_read / delta);
 		printf(" L2$ Read: %8.1f bytes/cycle\n", (float)l2_delta_log.bytes_read / delta);
@@ -559,7 +516,7 @@ static void run_sim_strata(GlobalConfig global_config)
 
 	print_header("TP");
 	delta_log(tp_log, tps);
-	tp_log.print(frame_cycles, tps.size());
+	tp_log.print(tps.size());
 
 	if(!rtcs.empty())
 	{
