@@ -1,6 +1,6 @@
 #pragma once
 
-#include "wide-bvh.hpp"
+#include "wide-bvh-strata.hpp"
 #include "mesh.hpp"
 
 #ifndef __riscv
@@ -13,14 +13,14 @@
 
 namespace rtm {
 
-class WideTreeletBVH
+class WideTreeletBVHSTRaTA
 {
 public:
-	const static uint WIDTH = WideBVH::WIDTH;
+	const static uint WIDTH = WideBVHSTRaTA::WIDTH;
 
 	struct Treelet
 	{
-		const static uint SIZE = (16 << 20);
+		const static uint SIZE = 16 << 20;
 
 		struct alignas(64) Header
 		{
@@ -29,7 +29,6 @@ public:
 			uint subtree_size;
 			uint depth;
 			uint num_nodes;
-			uint bytes;
 
 			float median_page_sah[8];
 		};
@@ -53,6 +52,16 @@ public:
 				};
 			};
 
+			union ParentData
+			{
+				struct
+				{
+					uint32_t parent_treelet_index : 12;		// parent treelet index
+					uint32_t parent_node_index : 20;		// parent node index in the parent treelet
+				};
+			};
+
+			ParentData parent_data;
 			Data data[WIDTH];
 			AABB aabb[WIDTH];
 
@@ -78,12 +87,12 @@ public:
 #ifndef __riscv
 	std::vector<Treelet> treelets;
 
-	WideTreeletBVH(const rtm::WideBVH& bvh, const rtm::Mesh& mesh)
+	WideTreeletBVHSTRaTA(const rtm::WideBVHSTRaTA& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
-		build(bvh, mesh);
+		build(bvh, mesh, max_cut_size);
 	}
 
-	uint get_node_size(uint node, const rtm::WideBVH& bvh, const rtm::Mesh& mesh)
+	uint get_node_size(uint node, const rtm::WideBVHSTRaTA& bvh, const rtm::Mesh& mesh)
 	{
 		uint node_size = sizeof(Treelet::Node);
 		for(uint i = 0; i < WIDTH; ++i)
@@ -92,7 +101,7 @@ public:
 		return node_size;
 	}
 
-	void build(const rtm::WideBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
+	void build(const rtm::WideBVHSTRaTA& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
 		printf("Building Wide Treelet BVH\n");
 		size_t usable_space = Treelet::SIZE - sizeof(Treelet::Header);
@@ -257,14 +266,7 @@ public:
 			}
 
 			uint depth = parent_treelet == ~0u ? 0 : treelet_headers[parent_treelet].depth + 1;
-			treelet_headers.emplace_back();
-			treelet_headers.back().first_child = (uint)(root_node_queue.size() + treelet_assignments.size());
-			treelet_headers.back().num_children = (uint)cut.size();
-			treelet_headers.back().subtree_size = 1;
-			treelet_headers.back().depth = depth;
-			treelet_headers.back().num_nodes = treelet_assignments.back().size();
-			treelet_headers.back().bytes = usable_space - bytes_remaining;
-
+			treelet_headers.push_back({(uint)(root_node_queue.size() + treelet_assignments.size()), (uint)cut.size(), 1, depth});
 			parent.push_back(parent_treelet);
 
 			//we use a queue so that treelets are breadth first in memory
@@ -312,6 +314,7 @@ public:
 
 			Treelet& treelet = treelets[treelet_index];
 			treelet.header = treelet_headers[treelet_index];
+			treelet.header.num_nodes = odered_nodes.size();
 
 			uint primatives_offset = odered_nodes.size() * (sizeof(Treelet::Node) / 4);
 			for(uint i = 0; i < odered_nodes.size(); ++i)
@@ -319,7 +322,7 @@ public:
 				uint node_id = odered_nodes[i];
 				assert(node_map.find(node_id) != node_map.end());
 
-				const rtm::WideBVH::Node wnode = bvh.nodes[node_id];
+				const rtm::WideBVHSTRaTA::Node wnode = bvh.nodes[node_id];
 				Treelet::Node& tnode = treelets[treelet_index].nodes[i];
 
 				for(uint j = 0; j < WIDTH; ++j)
@@ -333,11 +336,19 @@ public:
 						{
 							tnode.data[j].is_child_treelet = 1;
 							tnode.data[j].child_index = root_node_treelet[child_node_id];
+							// set parent data
+							Treelet::Node& child_node = treelets[tnode.data[j].child_index].nodes[0];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 						else
 						{
 							tnode.data[j].is_child_treelet = 0;
 							tnode.data[j].child_index = node_map[child_node_id];
+							// set parent data
+							Treelet::Node& child_node = treelets[treelet_index].nodes[tnode.data[j].child_index];
+							child_node.parent_data.parent_treelet_index = treelet_index;
+							child_node.parent_data.parent_node_index = i;
 						}
 					}
 					else
@@ -361,7 +372,7 @@ public:
 			//fill_page_median_sah(treelet);
 		}
 
-		printf("Built Wide Treelet BVH\n");
+		printf("Built Wide Treelet BVH for STRaTA\n");
 		printf("Treelets: %zu\n", treelets.size());
 		printf("Treelet Size: %d\n", Treelet::SIZE);
 		printf("Treelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);

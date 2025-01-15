@@ -68,7 +68,7 @@ inline static L delta_log(L& master_log, T& unit)
 	return delta_log;
 }
 
-const static std::vector<std::string> arch_names = {"TRaX", "Dual-Streaming", "RIC"};
+const static std::vector<std::string> arch_names = {"TRaX","STRaTA", "Dual-Streaming", "RIC"};
 
 struct SceneConfig
 {
