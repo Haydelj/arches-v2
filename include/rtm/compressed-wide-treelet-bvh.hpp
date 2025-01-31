@@ -22,6 +22,7 @@ public:
 	struct Treelet
 	{
 		const static uint SIZE = WideTreeletBVH::Treelet::SIZE;
+		const static uint PAGE_SIZE = (8 << 10);
 
 		struct alignas(64) Header
 		{
@@ -32,7 +33,7 @@ public:
 			uint num_nodes;
 			uint bytes;
 
-			float median_page_sah[8];
+			float page_sah[32];
 		};
 
 		struct alignas(64) Node
@@ -53,9 +54,9 @@ public:
 				};
 			};
 
-			uint64_t base_child_index : 20;	//base offset in streamlined child node array
-			uint64_t base_triangle_index : 24;	//base offset in streamlined primitive array
-			uint64_t base_treelet_index : 12;	//base offset in streamlined primitive array
+			uint64_t base_child_index : 16;	//base offset in streamlined child node array
+			uint64_t base_triangle_index : 20;	//base offset in streamlined primitive array
+			uint64_t base_treelet_index : 20;	//base offset in streamlined primitive array
 			uint64_t e0 : 8;
 			vec3 p;
 			uint8_t e1;
@@ -107,6 +108,18 @@ public:
 
 				return node;
 			}
+
+
+			AABB aabb()
+			{
+				AABB aabb;
+				WideTreeletBVH::Treelet::Node node = decompress();
+					for(uint i = 0; i < WIDTH; ++i)
+						if(node.is_valid(i))
+							aabb.add(node.aabb[i]);
+				return aabb;
+			}
+
 		};
 
 		struct Triangle
@@ -137,6 +150,43 @@ public:
 		build(bvh, mesh);
 	}
 
+	void fill_page_median_sah(CompressedWideTreeletBVH::Treelet& treelet)
+	{
+		uint nodes_per_page = Treelet::PAGE_SIZE / sizeof(Treelet::Node);
+		float rsa = treelet.nodes[0].aabb().surface_area();
+		for(uint i = 0; i < 8; ++i)
+		{
+			std::vector<float> sal;
+			for(uint j = 0; j < (i == 0 ? nodes_per_page - 1 : nodes_per_page); ++j)
+			{
+				uint node = i * nodes_per_page + j;
+				if(node >= treelet.header.num_nodes)
+				{
+					sal.push_back(0.0);
+				}
+				else
+				{
+					float sa = treelet.nodes[node].aabb().surface_area() / rsa;
+					sal.push_back(sa);
+				}
+			}
+
+			float m_sah = 0.0f;
+			if(!sal.empty())
+			{
+				std::sort(sal.begin(), sal.end());
+				m_sah = sal[sal.size() / 2];
+			}
+
+			uint rays = 0;
+			for(; rays < 15; ++rays)
+				if(std::powf(1.0f - m_sah, 1 << rays) < (1.0 - 0.5f))
+					break;
+
+			treelet.header.page_sah[i] = m_sah;
+		}
+	}
+
 	uint get_node_size(uint node, const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh)
 	{
 		uint node_size = sizeof(CompressedWideTreeletBVH::Treelet::Node);
@@ -162,7 +212,7 @@ public:
 			total_footprint += footprint.back();
 
 			AABB aabb;
-			for(uint j = 0; j <WIDTH; ++j)
+			for(uint j = 0; j < WIDTH; ++j)
 				if(bvh.nodes[i].decompress().is_valid(j))
 					aabb.add(bvh.nodes[i].decompress().aabb[j]);
 
@@ -397,6 +447,7 @@ public:
 				tnode.base_triangle_index = base_triangle_index;
 
 				uint triangle_offset = 0;
+
 				for(uint j = 0; j < WIDTH; ++j)
 				{
 					tnode.caabb[j] = cwnode.caabb[j];
@@ -440,7 +491,7 @@ public:
 				base_triangle_index += triangle_offset * sizeof(CompressedWideTreeletBVH::Treelet::Triangle) / 4;
 			}
 
-			//fill_page_median_sah(treelet);
+			fill_page_median_sah(treelet);
 		}
 
 		printf("Built Compressed Wide Treelet BVH\n");

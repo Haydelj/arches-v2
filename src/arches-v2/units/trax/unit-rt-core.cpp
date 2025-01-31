@@ -250,7 +250,7 @@ void UnitRTCore<NT>::_simualte_node_pipline()
 		RayState& ray_state = _ray_states[ray_id];
 		const rtm::WideBVH::Node& node = decompress(ray_state.buffer.node);
 
-		_box_issue_count += 2;
+		_box_issue_count += 6;
 		if(_box_issue_count >= node.num_aabb())
 		{
 			rtm::Ray& ray = ray_state.ray;

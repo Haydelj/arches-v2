@@ -472,7 +472,7 @@ void UnitTreeletRTCore<TT>::_simualte_node_pipline()
 		StagingBuffer& buffer = ray_state.buffer;
 		const rtm::WideTreeletBVH::Treelet::Node node = decompress(buffer.node);
 
-		_boxes_issued += 2;
+		_boxes_issued += 6;
 		if(_boxes_issued >= rtm::WideTreeletBVH::WIDTH)
 		{
 			rtm::Ray& ray = ray_state.ray;

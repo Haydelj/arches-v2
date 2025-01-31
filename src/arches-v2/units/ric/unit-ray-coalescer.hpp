@@ -306,6 +306,8 @@ public:
 	std::vector<Channel> _channels;
 	UnitMemoryBase::ReturnCrossBar _return_network;
 
+	bool prefetched_root = false;
+
 public:
 	UnitRayCoalescer(const Configuration& config) :
 		_request_network(config.num_tms, config.num_banks), 

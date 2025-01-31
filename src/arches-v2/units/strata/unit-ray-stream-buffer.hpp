@@ -3,7 +3,7 @@
 
 #include "units/unit-base.hpp"
 #include "units/unit-main-memory-base.hpp"
-#include "strata-kernel/ray-data.hpp"
+
 #include "strata-kernel/include.hpp"
 
 #define ENABLE_RSB_DEBUG_PRINTS (true)
@@ -43,8 +43,8 @@ public:
 		Bank(uint latency) : data_pipline(latency) {}
 	};
 
-	std::map<uint32_t, std::vector<RayData>> _ray_buffers{};	// map treelet index to ray buffer
-	std::vector<RayData> _complete_ray_buffers{};
+	std::map<uint32_t, std::vector<STRaTAKernel::RayData>> _ray_buffers{};	// map treelet index to ray buffer
+	std::vector<STRaTAKernel::RayData> _complete_ray_buffers{};
 	uint64_t _ray_buffers_size{0};
 
 	struct HitRequest

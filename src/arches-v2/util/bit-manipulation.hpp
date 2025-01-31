@@ -26,6 +26,12 @@ inline uint ctz(uint64_t mask)
 	return _tzcnt_u64(mask);
 }
 
+inline uint clz(uint64_t mask)
+{
+	return _lzcnt_u64(mask);
+}
+
+
 inline uint popcnt(uint64_t mask)
 {
 	return __popcnt64(mask);

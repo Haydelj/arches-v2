@@ -3,7 +3,6 @@ add_compile_definitions(UNICODE _UNICODE)
 
 set(PROJECT_NAME "arches-v2")
 
-
 file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.hpp" "*.h")
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
 file(GLOB_RECURSE USIMM_CONFIG CONFIGURE_DEPENDS "*.vi" "*.cfg")

@@ -3,7 +3,7 @@
 #include "include.hpp"
 #include "ray-data.hpp"
 
-inline void _swi(const RayData& rb)
+inline void _swi(const STRaTAKernel::RayData& rb)
 {
 #ifdef __riscv
 	register float f0 asm("f0") = rb.ray.o.x;
@@ -30,7 +30,7 @@ inline void _swi(const RayData& rb)
 #endif
 }
 
-inline STRaTAHitReturn _lhit(rtm::Hit* src)
+inline STRaTAKernel::HitReturn _lhit(rtm::Hit* src)
 {
 #ifdef __riscv
 	register float dst0 asm("f27");
@@ -40,7 +40,7 @@ inline STRaTAHitReturn _lhit(rtm::Hit* src)
 	register float dst4 asm("f31");
 	asm volatile("lhit %0, 0(%5)" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3), "=f" (dst4) : "r" (src) : "memory");
 
-	STRaTAHitReturn hit_return;
+	STRaTAKernel::HitReturn hit_return;
 	hit_return.hit.t = dst0;
 	hit_return.hit.bc.x = dst1;
 	hit_return.hit.bc.y = dst2;

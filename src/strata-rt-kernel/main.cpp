@@ -16,7 +16,7 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	return out;
 }
 
-inline static void kernel(const STRaTAKernel::Args& args)
+inline static void kernel(const STRaTARTKernel::Args& args)
 {
 #if defined(__riscv)
     uint32_t index, x, y;
@@ -24,12 +24,7 @@ inline static void kernel(const STRaTAKernel::Args& args)
     {
         if(index >= args.max_init_ray)
         {
-			uint32_t hit_addr = index - args.max_init_ray;
-			if(index >= args.framebuffer_size)
-			{
-				hit_addr = hit_addr | (1u << 27);
-			}
-			STRaTAKernel::HitReturn hit_return = _lhit(args.hit_records + hit_addr);
+			STRaTARTKernel::HitReturn hit_return = _lhit(index < args.framebuffer_size ? 0x0ull : 0x10ull);
             uint32_t out = 0xff000000;
             if (hit_return.hit.id != ~0u)
             {
@@ -43,15 +38,15 @@ inline static void kernel(const STRaTAKernel::Args& args)
             x = index % args.framebuffer_width;
             y = index / args.framebuffer_width;
             rtm::Ray ray = args.pregen_rays ? args.rays[index] : args.camera.generate_ray_through_pixel(x, y);
-			rtm::Hit hit(T_MAX, rtm::vec2(0), ~0u);
-			STRaTAKernel::RayData raydata;
+			rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
+			STRaTARTKernel::RayData raydata;
             raydata.ray = ray;
 			raydata.hit = hit;
-            raydata.treelet_id = 0;
-            raydata.node_id = 0;
             raydata.global_ray_id = index;
-            raydata.traversal_state = STRaTAKernel::RayData::Traversal_State::DOWN;
-            raydata.visited_stack = 1;
+            raydata.treelet_id = 0;
+			raydata.level = 0;
+			raydata.restart_trail = STRaTARTKernel::RestartTrail();
+			if(ray.t_min == ray.t_max) raydata.restart_trail.mark_done();
             _swi(raydata);
         }
     } 
@@ -76,7 +71,7 @@ inline static void kernel(const STRaTAKernel::Args& args)
 #ifdef __riscv 
 int main()
 {
-	kernel(*(const STRaTAKernel::Args*)KERNEL_ARGS_ADDRESS);
+	kernel(*(const STRaTARTKernel::Args*)KERNEL_ARGS_ADDRESS);
 	return 0;
 }
 
@@ -88,14 +83,14 @@ int main()
 
 int main(int argc, char* argv[])
 {
-	STRaTAKernel::Args args;
+	STRaTARTKernel::Args args;
 	args.framebuffer_width = 1024;
 	args.framebuffer_height = 1024;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
-	args.raybuffer_size = 4 * 1024 * 1024;	// default 4MB
+	args.raybuffer_size = 4 * 1024 * 1024;	//default 4MB
 
-	args.pregen_rays =false;
+	args.pregen_rays = true;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
@@ -106,7 +101,7 @@ int main(int argc, char* argv[])
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	mesh.get_build_objects(build_objects);
 
-	rtm::BVH2 bvh2("../../../datasets/cache/intel-sponza_bvh.cache", build_objects, 2);
+	rtm::BVH2 bvh2("../../../datasets/cache/intel-sponza.bvh", build_objects, 2);
 	mesh.reorder(build_objects);
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
@@ -115,10 +110,10 @@ int main(int argc, char* argv[])
 	args.rays = rays.data();
 
 #ifdef USE_COMPRESSED_WIDE_BVH
-	rtm::WideBVHSTRaTA wbvh(bvh2, build_objects);
+	rtm::WideBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
-	rtm::CompressedWideBVHSTRaTA cwbvh(wbvh);
-	rtm::CompressedWideTreeletBVHSTRaTA cwtbvh(cwbvh, mesh, 16);
+	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
 	args.treelets = cwtbvh.treelets.data();
 #else
 	rtm::WideBVHSTRaTA packed_bvh2(bvh2, build_objects);
@@ -138,10 +133,10 @@ int main(int argc, char* argv[])
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::vector<std::thread> threads;
-	uint32_t thread_count = std::max(std::thread::hardware_concurrency() - 2u, 0u);
-	for (uint32_t i = 0; i < thread_count; ++i) threads.emplace_back(kernel, args);
+	uint32_t thread_count = 1; // std::max(std::thread::hardware_concurrency() - 1u, 1u);
+	for (uint32_t i = 0; i < thread_count - 1; ++i) threads.emplace_back(kernel, args);
 	kernel(args);
-	for (uint32_t i = 0; i < thread_count; ++i) threads[i].join();
+	for (uint32_t i = 0; i < thread_count - 1; ++i) threads[i].join();
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);

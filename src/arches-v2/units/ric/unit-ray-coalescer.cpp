@@ -9,6 +9,12 @@ constexpr bool DEBUG_PRINTS = false;
 
 void UnitRayCoalescer::_update_scheduler()
 {
+	if(!prefetched_root)
+	{
+		_prefetch(0);
+		prefetched_root = true;
+	}
+
 	//mark root as finished
 	if(_scheduler.root_rays_counter == _scheduler.num_root_rays && !_scheduler.segment_state_map[0].parent_finished)
 	{
@@ -152,6 +158,7 @@ void UnitRayCoalescer::_update_scheduler()
 				child_state.depth = last_segment_state.depth + 1;
 				if(_scheduler.weight_scheme == 0)      child_weights[i] = child_state.weight; // based on total weight
 				else if(_scheduler.weight_scheme == 1) child_weights[i] = child_state.weight / std::max(1ull, child_state.num_rays); // based on average ray weight
+				else if(_scheduler.weight_scheme == 2) child_weights[i] = 1.0 / child_state.num_rays;
 				else                                   child_weights[i] = 0.0f; //falls back to order in memory
 				child_state.scheduled_weight = child_weights[i];
 			}
@@ -186,6 +193,8 @@ void UnitRayCoalescer::_update_scheduler()
 				if(header.num_children == 0) last_segment_state.children_scheduled = true;
 				if(DEBUG_PRINTS)
 					printf("Segment %d scheduled, weight %llu\n", next_segment, next_segment_state.scheduled_weight);
+
+				_prefetch(next_segment);
 			}
 		}
 	}
@@ -326,7 +335,7 @@ void UnitRayCoalescer::_prefetch(uint segment)
 {
 	rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment].header;
 	paddr_t start = _scheduler.treelet_addr + segment * sizeof(rtm::CompressedWideTreeletBVH::Treelet);
-	paddr_t end = align_to(_block_size, start + 0);
+	paddr_t end = align_to(_block_size, start + header.bytes);
 	start += sizeof(rtm::CompressedWideTreeletBVH::Treelet::Header);
 	for(paddr_t addr = start; addr < end; addr += _block_size)
 	{

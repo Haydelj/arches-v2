@@ -1,4 +1,4 @@
-#include "unit-ray-steam-buffer.hpp"
+#include "unit-ray-stream-buffer.hpp"
 
 namespace Arches { namespace Units { namespace STRaTA {
 
@@ -37,7 +37,7 @@ void UnitRayStreamBuffer::clock_fall()
 		if (!bank.data_pipline.is_read_valid()) continue;
 
 		const MemoryRequest& req = bank.data_pipline.peek();
-		if (req.size == sizeof(STRaTAHitReturn))		// process load hit
+		if (req.size == sizeof(STRaTAKernel::HitReturn))		// process load hit
 		{
 			_assert(req.type == MemoryRequest::Type::LOAD);
 			HitRequest hit_req;
@@ -50,7 +50,7 @@ void UnitRayStreamBuffer::clock_fall()
 		}
 		else
 		{
-			_assert(req.size == sizeof(RayData));
+			_assert(req.size == sizeof(STRaTAKernel::RayData));
 			if (req.type == MemoryRequest::Type::LOAD)
 			{
 				_raydata_request_queue[bank_index][req.port].push(req.dst);
@@ -59,29 +59,29 @@ void UnitRayStreamBuffer::clock_fall()
 			}
 			else if (req.type == MemoryRequest::Type::STORE)
 			{
-				RayData ray_data;
+				STRaTAKernel::RayData ray_data;
 				std::memcpy(&ray_data, req.data, req.size);
-				if ((_tm_buffer_table[req.port] != ~0u) && (_tm_remain_rays[req.port] > 0) && ((ray_data.visited_stack != 1) || (ray_data.traversal_state == RayData::Traversal_State::OVER)))
+				if ((_tm_buffer_table[req.port] != ~0u) && (_tm_remain_rays[req.port] > 0) && ((ray_data.visited_stack != 1) || (ray_data.traversal_state == STRaTAKernel::RayData::Traversal_State::OVER)))
 				{
 					_tm_remain_rays[req.port]--;
 				}
-				if (ray_data.traversal_state == RayData::Traversal_State::OVER)
+				if (ray_data.traversal_state == STRaTAKernel::RayData::Traversal_State::OVER)
 				{
 					_complete_ray_buffers.push_back(ray_data);
-					_ray_buffers_size += sizeof(RayData);
+					_ray_buffers_size += sizeof(STRaTAKernel::RayData);
 				}
 				else
 				{
 					if (_ray_buffers.count(ray_data.treelet_id) == 0)
 					{
 						_ray_buffers[ray_data.treelet_id].push_back(ray_data);
-						_ray_buffers_size += sizeof(RayData);
+						_ray_buffers_size += sizeof(STRaTAKernel::RayData);
 						_idle_ray_buffer.insert(ray_data.treelet_id);
 					}
 					else
 					{
 						_ray_buffers[ray_data.treelet_id].push_back(ray_data);
-						_ray_buffers_size += sizeof(RayData);
+						_ray_buffers_size += sizeof(STRaTAKernel::RayData);
 					}
 				}
 				log.stores++;
@@ -128,8 +128,8 @@ MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, BitStack27 
 		_assert(_ray_buffers[treelet_id].size() > 0);
 		_tm_buffer_table[tm_index] = treelet_id;
 		_tm_remain_rays[tm_index]++;
-		std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), sizeof(RayData));
-		ret.size = sizeof(RayData);
+		std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), sizeof(STRaTAKernel::RayData));
+		ret.size = sizeof(STRaTAKernel::RayData);
 		ret.port = tm_index;
 		ret.dst = dst;
 		_ray_buffers[treelet_id].pop_back();
@@ -142,8 +142,8 @@ MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, BitStack27 
 			_tm_buffer_table[tm_index] = treelet_id;
 			_tm_remain_rays[tm_index]++;
 			_assert(_ray_buffers[treelet_id].size() > 0);
-			std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), sizeof(RayData));
-			ret.size = sizeof(RayData);
+			std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), sizeof(STRaTAKernel::RayData));
+			ret.size = sizeof(STRaTAKernel::RayData);
 			ret.port = tm_index;
 			ret.dst = dst;
 			_ray_buffers[treelet_id].pop_back();
@@ -156,22 +156,22 @@ MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, BitStack27 
 void UnitRayStreamBuffer::_return_hit(std::queue<HitRequest>& queue, uint32_t bank_index)
 {
 	HitRequest hit_req = queue.front();
-	const RayData& ray_data = _complete_ray_buffers.back();
-	STRaTAHitReturn hit_return;
+	const STRaTAKernel::RayData& ray_data = _complete_ray_buffers.back();
+	STRaTAKernel::HitReturn hit_return;
 	rtm::Hit hit = ray_data.hit;
 	hit_return.hit = hit;
 	hit_return.index = ray_data.global_ray_id;
 	MemoryReturn ret;
-	ret.size = sizeof(STRaTAHitReturn);
+	ret.size = sizeof(STRaTAKernel::HitReturn);
 	ret.port = hit_req.port;
 	ret.dst = hit_req.dst;
 	ret.paddr = hit_req.paddr;
-	std::memcpy(ret.data, &hit_return, sizeof(STRaTAHitReturn));
+	std::memcpy(ret.data, &hit_return, sizeof(STRaTAKernel::HitReturn));
 	log.loads++;
-	log.bytes_read += sizeof(STRaTAHitReturn);
+	log.bytes_read += sizeof(STRaTAKernel::HitReturn);
 	_complete_ray_buffers.pop_back();
-	_assert(_ray_buffers_size >= sizeof(RayData));
-	_ray_buffers_size -= sizeof(RayData);
+	_assert(_ray_buffers_size >= sizeof(STRaTAKernel::RayData));
+	_ray_buffers_size -= sizeof(STRaTAKernel::RayData);
 	_return_network.write(ret, bank_index);
 	queue.pop();
 }
@@ -245,22 +245,22 @@ void UnitRayStreamBuffer::_issue_returns()
 					}
 					else
 					{
-						std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), sizeof(RayData));
-						ret.size = sizeof(RayData);
+						std::memcpy(ret.data, &_ray_buffers[treelet_id].back(), sizeof(STRaTAKernel::RayData));
+						ret.size = sizeof(STRaTAKernel::RayData);
 						ret.port = port;
 						ret.dst = dst;
 						_ray_buffers[treelet_id].pop_back();
 						_tm_remain_rays[port]++;
 					}
 				}
-				if (ret.size == sizeof(RayData))
+				if (ret.size == sizeof(STRaTAKernel::RayData))
 				{
-					_assert(_ray_buffers_size >= sizeof(RayData));
-					_ray_buffers_size -= sizeof(RayData);
+					_assert(_ray_buffers_size >= sizeof(STRaTAKernel::RayData));
+					_ray_buffers_size -= sizeof(STRaTAKernel::RayData);
 					itr->second.pop();
 					log.ray_request_pop_count++;
 					log.loads++;
-					log.bytes_read += sizeof(RayData);
+					log.bytes_read += sizeof(STRaTAKernel::RayData);
 					_return_network.write(ret, bank_index);
 					break;
 				}

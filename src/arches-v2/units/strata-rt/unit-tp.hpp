@@ -2,7 +2,7 @@
 #include "units/unit-tp.hpp"
 #include "strata-kernel/ray-data.hpp"
 
-namespace Arches { namespace Units { namespace STRaTA {
+namespace Arches { namespace Units { namespace STRaTART {
 
 class UnitTP : public Arches::Units::UnitTP
 {
@@ -34,13 +34,13 @@ private:
 		}
 		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM4) //SWI
 		{
-			for(uint i = 0; i < sizeof(STRaTAKernel::RayData) / sizeof(float); ++i)
+			for(uint i = 0; i < sizeof(STRaTARTKernel::RayData) / sizeof(float); ++i)
 				if(float_regs_pending[instr.rs2 + i])
 					return float_regs_pending[instr.rs2 + i];
 		}
 		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM6) //LHIT
 		{ 
-			for(uint i = 0; i < sizeof(STRaTAKernel::HitReturn) / sizeof(float); i++)
+			for(uint i = 0; i < sizeof(STRaTARTKernel::HitReturn) / sizeof(float); i++)
 			{
 				if(float_regs_pending[instr.rd + i])
 					return float_regs_pending[instr.rd + i];
@@ -70,7 +70,7 @@ private:
 		}
 		else if(instr_info.instr_type == ISA::RISCV::InstrType::CUSTOM6) //LHIT
 		{
-			for(uint i = 0; i < sizeof(STRaTAKernel::HitReturn) / sizeof(float); ++i)
+			for(uint i = 0; i < sizeof(STRaTARTKernel::HitReturn) / sizeof(float); ++i)
 				float_regs_pending[instr.rd + i] = (uint8_t)ISA::RISCV::InstrType::CUSTOM6;
 		}
 

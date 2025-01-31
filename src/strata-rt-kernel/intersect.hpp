@@ -2,45 +2,57 @@
 #include "stdafx.hpp"
 #include "include.hpp"
 
-template<uint32_t FLAGS>
-inline void _traceray(uint id, const rtm::Ray& ray, rtm::Hit& hit)
+inline void _swi(const STRaTARTKernel::RayData& rb)
 {
 #ifdef __riscv
-	register float src0 asm("f0") = ray.o.x;
-	register float src1 asm("f1") = ray.o.y;
-	register float src2 asm("f2") = ray.o.z;
-	register float src3 asm("f3") = ray.t_min;
-	register float src4 asm("f4") = ray.d.x;
-	register float src5 asm("f5") = ray.d.y;
-	register float src6 asm("f6") = ray.d.z;
-	register float src7 asm("f7") = ray.t_max;
 
-	register float dst0 asm("f28");
-	register float dst1 asm("f29");
-	register float dst2 asm("f30");
-	register float dst3 asm("f31");
+	const float* f = (float*)&rb;
+	register float f0 asm("f0") = f[0];
+	register float f1 asm("f1") = f[1];
+	register float f2 asm("f2") = f[2];
+	register float f3 asm("f3") = f[3];
+	register float f4 asm("f4") = f[4];
+	register float f5 asm("f5") = f[5];
+	register float f6 asm("f6") = f[6];
+	register float f7 asm("f7") = f[7];
+	register float f8 asm("f8") = f[8];
+	register float f9 asm("f9") = f[9];
+	register float f10 asm("f10") = f[10];
+	register float f11 asm("f11") = f[11];
+	register float f12 asm("f12") = f[12];
+	register float f13 asm("f13") = f[13];
+	register float f14 asm("f14") = f[14];
+	register float f15 asm("f15") = f[15];
+	asm volatile("swi f0, 256(x0)" : : "f" (f0), "f" (f1), "f" (f2), "f" (f3), "f" (f4), "f" (f5), "f" (f6), "f" (f7), "f" (f8), "f" (f9), "f" (f10), "f" (f11), "f" (f12), "f" (f13), "f" (f14), "f" (f15));
+#endif
+}
 
-	asm volatile
-	(
-		"traceray %0, %4, %12\t\n"
-		: "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3)
-		: "f" (src0), "f" (src1), "f" (src2), "f" (src3), "f" (src4), "f" (src5), "f" (src6), "f" (src7), "I" (FLAGS) 
-	);
+inline STRaTARTKernel::HitReturn _lhit(uint priority)
+{
+#ifdef __riscv
+	register float dst0 asm("f27");
+	register float dst1 asm("f28");
+	register float dst2 asm("f29");
+	register float dst3 asm("f30");
+	register float dst4 asm("f31");
+	asm volatile("lhit %0, 0(%5)" : "=f" (dst0), "=f" (dst1), "=f" (dst2), "=f" (dst3), "=f" (dst4) : "r" (priority) : "memory");
 
+	STRaTARTKernel::HitReturn hit_return;
+	hit_return.hit.t = dst0;
+	hit_return.hit.bc.x = dst1;
+	hit_return.hit.bc.y = dst2;
 	float _dst3 = dst3;
+	hit_return.hit.id = *(uint*)&_dst3;
+	float _dst4 = dst4;
+	hit_return.index = *(uint*)&_dst4;
 
-	hit.t = dst0;
-	hit.bc.x = dst1;
-	hit.bc.y = dst2;
-	hit.id = *(uint*)&_dst3;
-#else
-	assert(false);
+	return hit_return;
 #endif
 }
 
 inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::vec3& inv_d)
 {
-#if defined(__riscv) && defined(DS_USE_HARDWARE_INTERSECTORS)
+#if defined(__riscv) && defined(USE_HARDWARE_INTERSECTORS)
 	register float src0 asm("f0") = ray.o.x;
 	register float src1 asm("f1") = ray.o.y;
 	register float src2 asm("f2") = ray.o.z;
@@ -68,7 +80,7 @@ inline float _intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::v
 
 inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& hit)
 {
-#if defined(__riscv) && defined(DS_USE_HARDWARE_INTERSECTORS)
+#if defined(__riscv) && defined(USE_HARDWARE_INTERSECTORS)
 	register float src0 asm("f0") = ray.o.x;
 	register float src1 asm("f1") = ray.o.y;
 	register float src2 asm("f2") = ray.o.z;
@@ -109,7 +121,7 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
-inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
+inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, bool first_hit = false)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
@@ -169,158 +181,150 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 	return found_hit;
 }
 
-static rtm::WideBVH::Node decompress(const rtm::WideBVH::Node& node)
+inline bool intersect(const rtm::CompressedWideTreeletBVH::Treelet* treelets, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
 {
-	return node;
-}
+#define ENABLE_PRINTS (false)
 
-static rtm::WideBVH::Node decompress(const rtm::CompressedWideBVH::Node& node)
-{
-	return node.decompress();
-}
-
-template <typename T>
-inline bool intersect(const T* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
-{
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::WideBVH::Node::Data data;
+		bool is_last;
+		rtm::WideTreeletBVH::Treelet::Node::Data data;
 	};
 
-	NodeStackEntry node_stack[32 * (rtm::WideBVH::WIDTH - 1)];
-	uint32_t node_stack_size = 1u;
+	NodeStackEntry root_node;
+	root_node.t = ray.t_min;
+	root_node.is_last = 0;
+	root_node.data.is_int = 1;
+	root_node.data.is_child_treelet = 0;
+	root_node.data.child_index = 0;
 
-	//Decompress and insert nodes
-	node_stack[0].t = ray.t_min;
-	node_stack[0].data.is_int = 1;
-	node_stack[0].data.child_index = 0;
-
-	bool found_hit = false;
-	do
-	{
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-		if(current_entry.t >= hit.t) continue;
-
-		if(current_entry.data.is_int)
-		{
-			uint max_insert_depth = node_stack_size;
-			const rtm::WideBVH::Node node = decompress(nodes[current_entry.data.child_index]);
-			for(int i = 0; i < rtm::WideBVH::WIDTH; i++)
-			{
-				if(!node.is_valid(i)) continue;
-
-				float t = _intersect(node.aabb[i], ray, inv_d);
-				if(t < hit.t)
-				{
-					uint j = node_stack_size++;
-					for(; j > max_insert_depth; --j)
-					{
-						if(node_stack[j - 1].t > t) break;
-						node_stack[j] = node_stack[j - 1];
-					}
-					node_stack[j].t = t;
-					node_stack[j].data = node.data[i];
-				}
-			}
-		}
-		else
-		{
-		#if 1
-			for(uint i = 0; i < current_entry.data.num_prims; ++i)
-			{
-				uint32_t prim_id = current_entry.data.prim_index + i;
-				if(_intersect(tris[prim_id], ray, hit))
-				{
-					hit.id = prim_id;
-					if(first_hit) return true;
-					else found_hit = true;
-				}
-			}
-		#else
-			if(current_entry.t < hit.t)
-			{
-				hit.id = current_entry.data.prim_index;
-				hit.t = current_entry.t;
-				found_hit = true;
-			}
-		#endif
-		}
-
-		steps++;
-	}
-	while(node_stack_size);
-
-	return found_hit;
-}
-
-static rtm::WideTreeletBVH::Treelet::Node decompress(const rtm::WideTreeletBVH::Treelet::Node& node)
-{
-	return node;
-}
-
-static rtm::WideTreeletBVH::Treelet::Node decompress(const rtm::CompressedWideTreeletBVH::Treelet::Node& node)
-{
-	return node.decompress();
-}
-
-inline bool intersect(const void* treelets, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
-{
-	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
-
-	struct NodeStackEntry
-	{
-		float t;
-		rtm::WideBVH::Node::Data data;
-	};
-
+	uint treelet_id = 0;
 	NodeStackEntry node_stack[32 * (rtm::WideTreeletBVH::WIDTH - 1)];
 	uint32_t node_stack_size = 1u;
+	node_stack[0] = root_node;
 
-	//Decompress and insert nodes
-	node_stack[0].t = ray.t_min;
-	node_stack[0].data.is_int = 1;
-	node_stack[0].data.child_index = 0;
+	STRaTARTKernel::RestartTrail restart_trail;
+	uint level = 0;
 
+	bool update_restart_trail = false;
 	bool found_hit = false;
-	do
+	while(true)
 	{
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-		if(current_entry.t >= hit.t) continue;
+		NodeStackEntry current_entry;
+		if(update_restart_trail)
+		{
+			uint parent_level = restart_trail.find_parent_level(level);
+			if(parent_level == ~0u)
+			{
+				//if(ENABLE_PRINTS)
+				//	printf("RAY_COMPLETE\n");
+				break;
+			}
+
+			restart_trail.set(parent_level, restart_trail.get(parent_level) + 1);
+			restart_trail.clear(parent_level + 1);
+
+			if(node_stack_size == 0)
+			{
+				//restart
+				//if(ENABLE_PRINTS)
+				//	printf("RESTART\n");
+				treelet_id = 0;
+				current_entry = root_node;
+				level = 0;
+			}
+			else
+			{
+				current_entry = node_stack[--node_stack_size];
+				if(current_entry.is_last)
+					restart_trail.set(parent_level, STRaTARTKernel::RestartTrail::N);
+				level = parent_level + 1;
+			}
+		}
+		else
+		{
+			current_entry = node_stack[--node_stack_size];
+		}
+
+		if(current_entry.t >= hit.t)
+		{
+			update_restart_trail = true;
+			//if(ENABLE_PRINTS)
+			//	printf("POP_CULL\n");
+			continue;
+		}
 
 		steps++;
 		if(current_entry.data.is_int)
 		{
-			uint max_insert_depth = node_stack_size;
-			const rtm::WideBVH::Node node = decompress(((rtm::CompressedWideBVH::Node*)treelets)[current_entry.data.child_index]);
-			for(int i = 0; i < rtm::WideTreeletBVH::WIDTH; i++)
+			if(current_entry.data.is_child_treelet)
+			{
+				node_stack_size = 0;
+				treelet_id = current_entry.data.child_index;
+
+				current_entry.data.is_int = 1;
+				current_entry.data.is_child_treelet = 0;
+				current_entry.data.child_index = 0;
+
+				//if(ENABLE_PRINTS)
+				//	printf("TREELET_JUMP: %d\n", treelet_id);
+			}
+			
+			//if(ENABLE_PRINTS)
+			//	printf("NODE_ISSUE: %d:%d\n", treelet_id, current_entry.data.child_index);
+
+			uint k = restart_trail.get(level);
+
+			uint nodes_pushed = 0;
+			const rtm::WideTreeletBVH::Treelet::Node node = treelets[treelet_id].nodes[current_entry.data.child_index].decompress();
+			for(uint i = 0; i < rtm::WideTreeletBVH::WIDTH; ++i)
 			{
 				if(!node.is_valid(i)) continue;
 
 				float t = _intersect(node.aabb[i], ray, inv_d);
 				if(t < hit.t)
 				{
-					uint j = node_stack_size++;
-					for(; j > max_insert_depth; --j)
+					uint j = node_stack_size + nodes_pushed++;
+					for(; j > node_stack_size; --j)
 					{
 						if(node_stack[j - 1].t > t) break;
 						node_stack[j] = node_stack[j - 1];
 					}
 
 					node_stack[j].t = t;
+					node_stack[j].is_last = false;
 					node_stack[j].data = node.data[i];
 				}
+			}
+
+			if(k == STRaTARTKernel::RestartTrail::N) nodes_pushed = 1;
+			else                     nodes_pushed -= rtm::min(nodes_pushed, k);
+
+			if(nodes_pushed == 0)
+			{
+				update_restart_trail = true;
+			}
+			else
+			{
+				update_restart_trail = false;
+				if(nodes_pushed == 1) restart_trail.set(level, STRaTARTKernel::RestartTrail::N);
+				else                  node_stack[node_stack_size].is_last = true;
+				node_stack_size += nodes_pushed;
+				level++;
 			}
 		}
 		else
 		{
+			//if(ENABLE_PRINTS)
+			//	printf("TRI: %d:%d\n", current_entry.data.triangle_index, current_entry.data.num_tri);
 		#if 1
-			for(uint i = 0; i < current_entry.data.num_prims; ++i)
+			for(uint i = 0; i < current_entry.data.num_tri; ++i)
 			{
-				uint32_t offset = current_entry.data.prim_index + i;
-				const rtm::CompressedWideBVH::TreeletTriangle& tri = (rtm::CompressedWideBVH::TreeletTriangle&)((uint32_t*)treelets)[offset];
+				uint32_t offset = current_entry.data.triangle_index + i * (sizeof(rtm::WideTreeletBVH::Treelet::Triangle) / 4);
+				const rtm::WideTreeletBVH::Treelet::Triangle& tri = *(rtm::WideTreeletBVH::Treelet::Triangle*)((uint32_t*)treelets[treelet_id].nodes + offset);
 				if(_intersect(tri.tri, ray, hit))
 				{
 					hit.id = tri.id;
@@ -336,37 +340,33 @@ inline bool intersect(const void* treelets, const rtm::Ray& ray, rtm::Hit& hit, 
 				found_hit = true;
 			}
 		#endif
+			update_restart_trail = true;
 		}
 	}
-	while(node_stack_size);
 
 	return found_hit;
 }
 
-
 #ifndef __riscv 
-inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays, bool serializeRays = false)
+inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays)
 {
-	const uint framebuffer_size = framebuffer_width * framebuffer_height;
-	printf("Generating bounce %d rays from %d path\n", bounce, framebuffer_size);
+	uint num_rays = framebuffer_width * framebuffer_height;
+	printf("Generating bounce %d rays from %d path\n", bounce, num_rays);
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 
-	uint num_rays = framebuffer_size;
-	for(int index = 0; index < framebuffer_size; index++)
+	for(int index = 0; index < num_rays; index++)
 	{
 		uint32_t x = index % framebuffer_width;
 		uint32_t y = index / framebuffer_width;
 		rtm::RNG rng(index);
 
 		rtm::Ray ray = camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
-	
 		for(uint i = 0; i < bounce; ++i)
 		{
-			uint steps = 0;
 			rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
-			intersect(bvh.nodes.data(), tris.data(), ray, hit, steps);
+			intersect(bvh.nodes.data(), tris.data(), ray, hit);
 			if(hit.id != ~0u)
 			{
 				rtm::vec3 normal = tris[hit.id].normal();
@@ -383,29 +383,5 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 		rays[index] = ray;
 	}
 	printf("Generated %d rays\n", num_rays);
-
-
-
-	if (serializeRays)
-	{
-		std::string resultPathName = std::filesystem::current_path().generic_string() + "/pregenRayData.bin";
-		std::ofstream file_stream(resultPathName.c_str() , std::ios::binary);
-		
-		if (file_stream.good())
-		{
-			file_stream.write((char*)rays.data(), rays.size() * sizeof(rtm::Ray));
-			if (file_stream.good())
-			{
-				printf("Serialized ray data\n");
-			}
-		}
-		else
-		{
-			fprintf(stderr, "pregen_rays: ofstream failed to open output file\n");
-		}
-
-		file_stream.close();
-	}
 }
-
 #endif

@@ -4,8 +4,9 @@
 
 #include "../unit-base.hpp"
 #include "../unit-memory-base.hpp"
-#include "strata-kernel/ray-data.hpp"
-#include "unit-ray-steam-buffer.hpp"
+#include "unit-ray-stream-buffer.hpp"
+
+#include "strata-kernel/include.hpp"
 
 //#define ENABLE_RT_DEBUG_PRINTS (unit_id == 12 && ray_id == 0)
 //#define ENABLE_RT_DEBUG_PRINTS (ray_state.ray_data.global_ray_id == 9416)
@@ -66,7 +67,7 @@ private:
 		}
 		phase;
 
-		RayData ray_data;
+		STRaTAKernel::RayData ray_data;
 		rtm::vec3 inv_d;
 
 		StackEntry stack;
@@ -114,7 +115,7 @@ private:
 	std::queue<uint> _ray_scheduling_queue;
 	std::queue<uint> _ray_data_load_queue;
 	std::queue<FetchItem> _fetch_queue;
-	std::queue<RayData> _ray_buffer_store_queue;
+	std::queue<STRaTAKernel::RayData> _ray_buffer_store_queue;
 	std::vector<RayState> _ray_states;
 
 	// hit record loading

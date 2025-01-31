@@ -258,18 +258,6 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	return args;
 }
 
-void print_header(std::string string, uint header_length = 80)
-{
-	uint spacers = string.length() < header_length ? header_length - string.length() : 0;
-	printf("\n");
-	for(uint i = 0; i < spacers / 2; ++i)
-		printf("-");
-	printf("%s", string.c_str());
-	for(uint i = 0; i < (spacers + 1) / 2; ++i)
-		printf("-");
-	printf("\n");
-}
-
 static void run_sim_dual_streaming(const SimulationConfig& sim_config)
 {
 	std::string project_folder = get_project_folder_path();

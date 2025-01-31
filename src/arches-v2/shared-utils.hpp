@@ -1,4 +1,6 @@
 #pragma once
+#include "stdafx.hpp"
+
 #include "simulator/simulator.hpp"
 
 #include "units/unit-dram.hpp"
@@ -17,7 +19,6 @@
 #include "isa/riscv.hpp"
 #include "rtm/rtm.hpp"
 
-#include "stdafx.hpp"
 #include <Windows.h>
 
 namespace Arches {
@@ -37,7 +38,6 @@ static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment
 	heap_address = array_address + size * sizeof(RET);
 	main_memory->direct_write(data, size * sizeof(RET), array_address);
 	return reinterpret_cast<RET*>(array_address);
-
 }
 
 template <typename RET>
@@ -68,7 +68,19 @@ inline static L delta_log(L& master_log, T& unit)
 	return delta_log;
 }
 
-const static std::vector<std::string> arch_names = {"TRaX","STRaTA", "Dual-Streaming", "RIC"};
+void print_header(std::string string, uint header_length = 80)
+{
+	uint spacers = string.length() < header_length ? header_length - string.length() : 0;
+	printf("\n");
+	for(uint i = 0; i < spacers / 2; ++i)
+		printf("-");
+	printf("%s", string.c_str());
+	for(uint i = 0; i < (spacers + 1) / 2; ++i)
+		printf("-");
+	printf("\n");
+}
+
+const static std::vector<std::string> arch_names = {"TRaX","STRaTA", "STRaTA-RT", "Dual-Streaming", "RIC"};
 
 struct SceneConfig
 {
@@ -111,8 +123,9 @@ public:
 		{
 			int i;
 			float f;
-			std::string s;
 		};
+
+		std::string s;
 
 		Param() {};
 
@@ -186,7 +199,7 @@ public:
 		set_param("weight_scheme", 0);
 
 		//RIC
-		set_param("max_active_set_size", 36 << 20);
+		set_param("max_active_set_size", 20 << 20);
 
 		for(uint i = 1; i < argc; ++i)
 		{

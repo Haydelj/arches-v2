@@ -106,9 +106,15 @@ public:
 		}
 	};
 
+	struct TreeletTriangle
+	{
+		rtm::Triangle tri;
+		uint id;
+	};
+
 #ifndef __riscv
 	std::vector<Node> nodes;
-	std::vector<uint> indices; //flat triangle array indices
+	std::vector<uint8_t> treelets;
 
 public:
 	/// <summary>
@@ -121,8 +127,6 @@ public:
 		printf("Building Compressed Wide BVH\n");
 
 		assert(wbvh.nodes.size() != 0);
-		indices.resize(wbvh.indices.size());
-		std::copy(wbvh.indices.begin(), wbvh.indices.end(), indices.begin());
 
 		nodes.clear();
 		for(const WideBVH::Node& wnode : wbvh.nodes)
@@ -218,6 +222,273 @@ public:
 
 		printf("Built Compressed Wide BVH\n");
 	}
+
+	uint get_node_size(uint node, const rtm::Mesh& mesh)
+	{
+		uint node_size = sizeof(Node);
+		for(uint i = 0; i < WIDTH; ++i)
+			if(!nodes[node].cdata[i].is_int)
+				node_size += sizeof(TreeletTriangle) * nodes[node].cdata[i].num_prims;
+		return node_size;
+	}
+
+	/*
+	void treeletize(const rtm::Mesh& mesh, uint treelet_size = 1 << 20, uint max_cut_size = 1024)
+	{
+		printf("Building Compressed Wide Treelet BVH\n");
+		size_t usable_space = treelet_size;
+
+		//Phase 0 setup
+		uint total_footprint = 0;
+		std::vector<uint> footprint;
+		std::vector<float> area;
+		std::vector<float> best_cost;
+		for(uint i = 0; i < nodes.size(); ++i)
+		{
+			footprint.push_back(get_node_size(i, mesh));
+			total_footprint += footprint.back();
+
+			AABB aabb;
+			for(uint j = 0; j < WIDTH; ++j)
+				if(nodes[i].decompress().is_valid(j))
+					aabb.add(nodes[i].decompress().aabb[j]);
+
+			area.push_back(aabb.surface_area());
+			best_cost.push_back(INFINITY);
+		}
+
+		float epsilon = area[0] * usable_space / (10 * total_footprint);
+
+		std::deque<uint> post_stack;
+		std::stack<uint> pre_stack; pre_stack.push(0);
+		while(!pre_stack.empty())
+		{
+			uint node = pre_stack.top();
+			pre_stack.pop();
+
+			for(uint i = 0; i < WIDTH; ++i)
+				if(nodes[node].cdata[i].is_int)
+					pre_stack.push(nodes[node].decompress().data[i].child_index);
+
+			post_stack.push_front(node);
+		}
+
+
+
+		//Phase 1 reverse depth first search using dynamic programing to determine treelet costs
+		std::vector<uint> subtree_footprint;
+		subtree_footprint.resize(nodes.size(), 0);
+		for(auto& root_node : post_stack)
+		{
+			subtree_footprint[root_node] = footprint[root_node];
+
+			for(uint i = 0; i < WIDTH; ++i)
+				if(nodes[root_node].cdata[i].is_int)
+					subtree_footprint[root_node] += subtree_footprint[nodes[root_node].decompress().data[i].child_index];
+
+			std::set<std::set<uint>> cut{{root_node}};
+			uint bytes_remaining = usable_space;
+			best_cost[root_node] = INFINITY;
+			while(cut.size() < max_cut_size)
+			{
+				std::set<uint> best_node_set = {};
+				float best_score = -INFINITY;
+				for(auto& node_set : cut)
+				{
+					uint range_footprint = 0;
+					for(auto& a : node_set)
+						range_footprint += footprint[a];
+
+					if(range_footprint <= bytes_remaining)
+					{
+						float gain = area[*node_set.begin()] + epsilon;
+						float price = rtm::min(subtree_footprint[*node_set.begin()], usable_space);
+						float score = gain / price;
+						if(score > best_score)
+						{
+							best_node_set = node_set;
+							best_score = score;
+						}
+					}
+				}
+				if(best_node_set.empty()) break;
+
+				cut.erase(best_node_set);
+
+				//insert children into cut
+				for(auto& node : best_node_set)
+				{
+					std::set<uint> child_set;
+					for(uint i = 0; i < WIDTH; ++i)
+						if(nodes[node].cdata[i].is_int)
+							child_set.insert(nodes[node].decompress().data[i].child_index);
+
+					if(child_set.size() > 0)
+						cut.insert(child_set);
+
+					bytes_remaining -= footprint[node];
+				}
+
+				float cost = area[root_node] + epsilon;
+				for(auto& n : cut)
+					cost += best_cost[*n.begin()];
+				best_cost[root_node] = rtm::min(best_cost[root_node], cost);
+			}
+		}
+
+
+
+		//Phase 2 treelet assignment
+		std::vector<std::vector<uint>> nodes_in_treelet({});
+		std::vector<uint> new_node_id(nodes.size(), ~0u);
+
+		std::queue<std::set<uint>> root_set_queue;
+		root_set_queue.push({0});
+
+		while(!root_set_queue.empty())
+		{
+			std::set<uint> root_set = root_set_queue.front();
+			root_set_queue.pop();
+
+			nodes_in_treelet.push_back({});
+
+			std::set<std::set<uint>> cut{{root_node}};
+			uint bytes_remaining = usable_space;
+			best_cost[root_node] = INFINITY;
+			while(cut.size() < max_cut_size)
+			{
+				std::set<uint> best_node_set = {};
+				float best_score = -INFINITY;
+				for(auto& node_set : cut)
+				{
+					uint range_footprint = 0;
+					for(auto& a : node_set)
+						range_footprint += footprint[a];
+
+					if(range_footprint <= bytes_remaining)
+					{
+						float gain = area[*node_set.begin()] + epsilon;
+						float price = rtm::min(subtree_footprint[*node_set.begin()], usable_space);
+						float score = gain / price;
+						if(score > best_score)
+						{
+							best_node_set = node_set;
+							best_score = score;
+						}
+					}
+				}
+				if(best_node_set.empty()) break;
+
+				for(auto& node : best_node_set)
+				{
+					new_node_id[node] = nodes_in_treelet.size() * treelet_size + nodes_in_treelet.back().size();
+					nodes_in_treelet.back().push_back(node);
+				}
+
+				cut.erase(best_node_set);
+
+				//insert children into cut
+				for(auto& node : best_node_set)
+				{
+					std::set<uint> child_set;
+					for(uint i = 0; i < WIDTH; ++i)
+						if(nodes[node].cdata[i].is_int)
+							child_set.insert(nodes[node].decompress().data[i].child_index);
+
+					if(child_set.size() > 0)
+						cut.insert(child_set);
+
+					bytes_remaining -= footprint[node];
+				}
+
+				float cost = area[root_node] + epsilon;
+				for(auto& n : cut)
+					cost += best_cost[*n.begin()];
+				best_cost[root_node] = rtm::min(best_cost[root_node], cost);
+			}
+
+			for(auto& set : cut)
+				for(auto& node : set)
+
+		}
+
+
+
+		//Phase 3 construct treelets in memeory
+		treelets.resize(nodes_in_treelet.size() * treelet_size);
+
+		for(uint treelet_index = 0; treelet_index < nodes_in_treelet.size(); ++treelet_index)
+		{
+			uint base_triangle_index = (treelet_index * treelet_size + nodes_in_treelet[treelet_index].size() * sizeof(Node)) / 4;
+			for(uint i = 0; i < nodes_in_treelet[treelet_index].size(); ++i)
+			{
+				uint node_id = nodes_in_treelet[treelet_index][i];
+				uint tnode_id = new_node_id[node_id];
+				assert(tnode_id != ~0);
+
+				const Node& cwnode = nodes[node_id];
+				Node& tnode = *(Node*)&treelets[sizeof(Node) * tnode_id];
+
+				tnode.e0 = cwnode.e0;
+				tnode.e1 = cwnode.e1;
+				tnode.e2 = cwnode.e2;
+				tnode.p = cwnode.p;
+
+				uint base_child_index = ~0u;
+				for(uint j = 0; j < WIDTH; ++j)
+				{
+					if(cwnode.cdata[j].is_int)
+					{
+						uint child_node_id = new_node_id[cwnode.decompress().data[j].child_index];
+						base_child_index = min(base_child_index, child_node_id);
+					}
+				}
+
+				tnode.base_child_index = base_child_index;
+				tnode.base_triangle_index = base_triangle_index;
+
+				uint triangle_offset = 0;
+				for(uint j = 0; j < WIDTH; ++j)
+				{
+					tnode.caabb[j] = cwnode.caabb[j];
+					tnode.cdata[j].is_int = cwnode.cdata[j].is_int;
+					if(cwnode.cdata[j].is_int)
+					{
+						uint child_node_id = new_node_id[cwnode.decompress().data[j].child_index];
+						uint offset = child_node_id - tnode.base_child_index;
+						assert(offset < 32);
+						tnode.cdata[j].offset = offset;
+					}
+					else
+					{
+						assert(triangle_offset < 32);
+						tnode.cdata[j].num_prims = cwnode.cdata[j].num_prims;
+						tnode.cdata[j].offset = triangle_offset;
+
+						TreeletTriangle* tris = (TreeletTriangle*)((uint32_t*)treelets.data() + base_triangle_index) + tnode.cdata[j].offset;
+						triangle_offset += cwnode.cdata[j].num_prims;
+
+						for(uint k = 0; k < cwnode.cdata[j].num_prims; ++k)
+						{
+							uint tri_id = cwnode.decompress().data[j].prim_index + k;
+							tris[k].tri = mesh.get_triangle(tri_id);
+							tris[k].id = tri_id;
+						}
+
+					}
+				}
+				base_triangle_index += triangle_offset * sizeof(TreeletTriangle) / 4;
+			}
+
+			//fill_page_median_sah(treelet);
+		}
+
+		printf("Built Compressed Wide Treelet BVH\n");
+		printf("Treelets: %zu\n", treelets.size());
+		printf("Treelet Size: %d\n", treelet_size);
+		printf("Treelet Fill Rate: %.1f%%\n", 100.0 * total_footprint / treelets.size() / usable_space);
+	}
+	*/
 
 	~CompressedWideBVH() = default;
 #endif

@@ -1,14 +1,14 @@
-#pragma once
+#pragma
 #include "shared-utils.hpp"
 
-#include "strata-kernel/include.hpp"
+#include "strata-rt-kernel/include.hpp"
 
-#include "units/strata/unit-tp.hpp"
-#include "units/strata/unit-treelet-rt-core.hpp"
+#include "units/strata-rt/unit-tp.hpp"
+#include "units/strata-rt/unit-treelet-rt-core.hpp"
 
 namespace Arches {
 
-namespace ISA { namespace RISCV { namespace STRaTA {
+namespace ISA { namespace RISCV { namespace STRaTART {
 
 //see the opcode map for details
 const static InstructionInfo isa_custom0_000_imm[8] =
@@ -96,12 +96,11 @@ const static InstructionInfo isa_custom0_funct3[8] =
 			//store bucket ray to hit record updater
 			MemoryRequest mem_req;
 			mem_req.type = MemoryRequest::Type::STORE;
-			mem_req.size = sizeof(STRaTAKernel::RayData);
+			mem_req.size = sizeof(STRaTARTKernel::RayData);
 			mem_req.vaddr = unit->int_regs->registers[instr.s.rs1].u64 + s_imm(instr);
 
-
 			Register32* fr = unit->float_regs->registers;
-			for(uint i = 0; i < sizeof(STRaTAKernel::RayData) / sizeof(float); ++i)
+			for(uint i = 0; i < sizeof(STRaTARTKernel::RayData) / sizeof(float); ++i)
 				((float*)mem_req.data)[i] = fr[instr.s.rs2 + i].f32;
 
 			return mem_req;
@@ -112,7 +111,7 @@ const static InstructionInfo isa_custom0_funct3[8] =
 				//load hit record into registers [rd - (rd + N)]
 				MemoryRequest mem_req;
 				mem_req.type = MemoryRequest::Type::LOAD;
-				mem_req.size = sizeof(STRaTAKernel::HitReturn);
+				mem_req.size = sizeof(STRaTARTKernel::HitReturn);
 				mem_req.dst.push(DstReg(instr.rd, RegType::FLOAT32).u9, 9);
 				mem_req.vaddr = unit->int_regs->registers[instr.i.rs1].u64 + i_imm(instr);
 
@@ -121,29 +120,29 @@ const static InstructionInfo isa_custom0_funct3[8] =
 			InstructionInfo(0x5, IMPL_NONE),
 };
 
-const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3]; });
+const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3];});
 
 }
 }
 }
 
-namespace STRaTA {
+namespace STRaTART {
 
 typedef Units::UnitDRAMRamulator UnitDRAM;
 typedef Units::UnitCache UnitL2Cache;
 typedef Units::UnitCache UnitL1Cache;
-typedef Units::STRaTA::UnitTreeletRTCore UnitRTCore;
+typedef Units::STRaTART::UnitTreeletRTCore UnitRTCore;
 
-#include "strata-kernel/include.hpp"
-#include "strata-kernel/intersect.hpp"
-static STRaTAKernel::Args initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size, uint64_t raybuffer_size)
+#include "strata-rt-kernel/include.hpp"
+#include "strata-rt-kernel/intersect.hpp"
+static STRaTARTKernel::Args initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size, uint64_t raybuffer_size)
 {
 	std::string scene_name = sim_config.get_string("scene_name");
 	std::string project_folder = get_project_folder_path();
 	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
 	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
 
-	STRaTAKernel::Args args;
+	STRaTARTKernel::Args args;
 	args.framebuffer_width = sim_config.get_int("framebuffer_width");
 	args.framebuffer_height = sim_config.get_int("framebuffer_height");
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
@@ -155,7 +154,7 @@ static STRaTAKernel::Args initilize_buffers(Units::UnitMainMemoryBase* main_memo
 	args.hit_records = write_vector(main_memory, page_size, hits, heap_address);
 
 	args.raybuffer_size = raybuffer_size;
-	args.max_init_ray = std::min(args.raybuffer_size / (uint32_t)sizeof(STRaTAKernel::RayData), args.framebuffer_size);
+	args.max_init_ray = std::min(args.raybuffer_size / (uint32_t)sizeof(STRaTARTKernel::RayData), args.framebuffer_size);
 
 	// secondary rays only
 	args.pregen_rays = sim_config.get_int("pregen_rays");
@@ -174,29 +173,22 @@ static STRaTAKernel::Args initilize_buffers(Units::UnitMainMemoryBase* main_memo
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, sim_config.get_int("pregen_bounce"), rays);
 
-#ifdef USE_COMPRESSED_WIDE_BVH
-	rtm::WideBVHSTRaTA wbvh(bvh2, build_objects);
+	rtm::WideBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
 
-	rtm::CompressedWideBVHSTRaTA cwbvh(wbvh);
-	rtm::CompressedWideTreeletBVHSTRaTA cwtbvh(cwbvh, mesh, 1024);
+	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
 	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
-#else
-	rtm::WideBVHSTRaTA wbvh(bvh2, build_objects);
-	mesh.reorder(build_objects);
-	rtm::WideTreeletBVHSTRaTA wtbvh(wbvh, mesh, 1024);
-	args.treelets = write_vector(main_memory, page_size, wtbvh.treelets, heap_address);
-#endif
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
-	main_memory->direct_write(&args, sizeof(STRaTAKernel::Args), KERNEL_ARGS_ADDRESS);
+	main_memory->direct_write(&args, sizeof(STRaTARTKernel::Args), KERNEL_ARGS_ADDRESS);
 	return args;
 }
 
-void run_sim_strata(const SimulationConfig& sim_config)
+void run_sim_strata_rt(const SimulationConfig& sim_config)
 {
 	std::string project_folder_path = get_project_folder_path();
 
@@ -210,7 +202,7 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	//Memory
 	uint64_t block_size = CACHE_BLOCK_SIZE;
 	uint num_partitions = 16;
-	uint partition_stride = 1 << 11;
+	uint partition_stride = 1 << 13;
 	uint64_t partition_mask = generate_nbit_mask(log2i(num_partitions)) << log2i(partition_stride);
 
 	//DRAM
@@ -229,14 +221,15 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	//	UnitDRAM::init_usimm("gddr5_16ch.cfg", "1Gb_x16_amd2GHz.vi");
 	//	UnitDRAM dram(64, mem_size);
 	//#endif
+	uint64_t ray_stream_buffer_size = 8ull << 20;
 
-		//L2$
+	//L2$
 	UnitL2Cache::Configuration l2_config;
 	l2_config.in_order = sim_config.get_int("l2_in_order");
 	l2_config.level = 2;
 	l2_config.block_size = block_size;
-	l2_config.size = sim_config.get_int("l2_size");
-	l2_config.associativity = sim_config.get_int("l2_associativity");
+	l2_config.size = 64ull << 20; // sim_config.get_int("l2_size");
+	l2_config.associativity = 16;//sim_config.get_int("l2_associativity");
 	l2_config.num_partitions = num_partitions;
 	l2_config.partition_select_mask = partition_mask;
 	l2_config.num_banks = 2;
@@ -297,19 +290,19 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
 
-	ELF elf(project_folder_path + "src\\strata-kernel\\riscv\\kernel");
+	ELF elf(project_folder_path + "src\\strata-rt-kernel\\riscv\\kernel");
 
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM4] = "SWI";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM6] = "LHIT";
-	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::STRaTA::custom0;
+	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::STRaTART::custom0;
 
 	uint num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
 
 	Simulator simulator;
-	std::vector<Units::STRaTA::UnitTP*> tps;
+	std::vector<Units::STRaTART::UnitTP*> tps;
 	std::vector<Units::UnitSFU*> sfus;
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<UnitRTCore*> rtcs;
@@ -326,17 +319,17 @@ void run_sim_strata(const SimulationConfig& sim_config)
 
 	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
-	uint64_t ray_stream_buffer_size = 16ull * 1024 * 1024;
-	STRaTAKernel::Args kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride, ray_stream_buffer_size);
+	STRaTARTKernel::Args kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride, ray_stream_buffer_size);
 
-	Units::STRaTA::UnitRayStreamBuffer::Configuration ray_stream_buffer_config;
+	Units::STRaTART::UnitRayStreamBuffer::Configuration ray_stream_buffer_config;
 	ray_stream_buffer_config.latency = 100;
 	ray_stream_buffer_config.num_banks = 64;
 	ray_stream_buffer_config.num_tm = num_tms;
 	ray_stream_buffer_config.size = ray_stream_buffer_size; //4MB
+	ray_stream_buffer_config.cheat_treelets = (rtm::CompressedWideTreeletBVH::Treelet*)(dram._data_u8 + (size_t)kernel_args.treelets);
 	uint rtc_max_rays = 256;
 	ray_stream_buffer_config.rtc_max_rays = rtc_max_rays;
-	Units::STRaTA::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);
+	Units::STRaTART::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);
 	simulator.register_unit(&ray_stream_buffer);
 
 	l2_config.num_ports = num_tms;
@@ -426,14 +419,14 @@ void run_sim_strata(const SimulationConfig& sim_config)
 		{
 			tp_config.tp_index = tp_index;
 			tp_config.unit_table = &unit_tables[tm_index];
-			tps.push_back(new Units::STRaTA::UnitTP(tp_config));
+			tps.push_back(new Units::STRaTART::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}
 
 		simulator.new_unit_group();
 	}
 
-	printf("Starting STRaTA\n");
+	printf("Starting STRaTA-RT\n");
 	for(auto& tp : tps)
 		tp->set_entry_point(elf.elf_header->e_entry.u64);
 
@@ -445,7 +438,7 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	Units::UnitTP::Log tp_log;
 
 	UnitRTCore::Log rtc_log;
-	Units::STRaTA::UnitRayStreamBuffer::Log rsb_log;
+	Units::STRaTART::UnitRayStreamBuffer::Log rsb_log;
 
 	uint delta = sim_config.get_int("logging_interval");
 	auto start = std::chrono::high_resolution_clock::now();
@@ -456,8 +449,9 @@ void run_sim_strata(const SimulationConfig& sim_config)
 		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
 		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
 		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
-		Units::STRaTA::UnitRayStreamBuffer::Log rsb_delta_log = delta_log(rsb_log, ray_stream_buffer);
+		Units::STRaTART::UnitRayStreamBuffer::Log rsb_delta_log = delta_log(rsb_log, ray_stream_buffer);
 		UnitRTCore::Log rtc_delta_log = delta_log(rtc_log, rtcs);
+		Units::UnitTP::Log tp_delta_log = delta_log(tp_log, tps);
 
 		printf("                            \n");
 		printf("Cycle: %lld                 \n", simulator.current_cycle);
@@ -468,15 +462,17 @@ void run_sim_strata(const SimulationConfig& sim_config)
 		printf("L1d$ Read: %8.1f bytes/cycle\n", (float)l1d_delta_log.bytes_read / delta);
 		printf("RSB$ Read: %8.1f bytes/cycle\n", (float)rsb_delta_log.bytes_read / delta);
 		printf("RSB$ Write: %7.1f bytes/cycle\n", (float)rsb_delta_log.bytes_written / delta);
-		printf("RTC Store Rays: %lld\n", rtc_delta_log.store_rays);
-		printf("RTC Load Hits: %lld\n", rtc_delta_log.load_hits);
-		printf("RTC Hits: %lld\n", rtc_delta_log.hits);
-		printf("RTC Get Hits: %lld\n", rtc_delta_log.get_hits);
-		printf("RTC Return Hits: %lld\n", rtc_delta_log.return_hits);
 		printf("                            \n");
-		printf(" L2$ Hit Rate: %8.1f%%\n", 100.0 * (l2_delta_log.hits + l2_delta_log.half_misses) / l2_delta_log.get_total());
-		printf("L1d$ Hit Rate: %8.1f%%\n", 100.0 * (l1d_delta_log.hits + l1d_delta_log.half_misses) / l1d_delta_log.get_total());
+		printf(" L2$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total(), 100.0 * l2_delta_log.half_misses / l2_delta_log.get_total(), 100.0 * l2_delta_log.misses / l2_delta_log.get_total());
+		printf("L1d$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.half_misses / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.misses / l1d_delta_log.get_total());
 		printf("                             \n");
+		printf("MRays/s: %.0f\n", rsb_delta_log.hits / epsilon_ns * 1000.0);
+		printf("                             \n");
+		rtc_delta_log.print(rtcs.size());
+		//printf("Treelets: ");
+		//for(auto& a : ray_stream_buffer._treelet_states)
+		//	printf("%d:%d, ", a.first, a.second.num_tms);
+		//printf("\n");
 	});
 	auto stop = std::chrono::high_resolution_clock::now();
 
@@ -518,7 +514,7 @@ void run_sim_strata(const SimulationConfig& sim_config)
 		float treelets_per_ray = (float)rtc_log.rays / kernel_args.framebuffer_size;
 		printf("Treelets/Ray: %.2f\n", treelets_per_ray);
 		rtc_log.rays = kernel_args.framebuffer_size;
-		rtc_log.print(frame_cycles, rtcs.size());
+		rtc_log.print(rtcs.size());
 	}
 
 	float total_energy = total_power * frame_time;
