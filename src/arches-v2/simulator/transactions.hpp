@@ -27,6 +27,7 @@ struct MemoryRequest
 		AMO_MINU,
 		AMO_MAXU,
 
+		TRACERAY,
 		FCHTHRD,
 		CSHIT,
 	};

@@ -2,41 +2,32 @@
 #include "stdafx.hpp"
 #include "rtm/rtm.hpp"
 
+#include "sg-kernel/include.hpp"
 #include "../unit-base.hpp"
 #include "../unit-memory-base.hpp"
 
-//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 3212 && ray_id == 0)
-
-#ifndef ENABLE_RT_DEBUG_PRINTS 
-#define ENABLE_RT_DEBUG_PRINTS (false)
-#endif
-
-namespace Arches { namespace Units { namespace TRaX {
-
-constexpr uint PACKET_SIZE = 2;
+namespace Arches { namespace Units { namespace TRaXSG {
 
 template<typename NT>
-class UnitPRTCore : public UnitMemoryBase
+class UnitRTCore : public UnitMemoryBase
 {
 public:
 	struct Configuration
 	{
-		uint max_rays;
-
 		uint num_clients;
-		uint cache_port;
-
+		uint max_rays;
 		paddr_t node_base_addr;
-		paddr_t tri_base_addr;
+		paddr_t sg_base_addr;
 
 		UnitMemoryBase* cache;
+		uint cache_port;
 	};
 
 private:
 	enum class IssueType
 	{
 		NODE_FETCH,
-		TRI_FETCH,
+		SG_FETCH,
 		POP_CULL,
 		HIT_RETURN,
 		NUM_TYPES,
@@ -44,9 +35,8 @@ private:
 
 	struct StackEntry
 	{
-		float min_t;
+		float t;
 		rtm::WideBVH::Node::Data data;
-		uint64_t mask;
 
 		StackEntry() {}
 	};
@@ -63,15 +53,14 @@ private:
 			NT::Node node;
 			struct
 			{
-				rtm::Triangle tris[3];
-				uint tri_id;
-				uint num_tris;
+				rtm::SphericalGaussian sgs[3];
+				uint num_sgs;
+				uint sg_id;
 			};
 		};
 
 		StagingBuffer() {}
 	};
-
 
 	struct RayState
 	{
@@ -81,29 +70,26 @@ private:
 			SCHEDULER,
 			HIT_RETURN,
 			NODE_FETCH,
-			TRI_FETCH,
+			SG_FETCH,
 			NODE_ISECT,
 			TRI_ISECT,
 			NUM_PHASES,
 		}
 		phase;
 
-		uint tile_id;
-
-		rtm::Ray ray[PACKET_SIZE];
-		rtm::vec3 inv_d[PACKET_SIZE];
-		rtm::Hit hit[PACKET_SIZE];
+		rtm::Ray ray;
+		rtm::vec3 inv_d;
+		SGKernel::HitPacket hit_packet;
+		float opacity;
+		float opacity0;
+		float ts[SGKernel::HitPacket::MAX_HITS];
 
 		StackEntry stack[32 * NT::WIDTH];
 		uint8_t stack_size;
 		uint8_t current_entry;
 
-		BitStack27 dst[PACKET_SIZE];
-
-		uint num_rays;
-		uint return_ray;
-		uint64_t mask;
-		uint max_t;
+		MemoryRequest::Flags flags;
+		BitStack27 dst;
 
 		StagingBuffer buffer;
 
@@ -121,6 +107,7 @@ private:
 	RequestCascade _request_network;
 	ReturnCascade _return_network;
 	UnitMemoryBase* _cache;
+	uint _cache_port;
 
 	//ray scheduling hardware
 	std::queue<uint> _ray_scheduling_queue;
@@ -133,23 +120,21 @@ private:
 	//node pipline
 	std::queue<uint> _node_isect_queue;
 	Pipline<uint> _box_pipline;
-	uint _box_issues;
+	uint _box_issue_count{0};
 
 	//tri pipline
-	std::queue<uint> _tri_isect_queue;
-	Pipline<uint> _tri_pipline;
-	uint _tri_issues;
+	std::queue<uint> _sg_isect_queue;
+	Pipline<uint> _sg_pipline;
+	uint _sg_issue_count{0};
 
 	//meta data
 	uint _max_rays;
-	uint _cache_port;
-	uint _num_clients;
 	paddr_t _node_base_addr;
-	paddr_t _tri_base_addr;
-	uint last_ray_id{0};
+	paddr_t _sg_base_addr;
+	uint _last_ray_id{0};
 
 public:
-	UnitPRTCore(const Configuration& config);
+	UnitRTCore(const Configuration& config);
 
 	void clock_rise() override;
 
@@ -187,13 +172,13 @@ private:
 	}
 
 	bool _try_queue_node(uint ray_id, uint node_id);
-	bool _try_queue_tri(uint ray_id, uint tri_id, uint num_tri);
+	bool _try_queue_sgs(uint ray_id, uint tri_id, uint num_tris);
 
 	void _read_requests();
 	void _read_returns();
 	void _schedule_ray();
 	void _simualte_node_pipline();
-	void _simualte_tri_pipline();
+	void _simualte_sg_pipline();
 
 	void _issue_requests();
 	void _issue_returns();
@@ -241,7 +226,7 @@ public:
 				"SCHEDULER",
 				"HIT_RETURN",
 				"NODE_FETCH",
-				"TRI_FETCH",
+				"SG_FETCH",
 				"NODE_ISECT",
 				"TRI_ISECT",
 				"NUM_PHASES",
@@ -250,7 +235,7 @@ public:
 			const static std::string issue_names[] =
 			{
 				"NODE_FETCH",
-				"TRI_FETCH",
+				"SG_FETCH",
 				"POP_CULL",
 				"HIT_RETURN",
 				"NUM_TYPES",
@@ -297,6 +282,4 @@ public:
 	}log;
 };
 
-}
-}
-}
+}}}

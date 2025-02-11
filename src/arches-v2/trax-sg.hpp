@@ -1,12 +1,13 @@
 #pragma once
 #include "shared-utils.hpp"
-#include "units/trax/unit-tp.hpp"
-#include "units/trax/unit-rt-core.hpp"
-#include "units/trax/unit-prt-core.hpp"
+#include "units/trax/unit-sgt-core.hpp"
+#include "sg-kernel/include.hpp"
 
 namespace Arches {
 
-namespace ISA { namespace RISCV { namespace TRaX {
+namespace ISA {
+namespace RISCV {
+namespace TRaXSG {
 
 //see the opcode map for details
 const static InstructionInfo isa_custom0_000_imm[8] =
@@ -20,69 +21,13 @@ const static InstructionInfo isa_custom0_000_imm[8] =
 		req.vaddr = 0x0ull;
 		return req;
 	}),
-	InstructionInfo(0x1, "boxisect", InstrType::CUSTOM1, Encoding::U, RegFile::FLOAT, EXEC_DECL
-	{
-		Register32 * fr = unit->float_regs->registers;
-
-		rtm::Ray ray;
-		rtm::vec3 inv_d;
-		ray.o.x = fr[0].f32;
-		ray.o.y = fr[1].f32;
-		ray.o.z = fr[2].f32;
-		ray.t_min = fr[3].f32;
-		inv_d.x = fr[4].f32;
-		inv_d.y = fr[5].f32;
-		inv_d.z = fr[6].f32;
-		ray.t_max = fr[7].f32;
-
-		rtm::AABB aabb;
-		aabb.min.x = fr[8].f32;
-		aabb.min.y = fr[9].f32;
-		aabb.min.z = fr[10].f32;
-		aabb.max.x = fr[11].f32;
-		aabb.max.y = fr[12].f32;
-		aabb.max.z = fr[13].f32;
-
-		unit->float_regs->registers[instr.u.rd].f32 = rtm::intersect(aabb, ray, inv_d);
-	}),
-	InstructionInfo(0x2, "triisect", InstrType::CUSTOM2, Encoding::U, RegFile::FLOAT, EXEC_DECL
-	{
-		Register32 * fr = unit->float_regs->registers;
-
-		rtm::Ray ray;
-		ray.o.x = fr[0].f32;
-		ray.o.y = fr[1].f32;
-		ray.o.z = fr[2].f32;
-		ray.t_min = fr[3].f32;
-		ray.d.x = fr[4].f32;
-		ray.d.y = fr[5].f32;
-		ray.d.z = fr[6].f32;
-		ray.t_max = fr[7].f32;
-
-		rtm::Triangle tri;
-		tri.vrts[0].x = fr[8].f32;
-		tri.vrts[0].y = fr[9].f32;
-		tri.vrts[0].z = fr[10].f32;
-		tri.vrts[1].x = fr[11].f32;
-		tri.vrts[1].y = fr[12].f32;
-		tri.vrts[1].z = fr[13].f32;
-		tri.vrts[2].x = fr[14].f32;
-		tri.vrts[2].y = fr[15].f32;
-		tri.vrts[2].z = fr[16].f32;
-
-		rtm::Hit hit;
-		hit.t = fr[17].f32;
-		hit.bc[0] = fr[18].f32;
-		hit.bc[1] = fr[19].f32;
-		hit.id = fr[20].u32;
-
-		rtm::intersect(tri, ray, hit);
-
-		fr[17].f32 = hit.t;
-		fr[18].f32 = hit.bc[0];
-		fr[19].f32 = hit.bc[1];
-		fr[20].u32 = hit.id;
-	}),
+	InstructionInfo(0x1, IMPL_NONE),
+	InstructionInfo(0x2, IMPL_NONE),
+	InstructionInfo(0x3, IMPL_NONE),
+	InstructionInfo(0x4, IMPL_NONE),
+	InstructionInfo(0x5, IMPL_NONE),
+	InstructionInfo(0x6, IMPL_NONE),
+	InstructionInfo(0x7, IMPL_NONE),
 };
 
 const static InstructionInfo isa_custom0_funct3[8] =
@@ -92,27 +37,31 @@ const static InstructionInfo isa_custom0_funct3[8] =
 	InstructionInfo(0x2, IMPL_NONE),
 	InstructionInfo(0x3, IMPL_NONE),
 	InstructionInfo(0x4, IMPL_NONE),
-	InstructionInfo(0x5, "traceray", InstrType::CUSTOM7, Encoding::I, RegFile::FLOAT, MEM_REQ_DECL
+	InstructionInfo(0x5, "traceray", InstrType::CUSTOM7, Encoding::ICR, RegFile::INT, sizeof(SGKernel::HitPacket) / sizeof(uint32_t), RegFile::FLOAT, 9, MEM_REQ_DECL
 	{
 		MemoryRequest mem_req;
-		mem_req.type = MemoryRequest::Type::STORE;
-		mem_req.size = sizeof(rtm::Ray);
-		mem_req.dst.push(DstReg(instr.rd, RegType::FLOAT32).u9, 9);
+		mem_req.type = MemoryRequest::Type::TRACERAY;
+		mem_req.size = 9 * sizeof(float);
+		mem_req.dst.push(DstReg(instr.rd, RegType::UINT32).u9, 9);
 		mem_req.vaddr = 0xdeadbeefull;
 
 		Register32* fr = unit->float_regs->registers;
-		for(uint i = 0; i < sizeof(rtm::Ray) / sizeof(float); ++i)
+		for(uint i = 0; i < 9; ++i)
 			((float*)mem_req.data)[i] = fr[instr.i.rs1 + i].f32;
 
 		return mem_req;
 	}),
+	InstructionInfo(0x6, IMPL_NONE),
+	InstructionInfo(0x7, IMPL_NONE),
 };
 
-const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3];});
+const static InstructionInfo custom0(CUSTOM_OPCODE0, META_DECL{return isa_custom0_funct3[instr.i.funct3]; });
 
-}}}
+}
+}
+}
 
-namespace TRaX {
+namespace TRaXSG {
 
 #include "trax-kernel/include.hpp"
 #include "trax-kernel/intersect.hpp"
@@ -120,20 +69,16 @@ namespace TRaX {
 typedef Units::UnitDRAMRamulator UnitDRAM;
 typedef Units::UnitCache UnitL2Cache;
 typedef Units::UnitCache UnitL1Cache;
-#if TRAX_USE_COMPRESSED_WIDE_BVH
-typedef Units::TRaX::UnitPRTCore<rtm::CompressedWideBVH> UnitRTCore;
-#else
-typedef Units::TRaX::UnitRTCore<rtm::PackedBVH2> UnitRTCore;
-#endif
+typedef Units::TRaXSG::UnitRTCore<rtm::CompressedWideBVH> UnitRTCore;
 
-static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
+static SGKernel::Args initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
 {
-	std::string scene_name = sim_config.get_string("scene_name");
+	std::string scene_name = "point-cloud";
 	std::string project_folder = get_project_folder_path();
-	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
+	std::string scene_file = project_folder + "datasets\\" + scene_name + ".ply";
 	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
 
-	TRaXKernelArgs args;
+	SGKernel::Args args;
 	args.framebuffer_width = sim_config.get_int("framebuffer_width");
 	args.framebuffer_height = sim_config.get_int("framebuffer_height");
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
@@ -141,51 +86,51 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 	args.framebuffer = reinterpret_cast<uint32_t*>(heap_address);
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
-	args.pregen_rays = sim_config.get_int("pregen_rays");
+	args.pregen_rays = false;
 
-	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
+	//args.camera = sim_config.camera;
+	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 40.0f, rtm::vec3(-3, 0.0, -3), rtm::vec3(0, 1.0, 0));
 
-	args.camera = sim_config.camera;
+	std::vector<rtm::SphericalGaussian> sgs;
+	std::vector<rtm::SphericalHarmonic> shs;
+	rtm::PLY ply(scene_file);
+	ply.read(sgs, shs);
 
-	rtm::Mesh mesh(scene_file);
 	std::vector<rtm::BVH2::BuildObject> build_objects;
-	mesh.get_build_objects(build_objects);
+	for(uint i = 0; i < sgs.size(); ++i)
+	{
+		rtm::BVH2::BuildObject obj = sgs[i].build_object();
+		if(obj.aabb.surface_area() > 0.0f)
+		{
+			build_objects.push_back(obj);
+			build_objects.back().index = i;
+		}
+	}
 
-	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
-	mesh.reorder(build_objects);
-
-	std::vector<rtm::Ray> rays(args.framebuffer_size);
-	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, sim_config.get_int("pregen_bounce"), rays, true);
-	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
-
-#if TRAX_USE_COMPRESSED_WIDE_BVH
+	rtm::BVH2 bvh2("../../../datasets/cache/point-cloud.bvh", build_objects, 2);
 	rtm::WideBVH wbvh(bvh2, build_objects);
-	mesh.reorder(build_objects);
-
 	rtm::CompressedWideBVH cwbvh(wbvh);
+
+	{
+		std::vector<rtm::SphericalGaussian> temp_sgs(sgs);
+		std::vector<rtm::SphericalHarmonic> temp_shs(shs);
+		for(uint i = 0; i < build_objects.size(); ++i)
+		{
+			sgs[i] = temp_sgs[build_objects[i].index];
+			shs[i] = temp_shs[build_objects[i].index];
+			build_objects[i].index = i;
+		}
+	}
+
 	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, cwbvh.nodes, heap_address);
+	args.sgs = write_vector(main_memory, CACHE_BLOCK_SIZE, sgs, heap_address);
+	args.shs = write_vector(main_memory, CACHE_BLOCK_SIZE, shs, heap_address);
 
-	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
-	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
-#else
-	rtm::WideBVH wbvh(bvh2, build_objects);
-	mesh.reorder(build_objects);
-	args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, wbvh.nodes, heap_address);
-
-	rtm::WideTreeletBVH wtbvh(wbvh, mesh);
-	args.treelets = write_vector(main_memory, page_size, wtbvh.treelets, heap_address);
-#endif
-
-	std::vector<rtm::Triangle> tris;
-	mesh.get_triangles(tris);
-	args.tris = write_vector(main_memory, CACHE_BLOCK_SIZE, tris, heap_address);
-
-	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), TRAX_KERNEL_ARGS_ADDRESS);
+	main_memory->direct_write(&args, sizeof(SGKernel::Args), TRAX_KERNEL_ARGS_ADDRESS);
 	return args;
 }
 
-static void run_sim_trax(SimulationConfig& sim_config)
+static void run_sim(SimulationConfig& sim_config)
 {
 	std::string project_folder_path = get_project_folder_path();
 
@@ -224,7 +169,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
 	l2_config.crossbar_width = 64;
 	l2_config.num_mshr = 192;
-	l2_config.rob_size = 4 * l2_config.num_mshr  / l2_config.num_banks;
+	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
 	l2_config.input_latency = 85;
 	l2_config.output_latency = 85;
 
@@ -261,13 +206,13 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	_assert(block_size <= MemoryRequest::MAX_SIZE);
 	_assert(block_size == CACHE_BLOCK_SIZE);
 
-	ELF elf(project_folder_path + "src\\trax-kernel\\riscv\\kernel");
+	ELF elf(project_folder_path + "src\\sg-kernel\\riscv\\kernel");
 
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM0] = "FCHTHRD";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM1] = "BOXISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM2] = "TRIISECT";
 	ISA::RISCV::InstructionTypeNameDatabase::get_instance()[ISA::RISCV::InstrType::CUSTOM7] = "TRACERAY";
-	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::TRaX::custom0;
+	ISA::RISCV::isa[ISA::RISCV::CUSTOM_OPCODE0] = ISA::RISCV::TRaXSG::custom0;
 
 	uint num_sfus = static_cast<uint>(ISA::RISCV::InstrType::NUM_TYPES) * num_tms;
 
@@ -288,7 +233,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 
 	dram.clear();
 	paddr_t heap_address = dram.write_elf(elf);
-	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride);
+	SGKernel::Args kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride);
 
 	l2_config.num_ports = num_tms;
 	l2_config.mem_highers = {&dram};
@@ -299,7 +244,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 
 	std::string l2_cache_path = project_folder_path + "\\datasets\\cache\\" + sim_config.get_string("scene_name") + "-" + std::to_string(sim_config.get_int("pregen_bounce")) + "-l2.cache";
 	bool deserialized_cache = false;
-	if (sim_config.get_int("warm_l2"))
+	if(sim_config.get_int("warm_l2"))
 	{
 		deserialized_cache = l2.deserialize(l2_cache_path, dram);
 		//l2.copy(TRAX_KERNEL_ARGS_ADDRESS, dram._data_u8 + TRAX_KERNEL_ARGS_ADDRESS, sizeof(kernel_args));
@@ -367,7 +312,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		rtc_config.num_clients = num_tps;
 		rtc_config.max_rays = 256 / num_rtc;
 		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
-		rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
+		rtc_config.sg_base_addr = (paddr_t)kernel_args.sgs;
 		rtc_config.cache = l1ds.back();
 		for(uint i = 0; i < num_rtc; ++i)
 		{
@@ -395,14 +340,14 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		{
 			tp_config.tp_index = tp_index;
 			tp_config.unit_table = &unit_tables[num_rtc * tm_index + tp_index * num_rtc / num_tps];
-			tps.push_back(new Units::TRaX::UnitTP(tp_config));
+			tps.push_back(new Units::UnitTP(tp_config));
 			simulator.register_unit(tps.back());
 		}
 
 		simulator.new_unit_group();
 	}
 
-	printf("Starting TRaX\n");
+	printf("Starting TRaX-SG\n");
 	for(auto& tp : tps)
 		tp->set_entry_point(elf.elf_header->e_entry.u64);
 
@@ -479,6 +424,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	{
 		print_header("RT Core");
 		delta_log(rtc_log, rtcs);
+		rtc_log.rays = kernel_args.framebuffer_size;
 		rtc_log.print(rtcs.size());
 	}
 

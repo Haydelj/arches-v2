@@ -100,4 +100,27 @@ inline float sin(float input)
 	#endif
 }
 
+inline float exp(float input)
+{
+#ifdef __riscv
+	return 0.0f;
+#else
+	return _mm_cvtss_f32(_mm_exp_ps(_mm_set_ps1(input)));
+#endif
+}
+
+inline float log(float input)
+{
+#ifdef __riscv
+	return 0.0f;
+#else
+	return _mm_cvtss_f32(_mm_log_ps(_mm_set_ps1(input)));
+#endif
+}
+
+inline float sigmoid(const float x)
+{
+	return 1.0f / (1.0f + exp(-x));
+}
+
 }

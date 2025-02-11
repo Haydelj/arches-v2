@@ -290,8 +290,8 @@ void UnitPRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 		RayState& ray_state = _ray_states[ray_id];
 		const rtm::WideBVH::Node node = ray_state.buffer.node.decompress();
 
-		_box_issues++;
-		if(_box_issues < popcnt(ray_state.mask) * node.num_aabb() / 3)
+		_box_issues += 6;
+		if(_box_issues < popcnt(ray_state.mask) * node.num_aabb())
 		{
 			_box_pipline.write(~0u);
 		}

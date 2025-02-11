@@ -346,7 +346,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			}
 
 			if(k == STRaTARTKernel::RestartTrail::N) nodes_pushed = 1;
-			else                     nodes_pushed -= std::min(nodes_pushed, k);
+			else                                     nodes_pushed -= std::min(nodes_pushed, k);
 
 			if(nodes_pushed > 0)
 			{

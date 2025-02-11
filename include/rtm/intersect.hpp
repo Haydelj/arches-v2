@@ -4,6 +4,7 @@
 #include "aabb.hpp"
 #include "triangle.hpp"
 #include "vec2.hpp"
+#include "spherical-gaussian.hpp"
 
 namespace rtm
 {
@@ -19,7 +20,7 @@ inline float intersect(const rtm::AABB& aabb, const rtm::Ray& ray, const rtm::ve
 	float tmin = max(max(tminv.x, tminv.y), max(tminv.z, ray.t_min));
 	float tmax = min(min(tmaxv.x, tmaxv.y), min(tmaxv.z, ray.t_max));
 
-	if (tmin > tmax || tmax < ray.t_min) return ray.t_max;//no hit || behind
+	if (tmin >= tmax || tmax <= ray.t_min) return ray.t_max;//no hit || behind
 	return tmin;
 }
 
@@ -68,6 +69,27 @@ inline bool intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& h
 	hit.t = t;
 	return true;
 #endif
+}
+
+inline bool intersect(const rtm::SphericalGaussian& sg, const rtm::Ray& ray, float& a, float& t)
+{
+	mat3 im = mat3(1.0f / sg.scale) * transpose(mat3(sg.rotation));
+	vec3 og = im * (ray.o - sg.position);
+	vec3 dg = im * ray.d;
+
+	//float a = dot(dg, dg);
+	//float b = 2.0f * dot(og, dg);
+	//float c = dot(og, og) - (sg.bounding_scale * sg.bounding_scale);
+	//if(b * b < 4.0 * a * c) return 0.0f;
+
+	t = rtm::dot(-og, dg) / rtm::dot(dg, dg);
+	//t = dot(sg.position - ray.o, ray.d) / dot(ray.d, ray.d);
+	if(t < ray.t_min && t >= ray.t_max) return false;
+
+	rtm::vec3 xg = og + t * dg;
+	a = sg.opacity * rtm::exp(-0.5f * rtm::length2(xg));
+	if(a < MIN_OPACITY) return false;
+	return true;
 }
 
 }

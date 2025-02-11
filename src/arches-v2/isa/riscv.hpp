@@ -189,7 +189,9 @@ enum class Encoding : uint8_t
 	B,
 	U,
 	J,
-	C,
+	ICR,
+	SCR,
+	UCR,
 };
 
 enum class RegFile : uint8_t
@@ -352,7 +354,9 @@ public:
 	InstrType   instr_type{InstrType::NA};
 	Encoding    encoding{Encoding::NA};
 	RegFile     dst_reg_type{RegFile::INT};
+	uint8_t     dst_reg_cnt{1};
 	RegFile     src_reg_type{RegFile::INT};
+	uint8_t     src_reg_cnt{1};
 	ExecType    exec_type{ExecType::INVALID};
 
 private:
@@ -380,6 +384,7 @@ public:
 	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile reg_type, MemoryRequestFunction req_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(reg_type), src_reg_type(reg_type), exec_type(ExecType::MEMORY), _req_fn(req_fn) {}
 	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile dst_reg_type, RegFile src_reg_type, MemoryRequestFunction req_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(dst_reg_type), src_reg_type(src_reg_type), exec_type(ExecType::MEMORY), _req_fn(req_fn) {}
 
+	InstructionInfo(uint32_t func_code, char const* mnemonic, InstrType instr_type, Encoding encoding, RegFile dst_reg_type, uint8_t dst_reg_cnt, RegFile src_reg_type, uint8_t src_reg_cnt, MemoryRequestFunction req_fn) : mnemonic(mnemonic), instr_type(instr_type), encoding(encoding), dst_reg_type(dst_reg_type), dst_reg_cnt(dst_reg_cnt), src_reg_type(src_reg_type), src_reg_cnt(src_reg_cnt), exec_type(ExecType::MEMORY), _req_fn(req_fn) {}
 
 	~InstructionInfo() = default;
 

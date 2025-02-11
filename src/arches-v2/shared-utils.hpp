@@ -80,7 +80,7 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-const static std::vector<std::string> arch_names = {"TRaX","STRaTA", "STRaTA-RT", "Dual-Streaming", "RIC"};
+const static std::vector<std::string> arch_names = {"TRaX", "TRaX-SG", "STRaTA", "STRaTA-RT", "Dual-Streaming", "RIC"};
 
 struct SceneConfig
 {

@@ -15,16 +15,6 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	return out;
 }
 
-inline static uint f_to_u(float f)
-{
-	return *(uint*)&f;
-}
-
-inline static float u_to_f(uint u)
-{
-	return *(float*)&u;
-}
-
 inline static void kernel(const TRaXKernelArgs& args)
 {
 	constexpr uint TILE_X = 4;
@@ -48,7 +38,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
 
-		ray.t_min = u_to_f((f_to_u(ray.t_min) & 0xffff0000) | (tile_id & 0xffff));
+		ray.t_min = u_to_f((f_to_u(ray.t_min) & 0xffff0000) | (index / 2 & 0xffff));
 
 		uint steps = 0;
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
@@ -68,6 +58,7 @@ inline static void kernel(const TRaXKernelArgs& args)
 		{
 			args.framebuffer[fb_index] = 0xff000000;
 		}
+
 
 		//args.framebuffer[fb_index] = encode_pixel(steps / 64.0f);
 	}
@@ -142,7 +133,6 @@ int main(int argc, char* argv[])
 
 	// hairball camera
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0, 10, 10), rtm::vec3(10, 0, 0));
-
 
 	rtm::Mesh mesh("../../../datasets/intel-sponza.obj");
 	std::vector<rtm::BVH2::BuildObject> build_objects;

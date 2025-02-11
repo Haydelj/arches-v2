@@ -3,9 +3,10 @@
 namespace Arches {
 namespace Units {
 
+//#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0)
 //#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0 && this->simulator->current_cycle > 0)
 //#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x00000000000014a4 && thread_id == 0)
-#define TP_PRINT_STALL_CYCLES (true)
+#define TP_PRINT_STALL_CYCLES (false)
 
 #ifndef ENABLE_TP_DEBUG_PRINTS 
 #define ENABLE_TP_DEBUG_PRINTS (false)
@@ -110,21 +111,21 @@ uint8_t UnitTP::_check_dependancies(uint thread_id)
 	switch (thread.instr_info.encoding)
 	{
 	case ISA::RISCV::Encoding::R:
-		if (dst_pending[instr.rd]) return dst_pending[instr.rd];
-		if (src_pending[instr.rs1]) return src_pending[instr.rs1];
-		if (src_pending[instr.rs2]) return src_pending[instr.rs2];
+		if(dst_pending[instr.rd]) return dst_pending[instr.rd];
+		if(src_pending[instr.rs1]) return src_pending[instr.rs1];
+		if(src_pending[instr.rs2]) return src_pending[instr.rs2];
 		break;
 
 	case ISA::RISCV::Encoding::R4:
-		if (dst_pending[instr.rd]) return dst_pending[instr.rd];
-		if (src_pending[instr.rs1]) return src_pending[instr.rs1];
-		if (src_pending[instr.rs2]) return src_pending[instr.rs2];
-		if (src_pending[instr.rs3]) return src_pending[instr.rs3];
+		if(dst_pending[instr.rd]) return dst_pending[instr.rd];
+		if(src_pending[instr.rs1]) return src_pending[instr.rs1];
+		if(src_pending[instr.rs2]) return src_pending[instr.rs2];
+		if(src_pending[instr.rs3]) return src_pending[instr.rs3];
 		break;
 
 	case ISA::RISCV::Encoding::I:
-		if (dst_pending[instr.rd]) return dst_pending[instr.rd];
-		if (src_pending[instr.rs1]) return src_pending[instr.rs1];
+		if(dst_pending[instr.rd]) return dst_pending[instr.rd];
+		if(src_pending[instr.rs1]) return src_pending[instr.rs1];
 		break;
 
 	case ISA::RISCV::Encoding::S:
@@ -144,6 +145,20 @@ uint8_t UnitTP::_check_dependancies(uint thread_id)
 	case ISA::RISCV::Encoding::J:
 		if (dst_pending[instr.rd]) return dst_pending[instr.rd];
 		break;
+
+	case ISA::RISCV::Encoding::ICR:
+		for(uint i = 0; i < instr_info.dst_reg_cnt; ++i) if(dst_pending[instr.rd + i]) return dst_pending[instr.rd + i];
+		for(uint i = 0; i < instr_info.src_reg_cnt; ++i) if(src_pending[instr.rs1 + i]) return src_pending[instr.rs1 + i];
+		break;
+
+	case ISA::RISCV::Encoding::SCR:
+		for(uint i = 0; i < instr_info.dst_reg_cnt; ++i) if(dst_pending[instr.rs2 + i]) return dst_pending[instr.rs2 + i];
+		for(uint i = 0; i < instr_info.src_reg_cnt; ++i) if(src_pending[instr.rs1 + i]) return src_pending[instr.rs1 + i];
+		break;
+
+	case ISA::RISCV::Encoding::UCR:
+		for(uint i = 0; i < instr_info.dst_reg_cnt; ++i) if(dst_pending[instr.rd + i]) return dst_pending[instr.rd + i];
+		break;
 	}
 
 	thread.int_regs_pending[0] = 0;
@@ -157,8 +172,10 @@ void UnitTP::_set_dependancies(uint thread_id)
 	const ISA::RISCV::InstructionInfo& instr_info = thread.instr_info;
 
 	uint8_t* dst_pending = instr_info.dst_reg_type == ISA::RISCV::RegFile::INT ? thread.int_regs_pending : thread.float_regs_pending;
-	if ((instr_info.encoding == ISA::RISCV::Encoding::B) || (instr_info.encoding == ISA::RISCV::Encoding::S)) return;
+	if(instr_info.encoding == ISA::RISCV::Encoding::B || instr_info.encoding == ISA::RISCV::Encoding::S || instr_info.encoding == ISA::RISCV::Encoding::SCR) return;
 	dst_pending[instr.rd] = (uint8_t)instr_info.instr_type;
+	if((instr_info.encoding == ISA::RISCV::Encoding::ICR) || (instr_info.encoding == ISA::RISCV::Encoding::UCR))
+		for(uint i = 1; i < instr_info.dst_reg_cnt; ++i) dst_pending[instr.rd + i] = (uint8_t)instr_info.instr_type;
 }
 
 void UnitTP::_log_instruction_issue(uint thread_id)
