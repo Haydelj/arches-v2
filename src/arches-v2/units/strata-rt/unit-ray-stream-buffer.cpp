@@ -153,7 +153,7 @@ void UnitRayStreamBuffer::clock_fall()
 					{
 						for(uint i = 0; i < 8; ++i)
 						{
-							float a = _cheat_treelets[tm_state.current_treelet].header.page_sah[i];
+							float a = _cheat_treelets[tm_state.current_treelet].median_page_sah[i];
 							uint pf = std::powf(1.0f - a, _treelet_states[tm_state.current_treelet].rays.size()) < 0.75;
 							pf_mask |= pf << i;
 						}

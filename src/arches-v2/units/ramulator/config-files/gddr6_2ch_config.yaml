@@ -16,6 +16,7 @@ MemorySystem:
     impl: GDDR6A
     org:
       preset: GDDR6_16Gb_x16
+      channel_width: 16
     timing:
       preset: GDDR6_16000_1350mV_quad 
     drampower_enable: true

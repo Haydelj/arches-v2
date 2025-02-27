@@ -33,6 +33,14 @@ protected:
 		uint64_t valid   : 1;
 	};
 
+	struct Victim
+	{
+		paddr_t addr;
+		uint8_t* data;
+		bool dirty;
+		bool valid;
+	};
+
 	uint64_t _set_index_mask, _tag_mask, _block_offset_mask;
 	uint _set_index_offset, _tag_offset;
 
@@ -42,8 +50,7 @@ protected:
 
 	uint8_t* _get_block(paddr_t block_addr);
 	uint8_t* _write_block(paddr_t block_addr, const uint8_t* data, bool set_dirty = false);
-	void _insert_block(paddr_t block_addr);
-	void _insert_block(paddr_t block_addr, paddr_t& victim_addr, uint8_t*& victim_data, bool& victim_dirty);
+	Victim _insert_block(paddr_t block_addr);
 
 	paddr_t _get_block_offset(paddr_t paddr) { return  (paddr >> 0) & _block_offset_mask; }
 	paddr_t _get_block_addr(paddr_t paddr) { return paddr & ~_block_offset_mask; }

@@ -421,7 +421,7 @@ public:
 };
 
 
-template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
+template<typename T, typename ARB = RoundRobinArbiter<uint128_t>>
 class CasscadedCrossBar : public BI<T>
 {
 protected:

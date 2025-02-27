@@ -29,7 +29,7 @@ public:
 		uint num_banks{1};
 		uint latency{1};
 		uint rtc_max_rays{256};
-		rtm::CompressedWideTreeletBVH::Treelet* cheat_treelets;
+		rtm::WideTreeletBVH::Treelet::Header* cheat_treelets;
 	};
 
 	UnitRayStreamBuffer(const Configuration& config);
@@ -57,7 +57,7 @@ public:
 
 	std::map<uint, TreeletState> _treelet_states;
 private:
-	rtm::CompressedWideTreeletBVH::Treelet* _cheat_treelets;
+	rtm::WideTreeletBVH::Treelet::Header* _cheat_treelets;
 	RequestCascade _request_network;
 	ReturnCascade _return_network;
 	std::vector<TMState> _tm_states;

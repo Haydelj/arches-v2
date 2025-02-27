@@ -57,7 +57,7 @@ void UnitRayCoalescer::_update_scheduler()
 		{
 			_scheduler.active_segments.erase(_scheduler.active_segments.begin() + i--);
 
-			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
+			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment];
 			for(uint i = 0; i < header.num_children; ++i)
 			{
 				//mark the child as parent finsihed
@@ -102,7 +102,7 @@ void UnitRayCoalescer::_update_scheduler()
 		{
 			if(!last_segment_state.parent_finished || last_segment_state.total_buckets > 0)
 			{
-				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
+				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated];
 				for(uint i = 0; i < header.num_children; ++i)
 				{
 					uint child_id = header.first_child + i;
@@ -117,7 +117,7 @@ void UnitRayCoalescer::_update_scheduler()
 		if(last_segment_state.children_scheduled && !_scheduler.traversal_queue.empty())
 		{
 			uint next_segment = _scheduler.traversal_queue.front();
-			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[next_segment].header;
+			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[next_segment];
 			if((header.bytes + _scheduler.active_segments_size) <= _scheduler.max_active_segments_size || (buckets_ready < 1))
 			{
 				_scheduler.active_segments_size += header.bytes;
@@ -147,7 +147,7 @@ void UnitRayCoalescer::_update_scheduler()
 		SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
 		if(!last_segment_state.children_scheduled)
 		{
-			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
+			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated];
 			std::vector<uint64_t> child_weights(header.num_children);
 			std::vector<uint> child_offsets(header.num_children);
 			std::iota(child_offsets.begin(), child_offsets.end(), 0);
@@ -181,7 +181,7 @@ void UnitRayCoalescer::_update_scheduler()
 		if(last_segment_state.children_scheduled && !_scheduler.traversal_stack.empty())
 		{
 			uint next_segment = _scheduler.traversal_stack.top();
-			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[next_segment].header;
+			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[next_segment];
 			if((header.bytes + _scheduler.active_segments_size) <= _scheduler.max_active_segments_size || (buckets_ready < 1))
 			{
 				_scheduler.active_segments_size += header.bytes;
@@ -333,10 +333,9 @@ void UnitRayCoalescer::_update_scheduler()
 
 void UnitRayCoalescer::_prefetch(uint segment)
 {
-	rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment].header;
+	rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment];
 	paddr_t start = _scheduler.treelet_addr + segment * sizeof(rtm::CompressedWideTreeletBVH::Treelet);
 	paddr_t end = align_to(_block_size, start + header.bytes);
-	start += sizeof(rtm::CompressedWideTreeletBVH::Treelet::Header);
 	for(paddr_t addr = start; addr < end; addr += _block_size)
 	{
 		uint qi = (addr / _scheduler.sector_size) % _scheduler.prefetch_queues.size();
@@ -429,7 +428,7 @@ void UnitRayCoalescer::_proccess_request(uint bank_index)
 				ray_coalescer[segment_index].write_ray(req.swi.ray_id);
 
 				SegmentState& state = _scheduler.segment_state_map[segment_index];
-				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
+				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment_index];
 				state.weight += weight;
 				state.num_rays++;
 

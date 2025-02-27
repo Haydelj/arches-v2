@@ -5,31 +5,21 @@
 #include "../unit-base.hpp"
 #include "../unit-memory-base.hpp"
 
-//#define ENABLE_RT_DEBUG_PRINTS (unit_id == 3212 && ray_id == 0)
-
-#ifndef ENABLE_RT_DEBUG_PRINTS 
-#define ENABLE_RT_DEBUG_PRINTS (false)
-#endif
-
 namespace Arches { namespace Units { namespace TRaX {
 
-constexpr uint PACKET_SIZE = 2;
+using Treelet = rtm::CompressedWideTreeletBVH::Treelet;
 
-template<typename NT>
-class UnitPRTCore : public UnitMemoryBase
+class UnitTreeletRTCore : public UnitMemoryBase
 {
 public:
 	struct Configuration
 	{
-		uint max_rays;
-
 		uint num_clients;
-		uint cache_port;
-
-		paddr_t node_base_addr;
-		paddr_t tri_base_addr;
+		uint max_rays;
+		paddr_t treelet_base_addr;
 
 		UnitMemoryBase* cache;
+		uint cache_port;
 	};
 
 private:
@@ -44,9 +34,9 @@ private:
 
 	struct StackEntry
 	{
-		float min_t;
-		rtm::WBVH::Node::Data data;
-		uint64_t mask;
+		float t;
+		uint treelet;
+		rtm::WideTreeletBVH::Treelet::Node::Data data;
 
 		StackEntry() {}
 	};
@@ -60,18 +50,16 @@ private:
 		union
 		{
 			uint8_t data[1];
-			NT::Node node;
+			Treelet::Node node;
 			struct
 			{
-				rtm::Triangle tris[3];
-				uint tri_id;
+				Treelet::Triangle tris[3];
 				uint num_tris;
 			};
 		};
 
 		StagingBuffer() {}
 	};
-
 
 	struct RayState
 	{
@@ -88,22 +76,16 @@ private:
 		}
 		phase;
 
-		uint tile_id;
+		rtm::Ray ray;
+		rtm::vec3 inv_d;
+		rtm::Hit hit;
 
-		rtm::Ray ray[PACKET_SIZE];
-		rtm::vec3 inv_d[PACKET_SIZE];
-		rtm::Hit hit[PACKET_SIZE];
-
-		StackEntry stack[32 * NT::WIDTH];
+		StackEntry stack[32 * rtm::WideTreeletBVH::WIDTH];
 		uint8_t stack_size;
-		uint8_t current_entry;
+		uint current_treelet;
 
-		BitStack27 dst[PACKET_SIZE];
-
-		uint num_rays;
-		uint return_ray;
-		uint64_t mask;
-		uint max_t;
+		MemoryRequest::Flags flags;
+		BitStack27 dst;
 
 		StagingBuffer buffer;
 
@@ -121,11 +103,12 @@ private:
 	RequestCascade _request_network;
 	ReturnCascade _return_network;
 	UnitMemoryBase* _cache;
+	uint _cache_port;
 
 	//ray scheduling hardware
 	std::queue<uint> _ray_scheduling_queue;
 	std::queue<uint> _ray_return_queue;
-	std::queue<FetchItem> _fetch_queue;
+	std::queue<MemoryRequest> _cache_fetch_queue;
 
 	std::set<uint> _free_ray_ids;
 	std::vector<RayState> _ray_states;
@@ -133,23 +116,22 @@ private:
 	//node pipline
 	std::queue<uint> _node_isect_queue;
 	Pipline<uint> _box_pipline;
-	uint _box_issues;
+	uint _box_issue_count{0};
 
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
 	Pipline<uint> _tri_pipline;
-	uint _tri_issues;
+	uint _tri_issue_count{0};
 
 	//meta data
 	uint _max_rays;
-	uint _cache_port;
-	uint _num_clients;
-	paddr_t _node_base_addr;
-	paddr_t _tri_base_addr;
-	uint last_ray_id{0};
+	paddr_t _treelet_base_addr;
+	uint _last_ray_id{0};
+
+	std::set<uint> _rows_accessed;
 
 public:
-	UnitPRTCore(const Configuration& config);
+	UnitTreeletRTCore(const Configuration& config);
 
 	void clock_rise() override;
 
@@ -181,13 +163,14 @@ public:
 	}
 
 private:
-	paddr_t _aligned_address(paddr_t addr)
+	paddr_t _align_address(paddr_t addr)
 	{
 		return (addr >> log2i(MemoryRequest::MAX_SIZE)) << log2i(MemoryRequest::MAX_SIZE);
 	}
 
-	bool _try_queue_node(uint ray_id, uint node_id);
-	bool _try_queue_tri(uint ray_id, uint tri_id, uint num_tri);
+	bool _try_queue_node(uint ray_id, uint treelet_id, uint node_id);
+	bool _try_queue_tris(uint ray_id, uint treelet_id, uint tri_id, uint num_tris);
+	bool _try_queue_prefetch(paddr_t addr, uint size, uint cache_mask);
 
 	void _read_requests();
 	void _read_returns();
@@ -233,7 +216,7 @@ public:
 				counters[i] += other.counters[i];
 		}
 
-		void print(cycles_t cycles, uint num_units = 1)
+		void print(uint num_units = 1)
 		{
 			const static std::string phase_names[] =
 			{
@@ -288,15 +271,13 @@ public:
 
 			printf("\nIssue Cycles: %lld (%.2f%%)\n", issue_total / num_units, 100.0f * issue_total / total);
 			for(uint i = 0; i < _issue_counter_pairs.size(); ++i)
-				if(_issue_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _issue_counter_pairs[i].first, _issue_counter_pairs[i].second / num_units, 100.0 * _issue_counter_pairs[i].second / num_units / cycles);
+				if(_issue_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _issue_counter_pairs[i].first, _issue_counter_pairs[i].second / num_units, 100.0 * _issue_counter_pairs[i].second / total);
 
 			printf("\nStall Cycles: %lld (%.2f%%)\n", stall_total / num_units, 100.0f * stall_total / total);
 			for(uint i = 0; i < _data_stall_counter_pairs.size(); ++i)
-				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / num_units / cycles);
+				if(_data_stall_counter_pairs[i].second) printf("\t%s: %lld (%.2f%%)\n", _data_stall_counter_pairs[i].first, _data_stall_counter_pairs[i].second / num_units, 100.0 * _data_stall_counter_pairs[i].second / total);
 		};
 	}log;
 };
 
-}
-}
-}
+}}}

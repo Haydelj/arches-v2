@@ -184,6 +184,7 @@ typedef  uint64_t  int48_t;
 
 static_assert(sizeof(float)==4&&sizeof(double)==8,"Not Implemented!");
 
-#define CACHE_BLOCK_SIZE 64
+#define CACHE_BLOCK_SIZE 32
+#define DRAM_TXN_SIZE 32
 
 }

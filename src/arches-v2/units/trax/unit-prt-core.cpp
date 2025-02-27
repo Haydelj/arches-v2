@@ -73,7 +73,7 @@ bool UnitPRTCore<NT>::_try_queue_node(uint ray_id, uint node_id)
 	paddr_t addr = start;
 	while(addr < end)
 	{
-		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
+		paddr_t next_boundry = std::min(end, _aligned_address(addr + MemoryRequest::MAX_SIZE));
 		uint8_t size = next_boundry - addr;
 		_fetch_queue.push({addr, size, (uint16_t)(ray_id)});
 		addr += size;
@@ -100,7 +100,7 @@ bool UnitPRTCore<NT>::_try_queue_tri(uint ray_id, uint tri_id, uint num_tris)
 	paddr_t addr = start;
 	while(addr < end)
 	{
-		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
+		paddr_t next_boundry = std::min(end, _aligned_address(addr + MemoryRequest::MAX_SIZE));
 		uint8_t size = next_boundry - addr;
 		_fetch_queue.push({addr, size, (uint16_t)(ray_id)});
 		addr += size;
@@ -282,13 +282,13 @@ void UnitPRTCore<NT>::_schedule_ray()
 }
 
 template<>
-void UnitPRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
+void UnitPRTCore<rtm::NVCWBVH>::_simualte_node_pipline()
 {
 	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
 	{
 		uint ray_id = _node_isect_queue.front();
 		RayState& ray_state = _ray_states[ray_id];
-		const rtm::WideBVH::Node node = ray_state.buffer.node.decompress();
+		const rtm::WBVH::Node node = decompress(ray_state.buffer.node);
 
 		_box_issues++;
 		if(_box_issues < popcnt(ray_state.mask) * node.num_aabb() / 3)
@@ -298,7 +298,7 @@ void UnitPRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 		else
 		{
 			uint max_insert_depth = ray_state.stack_size;
-			for(uint i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+			for(uint i = 0; i < rtm::NVCWBVH::WIDTH; i++)
 			{
 				if(!node.is_valid(i)) continue;
 
@@ -356,7 +356,7 @@ void UnitPRTCore<rtm::CompressedWideBVH>::_simualte_node_pipline()
 }
 
 template<>
-void UnitPRTCore<rtm::WideBVH>::_simualte_node_pipline()
+void UnitPRTCore<rtm::WBVH>::_simualte_node_pipline()
 {
 	if(!_node_isect_queue.empty() && _box_pipline.is_write_valid())
 	{
@@ -365,15 +365,15 @@ void UnitPRTCore<rtm::WideBVH>::_simualte_node_pipline()
 		uint max_insert_depth = ray_state.stack_size;
 
 		_box_issues++;
-		if(_box_issues < popcnt(ray_state.mask) * rtm::WideBVH::WIDTH)
+		if(_box_issues < popcnt(ray_state.mask) * rtm::WBVH::WIDTH)
 		{
 			_box_pipline.write(~0u);
 		}
 		else
 		{
-			for(uint i = 0; i < rtm::WideBVH::WIDTH; i++)
+			for(uint i = 0; i < rtm::WBVH::WIDTH; i++)
 			{
-				rtm::WideBVH::Node& node = ray_state.buffer.node;
+				rtm::WBVH::Node& node = ray_state.buffer.node;
 
 				float min_t = T_MAX;
 				uint64_t mask = 0x0;
@@ -532,8 +532,8 @@ void UnitPRTCore<NT>::_issue_returns()
 	}
 }
 
-template class UnitPRTCore<rtm::WideBVH>;
-template class UnitPRTCore<rtm::CompressedWideBVH>;
+template class UnitPRTCore<rtm::WBVH>;
+template class UnitPRTCore<rtm::NVCWBVH>;
 
 }
 }

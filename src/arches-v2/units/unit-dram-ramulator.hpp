@@ -70,6 +70,9 @@ private:
 	std::vector<MemoryReturn> _returns;
 	std::stack<uint> _free_return_ids;
 
+	std::map<paddr_t, uint> _load_map;
+	std::map<paddr_t, uint> _row_map;
+
 public:
 	UnitDRAMRamulator(Configuration config);
 	virtual ~UnitDRAMRamulator() override;
@@ -90,7 +93,7 @@ public:
 	class Log
 	{
 	public:
-		const static uint NUM_COUNTERS = 4;
+		const static uint NUM_COUNTERS = 8;
 		union
 		{
 			struct
@@ -99,6 +102,8 @@ public:
 				uint64_t stores;
 				uint64_t bytes_read;
 				uint64_t bytes_written;
+				uint64_t unique_loads;
+				uint64_t unique_rows;
 			};
 			uint64_t counters[NUM_COUNTERS];
 		};
@@ -127,6 +132,10 @@ public:
 			printf("Total: %lld\n", total / units);
 			printf("Loads: %lld\n", loads / units);
 			printf("Stores: %lld\n", stores / units);
+			printf("\n");
+			printf("Unique Loads: %lld\n", unique_loads / units);
+			printf("Unique Rows: %lld\n", unique_rows / units);
+			printf("Unique Loads/Row: %lld\n", unique_loads / unique_rows);
 		}
 	}
 	log;
@@ -136,7 +145,7 @@ private:
 	bool _store(const MemoryRequest& request_item, uint channel_index);
 	paddr_t _convert_address(paddr_t address)
 	{
-		address &= ~generate_nbit_mask(log2i(CACHE_BLOCK_SIZE));
+		address &= ~generate_nbit_mask(log2i(DRAM_TXN_SIZE));
 		return pext(address, ~_partition_mask);
 	}
 };

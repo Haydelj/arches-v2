@@ -104,6 +104,8 @@ bool UnitDRAMRamulator::_load(const MemoryRequest& request, uint channel_index)
 		MemoryReturn& ret = _returns[return_id];
 		ret = MemoryReturn(request, _data_u8 + request.paddr);
 		log.loads++;
+		if(_load_map[request.paddr]++ == 0) log.unique_loads++;
+		if(_row_map[request.paddr & ~0x1fff]++ == 0) log.unique_rows++;
 	}
 
 	return enqueue_success;

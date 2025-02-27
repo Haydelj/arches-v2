@@ -233,16 +233,16 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 
 #if DS_USE_COMPRESSED_WIDE_BVH
-	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
 
-	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::NVCWBVH cwbvh(wbvh);
 
 	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
 	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
 	args.num_treelets = cwtbvh.treelets.size();
 #else
-	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
 
 	rtm::WideTreeletBVH wtbvh(wbvh, mesh);
@@ -434,7 +434,7 @@ static void run_sim_dual_streaming(const SimulationConfig& sim_config)
 	stream_scheduler_config.num_root_rays = kernel_args.framebuffer_size;
 	stream_scheduler_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	stream_scheduler_config.heap_addr = *(paddr_t*)&heap_address;
-	stream_scheduler_config.cheat_treelets = (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
+	stream_scheduler_config.cheat_treelets = nullptr;// (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
 	stream_scheduler_config.main_mem = &dram;
 	stream_scheduler_config.main_mem_port_stride = dram_ports_per_controller;
 	stream_scheduler_config.main_mem_port_offset = *unused_dram_ports.begin();

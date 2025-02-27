@@ -11,6 +11,10 @@
 #include <string>
 #include <fstream>
 #include <cassert>
+#include <map>
+#include <set>
+#include <unordered_set>
+#include <deque>
 
 namespace rtm 
 {
@@ -290,6 +294,232 @@ public:
 			build_objects.push_back(get_build_object(i));
 	}
 
+	float normalize_verts()
+	{
+		float32_bf bf(0.0f);
+
+		uint8_t max_exp = 0;
+		for(auto& v : vertices)
+			for(uint i = 0; i < 3; ++i)
+			{
+				bf.f32 = v[i];
+				max_exp = rtm::max(max_exp, bf.exp);
+			}
+
+		int delta = (126 - max_exp);
+		for(auto& v : vertices)
+			for(uint i = 0; i < 3; ++i)
+			{
+				bf.f32 = v[i];
+				bf.exp += delta;
+				v[i] = bf.f32;
+			}
+
+		return float32_bf(0, 127 + delta, 0).f32;
+	}
+
+	void quantize_verts()
+	{
+		for(auto& v : vertices)
+			for(uint i = 0; i < 3; ++i)
+				v[i] = u24_to_f32(f32_to_u24(v[i]));
+	}
+
+	void make_strips(std::vector<TriangleStrip>& strips)
+	{
+		//build face graph
+		std::vector<rtm::uvec3> face_graph(vertex_indices.size(), uvec3(~0u));
+		{
+			std::map<std::pair<uint32_t, uint32_t>, std::pair<uint32_t, uint32_t>> edge_to_face_map;
+			for(uint f = 0; f < vertex_indices.size(); ++f)
+			{
+				uvec3 face = vertex_indices[f];
+				for(uint e = 0; e < 3; ++e)
+				{
+					std::pair<uint32_t, uint32_t> edge(face[(e + 1) % 3], face[(e + 2) % 3]);
+					if(edge.first > edge.second) std::swap(edge.first, edge.second);
+					if(edge_to_face_map.find(edge) != edge_to_face_map.end())
+					{
+						//link
+						uint32_t othr_f = edge_to_face_map[edge].first;
+						uint32_t othr_e = edge_to_face_map[edge].second;
+						face_graph[f][e] = othr_f;
+						face_graph[othr_f][othr_e] = f;
+					}
+					else edge_to_face_map[edge] = {f, e};
+				}
+			}
+		}
+
+		//create a set of all faces
+		std::vector<uint32_t> sorted_faces;
+		std::set<uint32_t> remaining_faces;
+		for(uint f = 0; f < vertex_indices.size(); ++f)
+		{
+			remaining_faces.insert(f);
+			sorted_faces.push_back(f);
+		}
+		std::sort(sorted_faces.begin(), sorted_faces.end(), [&](uint32_t& a, uint32_t& b)->bool
+		{
+			return get_triangle(a).aabb().surface_area() < get_triangle(b).aabb().surface_area();
+		});
+
+		//keep face indices for reordering
+		std::vector<uint> face_indices;
+		while(!remaining_faces.empty())
+		{
+			uint start_face = *remaining_faces.begin();
+			while(!sorted_faces.empty())
+			{
+				start_face = sorted_faces.back();
+				sorted_faces.pop_back();
+				if(remaining_faces.count(start_face) > 0) break;
+			}
+
+			//build a list of faces greedily optimizing the AABB SA
+			std::deque<uint32_t> face_list = {start_face};
+			remaining_faces.erase(face_list.back());
+
+			AABB aabb;
+			aabb.add(get_triangle(face_list.back()).aabb());
+			while(face_list.size() < rtm::TriangleStrip::MAX_TRIS)
+			{
+				std::set<std::pair<uint, uint>> options;
+				for(uint i = 0; i < 3; ++i)
+				{
+					options.insert({face_graph[face_list.back()][i], 1});
+					options.insert({face_graph[face_list.front()][i], 0});
+				}
+
+				float best_sa = INFINITY;
+				std::pair<uint, uint> best_face = {~0u, 0};
+				for(auto& candidate_face : options)
+				{
+					if(remaining_faces.count(candidate_face.first) == 0) continue;
+
+					AABB candidate_aabb = aabb; candidate_aabb.add(get_triangle(candidate_face.first).aabb());
+					float candidate_sa = candidate_aabb.surface_area();
+					if(candidate_sa < best_sa)
+					{
+						best_face = candidate_face;
+						best_sa = best_sa;
+					}
+				}
+
+				if(best_face.first == ~0u) break;
+
+				aabb.add(get_triangle(best_face.first).aabb());
+				remaining_faces.erase(best_face.first);
+
+				if(best_face.second) face_list.push_back(best_face.first);
+				else                 face_list.push_front(best_face.first);
+
+			}
+
+			//extract the best substrip
+			float best_sah = INFINITY;
+			uint best_start = 0, best_end = face_list.size();
+			for(uint start = 0; start < face_list.size(); ++start)
+				for(uint end = start; end <= rtm::min(face_list.size(), start + TriangleStrip::MAX_TRIS); ++end)
+				{
+					AABB aabb;
+					uint size = end - start;
+					for(uint i = start; i < end; ++i)
+						aabb.add(get_triangle(face_list[i]).aabb());
+				
+					float sah = (float)face_list.size() / size * aabb.surface_area();
+					if(sah < best_sah)
+					{
+						best_sah = sah;
+						best_start = start;
+						best_end = end;
+					}
+				}
+
+			std::vector<uint> faces;
+			{
+				for(uint i = 0; i < best_start; ++i) remaining_faces.insert(face_list[i]);
+				for(uint i = best_start; i < best_end; ++i) faces.push_back(face_list[i]);
+				for(uint i = best_end; i < face_list.size(); ++i) remaining_faces.insert(face_list[i]);
+			}
+
+			//generate edge list
+			std::vector<uint> edges;
+			for(uint i = 0; i < (faces.size() - 1); ++i)
+			{
+				uint current_face = faces[i];
+				uint next_face = faces[i + 1];
+
+				uint j;
+				for(j = 0; j < 3; ++j)
+				{
+					uint adjacent_face = face_graph[current_face][j];
+					if(adjacent_face == next_face) break;
+				}
+				assert(j < 3);
+				edges.push_back(j);
+			}
+
+			assert(edges.size() + 1 == faces.size());
+
+			//encode strip
+			std::vector<uint> vis;
+			for(uint i = 0; i < faces.size(); ++i)
+			{
+				uvec3 last_face;
+				if(i == 0)
+				{
+					uint e = 0;
+					if(faces.size() > 1)
+					{
+						e = edges[i];
+						edges[i] = 0;
+					}
+					for(uint j = 0; j < 3; ++j)
+					{
+						uint vi = vertex_indices[faces[i]][(j + e) % 3];
+						vis.push_back(vi);
+					}
+				}
+				else
+				{
+					for(uint j = 0; j < 3; ++j)
+					{
+						uint vi = vertex_indices[faces[i]][j];
+						bool vi_found = false;
+						for(uint k = 0; k < 3; ++k)
+							if(last_face[k] == vi)
+								vi_found = true;
+						if(vi_found) continue;
+
+						vis.push_back(vi);
+						if(i < (faces.size() - 1))
+						{
+							uint ne = (edges[i] + (2 - j)) % 3;
+							assert(ne < 2);
+							edges[i] = ne;
+						}
+					}
+				}
+				last_face = vertex_indices[faces[i]];
+			}
+
+			TriangleStrip strip; 
+			strip.id = face_indices.size();
+			strip.num_tris = faces.size();
+			strip.edge_mask = 0;
+			for(uint i = 0; i < vis.size(); ++i) strip.vrts[i] = vertices[vis[i]];
+			for(uint i = 0; i < edges.size(); ++i) strip.edge_mask |= edges[i] << i;
+			strips.push_back(strip);
+
+			for(uint i = 0; i < faces.size(); ++i)
+				face_indices.push_back(faces[i]);
+		}
+
+		reorder(face_indices);
+		printf("Tris per strip: %f\n", (float)face_indices.size() / strips.size());
+	}
+
 	void reorder(std::vector<BVH2::BuildObject>& ordered_build_objects)
 	{
 		assert(ordered_build_objects.size() == vertex_indices.size());
@@ -304,6 +534,22 @@ public:
 			tex_coord_indices[i] = tmp_txcd_inds[ordered_build_objects[i].index];
 			material_indices[i]  = tmp_mat_inds [ordered_build_objects[i].index];
 			ordered_build_objects[i].index = i;
+		}
+	}
+
+	void reorder(const std::vector<uint>& face_indices)
+	{
+		assert(face_indices.size() == vertex_indices.size());
+		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);
+		std::vector<rtm::uvec3> tmp_nrml_inds(normal_indices);
+		std::vector<rtm::uvec3> tmp_txcd_inds(tex_coord_indices);
+		std::vector<uint>       tmp_mat_inds(material_indices);
+		for(uint32_t i = 0; i < face_indices.size(); ++i)
+		{
+			vertex_indices[i] = tmp_vrt_inds[face_indices[i]];
+			normal_indices[i] = tmp_nrml_inds[face_indices[i]];
+			tex_coord_indices[i] = tmp_txcd_inds[face_indices[i]];
+			material_indices[i] = tmp_mat_inds[face_indices[i]];
 		}
 	}
 };

@@ -9,7 +9,8 @@ UnitCache::UnitCache(Configuration config) :
 	_bank_select_mask(config.bank_select_mask), 
 	_mem_highers(config.mem_highers),
 	_in_order(config.in_order), 
-	_level(config.level)
+	_level(config.level),
+	_fill_txn_size(config.fill_txn_size)
 {
 	_assert(popcnt(config.partition_select_mask) == log2i(config.num_partitions));
 	_assert(popcnt(config.bank_select_mask) == log2i(config.num_banks));
@@ -65,48 +66,55 @@ void UnitCache::_recive_return()
 				bool cached = !(ret.flags.omit_cache & (0x1 << _level));
 				if(cached)
 				{
-					_assert(ret.paddr == _get_block_addr(ret.paddr));
-
 					//fill all subentries and queue for return
 					bool set_dirty = false;
-					paddr_t block_addr = ret.paddr;
+					paddr_t block_addr = _get_block_addr(ret.paddr);
+					paddr_t block_offset = _get_block_offset(ret.paddr);
 					MSHR& mshr = partition.mshrs[block_addr];
 					Bank& bank = partition.banks[_get_bank(block_addr)];
-					while(!mshr.sub_entries.empty())
-					{
-						uint16_t rob_index = mshr.sub_entries.front();
-						mshr.sub_entries.pop();
 
-						MemoryReturn& buffer = bank.rob[rob_index];
-						uint offset = buffer.paddr - block_addr;
-						if(buffer.type == MemoryRequest::Type::LOAD)
+					std::memcpy(mshr.block_data + block_offset, ret.data, ret.size);
+					mshr.bytes_filled += ret.size;
+
+					if(mshr.bytes_filled == _block_size)
+					{
+						while(!mshr.sub_entries.empty())
 						{
-							std::memcpy(buffer.data, ret.data + offset, ret.size);
-						}
-						else if(buffer.type == MemoryRequest::Type::CSHIT)
-						{
-							//play the CSHIT against the line
-							rtm::Hit cur_hit, new_hit;
-							std::memcpy(&new_hit, buffer.data, sizeof(rtm::Hit));
-							std::memcpy(&cur_hit, ret.data + offset, sizeof(rtm::Hit));
-							if(new_hit.t < cur_hit.t)
+							uint16_t rob_index = mshr.sub_entries.front();
+							mshr.sub_entries.pop();
+
+							MemoryReturn& buffer = bank.rob[rob_index];
+							uint offset = buffer.paddr - block_addr;
+							if(buffer.type == MemoryRequest::Type::LOAD)
 							{
-								set_dirty = true;
-								std::memcpy(ret.data + offset, buffer.data, sizeof(rtm::Hit));
+								std::memcpy(buffer.data, mshr.block_data + offset, buffer.size);
 							}
+							else if(buffer.type == MemoryRequest::Type::CSHIT)
+							{
+								//play the CSHIT against the line
+								rtm::Hit cur_hit, new_hit;
+								std::memcpy(&new_hit, buffer.data, sizeof(rtm::Hit));
+								std::memcpy(&cur_hit, mshr.block_data + offset, sizeof(rtm::Hit));
+								if(new_hit.t < cur_hit.t)
+								{
+									set_dirty = true;
+									std::memcpy(mshr.block_data + offset, buffer.data, sizeof(rtm::Hit));
+								}
+							}
+							else _assert(false);
+							bank.return_queue.push(rob_index);
 						}
-						else _assert(false);
-						bank.return_queue.push(rob_index);
+
+						//Mark the associated lse as filled and put it in the return queue
+						if(_write_block(block_addr, mshr.block_data, set_dirty)) //Update block. Might have been evicted in which case this does nothing and returns null
+							log.data_array_writes++;
+
+						//free mshr
+						partition.mshrs.erase(block_addr);
 					}
 
-					//Mark the associated lse as filled and put it in the return queue
-					if(_write_block(block_addr, ret.data, set_dirty)) //Update block. Might have been evicted in which case this does nothing and returns null
-						log.data_array_writes++;
-
-					//free mshr
-					partition.mshrs.erase(block_addr);
-					partition.recived_return = true;
 					mem_higher->read_return(partition.mem_higher_port);
+					partition.recived_return = true;
 				}
 				else
 				{
@@ -283,27 +291,32 @@ void UnitCache::_recive_request()
 			if(partition.mshrs.size() < partition.num_mshr)
 			{
 				//Allocate a new block for the miss to return to
-				paddr_t victim_addr; uint8_t* victim_data;  bool victim_dirty;
-				_insert_block(block_addr, victim_addr, victim_data, victim_dirty);
-
-				if(victim_addr && victim_dirty)
+				Victim victim = _insert_block(block_addr);
+				if(victim.valid && victim.dirty)
 				{
-					MemoryRequest vic_req;
-					vic_req.type = MemoryRequest::Type::STORE;
-					vic_req.paddr = victim_addr;
-					vic_req.size = _block_size;
-					vic_req.port = partition.mem_higher_port;
-					std::memcpy(vic_req.data, victim_data, _block_size);
-					partition.mem_higher_request_queue.push(vic_req);
+					for(uint i = 0; i < _block_size / _fill_txn_size; ++i)
+					{
+						MemoryRequest vic_req;
+						vic_req.type = MemoryRequest::Type::STORE;
+						vic_req.paddr = victim.addr + i * _fill_txn_size;
+						vic_req.size = _fill_txn_size;
+						vic_req.port = partition.mem_higher_port;
+						std::memcpy(vic_req.data, victim.data + i * _fill_txn_size, _fill_txn_size);
+						partition.mem_higher_request_queue.push(vic_req);
+					}
 				}
 
 				//Allocated a new MSHR and queue up the fill request
-				MemoryRequest miss_req;
-				miss_req.type = MemoryRequest::Type::LOAD;
-				miss_req.paddr = block_addr;
-				miss_req.size = _block_size;
-				miss_req.port = partition.mem_higher_port;
-				partition.mem_higher_request_queue.push(miss_req);
+				partition.mshrs[block_addr].bytes_filled = 0;
+				for(uint i = 0; i < _block_size / _fill_txn_size; ++i)
+				{
+					MemoryRequest miss_req;
+					miss_req.type = MemoryRequest::Type::LOAD;
+					miss_req.paddr = block_addr + i * _fill_txn_size;
+					miss_req.size = _fill_txn_size;
+					miss_req.port = partition.mem_higher_port;
+					partition.mem_higher_request_queue.push(miss_req);
+				}
 
 				log.misses++;
 			}
@@ -408,6 +421,7 @@ void UnitCache::clock_rise()
 			Bank& bank = partition.banks[b];
 			uint i = p * partition.banks.size() + b;
 
+			bank.request_pipline.clock();
 			if(_request_network.is_read_valid(i) && bank.request_pipline.is_write_valid())
 				bank.request_pipline.write(_request_network.read(i));
 		}
@@ -434,7 +448,6 @@ void UnitCache::clock_fall()
 				_return_network.write(bank.return_pipline.read(), i);
 
 			bank.return_pipline.clock();
-			bank.request_pipline.clock();
 		}
 	}
 

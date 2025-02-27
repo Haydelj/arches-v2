@@ -1,6 +1,7 @@
 #pragma once
 
 #include "macros.hpp"
+#include "int.hpp"
 
 #ifndef __riscv
 #include <cmath>
@@ -9,7 +10,17 @@
 
 namespace rtm
 {
-    
+
+inline uint32_t to_u32(float f32)
+{
+	return *((uint32_t*)&f32);
+}
+
+inline float to_f32(uint32_t u32)
+{
+	return *((float*)&u32);
+}
+
 inline float min(float a, float b) { return (b < a) ? b : a;}
 inline float max(float a, float b) { return (a < b) ? b : a;}
 inline float abs(float a) { return a > 0.0f ? a : -a; }
@@ -98,6 +109,53 @@ inline float sin(float input)
 	#else
 	return _mm_cvtss_f32(_mm_sin_ps(_mm_set_ps1(input)));
 	#endif
+}
+
+union float32_bf
+{
+	struct
+	{
+		uint32_t mantisa : 23;
+		uint32_t exp : 8;
+		uint32_t sign : 1;
+	};
+	float f32;
+	uint32_t u32;
+
+	float32_bf(float f) : f32(f) {}
+	float32_bf(uint8_t sign, uint8_t exp, uint32_t mantisa) : sign(sign), exp(exp), mantisa(mantisa) {}
+};
+
+//https://martinfullerblog.wordpress.com/2023/01/15/fast-near-lossless-compression-of-normal-floats/
+//careful to ensure correct behaviour for normal numbers < 1.0 which roundup to 2.0 when one is added
+inline uint32_t f32_to_u24(float f32)
+{
+	float32_bf bf(f32);
+	bf.f32 = f32;
+	bf.f32 += bf.sign ? -1.0f : 1.0f;
+	if(abs(bf.f32) >= 2.0f) bf.mantisa = 0x7fffff;
+	return bf.mantisa | (bf.sign << 23);
+}
+
+//input needs to be low 24 bits, with 0 in the top 8 bits
+inline float u24_to_f32(uint32_t u24)
+{
+	float32_bf bf(0, 127, u24);
+	bf.f32 -= 1.0f;
+	bf.sign = u24 >> 23;
+	return bf.f32;
+}
+
+inline uint32_t u24_to_u16(uint32_t u24)
+{
+	bool ru = u24 >> 23;
+	if(ru && (u24 & 0x7fffff) < 0x7fff00) u24 += 255; 
+	return u24 >> 8; 
+}
+
+inline uint32_t u16_to_u24(uint16_t u16)
+{
+	return (uint32_t)u16 << 8;
 }
 
 }

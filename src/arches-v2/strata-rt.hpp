@@ -173,10 +173,10 @@ static STRaTARTKernel::Args initilize_buffers(Units::UnitMainMemoryBase* main_me
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, sim_config.get_int("pregen_bounce"), rays);
 
-	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
 
-	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::NVCWBVH cwbvh(wbvh);
 	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
 	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
 
@@ -227,13 +227,13 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	UnitL2Cache::Configuration l2_config;
 	l2_config.in_order = sim_config.get_int("l2_in_order");
 	l2_config.level = 2;
-	l2_config.block_size = block_size;
+	l2_config.block_size = block_size * 4;
 	l2_config.size = 64ull << 20; // sim_config.get_int("l2_size");
 	l2_config.associativity = 16;//sim_config.get_int("l2_associativity");
 	l2_config.num_partitions = num_partitions;
 	l2_config.partition_select_mask = partition_mask;
 	l2_config.num_banks = 2;
-	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
+	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(l2_config.block_size);
 	l2_config.crossbar_width = 64;
 	l2_config.num_mshr = 192;
 	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
@@ -254,7 +254,7 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	l1d_config.size = sim_config.get_int("l1_size");
 	l1d_config.associativity = sim_config.get_int("l1_associativity");
 	l1d_config.num_banks = 4;
-	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
+	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(l1d_config.block_size);
 	l1d_config.crossbar_width = 4;
 	l1d_config.num_mshr = 256;
 	l1d_config.rob_size = 8 * l1d_config.num_mshr / l1d_config.num_banks;
@@ -326,7 +326,7 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	ray_stream_buffer_config.num_banks = 64;
 	ray_stream_buffer_config.num_tm = num_tms;
 	ray_stream_buffer_config.size = ray_stream_buffer_size; //4MB
-	ray_stream_buffer_config.cheat_treelets = (rtm::CompressedWideTreeletBVH::Treelet*)(dram._data_u8 + (size_t)kernel_args.treelets);
+	ray_stream_buffer_config.cheat_treelets = nullptr;// (rtm::CompressedWideTreeletBVH::Treelet*)(dram._data_u8 + (size_t)kernel_args.treelets);
 	uint rtc_max_rays = 256;
 	ray_stream_buffer_config.rtc_max_rays = rtc_max_rays;
 	Units::STRaTART::UnitRayStreamBuffer ray_stream_buffer(ray_stream_buffer_config);

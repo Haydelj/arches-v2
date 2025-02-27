@@ -16,11 +16,11 @@ namespace rtm {
 class WideTreeletBVH
 {
 public:
-	const static uint WIDTH = WideBVH::WIDTH;
+	const static uint WIDTH = WBVH::WIDTH;
 
 	struct Treelet
 	{
-		const static uint SIZE = (128 << 10) - (8 << 10);
+		const static uint SIZE = 8 << 10;
 
 		struct alignas(64) Header
 		{
@@ -65,11 +65,10 @@ public:
 			uint          id;
 		};
 
-		Header   header;
 		union
 		{
-			uint8_t  data[SIZE - sizeof(Header)];
-			Node    nodes[1];
+			uint8_t  data[SIZE];
+			Node     nodes[1];
 		};
 
 		Treelet() {}
@@ -77,13 +76,14 @@ public:
 
 #ifndef __riscv
 	std::vector<Treelet> treelets;
+	std::vector<Treelet::Header> treelet_headers;
 
-	WideTreeletBVH(const rtm::WideBVH& bvh, const rtm::Mesh& mesh)
+	WideTreeletBVH(const rtm::WBVH& bvh, const rtm::Mesh& mesh)
 	{
 		build(bvh, mesh);
 	}
 
-	uint get_node_size(uint node, const rtm::WideBVH& bvh, const rtm::Mesh& mesh)
+	uint get_node_size(uint node, const rtm::WBVH& bvh, const rtm::Mesh& mesh)
 	{
 		uint node_size = sizeof(Treelet::Node);
 		for(uint i = 0; i < WIDTH; ++i)
@@ -92,10 +92,10 @@ public:
 		return node_size;
 	}
 
-	void build(const rtm::WideBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
+	void build(const rtm::WBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
 		printf("Building Wide Treelet BVH\n");
-		size_t usable_space = Treelet::SIZE - sizeof(Treelet::Header);
+		size_t usable_space = Treelet::SIZE;
 
 		//Phase 0 setup
 		uint total_footprint = 0;
@@ -189,7 +189,6 @@ public:
 
 
 		//Phase 2 treelet assignment
-		std::vector<Treelet::Header> treelet_headers;
 		std::vector<std::vector<uint>> treelet_assignments;
 		std::unordered_map<uint, uint> root_node_treelet;
 
@@ -311,7 +310,6 @@ public:
 				node_map[odered_nodes[i]] = i;
 
 			Treelet& treelet = treelets[treelet_index];
-			treelet.header = treelet_headers[treelet_index];
 
 			uint primatives_offset = odered_nodes.size() * (sizeof(Treelet::Node) / 4);
 			for(uint i = 0; i < odered_nodes.size(); ++i)
@@ -319,7 +317,7 @@ public:
 				uint node_id = odered_nodes[i];
 				assert(node_map.find(node_id) != node_map.end());
 
-				const rtm::WideBVH::Node wnode = bvh.nodes[node_id];
+				const rtm::WBVH::Node wnode = bvh.nodes[node_id];
 				Treelet::Node& tnode = treelets[treelet_index].nodes[i];
 
 				for(uint j = 0; j < WIDTH; ++j)

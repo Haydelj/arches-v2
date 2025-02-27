@@ -135,14 +135,7 @@ uint8_t* UnitCacheBase::_write_block(paddr_t block_addr, const uint8_t* data, bo
 }
 
 //inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
-void UnitCacheBase::_insert_block(paddr_t block_addr)
-{
-	paddr_t temp0; uint8_t* temp1; bool temp2;
-	_insert_block(block_addr, temp0, temp1, temp2);
-}
-
-//inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
-void UnitCacheBase::_insert_block(paddr_t block_addr, paddr_t& victim_addr, uint8_t*& victim_data, bool& victim_dirty)
+UnitCacheBase::Victim UnitCacheBase::_insert_block(paddr_t block_addr)
 {
 	uint64_t tag = _get_tag(block_addr);
 	uint set_index = _get_set_index(block_addr);
@@ -162,15 +155,11 @@ void UnitCacheBase::_insert_block(paddr_t block_addr, paddr_t& victim_addr, uint
 	}
 
 	//compute victim block
-	victim_addr = 0ull;
-	victim_data = nullptr;
-	victim_dirty = false;
-	if(_tag_array[replacement_index].valid)
-	{
-		victim_addr = _get_block_addr(_tag_array[replacement_index].tag, set_index);
-		victim_data = _data_array.data() + replacement_index * _block_size;
-		victim_dirty = _tag_array[replacement_index].dirty;
-	}
+	Victim victim;
+	victim.addr = _get_block_addr(_tag_array[replacement_index].tag, set_index);
+	victim.data = _data_array.data() + replacement_index * _block_size;
+	victim.dirty = _tag_array[replacement_index].dirty;
+	victim.valid = _tag_array[replacement_index].valid;
 
 	//update lru
 	for(uint i = start; i < end; ++i)
@@ -181,6 +170,8 @@ void UnitCacheBase::_insert_block(paddr_t block_addr, paddr_t& victim_addr, uint
 	_tag_array[replacement_index].tag = tag;
 	_tag_array[replacement_index].valid = 0;
 	_tag_array[replacement_index].dirty = 0;
+
+	return victim;
 }
 
 }}

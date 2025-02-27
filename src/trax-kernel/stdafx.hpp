@@ -18,6 +18,7 @@
 
 #include <cfloat>
 #include <cstdint>
+#include <cstring>
 
 #include "rtm/rtm.hpp"
 

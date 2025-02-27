@@ -100,8 +100,8 @@ int main(int argc, char* argv[])
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, 1, rays);
 
-	rtm::WideBVH wbvh(bvh2, build_objects);
-	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::WBVH wbvh(bvh2, build_objects);
+	rtm::NVCWBVH cwbvh(wbvh);
 	mesh.reorder(build_objects);
 
 	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);

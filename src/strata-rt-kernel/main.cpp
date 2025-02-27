@@ -110,9 +110,9 @@ int main(int argc, char* argv[])
 	args.rays = rays.data();
 
 #ifdef USE_COMPRESSED_WIDE_BVH
-	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
-	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::NVCWBVH cwbvh(wbvh);
 	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
 	args.treelets = cwtbvh.treelets.data();
 #else

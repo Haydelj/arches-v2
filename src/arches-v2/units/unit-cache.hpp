@@ -18,6 +18,7 @@ public:
 
 		uint size{1024};
 		uint block_size{CACHE_BLOCK_SIZE};
+		uint fill_txn_size{DRAM_TXN_SIZE};
 		uint associativity{1};
 
 		uint rob_size{1};
@@ -89,6 +90,8 @@ protected:
 	struct MSHR //Miss Status Handling Register
 	{
 		std::queue<uint16_t> sub_entries; //linked list in a real hardware
+		uint8_t block_data[1024];
+		uint bytes_filled;
 		MSHR() = default;
 	};
 
@@ -114,6 +117,7 @@ protected:
 
 	bool _in_order;
 	uint _level;
+	uint _fill_txn_size;
 
 	uint64_t _bank_select_mask{0};
 	uint _get_bank(paddr_t addr)
@@ -174,6 +178,7 @@ public:
 		}
 
 		uint64_t get_total() { return hits + half_misses + misses; }
+		uint64_t get_total_stalls() { return rob_stalls + mshr_stalls; }
 		uint64_t get_total_data_array_accesses() { return data_array_reads + data_array_writes; }
 
 		void print(cycles_t cycles, uint units = 1, PowerConfig power_config = PowerConfig())
@@ -183,12 +188,12 @@ public:
 			printf("\n");
 			printf("Total: %lld\n", total / units);
 			printf("Hits: %lld (%.2f%%)\n", hits / units, 100.0f * hits / total);
-			printf("Misses: %lld (%.2f%%)\n", misses / units, 100.0f * misses / total);
 			printf("Half Misses: %lld (%.2f%%)\n", half_misses / units, 100.0f * half_misses / total);
+			printf("Misses: %lld (%.2f%%)\n", misses / units, 100.0f * misses / total);
 			printf("\n");
 			printf("Uncached Requests: %lld\n", uncached_requests / units);
 			printf("\n");
-			printf("RB Stalls: %lld\n", rob_stalls / units);
+			printf("ROB Stalls: %lld\n", rob_stalls / units);
 			printf("MSHR Stalls: %lld\n", mshr_stalls / units);
 			printf("\n");
 			printf("Tag Array Access: %lld\n", tag_array_access / units);

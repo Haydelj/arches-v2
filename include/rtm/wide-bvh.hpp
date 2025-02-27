@@ -21,10 +21,10 @@ constexpr int INVALID_NODE = -1;
 /// Phase 3 : Compress BVH8
 /// </summary>
 
-class WideBVH
+class WBVH
 {
 public:
-	const static uint WIDTH = 6;
+	const static uint WIDTH = 5;
 
 	struct alignas(64) Node
 	{
@@ -61,12 +61,12 @@ public:
 	std::vector<uint> indices;
 
 public:
-	WideBVH(const rtm::BVH2& bvh2, std::vector<rtm::BVH2::BuildObject>& build_objects)
+	WBVH(const rtm::BVH2& bvh2, std::vector<rtm::BVH2::BuildObject>& build_objects)
 	{
 		printf("Building Wide BVH\n");
 
 		uint max_forest_size = WIDTH - 1;
-		uint leaf_prim_count = 3;
+		uint leaf_prim_count = 1;
 
 		decisions.resize(bvh2.nodes.size() * max_forest_size);
 		nodes.emplace_back();
@@ -80,7 +80,12 @@ public:
 		printf("Built Wide BVH\n");
 	}
 
-	~WideBVH() = default;
+	static rtm::WBVH::Node decompress(const rtm::WBVH::Node& node)
+	{
+		return node;
+	}
+
+	~WBVH() = default;
 
 private:
 	/// <summary>
@@ -353,5 +358,10 @@ private:
 	}
 #endif
 };
+
+inline WBVH::Node decompress(const WBVH::Node& wnode)
+{
+	return wnode;
+}
 
 }

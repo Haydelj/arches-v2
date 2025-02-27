@@ -295,7 +295,7 @@ void UnitTreeletRTCore<TT>::_simualte_node_pipline()
 		const typename TT::Node& node = buffer.node;
 
 		uint max_insert_depth = ray_state.nstack_size;
-		for(int i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+		for(int i = 0; i < rtm::NVCWBVH::WIDTH; i++)
 		{
 			float t = rtm::intersect(node.aabb[i], ray, inv_d);
 			if(t < hit.t)
@@ -345,7 +345,7 @@ void UnitTreeletRTCore<rtm::CompressedWideTreeletBVH::Treelet>::_simualte_node_p
 		const rtm::WideTreeletBVH::Treelet::Node node = buffer.node.decompress();
 
 		uint max_insert_depth = ray_state.nstack_size;
-		for(int i = 0; i < rtm::CompressedWideBVH::WIDTH; i++)
+		for(int i = 0; i < rtm::NVCWBVH::WIDTH; i++)
 		{
 			float t = rtm::intersect(node.aabb[i], ray, inv_d);
 			if(t < hit.t)

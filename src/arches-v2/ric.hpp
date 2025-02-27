@@ -130,10 +130,10 @@ static RICKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, p
 
 	args.ray_states = write_vector(main_memory, CACHE_BLOCK_SIZE, ray_states, heap_address);
 
-	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
 
-	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::NVCWBVH cwbvh(wbvh);
 
 	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
 	args.treelets = write_vector(main_memory, page_size, cwtbvh.treelets, heap_address);
@@ -298,7 +298,7 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 	ray_coalescer_config.num_root_rays = kernel_args.framebuffer_size;
 	ray_coalescer_config.treelet_addr = *(paddr_t*)&kernel_args.treelets;
 	ray_coalescer_config.heap_addr = *(paddr_t*)&heap_address;
-	ray_coalescer_config.cheat_treelets = (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
+	ray_coalescer_config.cheat_treelets = nullptr;// (rtm::WideTreeletBVH::Treelet*)&dram._data_u8[(size_t)kernel_args.treelets];
 	ray_coalescer_config.max_active_segments_size = sim_config.get_int("max_active_set_size");
 	ray_coalescer_config.l2_cache = &l2;
 	ray_coalescer_config.main_mem = &dram;
@@ -542,8 +542,8 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 		{
 			uint treelet_id = (a.first - (paddr_t)kernel_args.treelets) / rtm::CompressedWideTreeletBVH::Treelet::SIZE;
 			paddr_t treelet_addr = (paddr_t)kernel_args.treelets + treelet_id * rtm::CompressedWideTreeletBVH::Treelet::SIZE;
-			rtm::CompressedWideTreeletBVH::Treelet::Header header;
-			dram.direct_read(&header, sizeof(rtm::CompressedWideTreeletBVH::Treelet::Header), treelet_addr);
+			rtm::WideTreeletBVH::Treelet::Header header;
+			dram.direct_read(&header, sizeof(rtm::WideTreeletBVH::Treelet::Header), treelet_addr);
 			uint offset = a.first - treelet_addr;
 
 			treelet_histos[header.depth][offset] += a.second;

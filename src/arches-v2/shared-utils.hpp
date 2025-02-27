@@ -173,11 +173,11 @@ public:
 
 		set_param("l2_size", 72 << 20);
 		set_param("l2_associativity", 18);
-		set_param("l2_in_order", 1);
+		set_param("l2_in_order", 0);
 
 		set_param("l1_size", 128 << 10);
 		set_param("l1_associativity", 16);
-		set_param("l1_in_order", 1);
+		set_param("l1_in_order", 0);
 
 		//Workload
 		set_param("scene_name", "sponza");
