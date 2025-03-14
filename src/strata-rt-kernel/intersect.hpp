@@ -350,13 +350,14 @@ inline bool intersect(const rtm::CompressedWideTreeletBVH::Treelet* treelets, co
 #ifndef __riscv 
 inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays)
 {
-	uint num_rays = framebuffer_width * framebuffer_height;
-	printf("Generating bounce %d rays from %d path\n", bounce, num_rays);
+	const uint framebuffer_size = framebuffer_width * framebuffer_height;
+	uint num_rays = framebuffer_size;
+	printf("Generating bounce %d rays from %d path\n", bounce, framebuffer_size);
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 
-	for(int index = 0; index < num_rays; index++)
+	for(int index = 0; index < framebuffer_size; index++)
 	{
 		uint32_t x = index % framebuffer_width;
 		uint32_t y = index / framebuffer_width;

@@ -55,6 +55,16 @@ public:
 		Bank(uint latency) : request_pipline(latency) {}
 	};
 
+	struct HitRequest
+	{
+		paddr_t paddr;
+		uint16_t port;
+		BitStack27 dst;
+	};
+	std::vector<std::vector<std::queue<HitRequest>>> _hit_load_queue;
+	void _return_hit(std::queue<HitRequest>& queue, uint32_t bank_index);
+	std::vector<STRaTARTKernel::RayData> _complete_ray_buffers{};
+
 	std::map<uint, TreeletState> _treelet_states;
 private:
 	rtm::CompressedWideTreeletBVH::Treelet* _cheat_treelets;
@@ -69,6 +79,8 @@ private:
 	uint64_t _buffer_address_mask;
 	uint32_t _rtc_max_rays;
 	RoundRobinArbiter<uint64_t> arb;
+	RoundRobinArbiter<uint64_t> arb_0;
+	RoundRobinArbiter<uint64_t> arb_1;
 
 	uint _treelet_arb = 0;
 

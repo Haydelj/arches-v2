@@ -94,7 +94,7 @@ void UnitTreeletRTCore::_read_requests()
 				uint idx = ray_data.global_ray_id | (0x1 << 31);
 				_hit_store_queue.push(idx);
 				log.hits++;
-				if (ENABLE_RT_DEBUG_PRINTS || ENABLE_HIT_DEBUG_PRINTS)
+				if (ENABLE_HIT_DEBUG_PRINTS)
 					printf("TM: %d, global_id: %d, Hit Nothing with nonsense ray\n", _tm_index, ray_data.global_ray_id);
 			}
 			// log.rays++;

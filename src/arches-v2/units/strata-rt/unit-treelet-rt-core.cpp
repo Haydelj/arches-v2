@@ -105,6 +105,7 @@ bool UnitTreeletRTCore::_try_queue_prefetch(paddr_t addr, uint size, uint cache_
 		_cache_fetch_queue.push(req);
 		addr += req.size;
 	}
+	log.issue_counters[(uint)IssueType::PREFETCH]++;
 
 	return true;
 }
@@ -150,6 +151,7 @@ void UnitTreeletRTCore::_read_returns()
 			_ray_scheduling_queue.push(ray_id);
 
 			log.rays++;
+			_processing_rays++;
 		}
 		else if(ret.size == sizeof(STRaTARTKernel::HitReturn))
 		{
@@ -216,8 +218,9 @@ void UnitTreeletRTCore::_schedule_ray()
 				_ray_data_load_queue.push(ray_id);
 
 				log.issue_counters[(uint)IssueType::RAY_COMPLETE]++;
-				if(ENABLE_RT_DEBUG_PRINTS)
-					printf("[%03d:%03d:%06d] RAY_COMPLETE\n", _tm_index, ray_id, ray_data.global_ray_id);
+				if(ENABLE_RT_DEBUG_PRINTS || ENABLE_HIT_DEBUG_PRINTS)
+					printf("[%lld] [%03d:%03d:%06d] RAY_COMPLETE, hit_id: %d, global_ray_id: %d\n", simulator->current_cycle, _tm_index, ray_id, ray_data.global_ray_id, ray_data.hit.id, ray_data.global_ray_id);
+				_processing_rays--;
 
 				return;
 			}
@@ -228,8 +231,8 @@ void UnitTreeletRTCore::_schedule_ray()
 			if(ray_state.stack_size == 0)
 			{
 				//Restart
-				ray_data.level = 0;
-				ray_data.treelet_id = 0;
+				ray_data.level = parent_level;
+				//ray_data.treelet_id = 0;
 				_ray_buffer_store_queue.push(ray_data);
 
 				ray_state.phase = Phase::RAY_FETCH;
@@ -237,7 +240,8 @@ void UnitTreeletRTCore::_schedule_ray()
 
 				log.issue_counters[(uint)IssueType::RESTART]++;
 				if(ENABLE_RT_DEBUG_PRINTS)
-					printf("[%03d:%03d:%06d] RESTART\n", _tm_index, ray_id, ray_data.global_ray_id);
+					printf("[%lld] [%03d:%03d:%06d] RESTART\n", simulator->current_cycle, _tm_index, ray_id, ray_data.global_ray_id);
+				_processing_rays--;
 
 				return;
 			}
@@ -272,7 +276,8 @@ void UnitTreeletRTCore::_schedule_ray()
 
 					log.issue_counters[(uint)IssueType::RAY_STORE]++;
 					if(ENABLE_RT_DEBUG_PRINTS)
-						printf("[%03d:%03d:%06d] TREELET_JUMP: %d\n", _tm_index, ray_id, ray_data.global_ray_id, ray_data.treelet_id);
+						printf("[%lld] [%03d:%03d:%06d] TREELET_JUMP: %d\n", simulator->current_cycle, _tm_index, ray_id, ray_data.global_ray_id, ray_data.treelet_id);
+					_processing_rays--;
 				}
 				else
 				{
@@ -281,7 +286,7 @@ void UnitTreeletRTCore::_schedule_ray()
 
 					log.issue_counters[(uint)IssueType::NODE_ISSUE]++;
 					if(ENABLE_RT_DEBUG_PRINTS)
-						printf("[%03d:%03d:%06d] NODE_ISSUE: %d:%d\n", _tm_index, ray_id, ray_data.global_ray_id, ray_data.treelet_id, entry.data.child_index);
+						printf("[%lld] [%03d:%03d:%06d] NODE_ISSUE: %d:%d\n", simulator->current_cycle, _tm_index, ray_id, ray_data.global_ray_id, ray_data.treelet_id, entry.data.child_index);
 				}
 			}
 			else
@@ -289,9 +294,9 @@ void UnitTreeletRTCore::_schedule_ray()
 				_try_queue_tri(ray_id, ray_state.ray_data.treelet_id, entry.data.triangle_index * 4, entry.data.num_tri);
 				ray_state.phase = Phase::TRI_FETCH;
 
-				log.issue_counters[(uint)IssueType::NODE_ISSUE]++;
+				log.issue_counters[(uint)IssueType::TRI_ISSUE]++;
 				if(ENABLE_RT_DEBUG_PRINTS)
-					printf("[%03d:%03d:%06d] TRI: %d:%d\n", _tm_index, ray_id, ray_data.global_ray_id, entry.data.triangle_index, entry.data.num_tri);
+					printf("[%lld] [%03d:%03d:%06d] TRI: %d:%d\n", simulator->current_cycle, _tm_index, ray_id, ray_data.global_ray_id, entry.data.triangle_index, entry.data.num_tri);
 			}
 		}
 		else
@@ -299,7 +304,7 @@ void UnitTreeletRTCore::_schedule_ray()
 			_ray_scheduling_queue.push(ray_id);
 			log.issue_counters[(uint)IssueType::POP_CULL]++;
 			if(ENABLE_RT_DEBUG_PRINTS)
-				printf("[%03d:%03d:%06d] POP_CULL\n", _tm_index, ray_id, ray_data.global_ray_id);
+				printf("[%lld] [%03d:%03d:%06d] POP_CULL\n", simulator->current_cycle, _tm_index, ray_id, ray_data.global_ray_id);
 		}
 	}
 }

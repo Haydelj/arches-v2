@@ -9,8 +9,9 @@
 #include "unit-ray-stream-buffer.hpp"
 
 //#define ENABLE_RT_DEBUG_PRINTS (unit_id == 8 && ray_id == 0)
-//#define ENABLE_RT_DEBUG_PRINTS (ray_state.ray_data.global_ray_id == 314159)
-
+//#define ENABLE_RT_DEBUG_PRINTS (ray_data.global_ray_id == 212190)
+//#define ENABLE_RT_DEBUG_PRINTS ((ray_data.global_ray_id % 1024 == 545 && ray_data.global_ray_id / 1024 == 457) || (ray_data.global_ray_id % 1024 == 457 && ray_data.global_ray_id / 1024 == 545))
+#define ENABLE_HIT_DEBUG_PRINTS (false)// ((ray_data.global_ray_id % 1024 == 388) || (ray_data.global_ray_id / 1024 == 388) || (ray_data.global_ray_id % 1024 == 635) || (ray_data.global_ray_id / 1024 == 635) || (ray_data.global_ray_id % 1024 == 389) || (ray_data.global_ray_id / 1024 == 389))
 #ifndef ENABLE_RT_DEBUG_PRINTS 
 #define ENABLE_RT_DEBUG_PRINTS (false)
 #endif
@@ -56,6 +57,7 @@ private:
 		RESTART,
 		POP_CULL,
 		RAY_COMPLETE,
+		PREFETCH,
 		NUM_TYPES,
 	};
 
@@ -160,12 +162,18 @@ private:
 	paddr_t _treelet_base_addr;
 	paddr_t _hit_record_base_addr;
 	uint _last_ray_id{0};
+	uint _processing_rays{0};
 
 public:
 	UnitTreeletRTCore(const Configuration& config);
 
 	void clock_rise() override
 	{
+		if ((simulator->current_cycle % 1000 == 0) && (simulator->current_cycle != 0))
+		{
+			//printf("[%d] ", _processing_rays);
+			_assert((_processing_rays >= 0) && (_processing_rays <= _max_rays));
+		}
 		_request_network.clock();
 		_read_requests();
 		_read_returns();
@@ -287,6 +295,7 @@ public:
 				"RESTART",
 				"POP_CULL",
 				"RAY_COMPLETE",
+				"PREFETCH",
 				"NUM_TYPES",
 			};
 

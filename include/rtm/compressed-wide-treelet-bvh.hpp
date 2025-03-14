@@ -34,6 +34,8 @@ public:
 			uint bytes;
 
 			float page_sah[32];
+			uint parent_treelet_index;
+			uint root_node_level;
 		};
 
 		struct alignas(64) Node
@@ -347,9 +349,10 @@ public:
 				cut.erase(cut.begin() + best_index);
 
 				uint j = 0;
-				for(uint i = 0; i < WIDTH; ++i)
-					if(bvh.nodes[best_node].cdata[i].is_int)
-						cut.insert(cut.begin() + best_index + j++, bvh.nodes[best_node].decompress().data[i].child_index);
+				for (uint i = 0; i < WIDTH; ++i)
+					if (bvh.nodes[best_node].cdata[i].is_int)
+						cut.push_back(bvh.nodes[best_node].decompress().data[i].child_index);
+						//cut.insert(cut.begin() + best_index + j++, bvh.nodes[best_node].decompress().data[i].child_index);
 
 				bytes_remaining -= footprint[best_node];
 
@@ -394,6 +397,9 @@ public:
 
 		//Phase 3 construct treelets in memeory
 		treelets.resize(treelet_assignments.size());
+		std::vector<uint> nodes_level;
+		nodes_level.resize(bvh.nodes.size(), 0);
+		uint max_node_index = 0, max_tri_index = 0, max_treelet_index = 0;
 
 		for(uint treelet_index = 0; treelet_index < treelets.size(); ++treelet_index)
 		{
@@ -409,6 +415,7 @@ public:
 
 			CompressedWideTreeletBVH::Treelet& treelet = treelets[treelet_index];
 			treelet.header = treelet_headers[treelet_index];
+			if(treelet_index == 0) treelet.header.root_node_level = 0;
 
 			uint base_triangle_index = odered_nodes.size() * (sizeof(CompressedWideTreeletBVH::Treelet::Node&) / 4);
 			for(uint i = 0; i < odered_nodes.size(); ++i)
@@ -433,7 +440,8 @@ public:
 						uint child_node_id = cwnode.decompress().data[j].child_index;
 						if(root_node_treelet.find(child_node_id) != root_node_treelet.end())
 						{
-							base_treelet_index = min(base_treelet_index, root_node_treelet[child_node_id]);
+							uint child_treelet = root_node_treelet[child_node_id];
+							base_treelet_index = min(base_treelet_index, child_treelet);
 						}
 						else
 						{
@@ -455,12 +463,16 @@ public:
 					if(cwnode.cdata[j].is_int)
 					{
 						uint child_node_id = cwnode.decompress().data[j].child_index;
+						nodes_level[child_node_id] = nodes_level[node_id] + 1;
 						if(root_node_treelet.find(child_node_id) != root_node_treelet.end())
 						{
 							tnode.cdata[j].is_child_treelet = 1;
 							uint offset = root_node_treelet[child_node_id] - tnode.base_treelet_index;
 							assert(offset < 32);
 							tnode.cdata[j].offset = offset;
+							// set parent index
+							treelet_headers[root_node_treelet[child_node_id]].parent_treelet_index = treelet_index;
+							treelet_headers[root_node_treelet[child_node_id]].root_node_level = nodes_level[child_node_id];
 						}
 						else
 						{

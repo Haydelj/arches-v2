@@ -4,9 +4,14 @@ namespace Arches { namespace Units { namespace STRaTART {
 
 UnitRayStreamBuffer::UnitRayStreamBuffer(const Configuration& config) : _rtc_max_rays(config.rtc_max_rays),
 _request_network(config.num_tm, config.num_banks), _return_network(config.num_banks, config.num_tm),
-_banks(config.num_banks, config.latency), _tm_states(config.num_tm), arb(config.num_banks), _cheat_treelets(config.cheat_treelets)
+_banks(config.num_banks, config.latency), _tm_states(config.num_tm), arb(config.num_banks), _cheat_treelets(config.cheat_treelets), arb_0(config.num_banks), arb_1(config.num_banks)
 {
 	_buffer_address_mask = generate_nbit_mask(log2i(config.size));
+	_hit_load_queue.resize(2);
+	for (uint i = 0; i < 2; i++)
+	{
+		_hit_load_queue[i].resize(config.num_banks);
+	}
 }
 
 void UnitRayStreamBuffer::clock_rise()
@@ -23,6 +28,27 @@ void UnitRayStreamBuffer::clock_rise()
 	}
 }
 
+void UnitRayStreamBuffer::_return_hit(std::queue<HitRequest>& queue, uint32_t bank_index)
+{
+	HitRequest hit_req = queue.front();
+	const STRaTARTKernel::RayData& ray_data = _complete_ray_buffers.back();
+	STRaTARTKernel::HitReturn hit_return;
+	rtm::Hit hit = ray_data.hit;
+	hit_return.hit = hit;
+	hit_return.index = ray_data.global_ray_id;
+	MemoryReturn ret;
+	ret.size = sizeof(STRaTARTKernel::HitReturn);
+	ret.port = hit_req.port;
+	ret.dst = hit_req.dst;
+	ret.paddr = hit_req.paddr;
+	std::memcpy(ret.data, &hit_return, sizeof(STRaTARTKernel::HitReturn));
+	log.hits++;
+	log.bytes_read += sizeof(STRaTARTKernel::HitReturn);
+	_complete_ray_buffers.pop_back();
+	_return_network.write(ret, bank_index);
+	queue.pop();
+}
+
 void UnitRayStreamBuffer::clock_fall()
 {
 	for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
@@ -34,7 +60,13 @@ void UnitRayStreamBuffer::clock_fall()
 		if(req.size == sizeof(STRaTARTKernel::HitReturn)) // process load hit
 		{
 			_assert(req.type == MemoryRequest::Type::LOAD);
-			bank.hit_load_queue.push(req);
+			//bank.hit_load_queue.push(req);
+			HitRequest hit_req;
+			hit_req.paddr = req.paddr;
+			hit_req.port = req.port;
+			hit_req.dst = req.dst;
+			uint16_t priority = req.paddr >> 4;
+			_hit_load_queue[priority][bank_index].push(hit_req);
 		}
 		else
 		{
@@ -51,9 +83,15 @@ void UnitRayStreamBuffer::clock_fall()
 				if(ray_data.restart_trail.is_done())
 				{
 					_completed_rays.push(ray_data);
+					_complete_ray_buffers.push_back(ray_data);
 				}
 				else
 				{
+					while (ray_data.level < _cheat_treelets[ray_data.treelet_id].header.root_node_level)
+					{
+						ray_data.treelet_id = _cheat_treelets[ray_data.treelet_id].header.parent_treelet_index;
+					}
+					ray_data.level = _cheat_treelets[ray_data.treelet_id].header.root_node_level;
 					uint treelet_index = ray_data.treelet_id;
 					_treelet_states[treelet_index].rays.push(ray_data);
 				}
@@ -108,7 +146,7 @@ void UnitRayStreamBuffer::clock_fall()
 	}
 
 
-	for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	/*for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
 	{
 		Bank& bank = _banks[bank_index];
 		if(!bank.hit_load_queue.empty() && _return_network.is_write_valid(bank_index))
@@ -132,7 +170,54 @@ void UnitRayStreamBuffer::clock_fall()
 		log.bytes_read += sizeof(STRaTARTKernel::HitReturn);
 
 		log.hits++;
+	}*/
+
+	std::vector<uint32_t> idle_banks(_banks.size(), 0u);
+	// return higher priority hits first
+	for (uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	{
+		if (!_hit_load_queue[0][bank_index].empty() && _return_network.is_write_valid(bank_index))
+			arb_0.add(bank_index);
 	}
+	while (arb_0.num_pending() > 0 && !_complete_ray_buffers.empty())
+	{
+		uint bank_index = arb_0.get_index();
+		arb_0.remove(bank_index);
+		if (_return_network.is_write_valid(bank_index))
+			_return_hit(_hit_load_queue[0][bank_index], bank_index);
+		idle_banks[bank_index] = ~0u;
+	}
+	/*for (uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	{
+		if (!_hit_load_queue[0][bank_index].empty() && _return_network.is_write_valid(bank_index) && !_complete_ray_buffers.empty())
+		{
+			_return_hit(_hit_load_queue[0][bank_index], bank_index);
+			idle_banks[bank_index] = ~0u;
+		}
+	}*/
+
+	// return lower priority hits
+	for (uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	{
+		if ((idle_banks[bank_index] != ~0u) && !_hit_load_queue[1][bank_index].empty() && _return_network.is_write_valid(bank_index))
+			arb_1.add(bank_index);
+	}
+	while (arb_1.num_pending() > 0 && !_complete_ray_buffers.empty())
+	{
+		uint bank_index = arb_1.get_index();
+		arb_1.remove(bank_index);
+		if(_return_network.is_write_valid(bank_index))
+			_return_hit(_hit_load_queue[1][bank_index], bank_index);
+		idle_banks[bank_index] = ~0u;
+	}
+	/*for (uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
+	{
+		if ((idle_banks[bank_index] != ~0u) && !_hit_load_queue[1][bank_index].empty() && _return_network.is_write_valid(bank_index) && !_complete_ray_buffers.empty())
+		{
+			_return_hit(_hit_load_queue[1][bank_index], bank_index);
+			idle_banks[bank_index] = ~0u;
+		}
+	}*/
 
 
 	for(uint bank_index = 0; bank_index < _banks.size(); ++bank_index)

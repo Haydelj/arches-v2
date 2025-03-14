@@ -7,29 +7,32 @@ def get_test_configs():
     framebuffer_dim = 1024
 
     base_config = {
+        "logging_interval": 1000,
         "arch_name": "TRaX",
         "scene_name": "sponza",
-        #"framebuffer_width": framebuffer_dim,
-        #"framebuffer_height": framebuffer_dim,
+        "framebuffer_width": framebuffer_dim,
+        "framebuffer_height": framebuffer_dim,
         "pregen_rays": 1,
         "pregen_bounce": 0,
     }
     
-    test_scenes = ["sponza", "intel-sponza" , "san-miguel"]
-    #test_arch = ["TRaX"]
-    test_bounce_types = [0,1,2]
-    in_orders = [0,1]
+    test_scenes = ["sponza", "intel-sponza" , "san-miguel"]#
+    test_arches = ["STRaTA-RT"]#"TRaX", "STRaTA", 
+    test_bounce_types = [0,1,2]#
+    in_orders = [0]
 
     configs = []
     for scene in test_scenes:
         for bounce_type in test_bounce_types:
             for in_order in in_orders:
-                config = base_config.copy()
-                config["scene_name"] = scene
-                config["pregen_bounce"] = bounce_type
-                config["l1_in_order"] = in_order
-                config["l2_in_order"] = in_order
-                configs.append(config)
+                for test_arch in test_arches:
+                    config = base_config.copy()
+                    config["arch_name"] = test_arch
+                    config["scene_name"] = scene
+                    config["pregen_bounce"] = bounce_type
+                    config["l1_in_order"] = in_order
+                    config["l2_in_order"] = in_order
+                    configs.append(config)
 
     return configs
 
@@ -97,7 +100,7 @@ def execute_program(program_path, configs, working_directory, output_image="out.
 
 
 def main():
-    program_path = os.path.abspath(r"..\build\src\arches-v2\Release\Arches-v2.exe")
+    program_path = os.path.abspath(r"..\build\src\arches-v2\Release\arches-v2.exe")
     working_directory = os.path.abspath(r"..\build\src\arches-v2\Release")
 
     if not os.path.exists(program_path):

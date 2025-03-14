@@ -12,12 +12,14 @@ void UnitRayStreamBuffer::clock_rise()
 
 void UnitRayStreamBuffer::clock_fall()
 {
-	if (ENABLE_RSB_DEBUG_PRINTS && (simulator->current_cycle % 10000 == 0))
+	if (ENABLE_RSB_DEBUG_PRINTS && (simulator->current_cycle % 1000 == 0) && (simulator->current_cycle != 0))
 	{
-		uint max_ray = 0, tm_count = 0;
+		uint max_ray = 0, tm_count = 0, sum_rays = 0;
 		for (auto itr : _tm_remain_rays)
 		{
-			printf("%03d ", itr);
+			if(itr > 0)
+				printf("%03d ", itr);
+			sum_rays += itr;
 			if (itr > max_ray)
 				max_ray = itr;
 		}
@@ -27,6 +29,7 @@ void UnitRayStreamBuffer::clock_fall()
 				tm_count++;
 		}
 		printf("\nRay Stream Buffer: %03d TMs working, maximum of rays: %03d\n", tm_count, max_ray);
+		printf("Ray occupancy: %2.2f\n", (float)sum_rays / (_tm_buffer_table.size() * _rtc_max_rays));
 	}
 
 	for (uint bank_index = 0; bank_index < _banks.size(); ++bank_index)
@@ -139,6 +142,15 @@ MemoryReturn UnitRayStreamBuffer::allocate_ray_buffer(uint tm_index, BitStack27 
 		if (!_idle_ray_buffer.empty())
 		{
 			uint32_t treelet_id = *_idle_ray_buffer.begin();
+			/*uint32_t max_rays = 0;
+			for (auto itr : _idle_ray_buffer)
+			{
+				if (_ray_buffers[itr].size() > max_rays)
+				{
+					treelet_id = itr;
+					max_rays = _ray_buffers[itr].size();
+				}
+			}*/
 			_tm_buffer_table[tm_index] = treelet_id;
 			_tm_remain_rays[tm_index]++;
 			_assert(_ray_buffers[treelet_id].size() > 0);
