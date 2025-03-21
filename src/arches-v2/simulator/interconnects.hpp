@@ -23,6 +23,12 @@ public:
 		_latency = latency;
 	}
 
+	void print()
+	{
+		for(uint i = 0; i < _latency; ++i)
+			printf("%d", (_pipline_state[i >> 6] >> (i & 0x3f)) & 0x1);
+	}
+
 	bool empty()
 	{
 		return _queue.empty();

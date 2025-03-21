@@ -245,7 +245,7 @@ void UnitTreeletRTCore::_schedule_ray()
 			{
 				entry = ray_state.stack[--ray_state.stack_size];
 				if(entry.is_last)
-					ray_data.restart_trail.set(parent_level, STRaTARTKernel::RestartTrail::N);
+					ray_data.restart_trail.set(parent_level, rtm::RestartTrail::N);
 				ray_data.level = parent_level + 1;
 			}
 		}
@@ -325,7 +325,7 @@ void UnitTreeletRTCore::_simualte_intersectors()
 			uint k = ray_data.restart_trail.get(ray_data.level);
 
 			uint nodes_pushed = 0;
-			for(int i = 0; i < rtm::WideTreeletBVH::WIDTH; i++)
+			for(uint i = 0; i < rtm::WideTreeletBVH::WIDTH; i++)
 			{
 				if(!node.is_valid(i)) continue;
 
@@ -345,13 +345,13 @@ void UnitTreeletRTCore::_simualte_intersectors()
 				}
 			}
 
-			if(k == STRaTARTKernel::RestartTrail::N) nodes_pushed = 1;
-			else                     nodes_pushed -= std::min(nodes_pushed, k);
+			if(k == rtm::RestartTrail::N) nodes_pushed = 1;
+			else                          nodes_pushed -= std::min(nodes_pushed, k);
 
 			if(nodes_pushed > 0)
 			{
 				ray_state.update_restart_trail = false;
-				if(nodes_pushed == 1) ray_data.restart_trail.set(ray_data.level, STRaTARTKernel::RestartTrail::N);
+				if(nodes_pushed == 1) ray_data.restart_trail.set(ray_data.level, rtm::RestartTrail::N);
 				else                  ray_state.stack[ray_state.stack_size].is_last = true;
 				ray_state.stack_size += nodes_pushed;
 				ray_data.level++;

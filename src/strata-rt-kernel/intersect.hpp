@@ -206,7 +206,7 @@ inline bool intersect(const rtm::CompressedWideTreeletBVH::Treelet* treelets, co
 	uint32_t node_stack_size = 1u;
 	node_stack[0] = root_node;
 
-	STRaTARTKernel::RestartTrail restart_trail;
+	rtm::RestartTrail restart_trail;
 	uint level = 0;
 
 	bool update_restart_trail = false;
@@ -240,7 +240,7 @@ inline bool intersect(const rtm::CompressedWideTreeletBVH::Treelet* treelets, co
 			{
 				current_entry = node_stack[--node_stack_size];
 				if(current_entry.is_last)
-					restart_trail.set(parent_level, STRaTARTKernel::RestartTrail::N);
+					restart_trail.set(parent_level, rtm::RestartTrail::N);
 				level = parent_level + 1;
 			}
 		}
@@ -300,7 +300,7 @@ inline bool intersect(const rtm::CompressedWideTreeletBVH::Treelet* treelets, co
 				}
 			}
 
-			if(k == STRaTARTKernel::RestartTrail::N) nodes_pushed = 1;
+			if(k == rtm::RestartTrail::N) nodes_pushed = 1;
 			else                     nodes_pushed -= rtm::min(nodes_pushed, k);
 
 			if(nodes_pushed == 0)
@@ -310,7 +310,7 @@ inline bool intersect(const rtm::CompressedWideTreeletBVH::Treelet* treelets, co
 			else
 			{
 				update_restart_trail = false;
-				if(nodes_pushed == 1) restart_trail.set(level, STRaTARTKernel::RestartTrail::N);
+				if(nodes_pushed == 1) restart_trail.set(level, rtm::RestartTrail::N);
 				else                  node_stack[node_stack_size].is_last = true;
 				node_stack_size += nodes_pushed;
 				level++;

@@ -149,7 +149,7 @@ bool UnitNonBlockingCache::_proccess_return(uint bank_index)
 			log.tag_array_access++;
 			log.data_array_writes++;
 			_insert_block(ret.paddr);
-			_write_block(ret.paddr, ret.data);
+			_write_sector(ret.paddr, ret.data);
 
 			if(bank.data_array_pipline.lantecy() != 0)
 				bank.data_array_pipline.write(~0u);
@@ -175,7 +175,7 @@ bool UnitNonBlockingCache::_proccess_request(uint bank_index)
 		uint mshr_index = _fetch_or_allocate_mshr(bank_index, block_addr, MSHR::Type::READ);
 
 		//In parallel access the tag array to check for the line
-		uint8_t* block_data = _get_block(block_addr);
+		uint8_t* block_data = _read_block(block_addr);
 		log.tag_array_access++;
 
 		if(mshr_index != ~0)

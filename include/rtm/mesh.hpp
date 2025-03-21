@@ -317,7 +317,7 @@ public:
 
 		return float32_bf(0, 127 + delta, 0).f32;
 	}
-
+	
 	void quantize_verts()
 	{
 		for(auto& v : vertices)
@@ -341,13 +341,38 @@ public:
 					if(edge_to_face_map.find(edge) != edge_to_face_map.end())
 					{
 						//link
-						uint32_t othr_f = edge_to_face_map[edge].first;
-						uint32_t othr_e = edge_to_face_map[edge].second;
-						face_graph[f][e] = othr_f;
-						face_graph[othr_f][othr_e] = f;
+						uint32_t other_f = edge_to_face_map[edge].first;
+						uint32_t other_e = edge_to_face_map[edge].second;
+						face_graph[f][e] = other_f;
+						face_graph[other_f][other_e] = f;
 					}
 					else edge_to_face_map[edge] = {f, e};
 				}
+			}
+		}
+
+		for(auto& face : face_graph)
+		{
+			if(face[0] == face[1] && face[1] == face[2])
+			{
+				face[0] = ~0u;
+				face[1] = ~0u;
+				face[2] = ~0u;
+			}
+			if(face[0] == face[1])
+			{
+				face[0] = ~0u;
+				face[1] = ~0u;
+			}
+			if(face[1] == face[2])
+			{
+				face[1] = ~0u;
+				face[2] = ~0u;
+			}
+			if(face[2] == face[0])
+			{
+				face[2] = ~0u;
+				face[0] = ~0u;
 			}
 		}
 
@@ -359,22 +384,22 @@ public:
 			remaining_faces.insert(f);
 			sorted_faces.push_back(f);
 		}
-		std::sort(sorted_faces.begin(), sorted_faces.end(), [&](uint32_t& a, uint32_t& b)->bool
-		{
-			return get_triangle(a).aabb().surface_area() < get_triangle(b).aabb().surface_area();
-		});
+		//std::sort(sorted_faces.begin(), sorted_faces.end(), [&](uint32_t& a, uint32_t& b)->bool
+		//{
+		//	return get_triangle(a).aabb().surface_area() < get_triangle(b).aabb().surface_area();
+		//});
 
 		//keep face indices for reordering
 		std::vector<uint> face_indices;
 		while(!remaining_faces.empty())
 		{
 			uint start_face = *remaining_faces.begin();
-			while(!sorted_faces.empty())
-			{
-				start_face = sorted_faces.back();
-				sorted_faces.pop_back();
-				if(remaining_faces.count(start_face) > 0) break;
-			}
+			//while(!sorted_faces.empty())
+			//{
+			//	start_face = sorted_faces.back();
+			//	sorted_faces.pop_back();
+			//	if(remaining_faces.count(start_face) > 0) break;
+			//}
 
 			//build a list of faces greedily optimizing the AABB SA
 			std::deque<uint32_t> face_list = {start_face};
@@ -395,14 +420,14 @@ public:
 				std::pair<uint, uint> best_face = {~0u, 0};
 				for(auto& candidate_face : options)
 				{
-					if(remaining_faces.count(candidate_face.first) == 0) continue;
+					if(candidate_face.first == ~0u || remaining_faces.count(candidate_face.first) == 0) continue;
 
 					AABB candidate_aabb = aabb; candidate_aabb.add(get_triangle(candidate_face.first).aabb());
 					float candidate_sa = candidate_aabb.surface_area();
 					if(candidate_sa < best_sa)
 					{
 						best_face = candidate_face;
-						best_sa = best_sa;
+						best_sa = candidate_sa;
 					}
 				}
 
@@ -419,22 +444,23 @@ public:
 			//extract the best substrip
 			float best_sah = INFINITY;
 			uint best_start = 0, best_end = face_list.size();
-			for(uint start = 0; start < face_list.size(); ++start)
-				for(uint end = start; end <= rtm::min(face_list.size(), start + TriangleStrip::MAX_TRIS); ++end)
-				{
-					AABB aabb;
-					uint size = end - start;
-					for(uint i = start; i < end; ++i)
-						aabb.add(get_triangle(face_list[i]).aabb());
-				
-					float sah = (float)face_list.size() / size * aabb.surface_area();
-					if(sah < best_sah)
-					{
-						best_sah = sah;
-						best_start = start;
-						best_end = end;
-					}
-				}
+			//for(uint start = 0; start < 1; ++start)
+			//	for(uint end = start + 1; end <= face_list.size(); ++end)
+			//	{
+			//		AABB aabb;
+			//		uint size = end - start;
+			//		if(size > TriangleStrip::MAX_TRIS) continue;
+			//		for(uint i = start; i < end; ++i)
+			//			aabb.add(get_triangle(face_list[i]).aabb());
+			//	
+			//		float sah = (float)face_list.size() / size * aabb.surface_area();
+			//		if(sah < best_sah)
+			//		{
+			//			best_sah = sah;
+			//			best_start = start;
+			//			best_end = end;
+			//		}
+			//	}
 
 			std::vector<uint> faces;
 			{
@@ -444,7 +470,8 @@ public:
 			}
 
 			//generate edge list
-			std::vector<uint> edges;
+			std::vector<uint> exit_edges;
+			std::vector<uint> entry_edges;
 			for(uint i = 0; i < (faces.size() - 1); ++i)
 			{
 				uint current_face = faces[i];
@@ -457,10 +484,16 @@ public:
 					if(adjacent_face == next_face) break;
 				}
 				assert(j < 3);
-				edges.push_back(j);
-			}
+				exit_edges.push_back(j);
 
-			assert(edges.size() + 1 == faces.size());
+				for(j = 0; j < 3; ++j)
+				{
+					uint adjacent_face = face_graph[next_face][j];
+					if(adjacent_face == current_face) break;
+				}
+				assert(j < 3);
+				entry_edges.push_back(j);
+			}
 
 			//encode strip
 			std::vector<uint> vis;
@@ -472,8 +505,8 @@ public:
 					uint e = 0;
 					if(faces.size() > 1)
 					{
-						e = edges[i];
-						edges[i] = 0;
+						e = exit_edges[i];
+						exit_edges[i] = 0;
 					}
 					for(uint j = 0; j < 3; ++j)
 					{
@@ -483,6 +516,7 @@ public:
 				}
 				else
 				{
+					bool vrt_added = false;
 					for(uint j = 0; j < 3; ++j)
 					{
 						uint vi = vertex_indices[faces[i]][j];
@@ -490,26 +524,44 @@ public:
 						for(uint k = 0; k < 3; ++k)
 							if(last_face[k] == vi)
 								vi_found = true;
+
 						if(vi_found) continue;
 
+						vrt_added = true;
 						vis.push_back(vi);
 						if(i < (faces.size() - 1))
 						{
-							uint ne = (edges[i] + (2 - j)) % 3;
+							uint ne = (exit_edges[i] + (2 - j)) % 3;
 							assert(ne < 2);
-							edges[i] = ne;
+							exit_edges[i] = ne;
 						}
+					}
+
+					if(!vrt_added)
+					{
+						assert(false);
+						//uint j = (exit_edges[i] + 2) % 3;
+						//uint vi = vertex_indices[faces[i]][j];
+						//vis.push_back(vi);
+						//if(i < (faces.size() - 1))
+						//{
+						//	uint ne = (exit_edges[i] + (2 - j)) % 3;
+						//	assert(ne < 2);
+						//	exit_edges[i] = ne;
+						//}
 					}
 				}
 				last_face = vertex_indices[faces[i]];
 			}
+
+			if(vis.size() < exit_edges.size() + 3) continue;
 
 			TriangleStrip strip; 
 			strip.id = face_indices.size();
 			strip.num_tris = faces.size();
 			strip.edge_mask = 0;
 			for(uint i = 0; i < vis.size(); ++i) strip.vrts[i] = vertices[vis[i]];
-			for(uint i = 0; i < edges.size(); ++i) strip.edge_mask |= edges[i] << i;
+			for(uint i = 0; i < exit_edges.size(); ++i) strip.edge_mask |= exit_edges[i] << i;
 			strips.push_back(strip);
 
 			for(uint i = 0; i < faces.size(); ++i)

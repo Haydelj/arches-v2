@@ -21,7 +21,8 @@ struct TRaXKernelArgs
 	rtm::Ray* rays;
 	//rtm::BVH2::Node* nodes;
 	//rtm::WBVH::Node* nodes;
-	//rtm::NVCWBVH::Node* nodes;
-	rtm::HECWBVH::Node* nodes;
+	rtm::NVCWBVH::Node* nodes;
+	//rtm::HECWBVH::Node* nodes;
 	rtm::Triangle* tris;
+	rtm::TriangleStrip* strips;
 };

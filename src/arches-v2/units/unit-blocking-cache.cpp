@@ -35,7 +35,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		{
 			paddr_t block_addr = _get_block_addr(bank.current_request.paddr);
 			uint block_offset = _get_block_offset(bank.current_request.paddr);
-			uint8_t* block_data = _get_block(block_addr);
+			uint8_t* block_data = _read_block(block_addr);
 			log.tag_array_access++;
 
 			if(block_data)
@@ -72,7 +72,7 @@ void UnitBlockingCache::_clock_rise(uint bank_index)
 		_assert(ret.paddr == _get_block_addr(ret.paddr));
 
 		_insert_block(ret.paddr);
-		_write_block(ret.paddr, ret.data);
+		_write_sector(ret.paddr, ret.data);
 		log.data_array_writes++;
 
 		uint block_offset = _get_block_offset(bank.current_request.paddr);

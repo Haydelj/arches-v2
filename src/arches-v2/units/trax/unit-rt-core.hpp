@@ -36,6 +36,7 @@ private:
 	{
 		float t;
 		rtm::WBVH::Node::Data data;
+		bool is_last;
 
 		StackEntry() {}
 	};
@@ -80,14 +81,19 @@ private:
 		rtm::vec3 inv_d;
 		rtm::Hit hit;
 
-		StackEntry stack[32 * rtm::WBVH::WIDTH];
+		const static uint STACK_SIZE = 5;
+		rtm::RestartTrail restart_trail;
+		StackEntry stack[STACK_SIZE + rtm::WBVH::WIDTH];
 		uint8_t stack_size;
-		uint8_t current_entry;
+		uint8_t level;
+		bool update_restart_trail;
 
 		MemoryRequest::Flags flags;
 		BitStack27 dst;
 
 		StagingBuffer buffer;
+
+		bool done;
 
 		RayState() {};
 	};
@@ -131,6 +137,7 @@ private:
 
 	std::set<uint> _rows_accessed;
 
+	uint _stall_cycles{0};
 public:
 	UnitRTCore(const Configuration& config);
 
@@ -197,6 +204,7 @@ public:
 				uint64_t nodes;
 				uint64_t strips;
 				uint64_t tris;
+				uint64_t restarts;
 				uint64_t hits_returned;
 				uint64_t issue_counters[(uint)IssueType::NUM_TYPES];
 				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
@@ -245,11 +253,12 @@ public:
 			printf("Nodes: %lld\n", nodes / num_units);
 			printf("Strips: %lld\n", strips / num_units);
 			printf("Tris: %lld\n", tris / num_units);
+			printf("Restarts: %lld\n", restarts / num_units);
 			printf("\n");
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
 			printf("Strips/Ray: %.2f\n", (double)strips / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
-			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);
+			printf("Restarts/Ray: %.2f\n", (double)restarts / rays);
 
 			uint64_t issue_total = 0;
 			std::vector<std::pair<const char*, uint64_t>> _issue_counter_pairs;

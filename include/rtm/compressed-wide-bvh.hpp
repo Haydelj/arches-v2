@@ -58,6 +58,7 @@ public:
 		uint num_prims(uint i) const { return mdata[i].num_prims; }
 		uint offset(uint i) const { return mdata[i].offset; }
 
+	#ifndef __riscv
 		Node(const WBVH::Node& wnode)
 		{
 			constexpr float denom = 1.0f / ((1 << NQ) - 1);
@@ -107,6 +108,7 @@ public:
 				qaabb[i].max[2] = ceilf((wnode.aabb[i].max.z - p().z) * one_over_e.z);
 			}
 		}
+	#endif
 	};
 
 #ifndef __riscv
@@ -114,6 +116,7 @@ public:
 
 	NVCWBVH(const rtm::WBVH& wbvh)
 	{
+		sizeof(Node);
 		printf("Building NVCWBVH%d\n", WIDTH);
 		assert(wbvh.nodes.size() != 0);
 
@@ -162,9 +165,6 @@ inline WBVH::Node decompress(const NVCWBVH::Node& cwnode)
 
 
 
-
-
-
 template<uint BITS>
 struct BitArray
 {
@@ -201,11 +201,11 @@ class HECWBVH
 {
 public:
 	const static uint WIDTH = WBVH::WIDTH;
-	const static uint NODE_SIZE = 32;
+	const static uint NODE_SIZE = 128;
 
 	struct alignas(NODE_SIZE) Node
 	{
-		const static uint NQ = 5;
+		const static uint NQ = 8;
 		const static uint E_BIAS = 127 - 24;
 		const static uint BIT_PER_BOX = NQ * 6;
 		uint32_t base_index : 29;
@@ -216,8 +216,8 @@ public:
 		uint16_t p0;
 		uint16_t p1;
 		uint16_t p2;
-		uint8_t imask : WIDTH;
-		uint8_t count : 3;
+		uint16_t imask : WIDTH;
+		uint16_t count : 4;
 		BitArray<BIT_PER_BOX * WIDTH> bit_array;
 
 		void set_e(uvec3 e) { e0 = max(e[0], E_BIAS) - E_BIAS, e1 = max(e[1], E_BIAS) - E_BIAS, e2 = max(e[2], E_BIAS) - E_BIAS; }
@@ -254,6 +254,8 @@ public:
 		}
 
 		Node() = default;
+
+	#ifndef __riscv
 		Node(const WBVH::Node& wnode)
 		{
 			sizeof(Node);
@@ -306,6 +308,7 @@ public:
 				}
 			}
 		}
+	#endif
 	};
 
 	struct alignas(NODE_SIZE) Strip

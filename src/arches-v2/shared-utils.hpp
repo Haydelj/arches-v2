@@ -170,6 +170,7 @@ public:
 		set_param("num_tms", 128);
 		set_param("num_tps", 128);
 		set_param("num_rt_cores", 1);
+		set_param("max_rays", 128);
 
 		set_param("l2_size", 72 << 20);
 		set_param("l2_associativity", 18);

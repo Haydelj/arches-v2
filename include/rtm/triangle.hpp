@@ -42,10 +42,10 @@ inline void decompress(const rtm::Triangle& tri, uint& id, uint& count, rtm::Tri
 	tris[0] = tri;
 }
 
-class TriangleStrip
+class alignas(64) TriangleStrip
 {
 public:
-	const static uint MAX_TRIS = 4;
+	const static uint MAX_TRIS = 2;
 	uint32_t id : 29;
 	uint16_t num_tris : 4;
 	uint16_t edge_mask : 12;

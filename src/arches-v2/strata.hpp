@@ -244,8 +244,7 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	l2_config.crossbar_width = 64;
 	l2_config.num_mshr = 192;
 	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
-	l2_config.input_latency = 85;
-	l2_config.output_latency = 85;
+	l2_config.latency = 170;
 
 	UnitL2Cache::PowerConfig l2_power_config;
 	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
@@ -265,8 +264,7 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	l1d_config.crossbar_width = 4;
 	l1d_config.num_mshr = 256;
 	l1d_config.rob_size = 8 * l1d_config.num_mshr / l1d_config.num_banks;
-	l1d_config.input_latency = 20;
-	l1d_config.output_latency = 10;
+	l1d_config.latency = 30;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;

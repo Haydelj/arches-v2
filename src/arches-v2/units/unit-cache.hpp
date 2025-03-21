@@ -14,17 +14,17 @@ public:
 	struct Configuration
 	{
 		bool in_order{false};
+		bool prefetch_block{false};
 		uint level{0};
 
 		uint size{1024};
 		uint block_size{CACHE_BLOCK_SIZE};
-		uint fill_txn_size{DRAM_TXN_SIZE};
+		uint sector_size{DRAM_TXN_SIZE};
 		uint associativity{1};
 
-		uint rob_size{1};
+		uint rob_size{1024};
 		uint num_mshr{1};
-		uint input_latency{1};
-		uint output_latency{1};
+		uint latency{1};
 
 		uint num_ports{1};
 		uint crossbar_width{1};
@@ -85,13 +85,15 @@ protected:
 	{
 		paddr_t block_addr;
 		uint request_buffer_index;
+		uint8_t sectors;
 	};
 
 	struct MSHR //Miss Status Handling Register
 	{
 		std::queue<uint16_t> sub_entries; //linked list in a real hardware
-		uint8_t block_data[1024];
-		uint bytes_filled;
+		uint8_t block_data[256];
+		uint8_t sectors_requested;
+		uint8_t sectors_filled;
 		MSHR() = default;
 	};
 
@@ -116,8 +118,8 @@ protected:
 	ReturnCrossBar _return_network;
 
 	bool _in_order;
+	bool _prefetch_block;
 	uint _level;
-	uint _fill_txn_size;
 
 	uint64_t _bank_select_mask{0};
 	uint _get_bank(paddr_t addr)
@@ -131,9 +133,22 @@ protected:
 	void _send_request();
 	void _send_return();
 
+	uint8_t _sector_mask(const MemoryRequest& req);
+
 	virtual UnitMemoryBase* _get_mem_higher(paddr_t addr) { return _mem_highers[0]; }
 
 public:
+	void print_pipline_state()
+	{
+		for(auto& p : _partitions)
+			for(auto& b : p.banks)
+			{
+				printf("Req:");
+				b.request_pipline.print();
+				printf("\n");
+			}
+	}
+
 	class Log
 	{
 	public:

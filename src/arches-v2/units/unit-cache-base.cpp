@@ -3,8 +3,10 @@
 namespace Arches {
 namespace Units {
 
-UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity) : _tag_array(size / block_size), _data_array(size), UnitMemoryBase()
+UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size) : _tag_array(size / block_size), _data_array(size), _sector_size(sector_size), UnitMemoryBase()
 {
+	if(_sector_size == 0) _sector_size = block_size;
+
 	//initialize tag array
 	for(uint i = 0; i < _tag_array.size(); ++i)
 	{
@@ -78,8 +80,15 @@ bool UnitCacheBase::deserialize(std::string file_path, const UnitMainMemoryBase&
 	return succeeded;
 }
 
+
+uint8_t* UnitCacheBase::_read_block(paddr_t block_addr)
+{ 
+	uint8_t vm;
+	return _read_block(block_addr, vm);
+}
+
 //update lru and returns data pointer to cache line
-uint8_t* UnitCacheBase::_get_block(paddr_t block_addr)
+uint8_t* UnitCacheBase::_read_block(paddr_t block_addr, uint8_t& valid_mask)
 {
 	uint64_t tag = _get_tag(block_addr);
 	uint set_index = _get_set_index(block_addr);
@@ -98,6 +107,7 @@ uint8_t* UnitCacheBase::_get_block(paddr_t block_addr)
 		}
 	}
 
+	valid_mask = 0;
 	if(found_index == ~0) 
 		return nullptr; //Didn't find line so we will leave lru alone and return nullptr
 
@@ -105,18 +115,20 @@ uint8_t* UnitCacheBase::_get_block(paddr_t block_addr)
 		if(_tag_array[i].lru < found_lru) _tag_array[i].lru++;
 
 	_tag_array[found_index].lru = 0;
-	if(!_tag_array[found_index].valid) //Found the block but it was invalid
+	if(!_tag_array[found_index].valid) //Found sector but it was invalid
 		return nullptr;
 
+	valid_mask = _tag_array[found_index].valid;
 	return &_data_array[found_index * _block_size];
 }
 
 //writes data to block and updates valid bit
-uint8_t* UnitCacheBase::_write_block(paddr_t block_addr, const uint8_t* data, bool set_dirty)
+uint8_t* UnitCacheBase::_write_sector(paddr_t sector_addr, const uint8_t* data, bool set_dirty)
 {
 	_assert(data);
-	uint64_t tag = _get_tag(block_addr);
-	uint set_index = _get_set_index(block_addr);
+	uint64_t tag = _get_tag(sector_addr);
+	uint set_index = _get_set_index(sector_addr);
+	uint sector_index = _get_sector_index(sector_addr);
 	uint start = set_index * _associativity;
 	uint end = start + _associativity;
 
@@ -124,10 +136,10 @@ uint8_t* UnitCacheBase::_write_block(paddr_t block_addr, const uint8_t* data, bo
 	{
 		if(_tag_array[i].tag == tag)
 		{
-			_tag_array[i].valid = 1;
-			if(set_dirty) _tag_array[i].dirty = 1;
-			std::memcpy(&_data_array[i * _block_size], data, _block_size);
-			return &_data_array[i * _block_size];
+			_tag_array[i].valid |= 0x1ull << sector_index;
+			if(set_dirty) _tag_array[i].dirty |= 0x1ull << sector_index;
+			std::memcpy(_data_array.data() + i * _block_size + sector_index * _sector_size, data, _sector_size);
+			return &_data_array[i * _block_size + sector_index * _sector_size];
 		}
 	}
 
