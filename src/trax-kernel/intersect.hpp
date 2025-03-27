@@ -280,7 +280,7 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 
 	if (serializeRays)
 	{
-		std::string resultPathName = std::filesystem::current_path().generic_string() + "/pregenRayData.bin";
+		std::string resultPathName = std::filesystem::current_path().generic_string() + "/rays.bin";
 		std::ofstream file_stream(resultPathName.c_str() , std::ios::binary);
 		
 		if (file_stream.good())

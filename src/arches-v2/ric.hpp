@@ -170,7 +170,7 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 	dram_config.config_path = project_folder + "build\\src\\arches-v2\\config-files\\gddr6_pch_config.yaml";
 	dram_config.size = 4ull << 30; //4GB
 	dram_config.num_controllers = num_partitions;
-	dram_config.partition_mask = partition_mask;
+	dram_config.partition_stride = partition_mask;
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
@@ -179,8 +179,8 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 	l2_config.block_size = block_size;
 	l2_config.size = sim_config.get_int("l2_size");
 	l2_config.associativity = sim_config.get_int("l2_associativity");
-	l2_config.num_partitions = num_partitions;
-	l2_config.partition_select_mask = partition_mask;
+	l2_config.num_slices = num_partitions;
+	l2_config.slice_select_mask = partition_mask;
 	l2_config.num_banks = 2;
 	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
 	l2_config.crossbar_width = 32;
@@ -261,7 +261,7 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 	ELF elf(project_folder + "src\\ric-kernel\\riscv\\kernel");
 
 	dram.clear();
-	paddr_t heap_address = dram.write_elf(elf);
+	paddr_t heap_address = elf.load(dram._data_u8);
 	RICKernelArgs kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride);
 	heap_address = align_to(partition_stride * num_partitions, heap_address);
 	std::pair<paddr_t, paddr_t> treelet_range = {(paddr_t)kernel_args.treelets, (paddr_t)kernel_args.treelets + kernel_args.num_treelets * sizeof(SceneSegment)};

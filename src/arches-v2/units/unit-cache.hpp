@@ -28,9 +28,9 @@ public:
 
 		uint num_ports{1};
 		uint crossbar_width{1};
-		uint num_partitions{1};
+		uint num_slices{1};
 		uint num_banks{1};
-		uint64_t partition_select_mask{0x0};
+		uint64_t slice_select_mask{0x0};
 		uint64_t bank_select_mask{0x0};
 
 		std::vector<UnitMemoryBase*> mem_highers{nullptr};
@@ -97,7 +97,7 @@ protected:
 		MSHR() = default;
 	};
 
-	struct Partition
+	struct Slice
 	{
 		std::vector<Bank> banks;
 
@@ -109,12 +109,12 @@ protected:
 		std::queue<MemoryRequest> mem_higher_request_queue;
 		bool recived_return;
 
-		Partition(Configuration config);
+		Slice(Configuration config);
 	};
 
 	std::vector<UnitMemoryBase*> _mem_highers;
 	RequestCrossBar _request_network;
-	std::vector<Partition> _partitions;
+	std::vector<Slice> _slices;
 	ReturnCrossBar _return_network;
 
 	bool _in_order;
@@ -140,8 +140,8 @@ protected:
 public:
 	void print_pipline_state()
 	{
-		for(auto& p : _partitions)
-			for(auto& b : p.banks)
+		for(auto& s : _slices)
+			for(auto& b : s.banks)
 			{
 				printf("Req:");
 				b.request_pipline.print();

@@ -4,27 +4,27 @@ namespace Arches {namespace Units {
 
 UnitCache::UnitCache(Configuration config) :
 	UnitCacheBase(config.size, config.block_size, config.associativity, config.sector_size),
-	_request_network(config.num_ports, config.num_partitions * config.num_banks, config.partition_select_mask | config.bank_select_mask, config.crossbar_width),
-	_return_network(config.num_partitions * config.num_banks, config.num_ports, config.crossbar_width),
+	_request_network(config.num_ports, config.num_slices * config.num_banks, config.slice_select_mask | config.bank_select_mask, config.crossbar_width),
+	_return_network(config.num_slices * config.num_banks, config.num_ports, config.crossbar_width),
 	_bank_select_mask(config.bank_select_mask), 
 	_prefetch_block(config.prefetch_block),
 	_mem_highers(config.mem_highers),
 	_in_order(config.in_order),
 	_level(config.level)
 {
-	_assert(popcnt(config.partition_select_mask) == log2i(config.num_partitions));
+	_assert(popcnt(config.slice_select_mask) == log2i(config.num_slices));
 	_assert(popcnt(config.bank_select_mask) == log2i(config.num_banks));
-	_assert((config.partition_select_mask & config.bank_select_mask) == 0x0ull);
+	_assert((config.slice_select_mask & config.bank_select_mask) == 0x0ull);
 
-	_partitions.reserve(config.num_partitions);
-	for(uint i = 0; i < config.num_partitions; ++i)
+	_slices.reserve(config.num_slices);
+	for(uint i = 0; i < config.num_slices; ++i)
 	{
-		_partitions.push_back(config);
+		_slices.push_back(config);
 		config.mem_higher_port += config.mem_higher_port_stride;
 	}
 }
 
-UnitCache::Partition::Partition(Configuration config) :
+UnitCache::Slice::Slice(Configuration config) :
 	miss_queue(config.num_banks, 1, 4, 4),
 	num_mshr(config.num_mshr),
 	recived_return(false)
@@ -55,14 +55,14 @@ UnitCache::~UnitCache()
 
 void UnitCache::_recive_return()
 {
-	for(uint p = 0; p < _partitions.size(); ++p)
+	for(uint s = 0; s < _slices.size(); ++s)
 	{ 
-		Partition& partition = _partitions[p];
+		Slice& slice = _slices[s];
 		for(UnitMemoryBase* mem_higher : _mem_highers)
 		{
-			if(mem_higher->return_port_read_valid(partition.mem_higher_port))
+			if(mem_higher->return_port_read_valid(slice.mem_higher_port))
 			{
-				MemoryReturn ret = mem_higher->peek_return(partition.mem_higher_port);
+				MemoryReturn ret = mem_higher->peek_return(slice.mem_higher_port);
 				bool cached = !(ret.flags.omit_cache & (0x1 << _level));
 				if(cached)
 				{
@@ -70,8 +70,8 @@ void UnitCache::_recive_return()
 					bool set_dirty = false;
 					paddr_t block_addr = _get_block_addr(ret.paddr);
 					paddr_t block_offset = _get_block_offset(ret.paddr);
-					MSHR& mshr = partition.mshrs[block_addr];
-					Bank& bank = partition.banks[_get_bank(block_addr)];
+					MSHR& mshr = slice.mshrs[block_addr];
+					Bank& bank = slice.banks[_get_bank(block_addr)];
 
 					std::memcpy(mshr.block_data + block_offset, ret.data, ret.size);
 					mshr.sectors_filled |= 1 << (block_offset / _sector_size);
@@ -112,27 +112,27 @@ void UnitCache::_recive_return()
 									log.data_array_writes++;
 
 						//free mshr
-						partition.mshrs.erase(block_addr);
+						slice.mshrs.erase(block_addr);
 					}
 
-					mem_higher->read_return(partition.mem_higher_port);
-					partition.recived_return = true;
+					mem_higher->read_return(slice.mem_higher_port);
+					slice.recived_return = true;
 				}
 				else
 				{
 					uint b = _get_bank(ret.paddr);
-					Bank& bank = partition.banks[b];
+					Bank& bank = slice.banks[b];
 					if(bank.return_pipline.is_write_valid())
 					{
-						uint i = p * partition.banks.size() + b;
+						uint i = s * slice.banks.size() + b;
 						ret.port = ret.dst.pop(8);
 						bank.return_pipline.write(ret);
 						log.bytes_read += ret.size;
-						mem_higher->read_return(partition.mem_higher_port);
+						mem_higher->read_return(slice.mem_higher_port);
 					}
 				}
 			}
-			else partition.recived_return = false;
+			else slice.recived_return = false;
 		}
 	}
 }
@@ -146,14 +146,14 @@ uint8_t UnitCache::_sector_mask(const MemoryRequest& req)
 
 void UnitCache::_recive_request()
 {
-	for(uint p = 0; p < _partitions.size(); ++p)
+	for(uint s = 0; s < _slices.size(); ++s)
 	{
-		Partition& partition = _partitions[p];
-		for(uint b = 0; b < partition.banks.size(); ++b)
+		Slice& slice = _slices[s];
+		for(uint b = 0; b < slice.banks.size(); ++b)
 		{
-			Bank& bank = partition.banks[b];
+			Bank& bank = slice.banks[b];
 			if(!bank.request_pipline.is_read_valid()) continue;
-			if(!partition.miss_queue.is_write_valid(b))
+			if(!slice.miss_queue.is_write_valid(b))
 			{
 				log.mshr_stalls++;
 				continue;
@@ -170,8 +170,8 @@ void UnitCache::_recive_request()
 			{
 				//Forward request
 				request.dst.push(request.port, 8);
-				request.port = partition.mem_higher_port;
-				partition.mem_higher_request_queue.push(request);
+				request.port = slice.mem_higher_port;
+				slice.mem_higher_request_queue.push(request);
 				log.uncached_requests++;
 			}
 			else if(request.type == MemoryRequest::Type::LOAD)
@@ -192,19 +192,20 @@ void UnitCache::_recive_request()
 				uint8_t* block_data = _read_block(block_addr, valid_bits);
 				log.tag_array_access++;
 
-				uint8_t missing_sectors = (sector_mask & ~valid_bits);
-				if(!missing_sectors)
+				uint8_t hit_sectors = (sector_mask & valid_bits);
+				uint8_t miss_sectors = (sector_mask & ~valid_bits);
+				log.hits += popcnt(hit_sectors);
+				if(!miss_sectors)
 				{
 					//Hit: fill request and insert into return queue
 					bank.rob[rob_index] = MemoryReturn(request, block_data + block_offset);
 					bank.return_queue.push(rob_index);
 					log.data_array_reads++;
-					log.hits++;
 				}
 				else
 				{
 					bank.rob[rob_index] = MemoryReturn(request);
-					partition.miss_queue.write({block_addr, rob_index, sector_mask}, b);
+					slice.miss_queue.write({block_addr, rob_index, sector_mask}, b);
 				}
 
 				//Update buffer and reserve it
@@ -232,8 +233,8 @@ void UnitCache::_recive_request()
 
 				//Forward store
 				MemoryRequest forward_request(request);
-				forward_request.port = partition.mem_higher_port;
-				partition.mem_higher_request_queue.push(forward_request);
+				forward_request.port = slice.mem_higher_port;
+				slice.mem_higher_request_queue.push(forward_request);
 			}
 			else if(request.type == MemoryRequest::Type::PREFECTH)
 			{
@@ -242,7 +243,7 @@ void UnitCache::_recive_request()
 				log.tag_array_access++;
 
 				if(!block_data)
-					partition.miss_queue.write({block_addr, ~0u}, b);
+					slice.miss_queue.write({block_addr, ~0u}, b);
 			}
 			else if(request.type == MemoryRequest::Type::CSHIT)
 			{
@@ -278,7 +279,7 @@ void UnitCache::_recive_request()
 				else
 				{
 					bank.rob[rob_index] = MemoryReturn(request, request.data);
-					partition.miss_queue.write({block_addr, rob_index}, b);
+					slice.miss_queue.write({block_addr, rob_index}, b);
 					if(!_in_order) bank.rob_free_set.erase(rob_index);
 					bank.rob_size++;
 				}
@@ -292,16 +293,16 @@ void UnitCache::_recive_request()
 
 
 		//Proccess misses
-		partition.miss_queue.clock();
+		slice.miss_queue.clock();
 		//if(partition.recived_return) continue;
-		if(!partition.miss_queue.is_read_valid(0)) continue;
-		const Miss& miss = partition.miss_queue.peek(0);
+		if(!slice.miss_queue.is_read_valid(0)) continue;
+		const Miss& miss = slice.miss_queue.peek(0);
 
 		//Try to fetch an mshr for the line or allocate a new mshr for the line
-		if(partition.mshrs.find(miss.block_addr) == partition.mshrs.end())
+		if(slice.mshrs.find(miss.block_addr) == slice.mshrs.end())
 		{
 			//Didn't find mshr. Try to allocate one
-			if(partition.mshrs.size() < partition.num_mshr)
+			if(slice.mshrs.size() < slice.num_mshr)
 			{
 				//Allocate a new block for the miss to return to
 				Victim victim = _insert_block(miss.block_addr);
@@ -314,17 +315,16 @@ void UnitCache::_recive_request()
 						vic_req.type = MemoryRequest::Type::STORE;
 						vic_req.paddr = victim.addr + i * _sector_size;
 						vic_req.size = _sector_size;
-						vic_req.port = partition.mem_higher_port;
+						vic_req.port = slice.mem_higher_port;
 						std::memcpy(vic_req.data, victim.data + i * _sector_size, _sector_size);
-						partition.mem_higher_request_queue.push(vic_req);
+						slice.mem_higher_request_queue.push(vic_req);
 					}
 				}
 
 				//Allocated a new MSHR and queue up the fill request
-				MSHR& mshr = partition.mshrs[miss.block_addr];
+				MSHR& mshr = slice.mshrs[miss.block_addr];
 				mshr.sectors_filled = 0;
 				mshr.sectors_requested = 0;
-				log.misses++;
 			}
 			else
 			{
@@ -332,60 +332,64 @@ void UnitCache::_recive_request()
 				continue;
 			}
 		}
-		else
-		{
-			//Found a mshr log a half miss
-			log.half_misses++;
-		}
+		//else Found a mshr
 
 		if(miss.request_buffer_index != ~0u)
-			partition.mshrs[miss.block_addr].sub_entries.push(miss.request_buffer_index);
+			slice.mshrs[miss.block_addr].sub_entries.push(miss.request_buffer_index);
 
-		MSHR& mshr = partition.mshrs[miss.block_addr];
+		MSHR& mshr = slice.mshrs[miss.block_addr];
 		for(uint i = 0; i < _block_size / _sector_size; ++i)
 		{
-			if(((miss.sectors & ~mshr.sectors_requested) >> i) & 0x1)
+			if((miss.sectors >> i) & 0x1)
 			{
-				MemoryRequest miss_req;
-				miss_req.type = MemoryRequest::Type::LOAD;
-				miss_req.paddr = miss.block_addr + i * _sector_size;
-				miss_req.size = _sector_size;
-				miss_req.port = partition.mem_higher_port;
-				partition.mem_higher_request_queue.push(miss_req);
+				if((~mshr.sectors_requested >> i) & 0x1)
+				{
+					log.misses++;
+					MemoryRequest miss_req;
+					miss_req.type = MemoryRequest::Type::LOAD;
+					miss_req.paddr = miss.block_addr + i * _sector_size;
+					miss_req.size = _sector_size;
+					miss_req.port = slice.mem_higher_port;
+					slice.mem_higher_request_queue.push(miss_req);
+				}
+				else
+				{
+					log.half_misses++;
+				}
 			}
 		}
 		mshr.sectors_requested |= miss.sectors;
 
-		partition.miss_queue.read(0);
+		slice.miss_queue.read(0);
 	}
 }
 
 void UnitCache::_send_request()
 {
-	for(uint p = 0; p < _partitions.size(); ++p)
+	for(uint s = 0; s < _slices.size(); ++s)
 	{
-		Partition& partition = _partitions[p];
-		if(partition.mem_higher_request_queue.empty()) continue;
+		Slice& slice = _slices[s];
+		if(slice.mem_higher_request_queue.empty()) continue;
 
-		const MemoryRequest& request = partition.mem_higher_request_queue.front();
+		const MemoryRequest& request = slice.mem_higher_request_queue.front();
 		UnitMemoryBase* mem_higher = _get_mem_higher(request.paddr);
 
-		_assert(request.port == partition.mem_higher_port);
+		_assert(request.port == slice.mem_higher_port);
 		if(!mem_higher->request_port_write_valid(request.port)) continue;
 
 		mem_higher->write_request(request);
-		partition.mem_higher_request_queue.pop();
+		slice.mem_higher_request_queue.pop();
 	}
 }
 
 void UnitCache::_send_return()
 {
-	for(uint p = 0; p < _partitions.size(); ++p)
+	for(uint s = 0; s < _slices.size(); ++s)
 	{
-		Partition& partition = _partitions[p];
-		for(uint b = 0; b < partition.banks.size(); ++b)
+		Slice& slice = _slices[s];
+		for(uint b = 0; b < slice.banks.size(); ++b)
 		{
-			Bank& bank = partition.banks[b];
+			Bank& bank = slice.banks[b];
 			if(_in_order)
 			{
 				//In order return logic
@@ -432,15 +436,15 @@ void UnitCache::_send_return()
 
 void UnitCache::clock_rise()
 {
-	for(uint i = 0; i < 4; ++i) _request_network.clock();
+	_request_network.clock();
 
-	for(uint p = 0; p < _partitions.size(); ++p)
+	for(uint s = 0; s < _slices.size(); ++s)
 	{
-		Partition& partition = _partitions[p];
-		for(uint b = 0; b < partition.banks.size(); ++b)
+		Slice& slice = _slices[s];
+		for(uint b = 0; b < slice.banks.size(); ++b)
 		{
-			Bank& bank = partition.banks[b];
-			uint i = p * partition.banks.size() + b;
+			Bank& bank = slice.banks[b];
+			uint i = s * slice.banks.size() + b;
 
 			bank.request_pipline.clock();
 			if(_request_network.is_read_valid(i) && bank.request_pipline.is_write_valid())
@@ -457,13 +461,13 @@ void UnitCache::clock_fall()
 	_send_request();
 	_send_return();
 
-	for(uint p = 0; p < _partitions.size(); ++p)
+	for(uint s = 0; s < _slices.size(); ++s)
 	{
-		Partition& partition = _partitions[p];
-		for(uint b = 0; b < partition.banks.size(); ++b)
+		Slice& slice = _slices[s];
+		for(uint b = 0; b < slice.banks.size(); ++b)
 		{
-			Bank& bank = partition.banks[b];
-			uint i = p * partition.banks.size() + b;
+			Bank& bank = slice.banks[b];
+			uint i = s * slice.banks.size() + b;
 
 			if(bank.return_pipline.is_read_valid() && _return_network.is_write_valid(i))
 				_return_network.write(bank.return_pipline.read(), i);
@@ -472,7 +476,7 @@ void UnitCache::clock_fall()
 		}
 	}
 
-	for(uint i = 0; i < 4; ++i) _return_network.clock();
+	_return_network.clock();
 }
 
 bool UnitCache::request_port_write_valid(uint port_index)

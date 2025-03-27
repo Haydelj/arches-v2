@@ -31,17 +31,32 @@ std::string get_project_folder_path()
 	return executable_path.substr(0, executable_path.rfind("build"));
 }
 
-template <typename RET>
-static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, RET* data, size_t size, paddr_t& heap_address)
+template <typename T>
+static T* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, T* data, size_t size, paddr_t& heap_address)
 {
 	paddr_t array_address = align_to(alignment, heap_address);
-	heap_address = array_address + size * sizeof(RET);
-	main_memory->direct_write(data, size * sizeof(RET), array_address);
-	return reinterpret_cast<RET*>(array_address);
+	heap_address = array_address + size * sizeof(T);
+	main_memory->direct_write(data, size * sizeof(T), array_address);
+	return reinterpret_cast<T*>(array_address);
 }
 
-template <typename RET>
-static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignment, std::vector<RET> v, paddr_t& heap_address)
+template <typename T>
+static T* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignment, std::vector<T> v, paddr_t& heap_address)
+{
+	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
+}
+
+template <typename T>
+static T* write_array(uint8_t* main_memory, size_t alignment, T* data, size_t size, paddr_t& heap_address)
+{
+	paddr_t array_address = align_to(alignment, heap_address);
+	heap_address = array_address + size * sizeof(T);
+	memcpy(main_memory + array_address, data, size * sizeof(T));
+	return reinterpret_cast<T*>(array_address);
+}
+
+template <typename T>
+static T* write_vector(uint8_t* main_memory, size_t alignment, std::vector<T> v, paddr_t& heap_address)
 {
 	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
 }

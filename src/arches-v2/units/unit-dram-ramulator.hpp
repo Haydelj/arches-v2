@@ -32,9 +32,10 @@ public:
 	{
 		std::string config_path;
 		uint64_t size{1ull << 30};
-		uint num_ports;
-		uint num_controllers;
-		uint64_t partition_mask;
+		uint num_ports{1};
+		uint num_controllers{1};
+		uint64_t partition_stride{0x0ull};
+		double clock_ratio;
 	};
 
 private:
@@ -51,21 +52,26 @@ private:
 
 	struct MemoryController
 	{
+		Pipline<MemoryRequest> req_pipline;
 		Ramulator::IFrontEnd* ramulator2_frontend;
 		Ramulator::IMemorySystem* ramulator2_memorysystem;
 		std::priority_queue<RamulatorReturn> return_queue;
+
+		MemoryController(uint latency) : req_pipline(latency) {}
 	};
 
-	int _clock_ratio;
 	uint _pending_requests = 0;
 	bool _busy{false};
 
 	paddr_t _partition_mask{0x0ull};
 
+	double _clock_ratio{0.0};
+	double _fractional_cycle{0.0};
+	cycles_t _current_cycle{ 0 };
+
 	std::vector<MemoryController> _controllers;
 	RequestCascade _request_network;
 	ReturnCascade _return_network;
-	cycles_t _current_cycle{ 0 };
 
 	std::vector<MemoryReturn> _returns;
 	std::stack<uint> _free_return_ids;

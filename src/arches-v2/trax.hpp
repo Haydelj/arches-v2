@@ -126,7 +126,7 @@ typedef Units::TRaX::UnitRTCore<rtm::NVCWBVH::Node, rtm::Triangle> UnitRTCore;
 //typedef Units::TRaX::UnitRTCore<rtm::NVCWBVH::Node, rtm::TriangleStrip> UnitRTCore;
 //typedef Units::TRaX::UnitRTCore<rtm::HECWBVH::Node, rtm::HECWBVH::Strip> UnitRTCore;
 
-static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
+static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
 {
 	std::string scene_name = sim_config.get_string("scene_name");
 	std::string project_folder = get_project_folder_path();
@@ -197,7 +197,7 @@ static TRaXKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, 
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, cwbvh.nodes.data(), tris.data(), tris.data(), sim_config.get_int("pregen_bounce"), rays, true);
 	args.rays = write_vector(main_memory, 256, rays, heap_address);
 
-	main_memory->direct_write(&args, sizeof(TRaXKernelArgs), TRAX_KERNEL_ARGS_ADDRESS);
+	std::memcpy(main_memory + TRAX_KERNEL_ARGS_ADDRESS, &args, sizeof(TRaXKernelArgs));
 	return args;
 }
 
@@ -274,6 +274,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 #elif 1//RTX 2060 ish
 	//Compute
 	double clock_rate = 1365.0e6;
+	double dram_clock = 3500.0e6;
 	uint num_threads = 8;
 	uint num_tps = 128;
 	uint num_tms = 30;
@@ -282,29 +283,24 @@ static void run_sim_trax(SimulationConfig& sim_config)
 
 	//Memory
 	uint64_t block_size = CACHE_BLOCK_SIZE;
-	uint num_partitions = 4;
+	uint num_partitions = 6;
 	uint partition_stride = 1 << 12;
-	uint64_t partition_mask = generate_nbit_mask(log2i(num_partitions)) << log2i(partition_stride);
 
 	//DRAM
 	UnitDRAM::Configuration dram_config;
 	dram_config.config_path = project_folder_path + "build\\src\\arches-v2\\config-files\\gddr6_2ch_config.yaml";
-	dram_config.size = 4ull << 30; //4GB
-	dram_config.num_controllers = num_partitions;
-	dram_config.partition_mask = partition_mask;
+	dram_config.size = 1ull << 30; //1GB
+	dram_config.clock_ratio = dram_clock / clock_rate;
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
 	l2_config.in_order = true;
-	l2_config.prefetch_block = true;
+	l2_config.prefetch_block = false;
 	l2_config.level = 2;
-	l2_config.size = 2 << 20;
+	l2_config.size = 512 << 10;
 	l2_config.associativity = 16;
-	l2_config.num_partitions = num_partitions;
-	l2_config.partition_select_mask = partition_mask;
-	l2_config.num_banks = 4;
-	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(128);
-	l2_config.crossbar_width = 32;
+	l2_config.num_slices = 4;
+	l2_config.slice_select_mask = generate_nbit_mask(log2i(l2_config.num_slices)) << log2i(128);
 	l2_config.num_mshr = 192;
 	l2_config.latency = 160;
 
@@ -314,10 +310,18 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	l2_power_config.read_energy = 0.378808e-9f - l2_power_config.tag_energy;
 	l2_power_config.write_energy = 0.365393e-9f - l2_power_config.tag_energy;
 
+	Units::UnitCrossbar::Configuration xbar_config;
+	xbar_config.latency = 1;
+	xbar_config.width = num_tms;
+	xbar_config.num_slices = l2_config.num_slices;
+	xbar_config.slice_stride = block_size;
+	xbar_config.num_partitions = num_partitions;
+	xbar_config.partition_stride = partition_stride;
+
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
 	l1d_config.in_order = true;
-	l1d_config.prefetch_block = true;
+	l1d_config.prefetch_block = false;
 	l1d_config.level = 1;
 	l1d_config.size = 64 << 10;
 	l1d_config.associativity = 16;
@@ -359,28 +363,42 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
 
-	dram_config.num_ports = dram_config.num_controllers;
-	UnitDRAM dram(dram_config);
-	simulator.register_unit(&dram);
-	simulator.new_unit_group();
-
-	dram.clear();
-	paddr_t heap_address = dram.write_elf(elf);
-	TRaXKernelArgs kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride);
-
-	l2_config.num_ports = num_tms;
-	l2_config.mem_highers = {&dram};
-	l2_config.mem_higher_port = 0;
-	UnitL2Cache l2(l2_config);
-	simulator.register_unit(&l2);
-	simulator.new_unit_group();
-
-	std::string l2_cache_path = project_folder_path + "\\datasets\\cache\\" + sim_config.get_string("scene_name") + "-" + std::to_string(sim_config.get_int("pregen_bounce")) + "-l2.cache";
-	bool deserialized_cache = false;
-	if (sim_config.get_int("warm_l2"))
+	//construct memory partitions
+	std::vector<UnitDRAM*> drams;
+	std::vector<UnitL2Cache*> l2s;
+	dram_config.num_ports = l2_config.num_slices;
+	l2_config.num_ports = l2_config.num_slices;
+	for(uint i = 0; i < num_partitions; ++i)
 	{
-		deserialized_cache = l2.deserialize(l2_cache_path, dram);
-		//l2.copy(TRAX_KERNEL_ARGS_ADDRESS, dram._data_u8 + TRAX_KERNEL_ARGS_ADDRESS, sizeof(kernel_args));
+		drams.push_back(_new UnitDRAM(dram_config));
+		simulator.register_unit(drams.back());
+		simulator.new_unit_group();
+
+		l2_config.mem_higher_port = 0;
+		l2_config.mem_highers = {drams.back()};
+		l2s.push_back(_new UnitL2Cache(l2_config));
+		simulator.register_unit(l2s.back());
+		simulator.new_unit_group();
+
+		xbar_config.mem_highers.push_back(l2s.back());
+	}
+
+	xbar_config.num_clients = num_tms;
+	Units::UnitCrossbar xbar(xbar_config);
+	simulator.register_unit(&xbar);
+	simulator.new_unit_group();
+
+	uint8_t* device_mem = (uint8_t*)malloc(1 << 30);
+	paddr_t heap_address = elf.load(device_mem);
+	TRaXKernelArgs kernel_args = initilize_buffers(device_mem, heap_address, sim_config, partition_stride);
+	heap_address = align_to(partition_stride, heap_address);
+
+	for(uint i = 0; i < heap_address / partition_stride; ++i)
+	{
+		uint partition = i % num_partitions;
+		paddr_t src_addr = i * partition_stride;
+		paddr_t dst_addr = i / num_partitions * partition_stride;
+		drams[partition]->direct_write(device_mem + src_addr, partition_stride, dst_addr);
 	}
 
 	Units::UnitAtomicRegfile atomic_regs(num_tms);
@@ -392,7 +410,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	l1d_config.num_ports += num_rtc * l1d_config.num_ports / l1d_config.crossbar_width; //add extra port for RT core
 	l1d_config.crossbar_width += num_rtc;
 #endif
-	l1d_config.mem_highers = {&l2};
+	l1d_config.mem_highers = {&xbar};
 	for(uint tm_index = 0; tm_index < num_tms; ++tm_index)
 	{
 		std::vector<Units::UnitBase*> unit_table((uint)ISA::RISCV::InstrType::NUM_TYPES, nullptr);
@@ -467,7 +485,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		Units::UnitTP::Configuration tp_config;
 		tp_config.tm_index = tm_index;
 		tp_config.stack_size = stack_size;
-		tp_config.cheat_memory = dram._data_u8;
+		tp_config.cheat_memory = device_mem;
 		tp_config.unique_mems = &mem_lists.back();
 		tp_config.unique_sfus = &sfu_lists.back();
 		tp_config.num_threads = num_threads;
@@ -501,8 +519,8 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	{
 		float epsilon_ns = delta / (clock_rate / 1'000'000'000);
 
-		UnitDRAM::Log dram_delta_log = delta_log(dram_log, dram);
-		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2);
+		UnitDRAM::Log dram_delta_log = delta_log(dram_log, drams);
+		UnitL2Cache::Log l2_delta_log = delta_log(l2_log, l2s);
 		UnitL1Cache::Log l1d_delta_log = delta_log(l1d_log, l1ds);
 		UnitRTCore::Log rtc_delta_log = delta_log(rtc_log, rtcs);
 
@@ -517,11 +535,11 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		printf(" L2$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l2_delta_log.hits / l2_delta_log.get_total(), 100.0 * l2_delta_log.half_misses / l2_delta_log.get_total(), 100.0 * l2_delta_log.misses / l2_delta_log.get_total());
 		printf("L1d$ Hit/Half/Miss: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * l1d_delta_log.hits / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.half_misses / l1d_delta_log.get_total(), 100.0 * l1d_delta_log.misses / l1d_delta_log.get_total());
 		printf("                            \n");
-		printf(" L2$ Stalls: %0.2f%%\n", 100.0 * l2_delta_log.get_total_stalls() / l2_config.num_partitions / l2_config.num_banks / delta);
-		printf("L1d$ Stalls: %0.2f%%\n", 100.0 * l1d_delta_log.get_total_stalls() / num_tms / l1d_config.num_partitions / l1d_config.num_banks / delta);
+		printf(" L2$ Stalls: %0.2f%%\n", 100.0 * l2_delta_log.get_total_stalls() / l2_config.num_slices / l2_config.num_banks / delta);
+		printf("L1d$ Stalls: %0.2f%%\n", 100.0 * l1d_delta_log.get_total_stalls() / num_tms / l1d_config.num_slices / l1d_config.num_banks / delta);
 		printf("                            \n");
-		printf("L2$  Occ: %0.2f%%\n", 100.0 * l2_delta_log.get_total() / l2_config.num_partitions / l2_config.num_banks / delta);
-		printf("L1d$ Occ: %0.2f%%\n", 100.0 * l1d_delta_log.get_total() / num_tms / l1d_config.num_partitions / l1d_config.num_banks / delta);
+		printf("L2$  Occ: %0.2f%%\n", 100.0 * l2_delta_log.get_total() / l2_config.num_slices / l2_config.num_banks / delta);
+		printf("L1d$ Occ: %0.2f%%\n", 100.0 * l1d_delta_log.get_total() / num_tms / l1d_config.num_slices / l1d_config.num_banks / delta);
 		printf("                            \n");
 		if(!rtcs.empty())
 		{
@@ -532,23 +550,32 @@ static void run_sim_trax(SimulationConfig& sim_config)
 
 	auto stop = std::chrono::high_resolution_clock::now();
 
-	if(!deserialized_cache)
-		l2.serialize(l2_cache_path);
+	for(uint i = 0; i < heap_address / partition_stride; ++i)
+	{
+		uint partition = i % num_partitions;
+		paddr_t dst_addr = i * partition_stride;
+		paddr_t src_addr = i / num_partitions * partition_stride;
+		drams[partition]->direct_read(device_mem + dst_addr, partition_stride, src_addr);
+	}
 
 	cycles_t frame_cycles = simulator.current_cycle;
 	double frame_time = frame_cycles / clock_rate;
 	double simulation_time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() / 1000.0;
 
-	tp_log.print_profile(dram._data_u8);
+	tp_log.print_profile(device_mem);
 
-	dram.print_stats(4, frame_cycles);
+	float total_power = 0.0f;
+	for(auto& dram : drams)
+	{
+		dram->print_stats(4, frame_cycles);
+		total_power += dram->total_power();
+	}
 	print_header("DRAM");
-	delta_log(dram_log, dram);
+	delta_log(dram_log, drams);
 	dram_log.print(frame_cycles);
-	float total_power = dram.total_power();
 
 	print_header("L2$");
-	delta_log(l2_log, l2);
+	delta_log(l2_log, l2s);
 	l2_log.print(frame_cycles);
 	total_power += l2_log.print_power(l2_power_config, frame_time);
 
@@ -589,13 +616,16 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	printf("MSIPS: %.2f\n", simulator.current_cycle * tps.size() / simulation_time / 1'000'000.0);
 
 	stbi_flip_vertically_on_write(true);
-	dram.dump_as_png_uint8((paddr_t)kernel_args.framebuffer, kernel_args.framebuffer_width, kernel_args.framebuffer_height, "out.png");
+	stbi_write_png("out.png", (int)kernel_args.framebuffer_width,  (int)kernel_args.framebuffer_height, 4, device_mem + (size_t)kernel_args.framebuffer, 0);
+	free(device_mem);
 
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;
 	for(auto& l1d : l1ds) delete l1d;
 	for(auto& thread_scheduler : thread_schedulers) delete thread_scheduler;
 	for(auto& rtc : rtcs) delete rtc;
+	for(auto& l2 : l2s) delete l2;
+	for(auto& dram : drams) delete dram;
 }
 }
 }

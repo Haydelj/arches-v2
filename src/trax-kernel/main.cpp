@@ -129,29 +129,29 @@ int main()
 int main(int argc, char* argv[])
 {
 	TRaXKernelArgs args;
-	args.framebuffer_width = 4 * 256;
-	args.framebuffer_height = 4 * 256;
+	args.framebuffer_width = 256;
+	args.framebuffer_height = 256;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
-	args.pregen_rays = false;
+	args.pregen_rays = true;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
 	//intel sponza camera
-	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	
 	// san miguel camera
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
+	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 
 	// hairball camera
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0, 10, 10), rtm::vec3(10, 0, 0));
 
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
-	rtm::Mesh mesh("../../../datasets/san-miguel.obj");
-	args.camera._position *= mesh.normalize_verts();
-	mesh.quantize_verts();
+	rtm::Mesh mesh("../../../datasets/sponza.obj");
+	//args.camera._position *= mesh.normalize_verts();
+	//mesh.quantize_verts();
 
 	std::vector<rtm::BVH2::BuildObject> build_objects;
 	//mesh.get_build_objects(build_objects);
@@ -194,7 +194,7 @@ int main(int argc, char* argv[])
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, args.nodes, args.strips, args.tris, 2, rays);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, args.nodes, args.strips, args.tris, 0, rays, true);
 	args.rays = rays.data();
 	
 	auto start = std::chrono::high_resolution_clock::now();

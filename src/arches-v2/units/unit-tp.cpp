@@ -5,7 +5,7 @@ namespace Units {
 
 //#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0 && this->simulator->current_cycle > 0)
 //#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x00000000000014a4 && thread_id == 0)
-#define TP_PRINT_STALL_CYCLES (true)
+#define TP_PRINT_STALL_CYCLES (false)
 
 #ifndef ENABLE_TP_DEBUG_PRINTS 
 #define ENABLE_TP_DEBUG_PRINTS (false)
