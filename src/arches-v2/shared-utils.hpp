@@ -7,8 +7,6 @@
 #include "units/unit-dram-ramulator.hpp"
 #include "units/unit-cache.hpp"
 #include "units/unit-crossbar.hpp"
-#include "units/unit-blocking-cache.hpp"
-#include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-buffer.hpp"
 #include "units/unit-atomic-reg-file.hpp"
 #include "units/unit-tile-scheduler.hpp"

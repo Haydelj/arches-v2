@@ -260,23 +260,6 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	l1d_power_config.tag_energy = 0.000663943e-9f;
 	l1d_power_config.read_energy = 0.0310981e-9f - l1d_power_config.tag_energy;
 	l1d_power_config.write_energy = 0.031744e-9f - l1d_power_config.tag_energy;
-
-	//L1i$
-	uint num_icache_per_tm = l1d_config.num_banks;
-	Units::UnitBlockingCache::Configuration l1i_config;
-	l1i_config.size = 4 * 1024;
-	l1i_config.block_size = block_size;
-	l1i_config.associativity = 4;
-	l1i_config.latency = 1;
-	l1i_config.cycle_time = 1;
-	l1i_config.num_banks = 1;
-	l1i_config.bank_select_mask = 0;
-
-	Units::UnitBlockingCache::PowerConfig l1i_power_config;
-	l1i_power_config.leakage_power = 1.72364e-3f * l1i_config.num_banks * num_icache_per_tm * num_tms;
-	l1i_power_config.tag_energy = 0.000215067e-9f;
-	l1i_power_config.read_energy = 0.00924837e-9f - l1i_power_config.tag_energy;
-	l1i_power_config.write_energy = 0.00850041e-9f - l1i_power_config.tag_energy;
 #else //Legacy config
 
 #endif
@@ -301,7 +284,6 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<UnitRTCore*> rtcs;
 	std::vector<UnitL1Cache*> l1ds;
-	std::vector<Units::UnitBlockingCache*> l1is;
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
@@ -428,7 +410,6 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	UnitDRAM::Log dram_log;
 	UnitL2Cache::Log l2_log;
 	UnitL1Cache::Log l1d_log;
-	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
 	UnitRTCore::Log rtc_log;
@@ -492,11 +473,6 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	l1d_log.print(frame_cycles);
 	total_power += l1d_log.print_power(l1d_power_config, frame_time);
 
-	print_header("L1i$");
-	delta_log(l1i_log, l1is);
-	l1i_log.print(frame_cycles);
-	total_power += l1i_log.print_power(l1i_power_config, frame_time);
-
 	print_header("TP");
 	delta_log(tp_log, tps);
 	tp_log.print(tps.size());
@@ -537,7 +513,6 @@ void run_sim_strata_rt(const SimulationConfig& sim_config)
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;
 	for(auto& l1d : l1ds) delete l1d;
-	for(auto& l1i : l1is) delete l1i;
 	for(auto& thread_scheduler : thread_schedulers) delete thread_scheduler;
 	for(auto& rtc : rtcs) delete rtc;
 }

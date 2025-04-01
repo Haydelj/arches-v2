@@ -290,7 +290,19 @@ void UnitRTCore<NT, PT>::_schedule_ray()
 			}
 			else
 			{
+			#if 1
+				_try_queue_tris(ray_id, entry.data.prim_index, 1);
+				if(entry.data.num_prims > 1)
+				{
+					entry.data.num_prims--;
+					entry.data.prim_index++;
+					ray_state.stack[ray_state.stack_size++] = entry;
+					ray_state.update_restart_trail = false;
+				}
+			#else
 				_try_queue_tris(ray_id, entry.data.prim_index, entry.data.num_prims);
+			#endif
+
 				ray_state.phase = RayState::Phase::TRI_FETCH;
 
 				log.issue_counters[(uint)IssueType::TRI_FETCH]++;
