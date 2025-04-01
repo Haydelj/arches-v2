@@ -1,9 +1,10 @@
 #include "unit-cache-base.hpp"
+#include "rtm/rng.hpp"
 
 namespace Arches {
 namespace Units {
 
-UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size) : _tag_array(size / block_size), _data_array(size), _sector_size(sector_size), UnitMemoryBase()
+UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size, Policy policy) : UnitMemoryBase(), _tag_array(size / block_size), _data_array(size), _sector_size(sector_size), _policy(policy)
 {
 	//initialize tag array
 	for(uint i = 0; i < _tag_array.size(); ++i)
@@ -22,6 +23,8 @@ UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity, u
 
 	_block_offset_bits = _block_size - 1;
 	_sector_offset_bits = _sector_size - 1;
+
+	_hash = 1;
 }
 
 UnitCacheBase::~UnitCacheBase()
@@ -145,35 +148,61 @@ UnitCacheBase::Victim UnitCacheBase::_allocate_block(paddr_t block_addr)
 	uint start = set_index * _associativity;
 	uint end = start + _associativity;
 
-	//find replacement index
-	uint replacement_index = ~0u;
+	//check for block
 	uint replacement_lru = 0u;
+	uint replacement_index = ~0u;
 	for(uint i = start; i < end; ++i)
-	{
-		if(_tag_array[i].tag == tag) return Victim(); //block already allocated return null victim
-		if(_tag_array[i].lru >= replacement_lru)
+		if(_tag_array[i].tag == tag)
 		{
 			replacement_lru = _tag_array[i].lru;
 			replacement_index = i;
+			break;
+		}
+
+	if(replacement_index == ~0u)
+	{
+		//find replacement block
+		if(_policy == Policy::LRU)
+		{
+			for(uint i = start; i < end; ++i)
+				if(_tag_array[i].lru >= replacement_lru)
+				{
+					replacement_lru = _tag_array[i].lru;
+					replacement_index = i;
+				}
+		}
+		else if(_policy == Policy::RANDOM)
+		{
+			replacement_index = start + (_hash % _associativity);
+			replacement_lru = _tag_array[replacement_index].lru;
+			_hash = rtm::RNG::hash(_hash);
 		}
 	}
 
-	//compute victim block
+	//check for victim block
 	Victim victim;
-	victim.addr = _get_block_addr(_tag_array[replacement_index].tag, set_index);
-	victim.data = _data_array.data() + replacement_index * _block_size;
-	victim.dirty = _tag_array[replacement_index].dirty;
-	victim.valid = _tag_array[replacement_index].valid;
+	if(_tag_array[replacement_index].tag != tag && _tag_array[replacement_index].valid)
+	{
+		victim.addr = _get_block_addr(_tag_array[replacement_index].tag, set_index);
+		victim.data = _data_array.data() + replacement_index * _block_size;
+		victim.dirty = _tag_array[replacement_index].dirty;
+		victim.valid = _tag_array[replacement_index].valid;
+	}
 
 	//update lru
 	for(uint i = start; i < end; ++i)
-		if(_tag_array[i].lru < replacement_lru) _tag_array[i].lru++;
+		if(_tag_array[i].lru < replacement_lru) 
+			_tag_array[i].lru++;
+
+	_tag_array[replacement_index].lru = 0;
 
 	//set block metadata
-	_tag_array[replacement_index].lru = 0;
-	_tag_array[replacement_index].tag = tag;
-	_tag_array[replacement_index].valid = 0;
-	_tag_array[replacement_index].dirty = 0;
+	if(_tag_array[replacement_index].tag != tag)
+	{
+		_tag_array[replacement_index].tag = tag;
+		_tag_array[replacement_index].valid = 0;
+		_tag_array[replacement_index].dirty = 0;
+	}
 
 	return victim;
 }

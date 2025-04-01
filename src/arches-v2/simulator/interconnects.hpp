@@ -204,7 +204,7 @@ public:
 	}
 };
 
-constexpr uint default_fifo_depth = 1;
+constexpr uint default_fifo_depth = 8;
 
 template<typename T>
 class FIFOArray : public Interconnect<T>

@@ -107,7 +107,7 @@ struct SceneConfig
 
 const static std::vector<SceneConfig> scene_configs =
 {
-	{"sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
+	{"crytek-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
 
 	{"intel-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
 	
@@ -116,8 +116,6 @@ const static std::vector<SceneConfig> scene_configs =
 	{"hairball", rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
 
 	{"cornellbox", rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
-
-	{"living_room", rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f} //LIVING_ROOM
 };
 
 
@@ -149,6 +147,7 @@ public:
 			*this = other;
 		}
 
+
 		Param& operator=(const Param& other)
 		{
 			type = other.type;
@@ -165,6 +164,7 @@ public:
 
 		~Param()
 		{
+
 		}
 	};
 

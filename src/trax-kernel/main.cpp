@@ -138,18 +138,25 @@ int main(int argc, char* argv[])
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
+	std::string scene_name = "crytek-sponza";
+
+	if(scene_name.compare("crytek-sponza") == 0)
+		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+
 	//intel sponza camera
-	args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
+	if(scene_name.compare("intel-sponza") == 0)
+		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
 	
 	// san miguel camera
-	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
+	if(scene_name.compare("san-miguel") == 0)
+		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 
 	// hairball camera
 	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0, 10, 10), rtm::vec3(10, 0, 0));
 
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
-	rtm::Mesh mesh("../../../datasets/sponza.obj");
+	rtm::Mesh mesh("../../../datasets/" + scene_name + ".obj");
 	//args.camera._position *= mesh.normalize_verts();
 	//mesh.quantize_verts();
 
@@ -166,7 +173,7 @@ int main(int argc, char* argv[])
 		build_objects.push_back(obj);
 	}
 
-	rtm::BVH2 bvh2("../../../datasets/cache/sponza.bvh", build_objects, 0);
+	rtm::BVH2 bvh2("../../../datasets/cache/" + scene_name + ".bvh", build_objects, 2);
 	//args.nodes = bvh2.nodes.data();
 
 	rtm::WBVH wbvh(bvh2, build_objects);
@@ -192,9 +199,13 @@ int main(int argc, char* argv[])
 	mesh.get_triangles(tris);
 	args.tris = tris.data();
 
+
+	uint bounce = 2;
+	std::string ray_file = scene_name + "-" + std::to_string(args.framebuffer_width) + "-" + std::to_string(bounce) + ".rays";
+
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, args.nodes, args.strips, args.tris, 0, rays, true);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, args.nodes, args.strips, args.tris, bounce, rays, ray_file);
 	args.rays = rays.data();
 	
 	auto start = std::chrono::high_resolution_clock::now();

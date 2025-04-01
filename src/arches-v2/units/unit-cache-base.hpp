@@ -10,7 +10,13 @@ namespace Arches { namespace Units {
 class UnitCacheBase : public UnitMemoryBase
 {
 public:
-	UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size = 0);
+	enum class Policy
+	{
+		LRU,
+		RANDOM
+	};
+
+	UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size = 0, Policy policy = Policy::LRU);
 	virtual ~UnitCacheBase();
 
 	void serialize(std::string file_path);
@@ -34,6 +40,8 @@ protected:
 		uint8_t valid{0x0};
 	};
 
+	uint _hash;
+	Policy _policy;
 	uint _sets, _associativity, _block_size, _sector_size;
 	paddr_t _block_offset_bits, _sector_offset_bits;
 

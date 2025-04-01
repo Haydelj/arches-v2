@@ -1,9 +1,8 @@
 #pragma once
 #include "stdafx.hpp"
 
-#define TRAX_USE_RT_CORE 0
+#define TRAX_USE_RT_CORE 1
 #define TRAX_USE_HARDWARE_INTERSECTORS 0
-#define TRAX_USE_COMPRESSED_WIDE_BVH 1
 
 #define TRAX_KERNEL_ARGS_ADDRESS 256ull
 
@@ -20,8 +19,8 @@ struct TRaXKernelArgs
 	rtm::vec3 light_dir;
 	rtm::Ray* rays;
 	//rtm::BVH2::Node* nodes;
-	rtm::WBVH::Node* nodes;
-	//rtm::NVCWBVH::Node* nodes;
+	//rtm::WBVH::Node* nodes;
+	rtm::NVCWBVH::Node* nodes;
 	//rtm::HECWBVH::Node* nodes;
 	rtm::Triangle* tris;
 	rtm::TriangleStrip* strips;

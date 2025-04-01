@@ -139,7 +139,10 @@ bool UnitRTCore<NT, PT>::_try_queue_prefetch(paddr_t addr, uint size, uint cache
 template<typename NT, typename PT>
 void UnitRTCore<NT, PT>::_read_requests()
 {
-	if(_request_network.is_read_valid(0) && !_free_ray_ids.empty())
+	//simulate waves of rays
+	//if(_free_ray_ids.size() == _max_rays) _drain_phase = false;
+
+	if(!_drain_phase && !_free_ray_ids.empty() && _request_network.is_read_valid(0))
 	{
 		//creates a ray entry and queue up the ray
 		const MemoryRequest request = _request_network.read(0);
@@ -171,6 +174,9 @@ void UnitRTCore<NT, PT>::_read_requests()
 
 		//_ray_return_queue.push(ray_id);
 	}
+
+	//if(_free_ray_ids.empty()) _drain_phase = true;
+
 	_stall_cycles++;
 }
 

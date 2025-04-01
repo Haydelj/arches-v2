@@ -17,6 +17,7 @@ public:
 		
 		bool miss_alloc{false};
 		bool block_prefetch{false};
+		UnitCacheBase::Policy policy{UnitCacheBase::Policy::LRU};
 
 		uint size{1024};
 		uint block_size{CACHE_BLOCK_SIZE};

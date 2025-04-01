@@ -3,7 +3,7 @@
 namespace Arches {namespace Units {
 
 UnitCache::UnitCache(Configuration config) :
-	UnitCacheBase(config.size, config.block_size, config.associativity, config.sector_size),
+	UnitCacheBase(config.size, config.block_size, config.associativity, config.sector_size, config.policy),
 	_request_network(config.num_ports, config.num_slices * config.num_banks, config.block_size, config.crossbar_width),
 	_return_network(config.num_slices * config.num_banks, config.num_ports, config.crossbar_width),
 	_mem_highers(config.mem_highers),

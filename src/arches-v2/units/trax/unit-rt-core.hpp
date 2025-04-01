@@ -138,6 +138,8 @@ private:
 
 	std::set<uint> _rows_accessed;
 
+	bool _drain_phase{false};
+
 	uint _stall_cycles{0};
 public:
 	UnitRTCore(const Configuration& config);

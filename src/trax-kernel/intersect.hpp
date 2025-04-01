@@ -260,7 +260,7 @@ inline void deinterleave_bits(uint i, uint& x, uint& y)
 
 #ifndef __riscv 
 template <typename N, typename P>
-inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const N* nodes, const P* prims, rtm::Triangle* tris, uint bounce, std::vector<rtm::Ray>& rays, bool serializeRays = false)
+inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const N* nodes, const P* prims, rtm::Triangle* tris, uint bounce, std::vector<rtm::Ray>& rays, std::string ray_file = "")
 {
 	const uint framebuffer_size = framebuffer_width * framebuffer_height;
 	printf("Generating bounce %d rays from %d path\n", bounce, framebuffer_size);
@@ -297,9 +297,9 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 	}
 	printf("Generated %d rays\n", num_rays);
 
-	if (serializeRays)
+	if (ray_file.compare("") != 0)
 	{
-		std::string resultPathName = std::filesystem::current_path().generic_string() + "/rays.bin";
+		std::string resultPathName = std::filesystem::current_path().generic_string() + "/" + ray_file;
 		std::ofstream file_stream(resultPathName.c_str() , std::ios::binary);
 		
 		if (file_stream.good())
@@ -307,7 +307,7 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 			file_stream.write((char*)rays.data(), rays.size() * sizeof(rtm::Ray));
 			if (file_stream.good())
 			{
-				printf("Serialized ray data\n");
+				printf("Serialized ray data: %s\n", resultPathName.c_str());
 			}
 		}
 		else
