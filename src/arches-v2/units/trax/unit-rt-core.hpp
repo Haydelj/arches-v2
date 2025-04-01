@@ -20,6 +20,7 @@ public:
 
 		UnitMemoryBase* cache;
 		uint cache_port;
+		uint cache_port_stride;
 	};
 
 private:
@@ -81,7 +82,7 @@ private:
 		rtm::vec3 inv_d;
 		rtm::Hit hit;
 
-		const static uint STACK_SIZE = 8;
+		const static uint STACK_SIZE = 4;
 		rtm::RestartTrail restart_trail;
 		StackEntry stack[STACK_SIZE + rtm::WBVH::WIDTH];
 		uint8_t stack_size;
@@ -110,6 +111,7 @@ private:
 	ReturnCascade _return_network;
 	UnitMemoryBase* _cache;
 	uint _cache_port;
+	uint _cache_port_stride;
 
 	std::vector<std::queue<MemoryRequest>> _cache_fetch_queues;
 	

@@ -207,7 +207,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 
 #if 0 //RTX 4090 ish
 	//Compute
-	double clock_rate = 2235.0e6;
+	double core_clock = 2235.0e6;
 	double dram_clock = 5250.0e6;
 	uint64_t stack_size = 512;
 	uint num_tms = 128;
@@ -224,11 +224,13 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitDRAM::Configuration dram_config;
 	dram_config.config_path = project_folder_path + "build\\src\\arches-v2\\config-files\\gddr6x_21000_config.yaml";
 	dram_config.size = 1ull << 30; //1GB per partition
-	dram_config.clock_ratio = dram_clock / clock_rate;
+	dram_config.clock_ratio = dram_clock / core_clock;
+	dram_config.latency - 92;
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
 	l2_config.level = 2;
+	l2_config.miss_alloc = true;
 	l2_config.size = 6 << 20;
 	l2_config.associativity = 16;
 	l2_config.num_slices = 6;
@@ -248,24 +250,25 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
 	l1d_config.level = 1;
+	l1d_config.miss_alloc = true;
 	l1d_config.size = 128 << 10;
 	l1d_config.associativity = 8;
 	l1d_config.num_banks = 4;
 	l1d_config.crossbar_width = l1d_config.num_banks;
 	l1d_config.num_mshr = 512;
 	l1d_config.num_subentries = 16;
-	l1d_config.latency = 32;
+	l1d_config.latency = 30;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 
 #elif 1 //Turing spec
 
 #if 1 //RTX 2080
-	double core_clock = 1950.0e6;
-	uint num_threads = 8;
-	uint num_tps = 128;
+	double core_clock = 1515.0e6;
+	uint num_threads = 16;
+	uint num_tps = 64;
 	uint num_tms = 46;
-	uint num_rays = 32;
+	uint num_rays = 64;
 	uint64_t stack_size = 512;
 
 	double dram_clock = 3500.0e6;
@@ -295,15 +298,13 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitL2Cache::Configuration l2_config;
 	l2_config.level = 2;
 	l2_config.miss_alloc = true;
-	l2_config.block_size = 64;
-	l2_config.block_prefetch = true;
 	l2_config.size = 512 << 10;
 	l2_config.associativity = 16;
 	l2_config.num_slices = 4;
 	l2_config.crossbar_width = l2_config.num_slices;
 	l2_config.num_mshr = 192;
 	l2_config.num_subentries = 4;
-	l2_config.latency = 156;
+	l2_config.latency = 160;
 
 	UnitL2Cache::PowerConfig l2_power_config;
 
@@ -316,13 +317,14 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
 	l1d_config.level = 1;
-	l1d_config.miss_alloc = false;
+	l1d_config.miss_alloc = true;
+	l1d_config.policy = Units::UnitCacheBase::Policy::RANDOM;
 	l1d_config.size = 64 << 10;
-	l1d_config.associativity = 8;
+	l1d_config.associativity = 16;
 	l1d_config.num_banks = 4;
 	l1d_config.crossbar_width = l1d_config.num_banks;
-	l1d_config.num_mshr = 256;
-	l1d_config.num_subentries = 16;
+	l1d_config.num_mshr = 64;
+	l1d_config.num_subentries = 8;
 	l1d_config.latency = 20;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
@@ -523,6 +525,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.cache = l1ds.back();
 		rtc_config.cache_port = num_tps;
+		rtc_config.cache_port_stride = num_tps / l1d_config.num_banks;
 
 		rtcs.push_back(_new  UnitRTCore(rtc_config));
 		simulator.register_unit(rtcs.back());
@@ -560,7 +563,6 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitDRAM::Log dram_log;
 	UnitL2Cache::Log l2_log;
 	UnitL1Cache::Log l1d_log;
-	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
 	UnitRTCore::Log rtc_log;
@@ -570,8 +572,8 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	float delta_ns = delta_s * 1e9;
 	float delta_dram_cycles = delta_s * dram_clock;
 	float peak_dram_bandwidth = dram_clock / core_clock * num_partitions * 4 * 32 / 8;
-	//float peak_l2_bandwidth = num_partitions * l2_config.num_slices * MemoryRequest::MAX_SIZE;
-	float peak_l2_bandwidth = num_tms / 2 * MemoryRequest::MAX_SIZE;
+	float peak_l2_bandwidth = num_partitions * l2_config.num_slices * MemoryRequest::MAX_SIZE;
+	//float peak_l2_bandwidth = num_tms / 2 * MemoryRequest::MAX_SIZE;
 	float peak_l1d_bandwidth = num_tms * l1d_config.num_banks * MemoryRequest::MAX_SIZE;
 
 	auto start = std::chrono::high_resolution_clock::now();

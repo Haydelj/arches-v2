@@ -27,8 +27,8 @@ inline static float u_to_f(uint u)
 
 inline static void kernel(const TRaXKernelArgs& args)
 {
-	constexpr uint TILE_X = 8;
-	constexpr uint TILE_Y = 4;
+	constexpr uint TILE_X = 4;
+	constexpr uint TILE_Y = 8;
 	constexpr uint TILE_SIZE = TILE_X * TILE_Y;
 	
 	uint node_steps = 0, prim_steps = 0;

@@ -4,18 +4,19 @@ import subprocess
 import shutil
 
 def get_test_configs():
-    framebuffer_dim = 1024
+    framebuffer_dim = 512
 
     base_config = {
         "arch_name" : "TRaX",
         "scene_name" : "sponza",
-        #"framebuffer_width": framebuffer_dim,
-        #"framebuffer_height": framebuffer_dim,
+        "framebuffer_width": framebuffer_dim,
+        "framebuffer_height": framebuffer_dim,
         "pregen_rays": 1,
         "pregen_bounce": 0,
     }
     
-    test_scenes = ["crytek-sponza", "intel-sponza" , "san-miguel"]
+    #test_scenes = ["crytek-sponza", "intel-sponza" , "san-miguel"]
+    test_scenes = ["sibenik", "crytek-sponza", "intel-sponza", "san-miguel"]
     #test_scenes = ["intel-sponza", "sponza"]
     #test_arch = ["TRaX"]
     test_bounce_types = [0,1,2]

@@ -13,7 +13,7 @@ template<typename NT, typename PT>
 UnitRTCore<NT, PT>::UnitRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
 	_cache(config.cache), _request_network(config.num_clients, 1), _return_network(1, config.num_clients),
-	_box_pipline(3), _tri_pipline(22), _cache_port(config.cache_port)
+	_box_pipline(4), _tri_pipline(22), _cache_port(config.cache_port), _cache_port_stride(config.cache_port_stride)
 {
 	_ray_states.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
@@ -22,7 +22,7 @@ UnitRTCore<NT, PT>::UnitRTCore(const Configuration& config) :
 		_free_ray_ids.insert(i);
 	}
 
-	_cache_fetch_queues.resize(4);
+	_cache_fetch_queues.resize(2);
 }
 template<typename NT, typename PT>
 void UnitRTCore<NT, PT>::clock_rise()
@@ -69,7 +69,7 @@ bool UnitRTCore<NT, PT>::_try_queue_node(uint ray_id, uint node_id)
 		req.paddr = addr;
 		req.size = next_boundry - addr;
 		req.dst.push(ray_id, 10);
-		_cache_fetch_queues[ray_id % 4].push(req);
+		_cache_fetch_queues[ray_id % _cache_fetch_queues.size()].push(req);
 
 		addr += req.size;
 	}
@@ -102,7 +102,7 @@ bool UnitRTCore<NT, PT>::_try_queue_tris(uint ray_id, uint tri_id, uint num_tris
 		req.paddr = addr;
 		req.size = next_boundry - addr;
 		req.dst.push(ray_id, 10);
-		_cache_fetch_queues[ray_id % 4].push(req);
+		_cache_fetch_queues[ray_id % _cache_fetch_queues.size()].push(req);
 
 		addr += req.size;
 	}
@@ -183,9 +183,9 @@ void UnitRTCore<NT, PT>::_read_requests()
 template<typename NT, typename PT>
 void UnitRTCore<NT, PT>::_read_returns()
 {
-	for(uint i = 0; i < 4; ++i)
+	for(uint i = 0; i < _cache_fetch_queues.size(); ++i)
 	{
-		uint port = _cache_port + i * 32;
+		uint port = _cache_port + i * _cache_port_stride;
 		if(_cache->return_port_read_valid(port))
 		{
 			const MemoryReturn ret = _cache->read_return(port);
@@ -290,7 +290,19 @@ void UnitRTCore<NT, PT>::_schedule_ray()
 			}
 			else
 			{
+			#if 1
+				_try_queue_tris(ray_id, entry.data.prim_index, 1);
+				if(entry.data.num_prims > 1)
+				{
+					entry.data.num_prims--;
+					entry.data.prim_index++;
+					ray_state.stack[ray_state.stack_size++] = entry;
+					ray_state.update_restart_trail = false;
+				}
+			#else
 				_try_queue_tris(ray_id, entry.data.prim_index, entry.data.num_prims);
+			#endif
+
 				ray_state.phase = RayState::Phase::TRI_FETCH;
 
 				log.issue_counters[(uint)IssueType::TRI_FETCH]++;
@@ -329,7 +341,7 @@ void UnitRTCore<NT, PT>::_simualte_node_pipline()
 		const rtm::vec3& inv_d = ray_state.inv_d;
 		const rtm::WBVH::Node node = rtm::decompress(ray_state.buffer.node);
 
-		_box_issue_count += node.num_aabb();
+		_box_issue_count += 6;
 		if(_box_issue_count >= node.num_aabb())
 		{
 			uint k = ray_state.restart_trail.get(ray_state.level);
@@ -454,9 +466,9 @@ void UnitRTCore<NT, PT>::_simualte_tri_pipline()
 template<typename NT, typename PT>
 void UnitRTCore<NT, PT>::_issue_requests()
 {
-	for(uint i = 0; i < 4; ++i)
+	for(uint i = 0; i < _cache_fetch_queues.size(); ++i)
 	{
-		uint port = _cache_port + i * 32;
+		uint port = _cache_port + i * _cache_port_stride;
 		if(!_cache_fetch_queues[i].empty() && _cache->request_port_write_valid(port))
 		{
 			_cache_fetch_queues[i].front().port = port;

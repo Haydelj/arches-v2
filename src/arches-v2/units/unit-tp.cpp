@@ -92,7 +92,7 @@ void UnitTP::_clear_register_pending(uint thread_id, ISA::RISCV::DstReg dst)
 void UnitTP::_process_load_return(const MemoryReturn& ret)
 {
 	BitStack58 dst = ret.dst;
-	uint ret_thread_id = dst.pop(3);
+	uint ret_thread_id = dst.pop(4);
 	ISA::RISCV::DstReg dst_reg(dst.pop(9));
 	ThreadData& ret_thread = _thread_data[ret_thread_id];
 	for(uint offset = 0, i = 0; offset < ret.size; ++i)
@@ -250,7 +250,7 @@ void UnitTP::clock_rise()
 	{
 		if (!unit->return_port_read_valid(_tp_index)) continue;
 		SFURequest ret = unit->read_return(_tp_index);
-		uint thread_id = ret.dst.pop(3);
+		uint thread_id = ret.dst.pop(4);
 		ISA::RISCV::DstReg dst_reg(ret.dst.pop(9));
 		_clear_register_pending(thread_id, dst_reg);
 	}
@@ -319,7 +319,7 @@ void UnitTP::clock_fall()
 			SFURequest req;
 			ISA::RISCV::DstReg dst_reg(thread.instr.rd, (thread.instr_info.dst_reg_type == ISA::RISCV::RegFile::FLOAT) ? ISA::RISCV::RegType::FLOAT32 : ISA::RISCV::RegType::UINT32);
 			req.dst.push(dst_reg.u9, 9);
-			req.dst.push(thread_id, 3);
+			req.dst.push(thread_id, 4);
 			req.port = _tp_index;
 
 			_set_dependancies(thread_id);
@@ -332,7 +332,7 @@ void UnitTP::clock_fall()
 		if (req.vaddr < (~0x0ull << 20))
 		{
 			_assert(req.vaddr < 4ull * 1024ull * 1024ull * 1024ull);
-			req.dst.push(thread_id, 3);
+			req.dst.push(thread_id, 4);
 			req.port = _tp_index;
 			if(thread.instr_info.instr_type == ISA::RISCV::InstrType::STORE)
 				req.flags.omit_cache = 0b111;

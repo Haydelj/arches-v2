@@ -21,7 +21,7 @@ public:
 
 		uint get_sink(const MemoryRequest& request) override
 		{
-			uint bank = request.paddr / _stride % num_sinks();
+			uint bank = (request.paddr / _stride) % num_sinks();
 			_assert(bank < num_sinks());
 			return bank;
 		}

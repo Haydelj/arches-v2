@@ -7,8 +7,6 @@
 #include "units/unit-dram-ramulator.hpp"
 #include "units/unit-cache.hpp"
 #include "units/unit-crossbar.hpp"
-#include "units/unit-blocking-cache.hpp"
-#include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-buffer.hpp"
 #include "units/unit-atomic-reg-file.hpp"
 #include "units/unit-tile-scheduler.hpp"
@@ -95,7 +93,7 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-const static std::vector<std::string> arch_names = {"TRaX","STRaTA", "STRaTA-RT", "Dual-Streaming", "RIC"};
+const static std::vector<std::string> arch_names = {"TRaX", "STRaTA", "STRaTA-RT", "Dual-Streaming", "RIC"};
 
 struct SceneConfig
 {
@@ -107,15 +105,17 @@ struct SceneConfig
 
 const static std::vector<SceneConfig> scene_configs =
 {
+	{"cornell-box", rtm::vec3(0, 0.8, 1.8), rtm::vec3(0, 0.8, 0), 12.0f}, //CORNELLBOX
+
+	{"sibenik", rtm::vec3(3.0, -13.0, 0.0), rtm::vec3(0, -12.0, 0), 12.0f}, 
+
 	{"crytek-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
 
 	{"intel-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
 	
-	{"san-miguel", rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
+	{"san-miguel", rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(8.056, 1.04, 11.563), 12.0f}, //SAN_MIGUEL
 	
 	{"hairball", rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
-
-	{"cornellbox", rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
 };
 
 
@@ -124,6 +124,7 @@ class SimulationConfig
 public:
 	struct Param
 	{
+
 		enum Type
 		{
 			INT,

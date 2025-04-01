@@ -411,7 +411,6 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 	UnitDRAM::Log dram_log;
 	UnitL2Cache::Log l2_log;
 	UnitL1Cache::Log l1d_log;
-	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
 	Units::RIC::UnitTreeletRTCore<SceneSegment>::Log rtc_log;

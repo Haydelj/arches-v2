@@ -164,19 +164,21 @@ UnitCacheBase::Victim UnitCacheBase::_allocate_block(paddr_t block_addr)
 		//find replacement block
 		if(_policy == Policy::LRU)
 		{
-			for(uint i = start; i < end; ++i)
-				if(_tag_array[i].lru >= replacement_lru)
-				{
-					replacement_lru = _tag_array[i].lru;
-					replacement_index = i;
-				}
+			replacement_lru = _associativity - 1;
+
 		}
 		else if(_policy == Policy::RANDOM)
 		{
-			replacement_index = start + (_hash % _associativity);
-			replacement_lru = _tag_array[replacement_index].lru;
+			replacement_lru = _associativity * 3 / 4 + _hash % (_associativity / 4);
 			_hash = rtm::RNG::hash(_hash);
 		}
+
+		for(uint i = start; i < end; ++i)
+			if(_tag_array[i].lru == replacement_lru)
+			{
+				replacement_index = i;
+				break;
+			}
 	}
 
 	//check for victim block

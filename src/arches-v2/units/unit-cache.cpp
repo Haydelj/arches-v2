@@ -18,7 +18,7 @@ UnitCache::UnitCache(Configuration config) :
 }
 
 UnitCache::Slice::Slice(Configuration config) :
-	miss_network(config.num_banks, 1, 4, 1)
+	miss_network(config.num_banks, 1, 4, 128)
 {
 	mem_higher_port = config.mem_higher_port;
 
