@@ -27,29 +27,29 @@ inline static float u_to_f(uint u)
 
 inline static void kernel(const TRaXKernelArgs& args)
 {
-	constexpr uint TILE_X = 4;
-	constexpr uint TILE_Y = 8;
+	constexpr uint TILE_X = 8;
+	constexpr uint TILE_Y = 4;
 	constexpr uint TILE_SIZE = TILE_X * TILE_Y;
 	
 	uint node_steps = 0, prim_steps = 0;
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
 	{
 		uint tile_id = index / TILE_SIZE;
-		//tile_id = rtm::RNG::hash(tile_id) % (args.framebuffer_size / TILE_SIZE);
-
+		//tile_id = rtm::RNG::fast_hash(tile_id) % (args.framebuffer_size / TILE_SIZE);
 		uint32_t tile_x = tile_id % (args.framebuffer_width / TILE_X);
 		uint32_t tile_y = tile_id / (args.framebuffer_width / TILE_X);
-
 		uint thread_id = index % TILE_SIZE;
 		uint32_t x = tile_x * TILE_X + thread_id % TILE_X;
 		uint32_t y = tile_y * TILE_Y + thread_id / TILE_X;
-
 		uint fb_index = y * args.framebuffer_width + x;
-		rtm::RNG rng(fb_index);
+		
+		//uint fb_index = index, x, y;
+		//deinterleave_bits(fb_index, x, y);
 
+		rtm::RNG rng(fb_index);
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
 
-		ray.t_min = u_to_f((f_to_u(ray.t_min) & 0xffff0000) | (tile_id & 0xffff));
+		//ray.t_min = u_to_f((f_to_u(ray.t_min) & 0xffff0000) | (tile_id & 0xffff));
 
 		rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
 
@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
 		build_objects.push_back(obj);
 	}
 
-	rtm::BVH2 bvh2("../../../datasets/cache/san-miguel.bvh", build_objects, 0);
+	rtm::BVH2 bvh2("../../../datasets/cache/sponza.bvh", build_objects, 0);
 	//args.nodes = bvh2.nodes.data();
 
 	rtm::WBVH wbvh(bvh2, build_objects);

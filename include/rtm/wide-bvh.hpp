@@ -24,7 +24,8 @@ constexpr int INVALID_NODE = -1;
 class WBVH
 {
 public:
-	const static uint WIDTH = 6;
+	const static uint WIDTH = 2;
+	const static uint MAX_PRIMS = 3;
 
 	struct alignas(64) Node
 	{
@@ -66,7 +67,7 @@ public:
 		printf("Building Wide BVH\n");
 
 		uint max_forest_size = WIDTH - 1;
-		uint leaf_prim_count = 1;
+		uint leaf_prim_count = MAX_PRIMS;
 
 		decisions.resize(bvh2.nodes.size() * max_forest_size);
 		nodes.emplace_back();
@@ -366,14 +367,9 @@ inline WBVH::Node decompress(const WBVH::Node& wnode)
 
 struct RestartTrail
 {
-	const static uint N = WBVH::WIDTH - 1;
+	const static uint N = WBVH::WIDTH;
 
-	uint64_t _data{0};
-
-	static uint shft(uint level)
-	{
-		return level * 3;
-	}
+	uint8_t _data[32];
 
 	uint find_parent_level(uint level) const
 	{
@@ -385,30 +381,32 @@ struct RestartTrail
 
 	uint get(uint level) const
 	{
-		uint64_t current_offset = (_data >> shft(level)) & 0x7ull;
-		return current_offset;
+		return _data[level];
 	}
 
 	void set(uint level, uint value)
 	{
-		_data &= ~(0x7ull << shft(level));
-		_data |= (uint64_t)value << shft(level);
+		_data[level] = value;
+		//_data &= ~(0xfull << shft(level));
+		//_data |= (uint64_t)value << shft(level);
 	}
 
 	void clear(uint start_level)
 	{
-		uint64_t mask = ((0x1ull << shft(start_level)) - 1);
-		_data &= mask;
+		for(uint i = start_level; i < 32; ++i)
+			_data[i] = 0;
+		//uint64_t mask = ((0x1ull << shft(start_level)) - 1);
+		//_data &= mask;
 	}
 
 	bool is_done()
 	{
-		return _data == ~0ull;
+		return _data[0] == 255;
 	}
 
 	void mark_done()
 	{
-		_data = ~0ull;
+		_data[0] = 255;
 	}
 };
 

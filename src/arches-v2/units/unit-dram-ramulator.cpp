@@ -9,7 +9,7 @@ UnitDRAMRamulator::UnitDRAMRamulator(Configuration config) : UnitMainMemoryBase(
 {
 	YAML::Node yaml = Ramulator::Config::parse_config_file(config.config_path, {});
 
-	_controllers.resize(config.num_controllers, 100);
+	_controllers.resize(config.num_controllers, config.latency);
 	for(uint i = 0; i < config.num_controllers; ++i)
 	{
 		_controllers[i].ramulator2_frontend = Ramulator::Factory::create_frontend(yaml);
@@ -139,9 +139,9 @@ void UnitDRAMRamulator::clock_rise()
 	bool busy = _pending_requests > 0;
 	for(uint controller_index = 0; controller_index < _controllers.size(); ++controller_index)
 	{
-		_controllers[controller_index].req_pipline.clock();
 		if(_request_network.is_read_valid(controller_index) && _controllers[controller_index].req_pipline.is_write_valid())
 			_controllers[controller_index].req_pipline.write(_request_network.read(controller_index));
+		_controllers[controller_index].req_pipline.clock();
 
 		if(!_controllers[controller_index].req_pipline.empty()) busy = true;
 		if(!_controllers[controller_index].req_pipline.is_read_valid()) continue;

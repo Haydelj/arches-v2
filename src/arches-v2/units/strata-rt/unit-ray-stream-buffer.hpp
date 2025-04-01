@@ -51,7 +51,7 @@ public:
 	struct Bank
 	{
 		std::priority_queue<MemoryRequest, std::vector<MemoryRequest>, HitComparitor> hit_load_queue;
-		Pipline<MemoryRequest> request_pipline;
+		LatencyFIFO<MemoryRequest> request_pipline;
 		Bank(uint latency) : request_pipline(latency) {}
 	};
 

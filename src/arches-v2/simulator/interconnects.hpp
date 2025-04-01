@@ -8,25 +8,69 @@
 namespace Arches {
 
 template <typename T>
-class Pipline
+class FIFO
 {
 private:
-	std::queue<T> _queue;
-	std::vector<uint64_t> _pipline_state;
-	uint _latency;
+	std::vector<T> _data;
+	uint           _head;
+	uint           _size;
 
 public:
-	Pipline(uint latency)
+	FIFO(uint size) : _data(size)
 	{
-		uint pipline_regs = latency;
-		_pipline_state.resize((pipline_regs + 63) / 64);
-		_latency = latency;
+		_head = 0;
+		_size = 0;
 	}
 
-	void print()
+	bool is_write_valid()
 	{
-		for(uint i = 0; i < _latency; ++i)
-			printf("%d", (_pipline_state[i >> 6] >> (i & 0x3f)) & 0x1);
+		return _size < _data.size();
+	}
+
+	void write(const T& entry)
+	{
+		_assert(is_write_valid());
+		uint tail = (_head + _size) % _data.size();
+		_data[tail] = entry;
+		_size++;
+	}
+
+	bool is_read_valid()
+	{
+		return _size > 0;
+	}
+
+	T& peek()
+	{
+		_assert(is_read_valid());
+		return _data[_head];
+	}
+
+	T read()
+	{
+		const T t = peek();
+		if(++_head >= _data.size()) _head = 0;
+		--_size;
+		return t;
+	}
+};
+
+
+template <typename T>
+class LatencyFIFO
+{
+private:
+	std::queue<std::pair<cycles_t, T>> _queue;
+	cycles_t _current_cycle;
+	cycles_t _latency;
+	bool _write_valid;
+
+public:
+	LatencyFIFO(uint latency)
+	{
+		_current_cycle = 0;
+		_latency = latency;
+		_write_valid = true;
 	}
 
 	bool empty()
@@ -41,95 +85,43 @@ public:
 
 	void clock()
 	{
-		_pipline_state[0] = (_pipline_state[0] >> 1) | generate_nbit_mask(ctz(~_pipline_state[0]));
-		for(uint i = 1; i < _pipline_state.size(); ++i)
-		{
-			if(!(_pipline_state[i - 1] & (0x1ull << 63)) && _pipline_state[i] & 0x1)
-			{
-				_pipline_state[i - 1] |= (0x1ull << 63);
-				_pipline_state[i] &= ~(0x1ull);
-			}
-			_pipline_state[i] = (_pipline_state[i] >> 1) | generate_nbit_mask(ctz(~_pipline_state[i]));
-		}
+		_write_valid = true;
+		_current_cycle++;
 	}
 
-	bool is_write_valid()
+	bool is_write_valid() const
 	{
-		return !((_pipline_state.back() >> ((_latency - 1) & 0x3f)) & 0x1);
+		return _write_valid && _queue.size() < _latency;
 	}
 
 	void write(const T& entry)
 	{
 		_assert(is_write_valid());
-		_pipline_state.back() |= (0x1ull << ((_latency - 1) & 0x3f));
-		_queue.push(entry);
+		_queue.push({_current_cycle + _latency, entry});
+		_write_valid = false;
 	}
 
 	bool is_read_valid()
 	{
-		return _pipline_state[0] & 0x1;
+		return !_queue.empty() && _current_cycle >= _queue.front().first;
 	}
 
 	T& peek()
 	{
 		_assert(is_read_valid());
-		return _queue.front();
+		return _queue.front().second;
 	}
 
 	T read()
 	{
 		_assert(is_read_valid());
-		_pipline_state[0] &= ~0x1ull;
-		T ret = _queue.front();
-		_queue.pop();
-		return ret;
-	}
-};
-
-template <typename T>
-class FIFO
-{
-private:
-	std::queue<T> _queue;
-	uint          _max_size;
-
-public:
-	FIFO(uint max_size)
-	{
-		_max_size = max_size;
-	}
-
-	bool is_write_valid()
-	{
-		return _queue.size() < _max_size;
-	}
-
-	void write(const T& entry)
-	{
-		_assert(is_write_valid());
-		_queue.push(entry);
-	}
-
-	bool is_read_valid()
-	{
-		return !_queue.empty();
-	}
-
-	T& peek()
-	{
-		_assert(is_read_valid());
-		return _queue.front();
-	}
-
-	T read()
-	{
-		const T t = peek();
+		T t = peek();
 		_queue.pop();
 		return t;
 	}
 };
 
-template<typename T, uint MAX_SIZE = 64 * 4>
+template<typename T, uint MAX_SIZE = 256>
 class alignas(64) Interconnect
 {
 protected:
@@ -386,7 +378,7 @@ public:
 	}
 };
 
-template<typename T, typename ARB = RoundRobinArbiter<uint64_t>>
+template<typename T, typename ARB = RoundRobinArbiter<uint128_t>>
 class CrossBar : public BI<T>
 {
 private:

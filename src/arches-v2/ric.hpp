@@ -174,7 +174,6 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.in_order = sim_config.get_int("l2_in_order");
 	l2_config.level = 2;
 	l2_config.block_size = block_size;
 	l2_config.size = sim_config.get_int("l2_size");
@@ -185,7 +184,6 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
 	l2_config.crossbar_width = 32;
 	l2_config.num_mshr = 192;
-	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
 	l2_config.latency = 170;
 
 	UnitL2Cache::PowerConfig l2_power_config;
@@ -196,7 +194,6 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
-	l1d_config.in_order = sim_config.get_int("l1_in_order");
 	l1d_config.level = 1;
 	l1d_config.block_size = block_size;
 	l1d_config.size = sim_config.get_int("l1_size");
@@ -205,7 +202,6 @@ static void run_sim_ric(const SimulationConfig& sim_config)
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.crossbar_width = 4;
 	l1d_config.num_mshr = 256;
-	l1d_config.rob_size = 8 * l1d_config.num_mshr / l1d_config.num_banks;
 	l1d_config.latency = 30;
 
 	UnitL1Cache::PowerConfig l1d_power_config;

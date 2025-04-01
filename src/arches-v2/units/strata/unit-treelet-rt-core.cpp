@@ -33,7 +33,7 @@ bool UnitTreeletRTCore::_try_queue_node(uint ray_id, uint treelet_id, uint node_
 	{
 		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
-		BitStack27 dst;
+		BitStack58 dst;
 		dst.push(ray_id, 9);
 		dst.push(0, 1);
 		_fetch_queue.push({ addr, size, dst });
@@ -63,7 +63,7 @@ bool UnitTreeletRTCore::_try_queue_tri(uint ray_id, uint treelet_id, uint tri_of
 		paddr_t next_boundry = std::min(end, _block_address(addr + CACHE_BLOCK_SIZE));
 		uint8_t size = next_boundry - addr;
 
-		BitStack27 dst;
+		BitStack58 dst;
 		dst.push(ray_id, 9);
 		dst.push(1, 1);
 

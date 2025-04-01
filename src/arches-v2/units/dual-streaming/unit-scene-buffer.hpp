@@ -148,7 +148,7 @@ private:
 
 	struct Bank
 	{
-		Pipline<MemoryReturn> data_array_pipline;
+		LatencyFIFO<MemoryReturn> data_array_pipline;
 		Bank(uint latency = 1) : data_array_pipline(latency) {}
 	};
 

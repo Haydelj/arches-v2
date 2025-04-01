@@ -4,18 +4,11 @@ namespace Arches {namespace Units {
 
 UnitCache::UnitCache(Configuration config) :
 	UnitCacheBase(config.size, config.block_size, config.associativity, config.sector_size),
-	_request_network(config.num_ports, config.num_slices * config.num_banks, config.slice_select_mask | config.bank_select_mask, config.crossbar_width),
+	_request_network(config.num_ports, config.num_slices * config.num_banks, config.block_size, config.crossbar_width),
 	_return_network(config.num_slices * config.num_banks, config.num_ports, config.crossbar_width),
-	_bank_select_mask(config.bank_select_mask), 
-	_prefetch_block(config.prefetch_block),
 	_mem_highers(config.mem_highers),
-	_in_order(config.in_order),
-	_level(config.level)
+	_level(config.level), _block_prefetch(config.block_prefetch), _num_mshr(config.num_mshr), _num_subentries(config.num_subentries), _miss_alloc(config.miss_alloc)
 {
-	_assert(popcnt(config.slice_select_mask) == log2i(config.num_slices));
-	_assert(popcnt(config.bank_select_mask) == log2i(config.num_banks));
-	_assert((config.slice_select_mask & config.bank_select_mask) == 0x0ull);
-
 	_slices.reserve(config.num_slices);
 	for(uint i = 0; i < config.num_slices; ++i)
 	{
@@ -25,9 +18,7 @@ UnitCache::UnitCache(Configuration config) :
 }
 
 UnitCache::Slice::Slice(Configuration config) :
-	miss_queue(config.num_banks, 1, 4, 4),
-	num_mshr(config.num_mshr),
-	recived_return(false)
+	miss_network(config.num_banks, 1, 4, 1)
 {
 	mem_higher_port = config.mem_higher_port;
 
@@ -37,16 +28,7 @@ UnitCache::Slice::Slice(Configuration config) :
 }
 
 UnitCache::Bank::Bank(Configuration config) :
-	request_pipline(config.latency),
-	return_pipline(1),
-	rob_filled(config.rob_size, false),
-	rob_head(0),
-	rob(config.rob_size),
-	rob_size(0)
-{
-	for(uint i = 0; i < rob.size(); ++i)
-		rob_free_set.insert(i);
-}
+	request_pipline(config.latency), return_pipline(1), return_queue(32) {}
 
 UnitCache::~UnitCache()
 {
@@ -66,57 +48,28 @@ void UnitCache::_recive_return()
 				bool cached = !(ret.flags.omit_cache & (0x1 << _level));
 				if(cached)
 				{
-					//fill all subentries and queue for return
-					bool set_dirty = false;
-					paddr_t block_addr = _get_block_addr(ret.paddr);
-					paddr_t block_offset = _get_block_offset(ret.paddr);
-					MSHR& mshr = slice.mshrs[block_addr];
-					Bank& bank = slice.banks[_get_bank(block_addr)];
+					paddr_t sector_addr = _get_sector_addr(ret.paddr);
+					MSHR& mshr = slice.mshrs[sector_addr];
+					uint b = _get_bank(ret.paddr);
+					Bank& bank = slice.banks[b];
 
-					std::memcpy(mshr.block_data + block_offset, ret.data, ret.size);
-					mshr.sectors_filled |= 1 << (block_offset / _sector_size);
+					if(!_miss_alloc) _allocate_block(sector_addr);
+					_write_sector(sector_addr, ret.data, false);
 
-					if(mshr.sectors_filled == mshr.sectors_requested)
+					//fill a subentry and queue for return
+					if(bank.return_pipline.is_write_valid() && !mshr.subentries.empty())
 					{
-						while(!mshr.sub_entries.empty())
-						{
-							uint16_t rob_index = mshr.sub_entries.front();
-							mshr.sub_entries.pop();
-
-							MemoryReturn& buffer = bank.rob[rob_index];
-							uint offset = buffer.paddr - block_addr;
-							if(buffer.type == MemoryRequest::Type::LOAD)
-							{
-								std::memcpy(buffer.data, mshr.block_data + offset, buffer.size);
-							}
-							else if(buffer.type == MemoryRequest::Type::CSHIT)
-							{
-								//play the CSHIT against the line
-								rtm::Hit cur_hit, new_hit;
-								std::memcpy(&new_hit, buffer.data, sizeof(rtm::Hit));
-								std::memcpy(&cur_hit, mshr.block_data + offset, sizeof(rtm::Hit));
-								if(new_hit.t < cur_hit.t)
-								{
-									set_dirty = true;
-									std::memcpy(mshr.block_data + offset, buffer.data, sizeof(rtm::Hit));
-								}
-							}
-							else _assert(false);
-							bank.return_queue.push(rob_index);
-						}
-
-						//Mark the associated lse as filled and put it in the return queue
-						for(uint i = 0; i < _block_size / _sector_size; ++i)
-							if((mshr.sectors_filled >> i) & 0x1)
-								if(_write_sector(block_addr + _sector_size * i, mshr.block_data + _sector_size * i, set_dirty)) //Update block. Might have been evicted in which case this does nothing and returns null
-									log.data_array_writes++;
-
-						//free mshr
-						slice.mshrs.erase(block_addr);
+						MemoryRequest& sube_req = mshr.subentries.front();
+						uint sector_offset = _get_sector_offset(sube_req.paddr);
+						bank.return_pipline.write(MemoryReturn(sube_req, ret.data + sector_offset));
+						mshr.subentries.pop();
 					}
 
-					mem_higher->read_return(slice.mem_higher_port);
-					slice.recived_return = true;
+					if(mshr.subentries.empty())
+					{
+						mem_higher->read_return(slice.mem_higher_port);
+						slice.mshrs.erase(sector_addr); //free mshr
+					}
 				}
 				else
 				{
@@ -127,21 +80,12 @@ void UnitCache::_recive_return()
 						uint i = s * slice.banks.size() + b;
 						ret.port = ret.dst.pop(8);
 						bank.return_pipline.write(ret);
-						log.bytes_read += ret.size;
 						mem_higher->read_return(slice.mem_higher_port);
 					}
 				}
 			}
-			else slice.recived_return = false;
 		}
 	}
-}
-
-uint8_t UnitCache::_sector_mask(const MemoryRequest& req)
-{
-	uint s0 = _get_sector_index(req.paddr);
-	uint sc = (req.size + _sector_size - 1) / _sector_size;
-	return generate_nbit_mask(sc) << s0;;
 }
 
 void UnitCache::_recive_request()
@@ -153,17 +97,16 @@ void UnitCache::_recive_request()
 		{
 			Bank& bank = slice.banks[b];
 			if(!bank.request_pipline.is_read_valid()) continue;
-			if(!slice.miss_queue.is_write_valid(b))
+			if(!bank.return_queue.is_write_valid() || !slice.miss_network.is_write_valid(b))
 			{
 				log.mshr_stalls++;
 				continue;
 			}
 
 			MemoryRequest request = bank.request_pipline.peek();
-			paddr_t block_addr = _get_block_addr(request.paddr);
-			paddr_t block_offset = _get_block_offset(request.paddr);
-			uint8_t sector_mask = _sector_mask(request);
-			if(_prefetch_block) sector_mask = generate_nbit_mask(_block_size / _sector_size);
+			paddr_t sector_addr = _get_sector_addr(request.paddr);
+			paddr_t sector_offset = _get_sector_offset(request.paddr);
+			uint8_t sector_index = _get_sector_index(request.paddr);
 
 			bool cached = !(request.flags.omit_cache & (0x1 << _level));
 			if(!cached)
@@ -176,112 +119,22 @@ void UnitCache::_recive_request()
 			}
 			else if(request.type == MemoryRequest::Type::LOAD)
 			{
-				//check if we have room in the return buffer. If we don't stall
-				if(bank.rob_size >= bank.rob.size())
-				{
-					log.rob_stalls++;
-					continue;
-				}
-
-				uint rob_index;
-				if(_in_order) rob_index = (bank.rob_head + bank.rob_size) % bank.rob.size();
-				else          rob_index = *bank.rob_free_set.begin();
-
 				//check data array
-				uint8_t valid_bits = 0;
-				uint8_t* block_data = _read_block(block_addr, valid_bits);
+				uint8_t* sector_data = _read_sector(sector_addr);
 				log.tag_array_access++;
 
-				uint8_t hit_sectors = (sector_mask & valid_bits);
-				uint8_t miss_sectors = (sector_mask & ~valid_bits);
-				log.hits += popcnt(hit_sectors);
-				if(!miss_sectors)
+				if(sector_data)
 				{
 					//Hit: fill request and insert into return queue
-					bank.rob[rob_index] = MemoryReturn(request, block_data + block_offset);
-					bank.return_queue.push(rob_index);
-					log.data_array_reads++;
-				}
-				else
-				{
-					bank.rob[rob_index] = MemoryReturn(request);
-					slice.miss_queue.write({block_addr, rob_index, sector_mask}, b);
-				}
-
-				//Update buffer and reserve it
-				bank.rob_size++;
-				if(!_in_order) bank.rob_free_set.erase(rob_index);
-			}
-			else if(request.type == MemoryRequest::Type::STORE)
-			{
-				//Check data array
-				uint8_t* block_data = _read_block(block_addr);
-				log.tag_array_access++;
-
-				if(block_data)
-				{
-					//Update block
-					std::memcpy(block_data + block_offset, request.data, request.size);
-					log.data_array_writes++;
-					log.hits++;
-				}
-				else
-				{
-					//Do nothing
-					log.misses++;
-				}
-
-				//Forward store
-				MemoryRequest forward_request(request);
-				forward_request.port = slice.mem_higher_port;
-				slice.mem_higher_request_queue.push(forward_request);
-			}
-			else if(request.type == MemoryRequest::Type::PREFECTH)
-			{
-				//check data array
-				uint8_t* block_data = _read_block(block_addr);
-				log.tag_array_access++;
-
-				if(!block_data)
-					slice.miss_queue.write({block_addr, ~0u}, b);
-			}
-			else if(request.type == MemoryRequest::Type::CSHIT)
-			{
-				//check if we have room in the return buffer. If we don't stall
-				if(bank.rob_size >= bank.rob.size())
-				{
-					log.rob_stalls++;
-					continue;
-				}
-
-				uint rob_index;
-				if(_in_order) rob_index = (bank.rob_head + bank.rob_size) % bank.rob.size();
-				else          rob_index = *bank.rob_free_set.begin();
-
-				//check data array
-				uint8_t* block_data = _read_block(block_addr);
-				log.tag_array_access++;
-
-				if(block_data)
-				{
-					//Hit: play the CSHIT against the line
-					rtm::Hit cur_hit, new_hit;
-					std::memcpy(&new_hit, request.data, sizeof(rtm::Hit));
-					std::memcpy(&cur_hit, block_data + block_offset, sizeof(rtm::Hit));
-					if(new_hit.t < cur_hit.t)
-					{
-						std::memcpy(block_data + block_offset, request.data, sizeof(rtm::Hit));
-						_write_sector(block_addr, block_data, true);
-					}
+					bank.return_queue.write(MemoryReturn(request, sector_data + sector_offset));
 					log.data_array_reads++;
 					log.hits++;
 				}
 				else
 				{
-					bank.rob[rob_index] = MemoryReturn(request, request.data);
-					slice.miss_queue.write({block_addr, rob_index}, b);
-					if(!_in_order) bank.rob_free_set.erase(rob_index);
-					bank.rob_size++;
+					//Miss: allocate a block and insert into miss queue
+					if(_miss_alloc) _allocate_block(sector_addr);
+					slice.miss_network.write(request, b);
 				}
 			}
 			else _assert(false);
@@ -290,77 +143,59 @@ void UnitCache::_recive_request()
 			bank.request_pipline.read();
 		}
 
-
-
 		//Proccess misses
-		slice.miss_queue.clock();
-		//if(partition.recived_return) continue;
-		if(!slice.miss_queue.is_read_valid(0)) continue;
-		const Miss& miss = slice.miss_queue.peek(0);
+		slice.miss_network.clock();
+		if(!slice.miss_network.is_read_valid(0)) continue;
+		const MemoryRequest& miss = slice.miss_network.peek(0);
 
 		//Try to fetch an mshr for the line or allocate a new mshr for the line
-		if(slice.mshrs.find(miss.block_addr) == slice.mshrs.end())
+		bool request_sector = false;
+		paddr_t sector_addr = _get_sector_addr(miss.paddr);
+		if(slice.mshrs.find(sector_addr) == slice.mshrs.end())
 		{
 			//Didn't find mshr. Try to allocate one
-			if(slice.mshrs.size() < slice.num_mshr)
-			{
-				//Allocate a new block for the miss to return to
-				Victim victim = _insert_block(miss.block_addr);
-
-				for(uint i = 0; i < _block_size / _sector_size; ++i)
-				{
-					if(((victim.valid & victim.dirty) >> i) & 0x1)
-					{
-						MemoryRequest vic_req;
-						vic_req.type = MemoryRequest::Type::STORE;
-						vic_req.paddr = victim.addr + i * _sector_size;
-						vic_req.size = _sector_size;
-						vic_req.port = slice.mem_higher_port;
-						std::memcpy(vic_req.data, victim.data + i * _sector_size, _sector_size);
-						slice.mem_higher_request_queue.push(vic_req);
-					}
-				}
-
-				//Allocated a new MSHR and queue up the fill request
-				MSHR& mshr = slice.mshrs[miss.block_addr];
-				mshr.sectors_filled = 0;
-				mshr.sectors_requested = 0;
-			}
-			else
-			{
-				//Out of MSHRs
-				continue;
-			}
+			if(slice.mshrs.size() < _num_mshr) 
+				MSHR& mshr = slice.mshrs[sector_addr]; //Allocated a new MSHR
+			else continue; //Out of MSHRs
+			request_sector = true;
 		}
-		//else Found a mshr
 
-		if(miss.request_buffer_index != ~0u)
-			slice.mshrs[miss.block_addr].sub_entries.push(miss.request_buffer_index);
-
-		MSHR& mshr = slice.mshrs[miss.block_addr];
-		for(uint i = 0; i < _block_size / _sector_size; ++i)
+		MSHR& mshr = slice.mshrs[sector_addr];
+		if(mshr.subentries.size() < _num_subentries)
 		{
-			if((miss.sectors >> i) & 0x1)
+			mshr.subentries.push(miss);
+			slice.miss_network.read(0);
+			if(request_sector)
 			{
-				if((~mshr.sectors_requested >> i) & 0x1)
+				MemoryRequest mshr_fill_req;
+				mshr_fill_req.type = MemoryRequest::Type::LOAD;
+				mshr_fill_req.paddr = sector_addr;
+				mshr_fill_req.size = _sector_size;
+				mshr_fill_req.port = slice.mem_higher_port;
+				slice.mem_higher_request_queue.push(mshr_fill_req);
+				log.misses++;
+			}
+			else log.half_misses++;
+		}
+
+		if(_block_prefetch)
+		{
+			paddr_t block_address = _get_block_addr(sector_addr);
+			for(uint i = 0; i < _block_size; i += _sector_size)
+			{
+				sector_addr = block_address + i;
+				if(slice.mshrs.find(sector_addr) == slice.mshrs.end())
 				{
-					log.misses++;
-					MemoryRequest miss_req;
-					miss_req.type = MemoryRequest::Type::LOAD;
-					miss_req.paddr = miss.block_addr + i * _sector_size;
-					miss_req.size = _sector_size;
-					miss_req.port = slice.mem_higher_port;
-					slice.mem_higher_request_queue.push(miss_req);
-				}
-				else
-				{
-					log.half_misses++;
+					slice.mshrs.insert({sector_addr, MSHR()});
+					MemoryRequest mshr_fill_req;
+					mshr_fill_req.type = MemoryRequest::Type::LOAD;
+					mshr_fill_req.paddr = sector_addr;
+					mshr_fill_req.size = _sector_size;
+					mshr_fill_req.port = slice.mem_higher_port;
+					slice.mem_higher_request_queue.push(mshr_fill_req);
 				}
 			}
 		}
-		mshr.sectors_requested |= miss.sectors;
-
-		slice.miss_queue.read(0);
 	}
 }
 
@@ -382,61 +217,9 @@ void UnitCache::_send_request()
 	}
 }
 
-void UnitCache::_send_return()
-{
-	for(uint s = 0; s < _slices.size(); ++s)
-	{
-		Slice& slice = _slices[s];
-		for(uint b = 0; b < slice.banks.size(); ++b)
-		{
-			Bank& bank = slice.banks[b];
-			if(_in_order)
-			{
-				//In order return logic
-				if(!bank.return_queue.empty())
-				{
-					bank.rob_filled[bank.return_queue.front()] = true;
-					bank.return_queue.pop();
-				}
-
-				if(bank.rob_size > 0 && bank.rob_filled[bank.rob_head] && bank.return_pipline.is_write_valid())
-				{
-					uint rob_index = bank.rob_head;
-					bank.rob_filled[rob_index] = false;
-					bank.rob_head = (bank.rob_head + 1) % bank.rob.size();
-					bank.rob_size--;
-
-					const MemoryReturn& ret = bank.rob[rob_index];
-					if(ret.type != MemoryRequest::Type::CSHIT)
-						bank.return_pipline.write(ret);
-					log.bytes_read += ret.size;
-				}
-			}
-			else
-			{
-				//Out of order return logic
-				if(!bank.return_queue.empty() && bank.return_pipline.is_write_valid())
-				{
-					uint rob_index = bank.return_queue.front();
-					bank.rob_filled[rob_index] = true;
-					bank.return_queue.pop();
-
-					const MemoryReturn& ret = bank.rob[rob_index];
-					if(ret.type != MemoryRequest::Type::CSHIT)
-						bank.return_pipline.write(ret);
-					log.bytes_read += ret.size;
-
-					bank.rob_free_set.insert(rob_index);
-					bank.rob_size--;
-				}
-			}
-		}
-	}
-}
-
 void UnitCache::clock_rise()
 {
-	_request_network.clock();
+	for(uint i = 0; i < 2; ++i) _request_network.clock();
 
 	for(uint s = 0; s < _slices.size(); ++s)
 	{
@@ -444,11 +227,11 @@ void UnitCache::clock_rise()
 		for(uint b = 0; b < slice.banks.size(); ++b)
 		{
 			Bank& bank = slice.banks[b];
-			uint i = s * slice.banks.size() + b;
+			uint port = s * slice.banks.size() + b;
 
+			if(_request_network.is_read_valid(port) && bank.request_pipline.is_write_valid())
+				bank.request_pipline.write(_request_network.read(port));
 			bank.request_pipline.clock();
-			if(_request_network.is_read_valid(i) && bank.request_pipline.is_write_valid())
-				bank.request_pipline.write(_request_network.read(i));
 		}
 	}
 
@@ -459,7 +242,6 @@ void UnitCache::clock_rise()
 void UnitCache::clock_fall()
 {
 	_send_request();
-	_send_return();
 
 	for(uint s = 0; s < _slices.size(); ++s)
 	{
@@ -467,16 +249,21 @@ void UnitCache::clock_fall()
 		for(uint b = 0; b < slice.banks.size(); ++b)
 		{
 			Bank& bank = slice.banks[b];
-			uint i = s * slice.banks.size() + b;
+			uint port = s * slice.banks.size() + b;
 
-			if(bank.return_pipline.is_read_valid() && _return_network.is_write_valid(i))
-				_return_network.write(bank.return_pipline.read(), i);
+			if(bank.return_pipline.is_write_valid() && bank.return_queue.is_read_valid())
+				bank.return_pipline.write(bank.return_queue.read());
 
 			bank.return_pipline.clock();
+			if(bank.return_pipline.is_read_valid() && _return_network.is_write_valid(port))
+			{
+				log.bytes_read += bank.return_pipline.peek().size;
+				_return_network.write(bank.return_pipline.read(), port);
+			}
 		}
 	}
 
-	_return_network.clock();
+	for(uint i = 0; i < 2; ++i) _return_network.clock();
 }
 
 bool UnitCache::request_port_write_valid(uint port_index)

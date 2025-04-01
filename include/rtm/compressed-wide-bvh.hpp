@@ -26,7 +26,7 @@ class NVCWBVH
 {
 public:
 	const static uint WIDTH = WBVH::WIDTH;
-	const static uint NODE_SIZE = 64;
+	const static uint NODE_SIZE = 128;
 
 	struct alignas(NODE_SIZE) Node
 	{
@@ -410,7 +410,7 @@ inline WBVH::Node decompress(const HECWBVH::Node& cwnode)
 	return wnode;
 }
 
-inline void decompress(const HECWBVH::Strip& strip, uint& id, uint& num_tris, rtm::Triangle tris[HECWBVH::Strip::MAX_TRIS])
+inline uint decompress(const HECWBVH::Strip& strip, uint strip_id, rtm::IntersectionTriangle* tris)
 {
 	rtm::TriangleStrip temp_strip;
 	temp_strip.id = strip.id;
@@ -422,7 +422,7 @@ inline void decompress(const HECWBVH::Strip& strip, uint& id, uint& num_tris, rt
 		std::memcpy(&u24, strip.data + i * 3, 3);
 		((float*)temp_strip.vrts)[i] = u24_to_f32(u24);
 	}
-	decompress(temp_strip, id, num_tris, tris);
+	return decompress(temp_strip, strip_id, tris);
 }
 
 }

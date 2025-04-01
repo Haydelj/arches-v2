@@ -32,6 +32,7 @@ public:
 	{
 		std::string config_path;
 		uint64_t size{1ull << 30};
+		uint latency{1};
 		uint num_ports{1};
 		uint num_controllers{1};
 		uint64_t partition_stride{0x0ull};
@@ -52,7 +53,7 @@ private:
 
 	struct MemoryController
 	{
-		Pipline<MemoryRequest> req_pipline;
+		LatencyFIFO<MemoryRequest> req_pipline;
 		Ramulator::IFrontEnd* ramulator2_frontend;
 		Ramulator::IMemorySystem* ramulator2_memorysystem;
 		std::priority_queue<RamulatorReturn> return_queue;
@@ -132,9 +133,6 @@ public:
 		{
 			uint64_t total = loads + stores;
 
-			printf("Read Bandwidth: %.1f bytes/cycle\n", (double)bytes_read / units / cycles);
-			printf("Write Bandwidth: %.1f bytes/cycle\n", (double)bytes_written / units / cycles);
-			printf("\n");
 			printf("Total: %lld\n", total / units);
 			printf("Loads: %lld\n", loads / units);
 			printf("Stores: %lld\n", stores / units);
@@ -151,7 +149,7 @@ private:
 	bool _store(const MemoryRequest& request_item, uint channel_index);
 	paddr_t _convert_address(paddr_t address)
 	{
-		address &= ~generate_nbit_mask(log2i(DRAM_TXN_SIZE));
+		address &= ~generate_nbit_mask(log2i(CACHE_SECTOR_SIZE));
 		return pext(address, ~_partition_mask);
 	}
 };

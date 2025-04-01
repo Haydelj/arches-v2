@@ -36,16 +36,23 @@ public:
 	}
 };
 
-inline void decompress(const rtm::Triangle& tri, uint& id, uint& count, rtm::Triangle tris[1])
+struct IntersectionTriangle
 {
-	count = 1;
-	tris[0] = tri;
+	Triangle tri;
+	uint id;
+};
+
+inline uint decompress(const rtm::Triangle& in, uint id0, rtm::IntersectionTriangle* out)
+{
+	out[0].tri = in;
+	out[0].id = id0;
+	return 1;
 }
 
 class alignas(64) TriangleStrip
 {
 public:
-	const static uint MAX_TRIS = 2;
+	const static uint MAX_TRIS = 1;
 	uint32_t id : 29;
 	uint16_t num_tris : 4;
 	uint16_t edge_mask : 12;
@@ -65,22 +72,19 @@ public:
 	float cost() { return 1.0f; }
 };
 
-inline void decompress(const rtm::TriangleStrip& strip, uint& id, uint& num_tris, rtm::Triangle tris[TriangleStrip::MAX_TRIS])
+inline uint decompress(const rtm::TriangleStrip& strip, uint strip_id, rtm::IntersectionTriangle* out)
 {
-	id = strip.id;
-	num_tris = strip.num_tris;
-	tris[0] = Triangle(strip.vrts[0], strip.vrts[1], strip.vrts[2]);
-	for(uint i = 1; i < num_tris; ++i)
+	out[0].tri = Triangle(strip.vrts[0], strip.vrts[1], strip.vrts[2]);
+	out[0].id = strip.id;
+	for(uint i = 1; i < strip.num_tris; ++i)
 	{
+		out[i].id = strip.id + i;
 		if((strip.edge_mask >> (i - 1)) & 0x1)
-		{
-			tris[i] = Triangle(tris[i - 1].vrts[0], tris[i - 1].vrts[2], strip.vrts[i + 2]);
-		}
+			out[i].tri = Triangle(out[i - 1].tri.vrts[0], out[i - 1].tri.vrts[2], strip.vrts[i + 2]);
 		else
-		{
-			tris[i] = Triangle(tris[i - 1].vrts[2], tris[i - 1].vrts[1], strip.vrts[i + 2]);
-		}
+			out[i].tri = Triangle(out[i - 1].tri.vrts[2], out[i - 1].tri.vrts[1], strip.vrts[i + 2]);
 	}
+	return strip.num_tris;
 }
 
 

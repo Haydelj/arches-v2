@@ -61,8 +61,8 @@ private:
 		}
 		state{State::IDLE};
 		MemoryRequest current_request{};
-		Pipline<MemoryRequest> tag_array_pipline;
-		Pipline<MemoryReturn> data_array_pipline;
+		LatencyFIFO<MemoryRequest> tag_array_pipline;
+		LatencyFIFO<MemoryReturn> data_array_pipline;
 		Bank(uint latency, uint cycle_time) : tag_array_pipline(cycle_time), data_array_pipline(latency) {}
 	};
 

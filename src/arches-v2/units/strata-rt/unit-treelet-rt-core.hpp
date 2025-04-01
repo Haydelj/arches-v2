@@ -145,12 +145,12 @@ private:
 
 	//node pipline
 	std::queue<uint> _node_isect_queue;
-	Pipline<uint> _box_pipline;
+	LatencyFIFO<uint> _box_pipline;
 	uint _boxes_issued{0};
 
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
-	Pipline<uint> _tri_pipline;
+	LatencyFIFO<uint> _tri_pipline;
 	uint _tris_issued{0};
 
 	//meta data

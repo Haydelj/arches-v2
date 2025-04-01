@@ -85,7 +85,7 @@ private:
 		uint current_treelet;
 
 		MemoryRequest::Flags flags;
-		BitStack27 dst;
+		BitStack58 dst;
 
 		StagingBuffer buffer;
 
@@ -115,12 +115,12 @@ private:
 
 	//node pipline
 	std::queue<uint> _node_isect_queue;
-	Pipline<uint> _box_pipline;
+	LatencyFIFO<uint> _box_pipline;
 	uint _box_issue_count{0};
 
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
-	Pipline<uint> _tri_pipline;
+	LatencyFIFO<uint> _tri_pipline;
 	uint _tri_issue_count{0};
 
 	//meta data

@@ -8,32 +8,25 @@
 namespace Arches {
 namespace Units {
 
-class UnitCache : public UnitCacheBase
+class UnitStreamCache : public UnitCacheBase
 {
 public:
 	struct Configuration
 	{
 		uint level{0};
-		
-		bool miss_alloc{false};
-		bool block_prefetch{false};
 
 		uint size{1024};
 		uint block_size{CACHE_BLOCK_SIZE};
 		uint sector_size{CACHE_SECTOR_SIZE};
 		uint associativity{1};
 
-		uint num_mshr{1};
-		uint num_subentries{1};
 		uint latency{1};
+
+		uint64_t bank_select_mask{0};
 
 		uint num_ports{1};
 		uint crossbar_width{1};
-		uint num_slices{1};
 		uint num_banks{1};
-
-		uint64_t slice_select_mask;
-		uint64_t bank_select_mask;
 
 		std::vector<UnitMemoryBase*> mem_highers{nullptr};
 		uint                         mem_higher_port{0};
@@ -49,8 +42,8 @@ public:
 		float leakage_power{0.0f};
 	};
 
-	UnitCache(Configuration config);
-	virtual ~UnitCache();
+	UnitStreamCache(Configuration config);
+	virtual ~UnitStreamCache();
 
 	void clock_rise() override;
 	void clock_fall() override;
@@ -66,47 +59,26 @@ protected:
 	struct Bank
 	{
 		//request path (per bank)
-		FIFO<MemoryReturn> return_queue;
 		LatencyFIFO<MemoryRequest> request_pipline;
 		LatencyFIFO<MemoryReturn> return_pipline;
 		Bank(Configuration config);
 	};
 
-	struct MSHR //Miss Status Handling Register
-	{
-		std::queue<MemoryRequest> subentries;
-		MSHR() = default;
-	};
+	std::vector<Bank> banks;
 
-	struct Slice
-	{
-		std::vector<Bank> banks;
-
-		//miss path (per partition)
-		Cascade<MemoryRequest> miss_network;
-		std::map<paddr_t, MSHR> mshrs;
-
-		std::queue<MemoryRequest> mem_higher_request_queue;
-		uint mem_higher_port;
-
-		Slice(Configuration config);
-	};
+	std::queue<MemoryRequest> mem_higher_request_queue;
+	uint mem_higher_port;
 
 	std::vector<UnitMemoryBase*> _mem_highers;
 	RequestCrossBar _request_network;
-
-	std::vector<Slice> _slices;
 	ReturnCrossBar _return_network;
 
 	uint _level;
-	uint _num_mshr;
-	uint _num_subentries;
-	bool _block_prefetch;
-	bool _miss_alloc;
+	uint64_t _bank_select_mask{0};
 
 	uint _get_bank(paddr_t addr)
 	{
-		return (addr / _block_size) % _slices[0].banks.size();
+		return pext(addr, _bank_select_mask);
 	}
 
 	void _recive_return();
@@ -164,6 +136,8 @@ public:
 		void print(cycles_t cycles, uint units = 1, PowerConfig power_config = PowerConfig())
 		{
 			uint64_t total = get_total();
+			printf("Read Bandwidth: %.1f bytes/cycle\n", (float)bytes_read / units / cycles);
+			printf("\n");
 			printf("Total: %lld\n", total / units);
 			printf("Hits: %lld (%.2f%%)\n", hits / units, 100.0f * hits / total);
 			printf("Half Misses: %lld (%.2f%%)\n", half_misses / units, 100.0f * half_misses / total);

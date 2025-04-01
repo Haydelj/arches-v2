@@ -81,7 +81,7 @@ private:
 		rtm::vec3 inv_d;
 		rtm::Hit hit;
 
-		const static uint STACK_SIZE = 5;
+		const static uint STACK_SIZE = 8;
 		rtm::RestartTrail restart_trail;
 		StackEntry stack[STACK_SIZE + rtm::WBVH::WIDTH];
 		uint8_t stack_size;
@@ -89,7 +89,7 @@ private:
 		bool update_restart_trail;
 
 		MemoryRequest::Flags flags;
-		BitStack27 dst;
+		BitStack58 dst;
 
 		StagingBuffer buffer;
 
@@ -111,22 +111,23 @@ private:
 	UnitMemoryBase* _cache;
 	uint _cache_port;
 
+	std::vector<std::queue<MemoryRequest>> _cache_fetch_queues;
+	
 	//ray scheduling hardware
 	std::queue<uint> _ray_scheduling_queue;
 	std::queue<uint> _ray_return_queue;
-	std::queue<MemoryRequest> _cache_fetch_queue;
 
 	std::set<uint> _free_ray_ids;
 	std::vector<RayState> _ray_states;
 
 	//node pipline
 	std::queue<uint> _node_isect_queue;
-	Pipline<uint> _box_pipline;
+	LatencyFIFO<uint> _box_pipline;
 	uint _box_issue_count{0};
 
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
-	Pipline<uint> _tri_pipline;
+	LatencyFIFO<uint> _tri_pipline;
 	uint _tri_issue_count{0};
 
 	//meta data

@@ -37,14 +37,14 @@ struct MemoryRequest
 		uint8_t : 5;
 	};
 
-	const static uint MAX_SIZE = CACHE_BLOCK_SIZE;
+	const static uint MAX_SIZE = CACHE_SECTOR_SIZE;
 
 	//meta data 
 	Type type{MemoryRequest::Type::NA};
 	uint8_t size{0};
 	Flags flags{};
-	BitStack27 dst{};
 	uint16_t port{0};
+	BitStack58 dst{};
 
 	union
 	{
@@ -89,8 +89,8 @@ struct MemoryReturn
 	MemoryRequest::Type type{MemoryRequest::Type::NA};;
 	uint8_t size{0};
 	MemoryRequest::Flags flags{};
-	BitStack27 dst{};
 	uint16_t port{0};
+	BitStack58 dst{};
 
 	union
 	{
@@ -194,7 +194,7 @@ struct StreamSchedulerRequest
 
 struct SFURequest
 {
-	BitStack27 dst;
+	BitStack58 dst;
 	uint16_t port;
 };
 

@@ -218,13 +218,14 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 		else
 		{
 		#if 1
-			uint count = 1, id = current_entry.data.prim_index; rtm::Triangle tris[rtm::TriangleStrip::MAX_TRIS];
-			rtm::decompress(prims[current_entry.data.prim_index], id, count, tris);
-			for(uint i = 0; i < count; ++i)
-			{
-				if(_intersect(tris[i], ray, hit))
-					hit.id = id + i;
-			}
+			uint tri_count = 0;
+			rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS * rtm::WBVH::MAX_PRIMS];
+			for(uint i = 0; i < current_entry.data.num_prims; ++i)
+				tri_count += rtm::decompress(prims[current_entry.data.prim_index + i], current_entry.data.prim_index + i, tris + tri_count);
+
+			for(uint i = 0; i < tri_count; ++i)
+				if(_intersect(tris[i].tri, ray, hit))
+					hit.id = tris[i].id;
 		#else
 			if(current_entry.t < hit.t)
 			{
@@ -240,6 +241,23 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 
 	return found_hit;
 }
+
+inline static uint32_t morton1(uint32_t x)
+{
+	x = x & 0x55555555;
+	x = (x | (x >> 1)) & 0x33333333;
+	x = (x | (x >> 2)) & 0x0F0F0F0F;
+	x = (x | (x >> 4)) & 0x00FF00FF;
+	x = (x | (x >> 8)) & 0x0000FFFF;
+	return x;
+}
+
+inline void deinterleave_bits(uint i, uint& x, uint& y)
+{
+	x = morton1(i);
+	y = morton1(i >> 1);
+}
+
 #ifndef __riscv 
 template <typename N, typename P>
 inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const N* nodes, const P* prims, rtm::Triangle* tris, uint bounce, std::vector<rtm::Ray>& rays, bool serializeRays = false)
@@ -252,6 +270,7 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 	{
 		uint32_t x = index % framebuffer_width;
 		uint32_t y = index / framebuffer_width;
+		//deinterleave_bits(index, x, y);
 		rtm::RNG rng(index);
 
 		rtm::Ray ray = camera.generate_ray_through_pixel(x, y); // Assuming spp = 1

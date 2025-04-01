@@ -108,7 +108,7 @@ protected:
 		std::queue<uint> mshr_request_queue;
 		std::queue<uint> mshr_return_queue;
 		std::queue<MemoryRequest> uncached_write_queue;
-		Pipline<uint> data_array_pipline;
+		LatencyFIFO<uint> data_array_pipline;
 		Bank(uint num_lfb, uint latency) : mshrs(num_lfb), data_array_pipline(latency - 1) {}
 	};
 

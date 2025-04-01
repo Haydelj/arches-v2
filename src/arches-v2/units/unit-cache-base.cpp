@@ -5,8 +5,6 @@ namespace Units {
 
 UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size) : _tag_array(size / block_size), _data_array(size), _sector_size(sector_size), UnitMemoryBase()
 {
-	if(_sector_size == 0) _sector_size = block_size;
-
 	//initialize tag array
 	for(uint i = 0; i < _tag_array.size(); ++i)
 	{
@@ -16,21 +14,14 @@ UnitCacheBase::UnitCacheBase(size_t size, uint block_size, uint associativity, u
 		_tag_array[i].tag = ~0x0ull;
 	}
 
+	if(sector_size == 0) _sector_size = block_size;
+	else                _sector_size = sector_size;
 	_block_size = block_size;
 	_associativity = associativity;
+	_sets = size / (block_size * associativity);
 
-	uint num_sets = size / (block_size * associativity);
-
-	uint offset_bits = log2i(block_size);
-	uint set_index_bits = log2i(num_sets);
-	uint tag_bits = static_cast<uint>(sizeof(paddr_t) * 8) - (set_index_bits + offset_bits);
-
-	_block_offset_mask = generate_nbit_mask(offset_bits);
-	_set_index_mask = generate_nbit_mask(set_index_bits);
-	_tag_mask = generate_nbit_mask(tag_bits);
-
-	_set_index_offset = offset_bits;
-	_tag_offset = offset_bits + set_index_bits;
+	_block_offset_bits = _block_size - 1;
+	_sector_offset_bits = _sector_size - 1;
 }
 
 UnitCacheBase::~UnitCacheBase()
@@ -80,18 +71,19 @@ bool UnitCacheBase::deserialize(std::string file_path, const UnitMainMemoryBase&
 	return succeeded;
 }
 
-
-uint8_t* UnitCacheBase::_read_block(paddr_t block_addr)
-{ 
-	uint8_t vm;
-	return _read_block(block_addr, vm);
+void UnitCacheBase::direct_write(paddr_t block_addr, uint8_t* data)
+{
+	_allocate_block(block_addr);
+	for(uint i = 0; i < _block_size / _sector_size; ++i)
+		_write_sector(block_addr + i * _sector_size, data + i * _sector_size, false);
 }
 
 //update lru and returns data pointer to cache line
-uint8_t* UnitCacheBase::_read_block(paddr_t block_addr, uint8_t& valid_mask)
+uint8_t* UnitCacheBase::_read_sector(paddr_t sector_addr)
 {
-	uint64_t tag = _get_tag(block_addr);
-	uint set_index = _get_set_index(block_addr);
+	uint64_t tag = _get_tag(sector_addr);
+	uint set_index = _get_set_index(sector_addr);
+	uint sector_index = _get_sector_index(sector_addr);
 	uint start = set_index  * _associativity;
 	uint end = start + _associativity;
 
@@ -107,19 +99,18 @@ uint8_t* UnitCacheBase::_read_block(paddr_t block_addr, uint8_t& valid_mask)
 		}
 	}
 
-	valid_mask = 0;
 	if(found_index == ~0) 
 		return nullptr; //Didn't find line so we will leave lru alone and return nullptr
 
 	for(uint i = start; i < end; ++i)
-		if(_tag_array[i].lru < found_lru) _tag_array[i].lru++;
+		if(_tag_array[i].lru < found_lru) 
+			_tag_array[i].lru++;
 
 	_tag_array[found_index].lru = 0;
-	if(!_tag_array[found_index].valid) //Found sector but it was invalid
+	if(!((_tag_array[found_index].valid >> sector_index) & 0x1)) //Found sector but it was invalid
 		return nullptr;
 
-	valid_mask = _tag_array[found_index].valid;
-	return &_data_array[found_index * _block_size];
+	return &_data_array[found_index * _block_size + sector_index * _sector_size];
 }
 
 //writes data to block and updates valid bit
@@ -147,7 +138,7 @@ uint8_t* UnitCacheBase::_write_sector(paddr_t sector_addr, const uint8_t* data, 
 }
 
 //inserts cacheline associated with paddr replacing least recently used. Assumes cachline isn't already in cache if it is this has undefined behaviour
-UnitCacheBase::Victim UnitCacheBase::_insert_block(paddr_t block_addr)
+UnitCacheBase::Victim UnitCacheBase::_allocate_block(paddr_t block_addr)
 {
 	uint64_t tag = _get_tag(block_addr);
 	uint set_index = _get_set_index(block_addr);
@@ -159,6 +150,7 @@ UnitCacheBase::Victim UnitCacheBase::_insert_block(paddr_t block_addr)
 	uint replacement_lru = 0u;
 	for(uint i = start; i < end; ++i)
 	{
+		if(_tag_array[i].tag == tag) return Victim(); //block already allocated return null victim
 		if(_tag_array[i].lru >= replacement_lru)
 		{
 			replacement_lru = _tag_array[i].lru;

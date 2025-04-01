@@ -102,7 +102,7 @@ private:
 	{
 		paddr_t addr;
 		uint8_t size;
-		BitStack27 dst;
+		BitStack58 dst;
 	};
 
 	//interconnects
@@ -128,12 +128,12 @@ private:
 	std::vector<NodeStagingBuffer> _node_staging_buffers;
 	std::queue<uint> _node_isect_queue;
 	std::vector<NodeStagingBuffer> _leaf_isect_buffers;
-	Pipline<uint> _box_pipline;
+	LatencyFIFO<uint> _box_pipline;
 
 	//tri pipline
 	std::vector<TriStagingBuffer> _tri_staging_buffers;
 	std::queue<uint> _tri_isect_queue;
-	Pipline<uint> _tri_pipline;
+	LatencyFIFO<uint> _tri_pipline;
 	uint _tri_isect_index{0};
 
 	//meta data
