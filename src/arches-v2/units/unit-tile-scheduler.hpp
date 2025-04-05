@@ -78,12 +78,6 @@ public:
 			}
 			else if(_return_network.is_write_valid(_current_request.port))
 			{
-				//uint tile_x = pext(_current_offset, 0x5555);
-				//uint tile_y = pext(_current_offset, 0xaaaa);
-				//uint tile_x = (_current_offset % _tile_width);
-				//uint tile_y = (_current_offset / _tile_width);
-				//uint x = (_current_tile % (_width / _tile_width)) * _tile_width + tile_x;
-				//uint y = (_current_tile / (_width / _tile_width)) * _tile_height + tile_y;
 				uint32_t index = _current_block + _current_offset;
 				MemoryReturn ret(_current_request, &index);
 

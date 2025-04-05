@@ -45,7 +45,7 @@ inline static void kernel(const STRaTARTKernel::Args& args)
             raydata.global_ray_id = index;
             raydata.treelet_id = 0;
 			raydata.level = 0;
-			raydata.restart_trail = STRaTARTKernel::RestartTrail();
+			raydata.restart_trail = rtm::RestartTrail();
 			if(ray.t_min == ray.t_max) raydata.restart_trail.mark_done();
             _swi(raydata);
         }
@@ -110,9 +110,9 @@ int main(int argc, char* argv[])
 	args.rays = rays.data();
 
 #ifdef USE_COMPRESSED_WIDE_BVH
-	rtm::WideBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
-	rtm::CompressedWideBVH cwbvh(wbvh);
+	rtm::NVCWBVH cwbvh(wbvh);
 	rtm::CompressedWideTreeletBVH cwtbvh(cwbvh, mesh);
 	args.treelets = cwtbvh.treelets.data();
 #else

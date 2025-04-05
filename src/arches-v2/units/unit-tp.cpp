@@ -15,10 +15,8 @@ UnitTP::UnitTP(const Configuration& config) :
 	_unit_table(*config.unit_table), 
 	_unique_mems(*config.unique_mems), 
 	_unique_sfus(*config.unique_sfus), 
-	_inst_cache(config.inst_cache), 
 	_cheat_memory(config.cheat_memory),
 	_num_threads(config.num_threads), 
-	_thread_fetch_arbiter(config.num_threads),
 	_thread_exec_arbiter(config.num_threads),
 	_thread_data(config.num_threads),
 	_stack_mask(generate_nbit_mask(log2i(config.stack_size))),
@@ -56,7 +54,10 @@ void UnitTP::reset()
 			thread.float_regs_pending[i] = 0;
 		}
 
-		_thread_fetch_arbiter.add(i);
+		thread.instr.data = reinterpret_cast<uint32_t*>(_cheat_memory)[thread.pc / 4];
+		thread.instr_info = thread.instr.get_info();
+		if(_check_dependancies(i) == 0)
+			_thread_exec_arbiter.add(i);
 	}
 
 	simulator->units_executing++;
@@ -68,6 +69,8 @@ void UnitTP::set_entry_point(uint64_t entry_point)
 	{
 		ThreadData& thread = _thread_data[i];
 		thread.pc = entry_point;
+		thread.instr.data = reinterpret_cast<uint32_t*>(_cheat_memory)[thread.pc / 4];
+		thread.instr_info = thread.instr.get_info();
 	}
 }
 
@@ -81,11 +84,14 @@ void UnitTP::_clear_register_pending(uint thread_id, ISA::RISCV::DstReg dst)
 	ThreadData& thread = _thread_data[thread_id];
 	if (is_int(dst.type)) thread.int_regs_pending[dst.index] = 0;
 	else                  thread.float_regs_pending[dst.index] = 0;
+
+	if(_check_dependancies(thread_id) == 0)
+		 _thread_exec_arbiter.add(thread_id);
 }
 
 void UnitTP::_process_load_return(const MemoryReturn& ret)
 {
-	BitStack27 dst = ret.dst;
+	BitStack58 dst = ret.dst;
 	uint ret_thread_id = dst.pop(4);
 	ISA::RISCV::DstReg dst_reg(dst.pop(9));
 	ThreadData& ret_thread = _thread_data[ret_thread_id];
@@ -101,6 +107,7 @@ void UnitTP::_process_load_return(const MemoryReturn& ret)
 uint8_t UnitTP::_check_dependancies(uint thread_id)
 {
 	ThreadData& thread = _thread_data[thread_id];
+
 	const ISA::RISCV::Instruction& instr = thread.instr;
 	const ISA::RISCV::InstructionInfo& instr_info = thread.instr_info;
 
@@ -176,35 +183,25 @@ void UnitTP::_log_instruction_issue(uint thread_id)
 #endif
 }
 
-uint8_t UnitTP::_decode(uint thread_id)
+bool UnitTP::_decode(uint thread_id)
+{
+	DecodePhase phase;
+	ISA::RISCV::InstrType type;
+	return _decode(thread_id, type, phase);
+}
+
+bool UnitTP::_decode(uint thread_id, ISA::RISCV::InstrType& stalling_instr_type, DecodePhase& phase)
 {
 	ThreadData& thread = _thread_data[thread_id];
 
-	//Check for instruction fetch hazard
-	if(thread.pc == 0x0ull) return (uint8_t)ISA::RISCV::InstrType::INSTR_FETCH;
-	if(thread.instr.data == 0)
-	{
-		if(_inst_cache == nullptr)
-		{
-			_assert(_cheat_memory);
-			thread.instr.data = reinterpret_cast<uint32_t*>(_cheat_memory)[thread.pc / 4];
-		}
-		else
-		{
-			paddr_t addr_offset = thread.pc - thread.i_buffer.paddr;
-			if(addr_offset < CACHE_BLOCK_SIZE)
-			{
-				thread.instr.data = reinterpret_cast<uint32_t*>(thread.i_buffer.data)[addr_offset / 4];
-			}
-			else return (uint8_t)ISA::RISCV::InstrType::INSTR_FETCH;
-		}
-		thread.instr_info = thread.instr.get_info();
-		_assert(thread.instr_info.instr_type < ISA::RISCV::InstrType::NUM_TYPES);
-	}
-
 	//Check for data hazards
-	if(uint8_t type = _check_dependancies(thread_id))
-		return type;
+	ISA::RISCV::InstrType type = (ISA::RISCV::InstrType)_check_dependancies(thread_id);
+	if(type != ISA::RISCV::InstrType::NA)
+	{
+		phase = DecodePhase::DATA_HAZARD;
+		stalling_instr_type = (ISA::RISCV::InstrType)type;
+		return false;
+	}
 
 	//check for pipline hazards
 	if(_unit_table[(uint)thread.instr_info.instr_type])
@@ -214,7 +211,11 @@ uint8_t UnitTP::_decode(uint thread_id)
 			//check for pipline hazard
 			UnitSFU* sfu = (UnitSFU*)_unit_table[(uint)thread.instr_info.instr_type];
 			if(!sfu->request_port_write_valid(_tp_index))
-				return 128 + (uint)thread.instr_info.instr_type;
+			{
+				phase = DecodePhase::PIPLINE_HAZARD;
+				stalling_instr_type = thread.instr_info.instr_type;
+				return false;
+			}
 		}
 		else if(thread.instr_info.exec_type == ISA::RISCV::ExecType::MEMORY)
 		{
@@ -223,13 +224,17 @@ uint8_t UnitTP::_decode(uint thread_id)
 				//check for pipline hazard
 				UnitMemoryBase* mem = (UnitMemoryBase*)_unit_table[(uint)thread.instr_info.instr_type];
 				if(!mem->request_port_write_valid(_tp_index))
-					return 128 + (uint)thread.instr_info.instr_type;
+				{
+					phase = DecodePhase::PIPLINE_HAZARD;
+					stalling_instr_type = thread.instr_info.instr_type;
+					return false;
+				}
 			}
 		}
 	}
 
 	//no hazards found
-	return 0;
+	return true;
 }
 
 void UnitTP::clock_rise()
@@ -249,85 +254,46 @@ void UnitTP::clock_rise()
 		ISA::RISCV::DstReg dst_reg(ret.dst.pop(9));
 		_clear_register_pending(thread_id, dst_reg);
 	}
-
-	if(_inst_cache)
-	{
-		uint i_cache_port = _tp_index % _num_tps_per_i_cache;
-		if(_inst_cache->return_port_read_valid(i_cache_port))
-		{
-			MemoryReturn ret = _inst_cache->read_return(i_cache_port);
-			uint thread_id = ret.dst.pop(4);
-			ThreadData& thread = _thread_data[thread_id];
-			std::memcpy(thread.i_buffer.data, ret.data, CACHE_BLOCK_SIZE);
-			thread.i_buffer.paddr = ret.paddr;
-		}
-	}
 }
 
 void UnitTP::clock_fall()
 {
-	//Fetch next i-buffer
-	uint fetch_thread_id = _thread_fetch_arbiter.get_index();
-	if(fetch_thread_id != ~0u)
-	{
-		ThreadData& fetch_thread = _thread_data[fetch_thread_id];
-		if(_inst_cache)
-		{
-			uint i_cache_port = _tp_index % _num_tps_per_i_cache;
-			if(_inst_cache->request_port_write_valid(i_cache_port))
-			{
-				MemoryRequest i_req;
-				i_req.paddr = fetch_thread.pc & ~0x3full;
-				i_req.port = i_cache_port;
-				i_req.dst.push(fetch_thread_id, 4);
-				i_req.type = MemoryRequest::Type::LOAD;
-				i_req.size = CACHE_BLOCK_SIZE;
-				_inst_cache->write_request(i_req);
-				_thread_fetch_arbiter.remove(fetch_thread_id);
-			}
-		}
-		else
-		{
-			_thread_fetch_arbiter.remove(fetch_thread_id);
-		}
-	}
-
-	for(uint i = 0; i < _num_threads; ++i)
-		if(!_decode(i)) _thread_exec_arbiter.add(i);
-		else            _thread_exec_arbiter.remove(i);
-
 	uint thread_id = _thread_exec_arbiter.get_index();
-	if(thread_id == ~0u)
+	if(thread_id == ~0u) thread_id = _last_thread_id;
+	ThreadData& thread = _thread_data[thread_id];
+
+	DecodePhase stall_phase;
+	ISA::RISCV::InstrType stall_type;
+	if(!_decode(thread_id, stall_type, stall_phase))
 	{
-		//log data stall
-		ThreadData& last_thread = _thread_data[_last_thread_id];
-		uint8_t last_thread_stall_type = _decode(_last_thread_id);
-		if(last_thread_stall_type < 128)
+		//log stall
+		if(stall_phase == DecodePhase::DATA_HAZARD)
 		{
-			if(last_thread.pc != 0)
-			{
-				log.log_data_stall((ISA::RISCV::InstrType)last_thread_stall_type, last_thread.pc);
-			}
+			log.log_data_stall(stall_type, thread.pc);
 		}
-		else
+		else if(stall_phase == DecodePhase::PIPLINE_HAZARD)
 		{
-			log.log_resource_stall((ISA::RISCV::InstrType)(last_thread_stall_type - 128), last_thread.pc);
+			log.log_resource_stall(stall_type, thread.pc);
 		}
 
-		if (ENABLE_TP_DEBUG_PRINTS && TP_PRINT_STALL_CYCLES && last_thread.instr.data != 0)
+		if (ENABLE_TP_DEBUG_PRINTS && TP_PRINT_STALL_CYCLES)
 		{
-			printf("\033[31m%02d  %05I64x: \t%08x          \t", _last_thread_id, last_thread.pc, last_thread.instr.data);
-			last_thread.instr_info.print_instr(last_thread.instr);
-			if(last_thread_stall_type < 128) printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)last_thread_stall_type].c_str());
-			else                             printf("\t%s pipline hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[(ISA::RISCV::InstrType)(last_thread_stall_type - 128)].c_str());
+			printf("\033[31m%02d  %05I64x: \t%08x          \t", thread_id, thread.pc, thread.instr.data);
+			thread.instr_info.print_instr(thread.instr);
+			     if(stall_phase == DecodePhase::DATA_HAZARD)    printf("\t%s data hazard!",    ISA::RISCV::InstructionTypeNameDatabase::get_instance()[stall_type].c_str());
+			else if(stall_phase == DecodePhase::PIPLINE_HAZARD) printf("\t%s pipline hazard!", ISA::RISCV::InstructionTypeNameDatabase::get_instance()[stall_type].c_str());
 			printf("\033[0m\n");
 		}
 
-		_last_thread_id = (_last_thread_id + 1) % _num_threads;
+		if(_thread_exec_arbiter.num_pending() != 0)
+		{
+			_thread_exec_arbiter.remove(thread_id);
+			_thread_exec_arbiter.add(thread_id);
+		}
+
 		return;
 	}
-	//Reg/PC read
-	ThreadData& thread = _thread_data[thread_id];
+
 	_log_instruction_issue(thread_id);
 	ISA::RISCV::ExecutionItem exec_item = {thread.pc, &thread.int_regs, &thread.float_regs};
 
@@ -396,20 +362,23 @@ void UnitTP::clock_fall()
 
 	if(!jump) thread.pc += 4;
 	thread.int_regs.zero.u64 = 0x0ull; //Compilers generate instructions with zero register as target so we need to zero the register every cycle
-	thread.instr.data = 0;
-	_last_thread_id = thread_id;
 
 	if(thread.pc == 0x0ull)
 	{
-		//thread halted add to halt mask
-		_num_halted_threads++;
-		if(_num_halted_threads == _num_threads)
+		thread.instr.data = 0;
+		_thread_exec_arbiter.remove(thread_id);
+		if(++_num_halted_threads == _num_threads)
 			--simulator->units_executing;
-	} 
-	else if((thread.pc - thread.i_buffer.paddr) >= CACHE_BLOCK_SIZE)
-	{
-		_thread_fetch_arbiter.add(thread_id); //queue i buffer fetch
 	}
+	else
+	{
+		thread.instr.data = reinterpret_cast<uint32_t*>(_cheat_memory)[thread.pc / 4];
+		thread.instr_info = thread.instr.get_info();
+		if(_check_dependancies(thread_id) != 0)
+			_thread_exec_arbiter.remove(thread_id);
+	}
+
+	_last_thread_id = thread_id;
 }
 
 }

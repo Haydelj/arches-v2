@@ -14,14 +14,14 @@ public:
 	class RequestCrossBar : public CasscadedCrossBar<MemoryRequest>
 	{
 	private:
-		uint64_t mask;
+		uint _stride;
 
 	public:
-		RequestCrossBar(uint ports, uint banks, uint64_t bank_select_mask, uint width = 64) : mask(bank_select_mask), CasscadedCrossBar<MemoryRequest>(ports, banks, width, width, 64, 64) {}
+		RequestCrossBar(uint ports, uint banks, uint stride, uint width = 64) : CasscadedCrossBar<MemoryRequest>(ports, banks, width, width, 64, 64), _stride(stride) {}
 
 		uint get_sink(const MemoryRequest& request) override
 		{
-			uint bank = pext(request.paddr, mask);
+			uint bank = (request.paddr / _stride) % num_sinks();
 			_assert(bank < num_sinks());
 			return bank;
 		}

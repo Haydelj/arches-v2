@@ -45,7 +45,7 @@ private:
 	struct StackEntry
 	{
 		float min_t;
-		rtm::WideBVH::Node::Data data;
+		rtm::WBVH::Node::Data data;
 		uint64_t mask;
 
 		StackEntry() {}
@@ -98,7 +98,7 @@ private:
 		uint8_t stack_size;
 		uint8_t current_entry;
 
-		BitStack27 dst[PACKET_SIZE];
+		BitStack58 dst[PACKET_SIZE];
 
 		uint num_rays;
 		uint return_ray;
@@ -132,12 +132,12 @@ private:
 
 	//node pipline
 	std::queue<uint> _node_isect_queue;
-	Pipline<uint> _box_pipline;
+	LatencyFIFO<uint> _box_pipline;
 	uint _box_issues;
 
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
-	Pipline<uint> _tri_pipline;
+	LatencyFIFO<uint> _tri_pipline;
 	uint _tri_issues;
 
 	//meta data
@@ -181,9 +181,9 @@ public:
 	}
 
 private:
-	paddr_t _block_address(paddr_t addr)
+	paddr_t _aligned_address(paddr_t addr)
 	{
-		return (addr >> log2i(CACHE_BLOCK_SIZE)) << log2i(CACHE_BLOCK_SIZE);
+		return (addr >> log2i(MemoryRequest::MAX_SIZE)) << log2i(MemoryRequest::MAX_SIZE);
 	}
 
 	bool _try_queue_node(uint ray_id, uint node_id);

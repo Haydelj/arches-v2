@@ -7,19 +7,21 @@
 
 namespace Arches { namespace Units { namespace TRaX {
 
-template<typename NT>
+template<typename NT, typename PT>
 class UnitRTCore : public UnitMemoryBase
 {
 public:
 	struct Configuration
 	{
-		uint num_clients;
-		uint max_rays;
-		paddr_t node_base_addr;
-		paddr_t tri_base_addr;
+		uint num_clients{1};
+		uint max_rays{1};
+		paddr_t node_base_addr{0x0ull};
+		paddr_t tri_base_addr{0x0ull};
 
-		UnitMemoryBase* cache;
-		uint cache_port;
+		UnitMemoryBase* cache{nullptr};
+		uint cache_port{0};
+		uint num_cache_ports{1};
+		uint cache_port_stride{1};
 	};
 
 private:
@@ -35,7 +37,8 @@ private:
 	struct StackEntry
 	{
 		float t;
-		rtm::WideBVH::Node::Data data;
+		rtm::WBVH::Node::Data data;
+		bool is_last;
 
 		StackEntry() {}
 	};
@@ -49,12 +52,12 @@ private:
 		union
 		{
 			uint8_t data[1];
-			NT::Node node;
+			NT node;
 			struct
 			{
-				rtm::Triangle tris[3];
-				uint num_tris;
-				uint tri_id;
+				PT prims[3];
+				uint num_prims;
+				uint prim_id;
 			};
 		};
 
@@ -80,14 +83,19 @@ private:
 		rtm::vec3 inv_d;
 		rtm::Hit hit;
 
-		StackEntry stack[32 * NT::WIDTH];
+		const static uint STACK_SIZE = 4;
+		rtm::RestartTrail restart_trail;
+		StackEntry stack[STACK_SIZE + rtm::WBVH::WIDTH];
 		uint8_t stack_size;
-		uint8_t current_entry;
+		uint8_t level;
+		bool update_restart_trail;
 
 		MemoryRequest::Flags flags;
-		BitStack27 dst;
+		BitStack58 dst;
 
 		StagingBuffer buffer;
+
+		bool done;
 
 		RayState() {};
 	};
@@ -104,23 +112,25 @@ private:
 	ReturnCascade _return_network;
 	UnitMemoryBase* _cache;
 	uint _cache_port;
+	uint _cache_port_stride;
 
+	std::vector<std::queue<MemoryRequest>> _cache_fetch_queues;
+	
 	//ray scheduling hardware
 	std::queue<uint> _ray_scheduling_queue;
 	std::queue<uint> _ray_return_queue;
-	std::queue<FetchItem> _fetch_queue;
 
 	std::set<uint> _free_ray_ids;
 	std::vector<RayState> _ray_states;
 
 	//node pipline
 	std::queue<uint> _node_isect_queue;
-	Pipline<uint> _box_pipline;
+	LatencyFIFO<uint> _box_pipline;
 	uint _box_issue_count{0};
 
 	//tri pipline
 	std::queue<uint> _tri_isect_queue;
-	Pipline<uint> _tri_pipline;
+	LatencyFIFO<uint> _tri_pipline;
 	uint _tri_issue_count{0};
 
 	//meta data
@@ -129,6 +139,11 @@ private:
 	paddr_t _tri_base_addr;
 	uint _last_ray_id{0};
 
+	std::set<uint> _rows_accessed;
+
+	bool _drain_phase{false};
+
+	uint _stall_cycles{0};
 public:
 	UnitRTCore(const Configuration& config);
 
@@ -162,13 +177,14 @@ public:
 	}
 
 private:
-	paddr_t _block_address(paddr_t addr)
+	paddr_t _align_address(paddr_t addr)
 	{
-		return (addr >> log2i(CACHE_BLOCK_SIZE)) << log2i(CACHE_BLOCK_SIZE);
+		return (addr >> log2i(MemoryRequest::MAX_SIZE)) << log2i(MemoryRequest::MAX_SIZE);
 	}
 
 	bool _try_queue_node(uint ray_id, uint node_id);
 	bool _try_queue_tris(uint ray_id, uint tri_id, uint num_tris);
+	bool _try_queue_prefetch(paddr_t addr, uint size, uint cache_mask);
 
 	void _read_requests();
 	void _read_returns();
@@ -183,7 +199,7 @@ public:
 	class Log
 	{
 	private:
-		constexpr static uint NUM_COUNTERS = 16;
+		constexpr static uint NUM_COUNTERS = 32;
 
 	public:
 		union
@@ -192,7 +208,9 @@ public:
 			{
 				uint64_t rays;
 				uint64_t nodes;
+				uint64_t strips;
 				uint64_t tris;
+				uint64_t restarts;
 				uint64_t hits_returned;
 				uint64_t issue_counters[(uint)IssueType::NUM_TYPES];
 				uint64_t stall_counters[(uint)RayState::Phase::NUM_PHASES];
@@ -239,11 +257,14 @@ public:
 
 			printf("Rays: %lld\n", rays / num_units);
 			printf("Nodes: %lld\n", nodes / num_units);
+			printf("Strips: %lld\n", strips / num_units);
 			printf("Tris: %lld\n", tris / num_units);
+			printf("Restarts: %lld\n", restarts / num_units);
 			printf("\n");
 			printf("Nodes/Ray: %.2f\n", (double)nodes / rays);
+			printf("Strips/Ray: %.2f\n", (double)strips / rays);
 			printf("Tris/Ray: %.2f\n", (double)tris / rays);
-			printf("Nodes/Tri: %.2f\n", (double)nodes / tris);
+			printf("Restarts/Ray: %.2f\n", (double)restarts / rays);
 
 			uint64_t issue_total = 0;
 			std::vector<std::pair<const char*, uint64_t>> _issue_counter_pairs;

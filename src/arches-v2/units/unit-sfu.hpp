@@ -13,7 +13,7 @@ class UnitSFU : public UnitBase
 {
 private:
 	Cascade<SFURequest> request_crossbar;
-	std::vector<Pipline<SFURequest>> piplines;
+	std::vector<LatencyFIFO<SFURequest>> piplines;
 	class ReturnCascade : public Decascade<SFURequest>
 	{
 	public:

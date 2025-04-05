@@ -17,24 +17,12 @@ namespace rtm {
 class CompressedWideTreeletBVH
 {
 public:
-	const static uint WIDTH = CompressedWideBVH::WIDTH;
+	const static uint WIDTH = NVCWBVH::WIDTH;
 
 	struct Treelet
 	{
 		const static uint SIZE = WideTreeletBVH::Treelet::SIZE;
 		const static uint PAGE_SIZE = (8 << 10);
-
-		struct alignas(64) Header
-		{
-			uint first_child;
-			uint num_children;
-			uint subtree_size;
-			uint depth;
-			uint num_nodes;
-			uint bytes;
-
-			float page_sah[32];
-		};
 
 		struct alignas(64) Node
 		{
@@ -62,8 +50,8 @@ public:
 			uint8_t e1;
 			uint8_t e2;
 
-			CompressedData cdata[WIDTH];
-			CompressedWideBVH::Node::CompressedAABB caabb[WIDTH];
+			CompressedData mdata[WIDTH];
+			QAABB8 qaabb[WIDTH];
 
 			WideTreeletBVH::Treelet::Node decompress() const
 			{
@@ -79,30 +67,30 @@ public:
 
 				for(int i = 0; i < WIDTH; i++)
 				{
-					node.aabb[i].min.x = p.x + e0f * float(caabb[i].min.x);
-					node.aabb[i].min.y = p.y + e1f * float(caabb[i].min.y);
-					node.aabb[i].min.z = p.z + e2f * float(caabb[i].min.z);
-					node.aabb[i].max.x = p.x + e0f * float(caabb[i].max.x);
-					node.aabb[i].max.y = p.y + e1f * float(caabb[i].max.y);
-					node.aabb[i].max.z = p.z + e2f * float(caabb[i].max.z);
+					node.aabb[i].min.x = p.x + e0f * float(qaabb[i].min[0]);
+					node.aabb[i].min.y = p.y + e1f * float(qaabb[i].min[1]);
+					node.aabb[i].min.z = p.z + e2f * float(qaabb[i].min[2]);
+					node.aabb[i].max.x = p.x + e0f * float(qaabb[i].max[0]);
+					node.aabb[i].max.y = p.y + e1f * float(qaabb[i].max[1]);
+					node.aabb[i].max.z = p.z + e2f * float(qaabb[i].max[2]);
 
-					node.data[i].is_int = cdata[i].is_int;
-					if(cdata[i].is_int)
+					node.data[i].is_int = mdata[i].is_int;
+					if(mdata[i].is_int)
 					{
-						node.data[i].is_child_treelet = cdata[i].is_child_treelet;
-						if(cdata[i].is_child_treelet)
+						node.data[i].is_child_treelet = mdata[i].is_child_treelet;
+						if(mdata[i].is_child_treelet)
 						{
-							node.data[i].child_index = (uint32_t)base_treelet_index + cdata[i].offset;
+							node.data[i].child_index = (uint32_t)base_treelet_index + mdata[i].offset;
 						}
 						else
 						{
-							node.data[i].child_index = (uint32_t)base_child_index + cdata[i].offset;
+							node.data[i].child_index = (uint32_t)base_child_index + mdata[i].offset;
 						}
 					}
 					else
 					{
-						node.data[i].num_tri = cdata[i].num_tris;
-						node.data[i].triangle_index = (uint32_t)base_triangle_index + cdata[i].offset * sizeof(Triangle) / sizeof(uint32_t);
+						node.data[i].num_tri = mdata[i].num_tris;
+						node.data[i].triangle_index = (uint32_t)base_triangle_index + mdata[i].offset * sizeof(Triangle) / sizeof(uint32_t);
 					}
 				}
 
@@ -128,10 +116,9 @@ public:
 			uint          id;
 		};
 
-		Header   header;
 		union
 		{
-			uint8_t  data[SIZE - sizeof(Header)];
+			uint8_t  data[SIZE];
 			Node     nodes[1];
 		};
 
@@ -143,63 +130,64 @@ public:
 
 public:
 	std::vector<CompressedWideTreeletBVH::Treelet> treelets;
+	std::vector<WideTreeletBVH::Treelet::Header> treelet_headers;
 
 	CompressedWideTreeletBVH() {}
-	CompressedWideTreeletBVH(const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh)
+	CompressedWideTreeletBVH(const rtm::NVCWBVH& bvh, const rtm::Mesh& mesh)
 	{
 		build(bvh, mesh);
 	}
 
-	void fill_page_median_sah(CompressedWideTreeletBVH::Treelet& treelet)
-	{
-		uint nodes_per_page = Treelet::PAGE_SIZE / sizeof(Treelet::Node);
-		float rsa = treelet.nodes[0].aabb().surface_area();
-		for(uint i = 0; i < 8; ++i)
-		{
-			std::vector<float> sal;
-			for(uint j = 0; j < (i == 0 ? nodes_per_page - 1 : nodes_per_page); ++j)
-			{
-				uint node = i * nodes_per_page + j;
-				if(node >= treelet.header.num_nodes)
-				{
-					sal.push_back(0.0);
-				}
-				else
-				{
-					float sa = treelet.nodes[node].aabb().surface_area() / rsa;
-					sal.push_back(sa);
-				}
-			}
+	//void fill_page_median_sah(CompressedWideTreeletBVH::Treelet& treelet)
+	//{
+	//	uint nodes_per_page = Treelet::PAGE_SIZE / sizeof(Treelet::Node);
+	//	float rsa = treelet.nodes[0].aabb().surface_area();
+	//	for(uint i = 0; i < 8; ++i)
+	//	{
+	//		std::vector<float> sal;
+	//		for(uint j = 0; j < (i == 0 ? nodes_per_page - 1 : nodes_per_page); ++j)
+	//		{
+	//			uint node = i * nodes_per_page + j;
+	//			if(node >= treelet.header.num_nodes)
+	//			{
+	//				sal.push_back(0.0);
+	//			}
+	//			else
+	//			{
+	//				float sa = treelet.nodes[node].aabb().surface_area() / rsa;
+	//				sal.push_back(sa);
+	//			}
+	//		}
 
-			float m_sah = 0.0f;
-			if(!sal.empty())
-			{
-				std::sort(sal.begin(), sal.end());
-				m_sah = sal[sal.size() / 2];
-			}
+	//		float m_sah = 0.0f;
+	//		if(!sal.empty())
+	//		{
+	//			std::sort(sal.begin(), sal.end());
+	//			m_sah = sal[sal.size() / 2];
+	//		}
 
-			uint rays = 0;
-			for(; rays < 15; ++rays)
-				if(std::powf(1.0f - m_sah, 1 << rays) < (1.0 - 0.5f))
-					break;
+	//		uint rays = 0;
+	//		for(; rays < 15; ++rays)
+	//			if(std::powf(1.0f - m_sah, 1 << rays) < (1.0 - 0.5f))
+	//				break;
 
-			treelet.header.page_sah[i] = m_sah;
-		}
-	}
+	//		treelet.header.page_sah[i] = m_sah;
+	//	}
+	//}
 
-	uint get_node_size(uint node, const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh)
+	uint get_node_size(uint node, const rtm::NVCWBVH& bvh, const rtm::Mesh& mesh)
 	{
 		uint node_size = sizeof(CompressedWideTreeletBVH::Treelet::Node);
 		for(uint i = 0; i < WIDTH; ++i)
-			if(!bvh.nodes[node].cdata[i].is_int)
-				node_size += sizeof(CompressedWideTreeletBVH::Treelet::Triangle) * bvh.nodes[node].cdata[i].num_prims;
+			if(!bvh.nodes[node].is_int(i))
+				node_size += sizeof(CompressedWideTreeletBVH::Treelet::Triangle) * bvh.nodes[node].num_prims(i);
 		return node_size;
 	}
 
-	void build(const rtm::CompressedWideBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
+	void build(const rtm::NVCWBVH& bvh, const rtm::Mesh& mesh, uint max_cut_size = 1024)
 	{
 		printf("Building Compressed Wide Treelet BVH\n");
-		size_t usable_space = Treelet::SIZE - sizeof(Treelet::Header);
+		size_t usable_space = Treelet::SIZE;
 
 		//Phase 0 setup
 		uint total_footprint = 0;
@@ -213,8 +201,8 @@ public:
 
 			AABB aabb;
 			for(uint j = 0; j < WIDTH; ++j)
-				if(bvh.nodes[i].decompress().is_valid(j))
-					aabb.add(bvh.nodes[i].decompress().aabb[j]);
+				if(decompress(bvh.nodes[i]).is_valid(j))
+					aabb.add(decompress(bvh.nodes[i]).aabb[j]);
 
 			area.push_back(aabb.surface_area());
 			best_cost.push_back(INFINITY);
@@ -230,8 +218,8 @@ public:
 			pre_stack.pop();
 
 			for(uint i = 0; i < WIDTH; ++i)
-				if(bvh.nodes[node].cdata[i].is_int)
-					pre_stack.push(bvh.nodes[node].decompress().data[i].child_index);
+				if(bvh.nodes[node].is_int(i))
+					pre_stack.push(decompress(bvh.nodes[node]).data[i].child_index);
 
 			post_stack.push(node);
 		}
@@ -249,8 +237,8 @@ public:
 			subtree_footprint[root_node] = footprint[root_node];
 
 			for(uint i = 0; i < WIDTH; ++i)
-				if(bvh.nodes[root_node].cdata[i].is_int)
-					subtree_footprint[root_node] += subtree_footprint[bvh.nodes[root_node].decompress().data[i].child_index];
+				if(bvh.nodes[root_node].is_int(i))
+					subtree_footprint[root_node] += subtree_footprint[decompress(bvh.nodes[root_node]).data[i].child_index];
 
 			std::set<uint> cut{root_node};
 			uint bytes_remaining = usable_space;
@@ -277,8 +265,8 @@ public:
 
 				cut.erase(best_node);
 				for(uint i = 0; i < WIDTH; ++i)
-					if(bvh.nodes[best_node].decompress().data[i].is_int)
-						cut.insert(bvh.nodes[best_node].decompress().data[i].child_index);
+					if(decompress(bvh.nodes[best_node]).data[i].is_int)
+						cut.insert(decompress(bvh.nodes[best_node]).data[i].child_index);
 
 				bytes_remaining -= footprint[best_node];
 
@@ -293,7 +281,6 @@ public:
 
 
 		//Phase 2 treelet assignment
-		std::vector<Treelet::Header> treelet_headers;
 		std::vector<std::vector<uint>> treelet_assignments;
 		std::unordered_map<uint, uint> root_node_treelet;
 
@@ -348,8 +335,9 @@ public:
 
 				uint j = 0;
 				for(uint i = 0; i < WIDTH; ++i)
-					if(bvh.nodes[best_node].cdata[i].is_int)
-						cut.insert(cut.begin() + best_index + j++, bvh.nodes[best_node].decompress().data[i].child_index);
+					if(bvh.nodes[best_node].is_int(i))
+						cut.push_back(decompress(bvh.nodes[best_node]).data[i].child_index);
+						//cut.insert(cut.begin() + best_index + j++, bvh.nodes[best_node].decompress().data[i].child_index);
 
 				bytes_remaining -= footprint[best_node];
 
@@ -408,7 +396,6 @@ public:
 				node_map[odered_nodes[i]] = i;
 
 			CompressedWideTreeletBVH::Treelet& treelet = treelets[treelet_index];
-			treelet.header = treelet_headers[treelet_index];
 
 			uint base_triangle_index = odered_nodes.size() * (sizeof(CompressedWideTreeletBVH::Treelet::Node&) / 4);
 			for(uint i = 0; i < odered_nodes.size(); ++i)
@@ -416,21 +403,21 @@ public:
 				uint node_id = odered_nodes[i];
 				assert(node_map.find(node_id) != node_map.end());
 
-				const rtm::CompressedWideBVH::Node& cwnode = bvh.nodes[node_id];
+				const rtm::NVCWBVH::Node& cwnode = bvh.nodes[node_id];
 				CompressedWideTreeletBVH::Treelet::Node& tnode = treelets[treelet_index].nodes[i];
 
 				tnode.e0 = cwnode.e0;
 				tnode.e1 = cwnode.e1;
 				tnode.e2 = cwnode.e2;
-				tnode.p = cwnode.p;
+				tnode.p = cwnode.p();
 
 				uint base_child_index = ~0u;
 				uint base_treelet_index = ~0u;
 				for(uint j = 0; j < WIDTH; ++j)
 				{
-					if(cwnode.cdata[j].is_int)
+					if(cwnode.is_int(j))
 					{
-						uint child_node_id = cwnode.decompress().data[j].child_index;
+						uint child_node_id = decompress(cwnode).data[j].child_index;
 						if(root_node_treelet.find(child_node_id) != root_node_treelet.end())
 						{
 							base_treelet_index = min(base_treelet_index, root_node_treelet[child_node_id]);
@@ -450,38 +437,38 @@ public:
 
 				for(uint j = 0; j < WIDTH; ++j)
 				{
-					tnode.caabb[j] = cwnode.caabb[j];
-					tnode.cdata[j].is_int = cwnode.cdata[j].is_int;
-					if(cwnode.cdata[j].is_int)
+					//tnode.qaabb[j] = cwnode.qaabb[j];
+					tnode.mdata[j].is_int = cwnode.is_int(j);
+					if(tnode.mdata[j].is_int)
 					{
-						uint child_node_id = cwnode.decompress().data[j].child_index;
+						uint child_node_id = decompress(cwnode).data[j].child_index;
 						if(root_node_treelet.find(child_node_id) != root_node_treelet.end())
 						{
-							tnode.cdata[j].is_child_treelet = 1;
+							tnode.mdata[j].is_child_treelet = 1;
 							uint offset = root_node_treelet[child_node_id] - tnode.base_treelet_index;
 							assert(offset < 32);
-							tnode.cdata[j].offset = offset;
+							tnode.mdata[j].offset = offset;
 						}
 						else
 						{
-							tnode.cdata[j].is_child_treelet = 0;
+							tnode.mdata[j].is_child_treelet = 0;
 							uint offset = node_map[child_node_id] - tnode.base_child_index;;
 							assert(offset < 32);
-							tnode.cdata[j].offset = offset;
+							tnode.mdata[j].offset = offset;
 						}
 					}
 					else
 					{
 						assert(triangle_offset < 32);
-						tnode.cdata[j].num_tris = cwnode.cdata[j].num_prims;
-						tnode.cdata[j].offset = triangle_offset;
+						tnode.mdata[j].num_tris = cwnode.num_prims(j);
+						tnode.mdata[j].offset = triangle_offset;
 
-						CompressedWideTreeletBVH::Treelet::Triangle* tris = (CompressedWideTreeletBVH::Treelet::Triangle*)((uint32_t*)treelet.nodes + base_triangle_index) + tnode.cdata[j].offset;
-						triangle_offset += cwnode.cdata[j].num_prims;
+						CompressedWideTreeletBVH::Treelet::Triangle* tris = (CompressedWideTreeletBVH::Treelet::Triangle*)((uint32_t*)treelet.nodes + base_triangle_index) + tnode.mdata[j].offset;
+						triangle_offset += cwnode.num_prims(j);
 						
-						for(uint k = 0; k < cwnode.cdata[j].num_prims; ++k)
+						for(uint k = 0; k < cwnode.num_prims(j); ++k)
 						{
-							uint tri_id = cwnode.decompress().data[j].prim_index + k;
+							uint tri_id = decompress(cwnode).data[j].prim_index + k;
 							tris[k].tri = mesh.get_triangle(tri_id);
 							tris[k].id = tri_id;
 						}
@@ -491,7 +478,7 @@ public:
 				base_triangle_index += triangle_offset * sizeof(CompressedWideTreeletBVH::Treelet::Triangle) / 4;
 			}
 
-			fill_page_median_sah(treelet);
+			//fill_page_median_sah(treelet);
 		}
 
 		printf("Built Compressed Wide Treelet BVH\n");

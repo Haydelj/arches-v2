@@ -4,32 +4,31 @@ import subprocess
 import shutil
 
 def get_test_configs():
-    framebuffer_dim = 1024
+    framebuffer_dim = 512
 
     base_config = {
-        "arch_name": "TRaX",
-        "scene_name": "sponza",
-        #"framebuffer_width": framebuffer_dim,
-        #"framebuffer_height": framebuffer_dim,
+        "arch_name" : "TRaX",
+        "scene_name" : "sponza",
+        "framebuffer_width": framebuffer_dim,
+        "framebuffer_height": framebuffer_dim,
         "pregen_rays": 1,
         "pregen_bounce": 0,
     }
     
-    test_scenes = ["sponza", "intel-sponza" , "san-miguel"]
+    #test_scenes = ["crytek-sponza", "intel-sponza" , "san-miguel"]
+    test_scenes = ["sibenik", "crytek-sponza", "intel-sponza", "san-miguel"]
+    #test_scenes = ["intel-sponza", "sponza"]
     #test_arch = ["TRaX"]
     test_bounce_types = [0,1,2]
-    in_orders = [0,1]
+    #in_orders = [0,1]
 
     configs = []
     for scene in test_scenes:
         for bounce_type in test_bounce_types:
-            for in_order in in_orders:
-                config = base_config.copy()
-                config["scene_name"] = scene
-                config["pregen_bounce"] = bounce_type
-                config["l1_in_order"] = in_order
-                config["l2_in_order"] = in_order
-                configs.append(config)
+            config = base_config.copy()
+            config["scene_name"] = scene
+            config["pregen_bounce"] = bounce_type
+            configs.append(config)
 
     return configs
 
@@ -47,7 +46,7 @@ def generate_log_filename(config, log_dir="logs"):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
-    filename = f"{config['arch_name']}-{config['scene_name']}-bounce{config['pregen_bounce']}-in-order{config['l1_in_order']}.log"
+    filename = f"{config['arch_name']}-{config['scene_name']}-bounce{config['pregen_bounce']}.log"
     return os.path.join(log_dir, filename)
 
 
@@ -56,7 +55,7 @@ def generate_image_filename(config, output_dir="images"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    filename = f"{config['arch_name']}-{config['scene_name']}-bounce-{config['pregen_bounce']}-in-order{config['l1_in_order']}.png"
+    filename = f"{config['arch_name']}-{config['scene_name']}-bounce-{config['pregen_bounce']}.png"
     return os.path.join(output_dir, filename)
 
 

@@ -29,7 +29,7 @@ public:
 		uint num_banks{1};
 		uint latency{1};
 		uint rtc_max_rays{256};
-		rtm::CompressedWideTreeletBVH::Treelet* cheat_treelets;
+		rtm::WideTreeletBVH::Treelet::Header* cheat_treelets;
 	};
 
 	UnitRayStreamBuffer(const Configuration& config);
@@ -51,13 +51,13 @@ public:
 	struct Bank
 	{
 		std::priority_queue<MemoryRequest, std::vector<MemoryRequest>, HitComparitor> hit_load_queue;
-		Pipline<MemoryRequest> request_pipline;
+		LatencyFIFO<MemoryRequest> request_pipline;
 		Bank(uint latency) : request_pipline(latency) {}
 	};
 
 	std::map<uint, TreeletState> _treelet_states;
 private:
-	rtm::CompressedWideTreeletBVH::Treelet* _cheat_treelets;
+	rtm::WideTreeletBVH::Treelet::Header* _cheat_treelets;
 	RequestCascade _request_network;
 	ReturnCascade _return_network;
 	std::vector<TMState> _tm_states;

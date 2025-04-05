@@ -48,7 +48,7 @@ public:
 	{
 		paddr_t  treelet_addr{0};
 		paddr_t  heap_addr{0};
-		rtm::WideTreeletBVH::Treelet* cheat_treelets{nullptr};
+		rtm::WideTreeletBVH::Treelet::Header* cheat_treelets{nullptr};
 
 		uint num_root_rays{0};
 		uint num_tms{0};
@@ -205,7 +205,7 @@ public:
 
 		std::vector<uint> last_segment_on_tm;
 		std::map<uint, SegmentState> segment_state_map;
-		rtm::WideTreeletBVH::Treelet* cheat_treelets;
+		rtm::WideTreeletBVH::Treelet::Header* cheat_treelets;
 		paddr_t treelet_addr;
 
 		std::vector<MemoryManager> memory_managers;
@@ -245,11 +245,11 @@ public:
 			cheat_treelets = config.cheat_treelets;
 			treelet_addr = config.treelet_addr;
 
-			rtm::WideTreeletBVH::Treelet::Header root_header = cheat_treelets[0].header;
+			rtm::WideTreeletBVH::Treelet::Header root_header = cheat_treelets[0];
 
 			active_segments.push_back(0);
 			last_segment_activated = 0;
-			active_segments_size = cheat_treelets[0].header.bytes;
+			active_segments_size = cheat_treelets[0].bytes;
 
 			prefetch_queues.resize(16);
 		}

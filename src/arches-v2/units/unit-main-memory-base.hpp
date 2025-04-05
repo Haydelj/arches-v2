@@ -47,30 +47,11 @@ public:
 		memcpy(_data_u8 + paddr, data, size);
 	}
 
-	//return the physical address imidiatly following the end of the elf. This can be used as the start of our heap
-	paddr_t write_elf(ELF& elf)
-	{
-		paddr_t paddr = 0ull;
-		for(ELF::LoadableSegment const* seg : elf.segments_intersected)
-		{
-			direct_write(seg->data.data(), seg->data.size(), seg->vaddr);
-			paddr = seg->data.size() + seg->vaddr;
-		}
-		return paddr;
-	}
-
 	void dump_as_png_uint8(paddr_t from_paddr, size_t width, size_t height, std::string const& path)
 	{
 		uint8_t const* src = _data_u8 + from_paddr;
 		stbi_flip_vertically_on_write(true);
 		stbi_write_png(path.c_str(), static_cast<int>(width), static_cast<int>(height), 4, src, 0);
-	}
-
-	void _print_data(uint8_t* data, int size) const
-	{
-		for(int i = 0; i < size; i++)
-			printf("%d ", data[i]);
-		printf("\n");
 	}
 };
 

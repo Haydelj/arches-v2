@@ -67,13 +67,11 @@ protected:
 	uint _num_threads;
 	uint _num_halted_threads;
 	RoundRobinArbiter<uint16_t> _thread_exec_arbiter;
-	RoundRobinArbiter<uint16_t> _thread_fetch_arbiter;
 	std::vector<ThreadData> _thread_data;
 
 	const std::vector<UnitBase*>& _unit_table;
 	const std::vector<UnitSFU*>& _unique_sfus;
 	const std::vector<UnitMemoryBase*>& _unique_mems;
-	UnitMemoryBase* _inst_cache;
 
 	MemoryRequest coalescing_buffer;
 
@@ -86,7 +84,15 @@ public:
 	void set_entry_point(uint64_t entry_point);
 
 protected:
-	uint8_t _decode(uint thread_id);
+	enum class DecodePhase : uint8_t
+	{
+		INSTR_FETCH,
+		DATA_HAZARD,
+		PIPLINE_HAZARD,
+	};
+
+	bool _decode(uint thread_id);
+	bool _decode(uint thread_id, ISA::RISCV::InstrType& stalling_instr_type, DecodePhase& phase);
 	virtual uint8_t _check_dependancies(uint thread_id);
 	virtual void _set_dependancies(uint thread_id);
 	void _process_load_return(const MemoryReturn& ret);

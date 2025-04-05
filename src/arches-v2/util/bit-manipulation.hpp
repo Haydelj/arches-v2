@@ -91,6 +91,45 @@ struct BitStack27
 	}
 };
 
+struct BitStack58
+{
+	union
+	{
+		struct
+		{
+			uint64_t data : 58;
+			uint64_t size : 6;
+		};
+		uint64_t raw;
+	};
+
+	BitStack58() : raw(0) {}
+	explicit BitStack58(uint64_t raw) : raw(raw) {}
+
+	void push(uint64_t value, uint bits)
+	{
+		_assert(size + bits <= 58);
+		_assert(value < (1 << bits));
+		data |= value << size;
+		size += bits;
+	}
+
+	uint64_t peek(uint bits) const
+	{
+		_assert(bits <= size);
+		uint shft = size - bits;
+		return data >> shft;
+	}
+
+	uint64_t pop(uint bits)
+	{
+		uint64_t value = peek(bits);
+		size -= bits;
+		data &= generate_nbit_mask(size);
+		return value;
+	}
+};
+
 class alignas(16) uint128_t 
 {
 public:

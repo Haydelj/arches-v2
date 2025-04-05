@@ -21,7 +21,7 @@ public:
 private:
 	struct Bank
 	{
-		Pipline<MemoryRequest> data_pipline;
+		LatencyFIFO<MemoryRequest> data_pipline;
 		Bank(uint latency) : data_pipline(latency) {}
 	};
 

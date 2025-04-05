@@ -109,7 +109,7 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
-inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
+inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
@@ -159,8 +159,6 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 				if(_intersect(tris[id], ray, hit))
 				{
 					hit.id = id;
-					if(first_hit) return true;
-					else          found_hit = true;
 				}
 			}
 		}
@@ -169,28 +167,18 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 	return found_hit;
 }
 
-static rtm::WideBVH::Node decompress(const rtm::WideBVH::Node& node)
-{
-	return node;
-}
-
-static rtm::WideBVH::Node decompress(const rtm::CompressedWideBVH::Node& node)
-{
-	return node.decompress();
-}
-
-template <typename T>
-inline bool intersect(const T* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
+template <typename N, typename P>
+inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::Hit& hit, uint& node_steps, uint& prim_steps)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::WideBVH::Node::Data data;
+		rtm::WBVH::Node::Data data;
 	};
 
-	NodeStackEntry node_stack[32 * (rtm::WideBVH::WIDTH - 1)];
+	NodeStackEntry node_stack[32 * (rtm::WBVH::WIDTH - 1)];
 	uint32_t node_stack_size = 1u;
 
 	//Decompress and insert nodes
@@ -207,8 +195,8 @@ inline bool intersect(const T* nodes, const rtm::Triangle* tris, const rtm::Ray&
 		if(current_entry.data.is_int)
 		{
 			uint max_insert_depth = node_stack_size;
-			const rtm::WideBVH::Node node = decompress(nodes[current_entry.data.child_index]);
-			for(int i = 0; i < rtm::WideBVH::WIDTH; i++)
+			const rtm::WBVH::Node node = decompress(nodes[current_entry.data.child_index]);
+			for(int i = 0; i < rtm::WBVH::WIDTH; i++)
 			{
 				if(!node.is_valid(i)) continue;
 
@@ -225,20 +213,19 @@ inline bool intersect(const T* nodes, const rtm::Triangle* tris, const rtm::Ray&
 					node_stack[j].data = node.data[i];
 				}
 			}
+			node_steps++;
 		}
 		else
 		{
 		#if 1
+			uint tri_count = 0;
+			rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS * rtm::WBVH::MAX_PRIMS];
 			for(uint i = 0; i < current_entry.data.num_prims; ++i)
-			{
-				uint32_t prim_id = current_entry.data.prim_index + i;
-				if(_intersect(tris[prim_id], ray, hit))
-				{
-					hit.id = prim_id;
-					if(first_hit) return true;
-					else found_hit = true;
-				}
-			}
+				tri_count += rtm::decompress(prims[current_entry.data.prim_index + i], current_entry.data.prim_index + i, tris + tri_count);
+
+			for(uint i = 0; i < tri_count; ++i)
+				if(_intersect(tris[i].tri, ray, hit))
+					hit.id = tris[i].id;
 		#else
 			if(current_entry.t < hit.t)
 			{
@@ -247,95 +234,7 @@ inline bool intersect(const T* nodes, const rtm::Triangle* tris, const rtm::Ray&
 				found_hit = true;
 			}
 		#endif
-		}
-
-		steps++;
-	}
-	while(node_stack_size);
-
-	return found_hit;
-}
-
-static rtm::WideTreeletBVH::Treelet::Node decompress(const rtm::WideTreeletBVH::Treelet::Node& node)
-{
-	return node;
-}
-
-static rtm::WideTreeletBVH::Treelet::Node decompress(const rtm::CompressedWideTreeletBVH::Treelet::Node& node)
-{
-	return node.decompress();
-}
-
-inline bool intersect(const void* treelets, const rtm::Ray& ray, rtm::Hit& hit, uint& steps, bool first_hit = false)
-{
-	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
-
-	struct NodeStackEntry
-	{
-		float t;
-		rtm::WideBVH::Node::Data data;
-	};
-
-	NodeStackEntry node_stack[32 * (rtm::WideTreeletBVH::WIDTH - 1)];
-	uint32_t node_stack_size = 1u;
-
-	//Decompress and insert nodes
-	node_stack[0].t = ray.t_min;
-	node_stack[0].data.is_int = 1;
-	node_stack[0].data.child_index = 0;
-
-	bool found_hit = false;
-	do
-	{
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-		if(current_entry.t >= hit.t) continue;
-
-		steps++;
-		if(current_entry.data.is_int)
-		{
-			uint max_insert_depth = node_stack_size;
-			const rtm::WideBVH::Node node = decompress(((rtm::CompressedWideBVH::Node*)treelets)[current_entry.data.child_index]);
-			for(int i = 0; i < rtm::WideTreeletBVH::WIDTH; i++)
-			{
-				if(!node.is_valid(i)) continue;
-
-				float t = _intersect(node.aabb[i], ray, inv_d);
-				if(t < hit.t)
-				{
-					uint j = node_stack_size++;
-					for(; j > max_insert_depth; --j)
-					{
-						if(node_stack[j - 1].t > t) break;
-						node_stack[j] = node_stack[j - 1];
-					}
-
-					node_stack[j].t = t;
-					node_stack[j].data = node.data[i];
-				}
-			}
-		}
-		else
-		{
-		#if 1
-			for(uint i = 0; i < current_entry.data.num_prims; ++i)
-			{
-				uint32_t offset = current_entry.data.prim_index + i;
-				const rtm::CompressedWideBVH::TreeletTriangle& tri = (rtm::CompressedWideBVH::TreeletTriangle&)((uint32_t*)treelets)[offset];
-				if(_intersect(tri.tri, ray, hit))
-				{
-					hit.id = tri.id;
-					if(first_hit) return true;
-					else found_hit = true;
-				}
-			}
-		#else
-			if(current_entry.t < hit.t)
-			{
-				hit.id = current_entry.data.triangle_index;
-				hit.t = current_entry.t;
-				found_hit = true;
-			}
-		#endif
+			prim_steps++;
 		}
 	}
 	while(node_stack_size);
@@ -343,21 +242,35 @@ inline bool intersect(const void* treelets, const rtm::Ray& ray, rtm::Hit& hit, 
 	return found_hit;
 }
 
+inline static uint32_t morton1(uint32_t x)
+{
+	x = x & 0x55555555;
+	x = (x | (x >> 1)) & 0x33333333;
+	x = (x | (x >> 2)) & 0x0F0F0F0F;
+	x = (x | (x >> 4)) & 0x00FF00FF;
+	x = (x | (x >> 8)) & 0x0000FFFF;
+	return x;
+}
+
+inline void deinterleave_bits(uint i, uint& x, uint& y)
+{
+	x = morton1(i);
+	y = morton1(i >> 1);
+}
 
 #ifndef __riscv 
-inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays, bool serializeRays = false)
+template <typename N, typename P>
+inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const N* nodes, const P* prims, rtm::Triangle* tris, uint bounce, std::vector<rtm::Ray>& rays, std::string ray_file = "")
 {
 	const uint framebuffer_size = framebuffer_width * framebuffer_height;
 	printf("Generating bounce %d rays from %d path\n", bounce, framebuffer_size);
-
-	std::vector<rtm::Triangle> tris;
-	mesh.get_triangles(tris);
 
 	uint num_rays = framebuffer_size;
 	for(int index = 0; index < framebuffer_size; index++)
 	{
 		uint32_t x = index % framebuffer_width;
 		uint32_t y = index / framebuffer_width;
+		//deinterleave_bits(index, x, y);
 		rtm::RNG rng(index);
 
 		rtm::Ray ray = camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
@@ -366,7 +279,7 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 		{
 			uint steps = 0;
 			rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
-			intersect(bvh.nodes.data(), tris.data(), ray, hit, steps);
+			intersect(nodes, prims, ray, hit, steps, steps);
 			if(hit.id != ~0u)
 			{
 				rtm::vec3 normal = tris[hit.id].normal();
@@ -384,11 +297,9 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 	}
 	printf("Generated %d rays\n", num_rays);
 
-
-
-	if (serializeRays)
+	if (ray_file.compare("") != 0)
 	{
-		std::string resultPathName = std::filesystem::current_path().generic_string() + "/pregenRayData.bin";
+		std::string resultPathName = std::filesystem::current_path().generic_string() + "/" + ray_file;
 		std::ofstream file_stream(resultPathName.c_str() , std::ios::binary);
 		
 		if (file_stream.good())
@@ -396,7 +307,7 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 			file_stream.write((char*)rays.data(), rays.size() * sizeof(rtm::Ray));
 			if (file_stream.good())
 			{
-				printf("Serialized ray data\n");
+				printf("Serialized ray data: %s\n", resultPathName.c_str());
 			}
 		}
 		else

@@ -11,6 +11,10 @@
 #include <string>
 #include <fstream>
 #include <cassert>
+#include <map>
+#include <set>
+#include <unordered_set>
+#include <deque>
 
 namespace rtm 
 {
@@ -290,6 +294,37 @@ public:
 			build_objects.push_back(get_build_object(i));
 	}
 
+	float normalize_verts()
+	{
+		float32_bf bf(0.0f);
+
+		uint8_t max_exp = 0;
+		for(auto& v : vertices)
+			for(uint i = 0; i < 3; ++i)
+			{
+				bf.f32 = v[i];
+				max_exp = rtm::max(max_exp, bf.exp);
+			}
+
+		int delta = (126 - max_exp);
+		for(auto& v : vertices)
+			for(uint i = 0; i < 3; ++i)
+			{
+				bf.f32 = v[i];
+				bf.exp += delta;
+				v[i] = bf.f32;
+			}
+
+		return float32_bf(0, 127 + delta, 0).f32;
+	}
+	
+	void quantize_verts()
+	{
+		for(auto& v : vertices)
+			for(uint i = 0; i < 3; ++i)
+				v[i] = u24_to_f32(f32_to_u24(v[i]));
+	}
+
 	void reorder(std::vector<BVH2::BuildObject>& ordered_build_objects)
 	{
 		assert(ordered_build_objects.size() == vertex_indices.size());
@@ -305,6 +340,232 @@ public:
 			material_indices[i]  = tmp_mat_inds [ordered_build_objects[i].index];
 			ordered_build_objects[i].index = i;
 		}
+	}
+
+	void reorder(const std::vector<uint>& face_indices)
+	{
+		assert(face_indices.size() == vertex_indices.size());
+		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);
+		std::vector<rtm::uvec3> tmp_nrml_inds(normal_indices);
+		std::vector<rtm::uvec3> tmp_txcd_inds(tex_coord_indices);
+		std::vector<uint>       tmp_mat_inds(material_indices);
+		for(uint32_t i = 0; i < face_indices.size(); ++i)
+		{
+			vertex_indices[i] = tmp_vrt_inds[face_indices[i]];
+			normal_indices[i] = tmp_nrml_inds[face_indices[i]];
+			tex_coord_indices[i] = tmp_txcd_inds[face_indices[i]];
+			material_indices[i] = tmp_mat_inds[face_indices[i]];
+		}
+	}
+};
+
+
+class MeshGraph
+{
+public:
+	//build face graph
+	std::vector<rtm::uvec3> face_graph;
+	MeshGraph(const Mesh& mesh)
+	{
+		face_graph.resize(mesh.vertex_indices.size(), uvec3(~0u));
+
+		std::map<std::pair<uint32_t, uint32_t>, std::pair<uint32_t, uint32_t>> edge_to_face_map;
+		for(uint f = 0; f < mesh.vertex_indices.size(); ++f)
+		{
+			uvec3 face = mesh.vertex_indices[f];
+			for(uint e = 0; e < 3; ++e)
+			{
+				std::pair<uint32_t, uint32_t> edge(face[(e + 1) % 3], face[(e + 2) % 3]);
+				if(edge.first > edge.second) std::swap(edge.first, edge.second);
+				if(edge_to_face_map.find(edge) != edge_to_face_map.end())
+				{
+					//link
+					uint32_t other_f = edge_to_face_map[edge].first;
+					uint32_t other_e = edge_to_face_map[edge].second;
+					face_graph[f][e] = other_f;
+					face_graph[other_f][other_e] = f;
+				}
+				else edge_to_face_map[edge] = {f, e};
+			}
+		}
+
+		for(auto& face : face_graph)
+		{
+			if(face[0] == face[1] && face[1] == face[2])
+			{
+				face[0] = ~0u;
+				face[1] = ~0u;
+				face[2] = ~0u;
+			}
+			if(face[0] == face[1])
+			{
+				face[0] = ~0u;
+				face[1] = ~0u;
+			}
+			if(face[1] == face[2])
+			{
+				face[1] = ~0u;
+				face[2] = ~0u;
+			}
+			if(face[2] == face[0])
+			{
+				face[2] = ~0u;
+				face[0] = ~0u;
+			}
+		}
+	}
+
+	bool can_stripify(const std::vector<uint>& prims) const
+	{
+		std::vector<uint> faces;
+		for(uint i = 0; i < prims.size(); ++i)
+		{
+			std::set<uint> remaining_prims;
+			for(uint j = 0; j < prims.size(); ++j)
+				remaining_prims.insert(prims[j]);
+
+			uint current_prim = prims[i];
+			remaining_prims.erase(current_prim);
+			faces.push_back(current_prim);
+
+			while(!remaining_prims.empty())
+			{
+				bool found = false;
+				std::set<uint> options;
+				for(uint i = 0; i < 3; ++i)
+				{
+					uint candidate = face_graph[current_prim][i];
+					if(candidate != ~0 && remaining_prims.count(candidate) > 0)
+					{
+						found = true;
+						remaining_prims.erase(candidate);
+						faces.push_back(candidate);
+						current_prim = candidate;
+						break;
+					}
+				}
+
+				if(!found) break;
+			}
+
+			if(remaining_prims.empty()) break;
+			else faces.clear();
+		}
+
+		return !faces.empty();
+	}
+
+	TriangleStrip make_strip(const Mesh& mesh, const std::vector<uint> prims, std::vector<uint>& indices) const
+	{
+		std::vector<uint> faces;
+		for(uint i = 0; i < prims.size(); ++i)
+		{
+			std::set<uint> remaining_prims;
+			for(uint j = 0; j < prims.size(); ++j)
+				remaining_prims.insert(prims[j]);
+
+			uint current_prim = prims[i];
+			remaining_prims.erase(current_prim);
+			faces.push_back(current_prim);
+
+			while(!remaining_prims.empty())
+			{
+				bool found = false;
+				std::set<uint> options;
+				for(uint i = 0; i < 3; ++i)
+				{
+					uint candidate = face_graph[current_prim][i];
+					if(candidate != ~0 && remaining_prims.count(candidate) > 0)
+					{
+						found = true;
+						remaining_prims.erase(candidate);
+						faces.push_back(candidate);
+						current_prim = candidate;
+						break;
+					}
+				}
+
+				if(!found) break;
+			}
+
+			if(remaining_prims.empty()) break;
+			else faces.clear();
+		}
+
+		assert(!faces.empty());
+
+		//generate edge list
+		std::vector<uint> exit_edges;
+		for(uint i = 0; i < (faces.size() - 1); ++i)
+		{
+			uint current_face = faces[i];
+			uint next_face = faces[i + 1];
+
+			uint j;
+			for(j = 0; j < 3; ++j)
+			{
+				uint adjacent_face = face_graph[current_face][j];
+				if(adjacent_face == next_face) break;
+			}
+			assert(j < 3);
+			exit_edges.push_back(j);
+		}
+
+		//encode strip
+		std::vector<uint> vis;
+		for(uint i = 0; i < faces.size(); ++i)
+		{
+			uvec3 last_face;
+			if(i == 0)
+			{
+				uint e = 0;
+				if(faces.size() > 1)
+				{
+					e = exit_edges[i];
+					exit_edges[i] = 0;
+				}
+				for(uint j = 0; j < 3; ++j)
+				{
+					uint vi = mesh.vertex_indices[faces[i]][(j + e) % 3];
+					vis.push_back(vi);
+				}
+			}
+			else
+			{
+				bool vrt_added = false;
+				for(uint j = 0; j < 3; ++j)
+				{
+					uint vi = mesh.vertex_indices[faces[i]][j];
+					bool vi_found = false;
+					for(uint k = 0; k < 3; ++k)
+						if(last_face[k] == vi)
+							vi_found = true;
+
+					if(vi_found) continue;
+
+					vrt_added = true;
+					vis.push_back(vi);
+					if(i < (faces.size() - 1))
+					{
+						uint ne = (exit_edges[i] + (2 - j)) % 3;
+						assert(ne < 2);
+						exit_edges[i] = ne;
+					}
+				}
+
+				assert(vrt_added);
+			}
+			last_face = mesh.vertex_indices[faces[i]];
+		}
+
+		TriangleStrip strip;
+		strip.id = indices.size();
+		strip.num_tris = faces.size();
+		strip.edge_mask = 0;
+		for(uint i = 0; i < vis.size(); ++i) strip.vrts[i] = mesh.vertices[vis[i]];
+		for(uint i = 0; i < exit_edges.size(); ++i) strip.edge_mask |= exit_edges[i] << i;
+		for(uint i = 0; i < faces.size(); ++i) indices.push_back(faces[i]);
+		return strip;
 	}
 };
 

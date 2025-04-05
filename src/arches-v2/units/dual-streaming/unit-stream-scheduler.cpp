@@ -87,7 +87,7 @@ void UnitStreamScheduler::_update_scheduler()
 					printf("Prefetching %d to l2 with %d rays:", candidate_segment, rays);
 					for(uint i = 0; i < 8; ++i)
 					{
-						float median_sah = _scheduler.cheat_treelets[candidate_segment].header.median_page_sah[i];
+						float median_sah = _scheduler.cheat_treelets[candidate_segment].median_page_sah[i];
 						float num_accesses = rays * median_sah * 0.5f;
 						float first_access_chance = rtm::min(1.0, num_accesses);
 
@@ -122,7 +122,7 @@ void UnitStreamScheduler::_update_scheduler()
 			_scheduler.candidate_segments.erase(_scheduler.candidate_segments.begin() + i--);
 
 			//for all children segments
-			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment].header;
+			rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[candidate_segment];
 			for(uint i = 0; i < header.num_children; ++i)
 			{
 				//mark the child as parent finsihed
@@ -178,7 +178,7 @@ void UnitStreamScheduler::_update_scheduler()
 			{
 				if(!last_segment_state.parent_finished || last_segment_state.total_buckets > 0)
 				{
-					rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
+					rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated];
 					for(uint i = 0; i < header.num_children; ++i)
 					{
 						uint child_id = header.first_child + i;
@@ -214,7 +214,7 @@ void UnitStreamScheduler::_update_scheduler()
 			SegmentState& last_segment_state = _scheduler.segment_state_map[_scheduler.last_segment_activated];
 			if(!last_segment_state.child_order_generated)
 			{
-				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated].header;
+				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[_scheduler.last_segment_activated];
 				std::vector<uint64_t> child_weights(header.num_children);
 				std::vector<uint> child_offsets(header.num_children);
 				std::iota(child_offsets.begin(), child_offsets.end(), 0);
@@ -445,7 +445,7 @@ void UnitStreamScheduler::_proccess_request(uint bank_index)
 				bank.ray_coalescer[segment_index].write_ray(req.swi.bray);
 
 				SegmentState& state = _scheduler.segment_state_map[segment_index];
-				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment_index].header;
+				rtm::WideTreeletBVH::Treelet::Header header = _scheduler.cheat_treelets[segment_index];
 				state.weight += weight;
 				state.num_rays++;
 

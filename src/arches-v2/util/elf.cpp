@@ -84,7 +84,7 @@ ELF::ELF_Header::ELF_Header(Util::File* file) {
 	e_shstrndx = fix_endianness(file->read_bin<uint16_t>());
 }
 
-template <typename RET> RET ELF::ELF_Header::fix_endianness(RET x) const {
+template <typename T> T ELF::ELF_Header::fix_endianness(T x) const {
 	#ifdef BUILD_ARCH_ENDIAN_LITTLE
 		if (e_ident.ei_data!=E_IDENT::EI_DATA::ELFDATA2LSB) return Util::Endian::reverse(x);
 	#else

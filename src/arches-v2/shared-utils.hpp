@@ -7,8 +7,6 @@
 #include "units/unit-dram-ramulator.hpp"
 #include "units/unit-cache.hpp"
 #include "units/unit-crossbar.hpp"
-#include "units/unit-blocking-cache.hpp"
-#include "units/unit-non-blocking-cache.hpp"
 #include "units/unit-buffer.hpp"
 #include "units/unit-atomic-reg-file.hpp"
 #include "units/unit-tile-scheduler.hpp"
@@ -31,18 +29,35 @@ std::string get_project_folder_path()
 	return executable_path.substr(0, executable_path.rfind("build"));
 }
 
-template <typename RET>
-static RET* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, RET* data, size_t size, paddr_t& heap_address)
+template <typename T>
+static T* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, T* data, size_t size, paddr_t& heap_address)
 {
 	paddr_t array_address = align_to(alignment, heap_address);
-	heap_address = array_address + size * sizeof(RET);
-	main_memory->direct_write(data, size * sizeof(RET), array_address);
-	return reinterpret_cast<RET*>(array_address);
+	heap_address = array_address + size * sizeof(T);
+	main_memory->direct_write(data, size * sizeof(T), array_address);
+	return reinterpret_cast<T*>(array_address);
 }
 
-template <typename RET>
-static RET* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignment, std::vector<RET> v, paddr_t& heap_address)
+template <typename T>
+static T* write_vector(Units::UnitMainMemoryBase* main_memory, size_t alignment, std::vector<T> v, paddr_t& heap_address)
 {
+	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
+}
+
+template <typename T>
+static T* write_array(uint8_t* main_memory, size_t alignment, T* data, size_t size, paddr_t& heap_address)
+{
+	paddr_t array_address = align_to(alignment, heap_address);
+	heap_address = array_address + size * sizeof(T);
+	memcpy(main_memory + array_address, data, size * sizeof(T));
+	return reinterpret_cast<T*>(array_address);
+}
+
+template <typename T>
+static T* write_vector(uint8_t* main_memory, size_t alignment, std::vector<T> v, paddr_t& heap_address)
+{
+
+
 	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
 }
 
@@ -80,7 +95,7 @@ void print_header(std::string string, uint header_length = 80)
 	printf("\n");
 }
 
-const static std::vector<std::string> arch_names = {"TRaX","STRaTA", "STRaTA-RT", "Dual-Streaming", "RIC"};
+const static std::vector<std::string> arch_names = {"TRaX", "STRaTA", "STRaTA-RT", "Dual-Streaming", "RIC"};
 
 struct SceneConfig
 {
@@ -92,17 +107,17 @@ struct SceneConfig
 
 const static std::vector<SceneConfig> scene_configs =
 {
-	{"sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
+	{"cornell-box", rtm::vec3(0, 0.8, 1.8), rtm::vec3(0, 0.8, 0), 12.0f}, //CORNELLBOX
+
+	{"sibenik", rtm::vec3(3.0, -13.0, 0.0), rtm::vec3(0, -12.0, 0), 12.0f}, 
+
+	{"crytek-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
 
 	{"intel-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
 	
-	{"san-miguel", rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794), 12.0f}, //SAN_MIGUEL
+	{"san-miguel", rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(8.056, 1.04, 11.563), 12.0f}, //SAN_MIGUEL
 	
 	{"hairball", rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
-
-	{"cornellbox", rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
-
-	{"living_room", rtm::vec3(-1.15, 2.13, 7.72), rtm::vec3(-1.15 + 0.3, 2.13 - 0.2, 7.72 - 0.92), 24.0f} //LIVING_ROOM
 };
 
 
@@ -111,6 +126,7 @@ class SimulationConfig
 public:
 	struct Param
 	{
+
 		enum Type
 		{
 			INT,
@@ -134,6 +150,7 @@ public:
 			*this = other;
 		}
 
+
 		Param& operator=(const Param& other)
 		{
 			type = other.type;
@@ -150,6 +167,7 @@ public:
 
 		~Param()
 		{
+
 		}
 	};
 
@@ -170,14 +188,15 @@ public:
 		set_param("num_tms", 128);
 		set_param("num_tps", 128);
 		set_param("num_rt_cores", 1);
+		set_param("max_rays", 128);
 
 		set_param("l2_size", 72 << 20);
 		set_param("l2_associativity", 18);
-		set_param("l2_in_order", 1);
+		set_param("l2_in_order", 0);
 
 		set_param("l1_size", 128 << 10);
 		set_param("l1_associativity", 16);
-		set_param("l1_in_order", 1);
+		set_param("l1_in_order", 0);
 
 		//Workload
 		set_param("scene_name", "sponza");
@@ -303,6 +322,7 @@ public:
 
 	void print()
 	{
+
 		printf("Simulation Parameters\n");
 		for(std::pair<const std::string, Param>& a : _params)
 		{

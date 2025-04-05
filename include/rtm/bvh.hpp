@@ -58,7 +58,6 @@ public:
 	float sah_cost{0.0f};
 	std::vector<Node> nodes;
 
-private:
 	struct BuildEvent
 	{
 		uint start;
@@ -200,6 +199,7 @@ private:
 		}
 	};
 
+private:
 	struct FileHeader
 	{
 		uint32_t version;

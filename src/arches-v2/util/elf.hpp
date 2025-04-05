@@ -235,7 +235,7 @@ class ELF final
 				explicit ELF_Header(Util::File* file);
 				~ELF_Header() = default;
 
-				template <typename RET> RET fix_endianness(RET x) const;
+				template <typename T> T fix_endianness(T x) const;
 		};
 		ELF_Header* elf_header;
 
@@ -426,6 +426,19 @@ class ELF final
 
 	public:
 		explicit ELF(std::string const& path);
+
+		//return the physical address imidiatly following the end of the elf. This can be used as the start of our heap
+		paddr_t load(uint8_t* mem)
+		{
+			paddr_t paddr = 0ull;
+			for(ELF::LoadableSegment const* seg : segments_intersected)
+			{
+				memcpy(mem + seg->vaddr, seg->data.data(),  seg->data.size());
+				paddr = seg->data.size() + seg->vaddr;
+			}
+			return paddr;
+		}
+
 		~ELF();
 };
 

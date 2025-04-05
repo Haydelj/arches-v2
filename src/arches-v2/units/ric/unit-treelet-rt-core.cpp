@@ -124,7 +124,7 @@ bool UnitTreeletRTCore<TT>::_try_queue_prefetch(uint treelet_id, uint size, uint
 {
 	//printf("%3d Prefetching: %d\n", _rtc_index, treelet_id);
 	paddr_t start = (paddr_t)&((TT*)_treelet_base_addr)[treelet_id].data[0];
-	paddr_t end = start + (size - sizeof(TT::Header));
+	paddr_t end = start + size;
 
 	//split request at cache boundries
 	//queue the requests to fill the buffer

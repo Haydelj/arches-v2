@@ -218,7 +218,7 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	dram_config.config_path = project_folder_path + "build\\src\\arches-v2\\config-files\\gddr6_pch_config.yaml";
 	dram_config.size = 4ull << 30; //4GB
 	dram_config.num_controllers = num_partitions;
-	dram_config.partition_mask = partition_mask;
+	dram_config.partition_stride = partition_mask;
 
 
 	//#if 1
@@ -232,20 +232,17 @@ void run_sim_strata(const SimulationConfig& sim_config)
 
 		//L2$
 	UnitL2Cache::Configuration l2_config;
-	l2_config.in_order = sim_config.get_int("l2_in_order");
 	l2_config.level = 2;
 	l2_config.block_size = block_size;
 	l2_config.size = sim_config.get_int("l2_size");
 	l2_config.associativity = sim_config.get_int("l2_associativity");
-	l2_config.num_partitions = num_partitions;
-	l2_config.partition_select_mask = partition_mask;
+	l2_config.num_slices = num_partitions;
+	l2_config.slice_select_mask = partition_mask;
 	l2_config.num_banks = 2;
 	l2_config.bank_select_mask = generate_nbit_mask(log2i(l2_config.num_banks)) << log2i(block_size);
 	l2_config.crossbar_width = 64;
 	l2_config.num_mshr = 192;
-	l2_config.rob_size = 4 * l2_config.num_mshr / l2_config.num_banks;
-	l2_config.input_latency = 85;
-	l2_config.output_latency = 85;
+	l2_config.latency = 170;
 
 	UnitL2Cache::PowerConfig l2_power_config;
 	l2_power_config.leakage_power = 184.55e-3f * l2_config.num_banks;
@@ -255,7 +252,6 @@ void run_sim_strata(const SimulationConfig& sim_config)
 
 	//L1d$
 	UnitL1Cache::Configuration l1d_config;
-	l1d_config.in_order = sim_config.get_int("l1_in_order");
 	l1d_config.level = 1;
 	l1d_config.block_size = block_size;
 	l1d_config.size = sim_config.get_int("l1_size");
@@ -264,32 +260,13 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	l1d_config.bank_select_mask = generate_nbit_mask(log2i(l1d_config.num_banks)) << log2i(block_size);
 	l1d_config.crossbar_width = 4;
 	l1d_config.num_mshr = 256;
-	l1d_config.rob_size = 8 * l1d_config.num_mshr / l1d_config.num_banks;
-	l1d_config.input_latency = 20;
-	l1d_config.output_latency = 10;
+	l1d_config.latency = 30;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 	l1d_power_config.leakage_power = 7.19746e-3f * l1d_config.num_banks * num_tms;
 	l1d_power_config.tag_energy = 0.000663943e-9f;
 	l1d_power_config.read_energy = 0.0310981e-9f - l1d_power_config.tag_energy;
 	l1d_power_config.write_energy = 0.031744e-9f - l1d_power_config.tag_energy;
-
-	//L1i$
-	uint num_icache_per_tm = l1d_config.num_banks;
-	Units::UnitBlockingCache::Configuration l1i_config;
-	l1i_config.size = 4 * 1024;
-	l1i_config.block_size = block_size;
-	l1i_config.associativity = 4;
-	l1i_config.latency = 1;
-	l1i_config.cycle_time = 1;
-	l1i_config.num_banks = 1;
-	l1i_config.bank_select_mask = 0;
-
-	Units::UnitBlockingCache::PowerConfig l1i_power_config;
-	l1i_power_config.leakage_power = 1.72364e-3f * l1i_config.num_banks * num_icache_per_tm * num_tms;
-	l1i_power_config.tag_energy = 0.000215067e-9f;
-	l1i_power_config.read_energy = 0.00924837e-9f - l1i_power_config.tag_energy;
-	l1i_power_config.write_energy = 0.00850041e-9f - l1i_power_config.tag_energy;
 #else //Legacy config
 
 #endif
@@ -314,7 +291,6 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	std::vector<Units::UnitThreadScheduler*> thread_schedulers;
 	std::vector<UnitRTCore*> rtcs;
 	std::vector<UnitL1Cache*> l1ds;
-	std::vector<Units::UnitBlockingCache*> l1is;
 	std::vector<std::vector<Units::UnitBase*>> unit_tables; unit_tables.reserve(num_tms);
 	std::vector<std::vector<Units::UnitSFU*>> sfu_lists; sfu_lists.reserve(num_tms);
 	std::vector<std::vector<Units::UnitMemoryBase*>> mem_lists; mem_lists.reserve(num_tms);
@@ -325,7 +301,7 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	simulator.new_unit_group();
 
 	dram.clear();
-	paddr_t heap_address = dram.write_elf(elf);
+	paddr_t heap_address = elf.load(dram._data_u8);
 	uint64_t ray_stream_buffer_size = 16ull * 1024 * 1024;
 	STRaTAKernel::Args kernel_args = initilize_buffers(&dram, heap_address, sim_config, partition_stride, ray_stream_buffer_size);
 
@@ -441,7 +417,6 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	UnitDRAM::Log dram_log;
 	UnitL2Cache::Log l2_log;
 	UnitL1Cache::Log l1d_log;
-	Units::UnitBlockingCache::Log l1i_log;
 	Units::UnitTP::Log tp_log;
 
 	UnitRTCore::Log rtc_log;
@@ -502,11 +477,6 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	l1d_log.print(frame_cycles);
 	total_power += l1d_log.print_power(l1d_power_config, frame_time);
 
-	print_header("L1i$");
-	delta_log(l1i_log, l1is);
-	l1i_log.print(frame_cycles);
-	total_power += l1i_log.print_power(l1i_power_config, frame_time);
-
 	print_header("TP");
 	delta_log(tp_log, tps);
 	tp_log.print(tps.size());
@@ -547,7 +517,6 @@ void run_sim_strata(const SimulationConfig& sim_config)
 	for(auto& tp : tps) delete tp;
 	for(auto& sfu : sfus) delete sfu;
 	for(auto& l1d : l1ds) delete l1d;
-	for(auto& l1i : l1is) delete l1i;
 	for(auto& thread_scheduler : thread_schedulers) delete thread_scheduler;
 	for(auto& rtc : rtcs) delete rtc;
 }
