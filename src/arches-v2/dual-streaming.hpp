@@ -233,7 +233,7 @@ static DualStreamingKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main
 	args.rays = write_vector(main_memory, CACHE_BLOCK_SIZE, rays, heap_address);
 
 #if DS_USE_COMPRESSED_WIDE_BVH
-	rtm::WBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, mesh, build_objects);
 	mesh.reorder(build_objects);
 
 	rtm::NVCWBVH cwbvh(wbvh);

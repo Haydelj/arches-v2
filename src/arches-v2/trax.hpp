@@ -150,43 +150,26 @@ static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_addr
 	rtm::Mesh mesh(scene_file);
 	//float scale = mesh.normalize_verts();
 	//printf("Scale: %f\n", scale);
-	//mesh.quantize_verts();
+	// mesh.quantize_verts();
 	//args.camera._position *= scale;
 
 	std::vector<rtm::BVH2::BuildObject> build_objects;
-	//mesh.get_build_objects(build_objects);
-	std::vector<rtm::TriangleStrip> strips;
-	mesh.make_strips(strips);
-	for(uint i = 0; i < strips.size(); ++i)
-	{
-		rtm::BVH2::BuildObject obj;
-		obj.aabb = strips[i].aabb();
-		obj.cost = strips[i].cost();
-		obj.index = i;
-		build_objects.push_back(obj);
-	}
+	mesh.get_build_objects(build_objects);
 
 	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
+	mesh.reorder(build_objects);
 
-	rtm::WBVH wbvh(bvh2, build_objects);
-	//args.nodes = write_vector(main_memory, CACHE_BLOCK_SIZE, wbvh.nodes, heap_address);
+	rtm::WBVH wbvh(bvh2, mesh, build_objects);
+	//args.nodes = write_vector(main_memory, 256, wbvh.nodes, heap_address);
+	mesh.reorder(build_objects);
 
-	//mesh.reorder(build_objects);
-	{
-		std::vector<rtm::TriangleStrip> temp_strips(strips);
-		for(uint i = 0; i < build_objects.size(); ++i)
-		{
-			strips[i] = temp_strips[build_objects[i].index];
-			build_objects[i].index = i;
-		}
-	}
-	args.strips = write_vector(main_memory, 256, strips, heap_address);
+	args.strips = write_vector(main_memory, 256, wbvh.triangle_strips, heap_address);;
 
 	rtm::NVCWBVH cwbvh(wbvh);
 	args.nodes = write_vector(main_memory, 256, cwbvh.nodes, heap_address);
 
-	//rtm::HECWBVH hecwbvh(wbvh, strips);
-	//args.nodes = write_vector(main_memory, 128, hecwbvh.nodes, heap_address);
+	//rtm::HECWBVH hecwbvh(wbvh, wbvh.triangle_strips);
+	//args.nodes = write_vector(main_memory, 256, hecwbvh.nodes, heap_address);
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
@@ -194,7 +177,7 @@ static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_addr
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, cwbvh.nodes.data(), strips.data(), tris.data(), sim_config.get_int("pregen_bounce"), rays);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, cwbvh.nodes.data(), wbvh.triangle_strips.data(), tris.data(), sim_config.get_int("pregen_bounce"), rays);
 	args.rays = write_vector(main_memory, 256, rays, heap_address);
 
 	std::memcpy(main_memory + TRAX_KERNEL_ARGS_ADDRESS, &args, sizeof(TRaXKernelArgs));
@@ -213,7 +196,6 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	uint num_tms = 128;
 	uint num_tps = 128;
 	uint num_threads = 8;
-	uint num_rays = 64;
 
 	//Memory
 	uint64_t block_size = CACHE_BLOCK_SIZE;
@@ -235,8 +217,8 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	l2_config.associativity = 16;
 	l2_config.num_slices = 6;
 	l2_config.crossbar_width = l2_config.num_slices;
-	l2_config.num_mshr = 192;
-	l2_config.num_subentries = 8;
+	l2_config.num_mshr = 256;
+	l2_config.num_subentries = 4;
 	l2_config.latency = 176;
 
 	UnitL2Cache::PowerConfig l2_power_config;
@@ -252,7 +234,8 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	l1d_config.level = 1;
 	l1d_config.miss_alloc = true;
 	l1d_config.size = 128 << 10;
-	l1d_config.associativity = 8;
+	l1d_config.associativity = 32;
+	l1d_config.policy = Units::UnitCacheBase::Policy::RANDOM;
 	l1d_config.num_banks = 4;
 	l1d_config.crossbar_width = l1d_config.num_banks;
 	l1d_config.num_mshr = 512;
@@ -261,14 +244,16 @@ static void run_sim_trax(SimulationConfig& sim_config)
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 
-#elif 1 //Turing spec
+	UnitRTCore::Configuration rtc_config;
+	rtc_config.max_rays = 64;
+	rtc_config.num_cache_ports = 4;
 
+#elif 1 //Turing spec
 #if 1 //RTX 2080
 	double core_clock = 1515.0e6;
 	uint num_threads = 16;
 	uint num_tps = 64;
 	uint num_tms = 46;
-	uint num_rays = 64;
 	uint64_t stack_size = 512;
 
 	double dram_clock = 3500.0e6;
@@ -277,22 +262,21 @@ static void run_sim_trax(SimulationConfig& sim_config)
 #else //RTX 2060
 	double core_clock = 1365.0e6;
 	uint num_threads = 1;
-	uint num_tps = 128;
+	uint num_tps = 64;
 	uint num_tms = 30;
-	uint num_rays = 32;
 	uint64_t stack_size = 512;
 
 	double dram_clock = 3500.0e6;
 	uint num_partitions = 6;
 	uint partition_stride = 1 << 12;
 #endif
+
 	//DRAM
 	UnitDRAM::Configuration dram_config;
 	dram_config.config_path = project_folder_path + "build\\src\\arches-v2\\config-files\\gddr6_14000_config.yaml";
 	dram_config.size = 1ull << 30; //1GB
 	dram_config.clock_ratio = dram_clock / core_clock;
 	dram_config.latency = 92;
-	//dram_config.latency = 56;
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
@@ -318,17 +302,20 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitL1Cache::Configuration l1d_config;
 	l1d_config.level = 1;
 	l1d_config.miss_alloc = true;
-	l1d_config.policy = Units::UnitCacheBase::Policy::RANDOM;
 	l1d_config.size = 64 << 10;
-	l1d_config.associativity = 16;
+	l1d_config.associativity = 32;
+	l1d_config.policy = Units::UnitCacheBase::Policy::LRU_RANDOM;
 	l1d_config.num_banks = 4;
 	l1d_config.crossbar_width = l1d_config.num_banks;
-	l1d_config.num_mshr = 64;
-	l1d_config.num_subentries = 8;
+	l1d_config.num_mshr = 256;
+	l1d_config.num_subentries = 16;
 	l1d_config.latency = 20;
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 
+	UnitRTCore::Configuration rtc_config;
+	rtc_config.max_rays = 64;
+	rtc_config.num_cache_ports = 2;
 #else //TRaX 1.0
 	double core_clock = 1000.0e6;
 	uint num_threads = 1;
@@ -383,8 +370,6 @@ static void run_sim_trax(SimulationConfig& sim_config)
 
 	UnitL1Cache::PowerConfig l1d_power_config;
 #endif
-
-
 
 	ELF elf(project_folder_path + "src\\trax-kernel\\riscv\\kernel");
 
@@ -476,7 +461,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
 		unit_table[(uint)ISA::RISCV::InstrType::STORE] = l1ds.back();
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps, tm_index, &atomic_regs, 32));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps, tm_index, &atomic_regs, 64));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
@@ -515,16 +500,15 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		//simulator.register_unit(l1ss.back());
 
 	#if TRAX_USE_RT_CORE
-		UnitRTCore::Configuration rtc_config;
 		rtc_config.num_clients = num_tps;
-		rtc_config.max_rays = num_rays;
 		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
-		//rtc_config.tri_base_addr = (paddr_t)kernel_args.nodes;
 		//rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
 		rtc_config.tri_base_addr = (paddr_t)kernel_args.strips;
+		//rtc_config.tri_base_addr = (paddr_t)kernel_args.nodes;
 		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.cache = l1ds.back();
 		rtc_config.cache_port = num_tps;
+		rtc_config.num_cache_ports = 2;
 		rtc_config.cache_port_stride = num_tps / l1d_config.num_banks;
 
 		rtcs.push_back(_new  UnitRTCore(rtc_config));
@@ -573,7 +557,6 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	float delta_dram_cycles = delta_s * dram_clock;
 	float peak_dram_bandwidth = dram_clock / core_clock * num_partitions * 4 * 32 / 8;
 	float peak_l2_bandwidth = num_partitions * l2_config.num_slices * MemoryRequest::MAX_SIZE;
-	//float peak_l2_bandwidth = num_tms / 2 * MemoryRequest::MAX_SIZE;
 	float peak_l1d_bandwidth = num_tms * l1d_config.num_banks * MemoryRequest::MAX_SIZE;
 
 	auto start = std::chrono::high_resolution_clock::now();

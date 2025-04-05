@@ -395,26 +395,30 @@ public:
 
 	void clock() override
 	{
-		for(uint source_index = 0; source_index < Interconnect<T>::num_sources(); ++source_index)
+		//this should probably implment i-slip but for now we will just clock it at double rate
+		for(uint i = 0; i < 2; ++i)
 		{
-			if(BI<T>::_source_fifos[source_index].empty()) continue;
+			for(uint source_index = 0; source_index < Interconnect<T>::num_sources(); ++source_index)
+			{
+				if(BI<T>::_source_fifos[source_index].empty()) continue;
 
-			uint sink_index = get_sink(BI<T>::_source_fifos[source_index].front());
-			_arbiters[sink_index].add(source_index);
+				uint sink_index = get_sink(BI<T>::_source_fifos[source_index].front());
+				_arbiters[sink_index].add(source_index);
+			}
+
+			for(uint sink_index = 0; sink_index < Interconnect<T>::num_sinks(); ++sink_index)
+			{
+				if((BI<T>::_sink_fifos[sink_index].size() >= BI<T>::_sink_fifo_depth) || !_arbiters[sink_index].num_pending()) continue;
+
+				uint source_index = _arbiters[sink_index].get_index();
+
+				_arbiters[sink_index].remove(source_index);
+				BI<T>::_sink_fifos[sink_index].push(BI<T>::_source_fifos[source_index].front());
+				BI<T>::_source_fifos[source_index].pop();
+			}
+
+			BI<T>::clock();
 		}
-
-		for(uint sink_index = 0; sink_index < Interconnect<T>::num_sinks(); ++sink_index)
-		{
-			if((BI<T>::_sink_fifos[sink_index].size() >= BI<T>::_sink_fifo_depth) || !_arbiters[sink_index].num_pending()) continue;
-
-			uint source_index = _arbiters[sink_index].get_index();
-
-			_arbiters[sink_index].remove(source_index);
-			BI<T>::_sink_fifos[sink_index].push(BI<T>::_source_fifos[source_index].front());
-			BI<T>::_source_fifos[source_index].pop();
-		}
-
-		BI<T>::clock();
 	}
 };
 
@@ -447,46 +451,50 @@ public:
 
 	void clock() override
 	{
-		for(uint source_index = 0; source_index < Interconnect<T>::num_sources(); ++source_index)
+		//this should probably implment i-slip but for now we will just clock it at double rate
+		for(uint i = 0; i < 2; ++i)
 		{
-			if(BI<T>::_source_fifos[source_index].empty()) continue;
+			for(uint source_index = 0; source_index < Interconnect<T>::num_sources(); ++source_index)
+			{
+				if(BI<T>::_source_fifos[source_index].empty()) continue;
 
-			uint cascade_index = source_index / _input_cascade_ratio;
-			uint cascade_source_index = source_index % _input_cascade_ratio;
+				uint cascade_index = source_index / _input_cascade_ratio;
+				uint cascade_source_index = source_index % _input_cascade_ratio;
 
-			_cascade_arbiters[cascade_index].add(cascade_source_index);
+				_cascade_arbiters[cascade_index].add(cascade_source_index);
+			}
+
+			for(uint cascade_index = 0; cascade_index < _cascade_arbiters.size(); ++cascade_index)
+			{
+				if(!_cascade_arbiters[cascade_index].num_pending()) continue;
+
+				uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
+				uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
+				uint sink_index = get_sink(BI<T>::_source_fifos[source_index].front());
+				uint crossbar_index = sink_index / _output_cascade_ratio;
+
+				_crossbar_arbiters[crossbar_index].add(cascade_index);
+			}
+
+			for(uint crossbar_index = 0; crossbar_index < _crossbar_arbiters.size(); ++crossbar_index)
+			{
+				if(!_crossbar_arbiters[crossbar_index].num_pending()) continue;
+
+				uint cascade_index = _crossbar_arbiters[crossbar_index].get_index();
+				uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
+				uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
+				uint sink_index = get_sink(BI<T>::_source_fifos[source_index].front());
+
+				if(BI<T>::_sink_fifos[sink_index].size() >= BI<T>::_sink_fifo_depth) continue;
+
+				_crossbar_arbiters[crossbar_index].remove(cascade_index);
+				_cascade_arbiters[cascade_index].remove(cascade_source_index);
+				BI<T>::_sink_fifos[sink_index].push(BI<T>::_source_fifos[source_index].front());
+				BI<T>::_source_fifos[source_index].pop();
+			}
+
+			BI<T>::clock();
 		}
-
-		for(uint cascade_index = 0; cascade_index < _cascade_arbiters.size(); ++cascade_index)
-		{
-			if(!_cascade_arbiters[cascade_index].num_pending()) continue;
-
-			uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
-			uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
-			uint sink_index = get_sink(BI<T>::_source_fifos[source_index].front());
-			uint crossbar_index = sink_index / _output_cascade_ratio;
-
-			_crossbar_arbiters[crossbar_index].add(cascade_index);
-		}
-
-		for(uint crossbar_index = 0; crossbar_index < _crossbar_arbiters.size(); ++crossbar_index)
-		{
-			if(!_crossbar_arbiters[crossbar_index].num_pending()) continue;
-
-			uint cascade_index = _crossbar_arbiters[crossbar_index].get_index();
-			uint cascade_source_index = _cascade_arbiters[cascade_index].get_index();
-			uint source_index = cascade_index * _input_cascade_ratio + cascade_source_index;
-			uint sink_index = get_sink(BI<T>::_source_fifos[source_index].front());
-
-			if(BI<T>::_sink_fifos[sink_index].size() >= BI<T>::_sink_fifo_depth) continue;
-
-			_crossbar_arbiters[crossbar_index].remove(cascade_index);
-			_cascade_arbiters[cascade_index].remove(cascade_source_index);
-			BI<T>::_sink_fifos[sink_index].push(BI<T>::_source_fifos[source_index].front());
-			BI<T>::_source_fifos[source_index].pop();
-		}
-
-		BI<T>::clock();
 	}
 };
 

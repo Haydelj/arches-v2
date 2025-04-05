@@ -13,14 +13,15 @@ class UnitRTCore : public UnitMemoryBase
 public:
 	struct Configuration
 	{
-		uint num_clients;
-		uint max_rays;
-		paddr_t node_base_addr;
-		paddr_t tri_base_addr;
+		uint num_clients{1};
+		uint max_rays{1};
+		paddr_t node_base_addr{0x0ull};
+		paddr_t tri_base_addr{0x0ull};
 
-		UnitMemoryBase* cache;
-		uint cache_port;
-		uint cache_port_stride;
+		UnitMemoryBase* cache{nullptr};
+		uint cache_port{0};
+		uint num_cache_ports{1};
+		uint cache_port_stride{1};
 	};
 
 private:

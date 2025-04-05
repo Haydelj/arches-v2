@@ -79,7 +79,7 @@ public:
 
 	void clock_rise() override
 	{
-		for(uint i = 0; i < 2; ++i) CrossBar<MemoryRequest>::clock();
+		CrossBar<MemoryRequest>::clock();
 
 		//select next request and issue to piplinev
 		for(uint i = 0; i < _request_regs.size(); ++i)
@@ -129,7 +129,7 @@ public:
 			_return_regs[i].paddr = ~0x0ull;
 		}
 
-		for(uint i = 0; i < 2; ++i) CrossBar<MemoryReturn>::clock();
+		CrossBar<MemoryReturn>::clock();
 	}
 
 	bool request_port_write_valid(uint port_index) override

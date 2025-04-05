@@ -18,7 +18,7 @@ UnitCache::UnitCache(Configuration config) :
 }
 
 UnitCache::Slice::Slice(Configuration config) :
-	miss_network(config.num_banks, 1, 4, 128)
+	miss_network(config.num_banks, 1, 4, 1)
 {
 	mem_higher_port = config.mem_higher_port;
 
@@ -219,7 +219,7 @@ void UnitCache::_send_request()
 
 void UnitCache::clock_rise()
 {
-	for(uint i = 0; i < 2; ++i) _request_network.clock();
+	_request_network.clock();
 
 	for(uint s = 0; s < _slices.size(); ++s)
 	{
@@ -263,7 +263,7 @@ void UnitCache::clock_fall()
 		}
 	}
 
-	for(uint i = 0; i < 2; ++i) _return_network.clock();
+	_return_network.clock();
 }
 
 bool UnitCache::request_port_write_valid(uint port_index)

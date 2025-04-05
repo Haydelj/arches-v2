@@ -13,7 +13,7 @@ template<typename NT, typename PT>
 UnitRTCore<NT, PT>::UnitRTCore(const Configuration& config) :
 	_max_rays(config.max_rays), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
 	_cache(config.cache), _request_network(config.num_clients, 1), _return_network(1, config.num_clients),
-	_box_pipline(4), _tri_pipline(22), _cache_port(config.cache_port), _cache_port_stride(config.cache_port_stride)
+	_box_pipline(3), _tri_pipline(22), _cache_port(config.cache_port), _cache_port_stride(config.cache_port_stride)
 {
 	_ray_states.resize(config.max_rays);
 	for(uint i = 0; i < _ray_states.size(); ++i)
@@ -22,7 +22,7 @@ UnitRTCore<NT, PT>::UnitRTCore(const Configuration& config) :
 		_free_ray_ids.insert(i);
 	}
 
-	_cache_fetch_queues.resize(2);
+	_cache_fetch_queues.resize(config.num_cache_ports);
 }
 template<typename NT, typename PT>
 void UnitRTCore<NT, PT>::clock_rise()
@@ -341,7 +341,7 @@ void UnitRTCore<NT, PT>::_simualte_node_pipline()
 		const rtm::vec3& inv_d = ray_state.inv_d;
 		const rtm::WBVH::Node node = rtm::decompress(ray_state.buffer.node);
 
-		_box_issue_count += 6;
+		_box_issue_count += rtm::WBVH::WIDTH;
 		if(_box_issue_count >= node.num_aabb())
 		{
 			uint k = ray_state.restart_trail.get(ray_state.level);
@@ -506,7 +506,7 @@ void UnitRTCore<NT, PT>::_issue_returns()
 	}
 }
 
-template class UnitRTCore<rtm::WBVH::Node, rtm::Triangle>;
+template class UnitRTCore<rtm::WBVH::Node, rtm::TriangleStrip>;
 template class UnitRTCore<rtm::NVCWBVH::Node, rtm::Triangle>;
 template class UnitRTCore<rtm::NVCWBVH::Node, rtm::TriangleStrip>;
 template class UnitRTCore<rtm::HECWBVH::Node, rtm::HECWBVH::Strip>;

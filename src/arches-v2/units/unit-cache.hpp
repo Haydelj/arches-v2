@@ -162,7 +162,7 @@ public:
 		uint64_t get_total() { return hits + half_misses + misses; }
 		uint64_t get_total_data_array_accesses() { return data_array_reads + data_array_writes; }
 
-		void print(cycles_t cycles, uint units = 1, PowerConfig power_config = PowerConfig())
+		void print(cycles_t cycles, uint units = 1)
 		{
 			uint64_t total = get_total();
 			printf("Total: %lld\n", total / units);
@@ -177,6 +177,12 @@ public:
 			printf("Tag Array Access: %lld\n", tag_array_access / units);
 			printf("Data Array Reads: %lld\n", data_array_reads / units);
 			printf("Data Array Writes: %lld\n", data_array_writes / units);
+		}
+
+		void print_short(cycles_t cycles, uint units = 1)
+		{
+			uint64_t total = get_total();
+			printf("Hits/Half/Misses: %3.1f%%/%3.1f%%/%3.1f%%\n", 100.0 * hits / total, 100.0 * half_misses / total, 100.0 * total);
 		}
 
 		float print_power(PowerConfig power_config, float time_delta, uint units = 1)

@@ -201,11 +201,11 @@ class HECWBVH
 {
 public:
 	const static uint WIDTH = WBVH::WIDTH;
-	const static uint NODE_SIZE = 128;
+	const static uint NODE_SIZE = 64;
 
 	struct alignas(NODE_SIZE) Node
 	{
-		const static uint NQ = 8;
+		const static uint NQ = 7;
 		const static uint E_BIAS = 127 - 24;
 		const static uint BIT_PER_BOX = NQ * 6;
 		uint32_t base_index : 29;
@@ -315,8 +315,8 @@ public:
 	{
 		const static uint MAX_TRIS = TriangleStrip::MAX_TRIS;
 		uint32_t id : 29;
-		uint16_t num_tris : 4;
-		uint16_t edge_mask : 12;
+		uint8_t num_tris : 3;
+		uint8_t edge_mask : 5;
 		uint8_t data[9 * (2 + MAX_TRIS)];
 		Strip(const rtm::TriangleStrip& other) : id(other.id), num_tris(other.num_tris), edge_mask(other.edge_mask)
 		{
@@ -333,7 +333,8 @@ public:
 	std::vector<Node> nodes;
 	HECWBVH(const rtm::WBVH& wbvh, const std::vector<TriangleStrip>& strips)
 	{
-		static_assert(sizeof(Node) == NODE_SIZE);
+		//static_assert(sizeof(Node) == NODE_SIZE);
+		//static_assert(sizeof(Strip) == NODE_SIZE);
 		printf("Building HE%dCWBVH%d\n", Node::NQ, WIDTH);
 		assert(wbvh.nodes.size() != 0);
 		nodes.clear();

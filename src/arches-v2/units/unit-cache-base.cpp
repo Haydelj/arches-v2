@@ -165,9 +165,8 @@ UnitCacheBase::Victim UnitCacheBase::_allocate_block(paddr_t block_addr)
 		if(_policy == Policy::LRU)
 		{
 			replacement_lru = _associativity - 1;
-
 		}
-		else if(_policy == Policy::RANDOM)
+		else if(_policy == Policy::LRU_RANDOM)
 		{
 			replacement_lru = _associativity * 3 / 4 + _hash % (_associativity / 4);
 			_hash = rtm::RNG::hash(_hash);

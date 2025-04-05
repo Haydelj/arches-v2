@@ -56,6 +56,8 @@ static T* write_array(uint8_t* main_memory, size_t alignment, T* data, size_t si
 template <typename T>
 static T* write_vector(uint8_t* main_memory, size_t alignment, std::vector<T> v, paddr_t& heap_address)
 {
+
+
 	return write_array(main_memory, alignment, v.data(), v.size(), heap_address);
 }
 
@@ -320,6 +322,7 @@ public:
 
 	void print()
 	{
+
 		printf("Simulation Parameters\n");
 		for(std::pair<const std::string, Param>& a : _params)
 		{

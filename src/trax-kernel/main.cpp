@@ -56,8 +56,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 		#if defined(__riscv) && (TRAX_USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-			intersect(args.nodes, args.strips, ray, hit, node_steps, prim_steps);
-			//intersect(args.nodes, (rtm::HECWBVH::Strip*)args.nodes, ray, hit, node_steps, prim_steps);
+			//intersect(args.nodes, args.strips, ray, hit, node_steps, prim_steps);
+			intersect(args.nodes, (rtm::HECWBVH::Strip*)args.nodes, ray, hit, node_steps, prim_steps);
 		#endif
 
 		if(hit.id != ~0u)
@@ -74,8 +74,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 		//args.framebuffer[fb_index] = encode_pixel(steps / 64.0f);
 	}
 
-	//printf("Nodes: %.2f\n", (float)node_steps / args.framebuffer_size);
-	//printf("Prims: %.2f\n", (float)prim_steps / args.framebuffer_size);
+	printf("Nodes: %.2f\n", (float)node_steps / args.framebuffer_size);
+	printf("Prims: %.2f\n", (float)prim_steps / args.framebuffer_size);
 }
 
 inline static void mandelbrot(const TRaXKernelArgs& args)
@@ -157,50 +157,33 @@ int main(int argc, char* argv[])
 	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
 
 	rtm::Mesh mesh("../../../datasets/" + scene_name + ".obj");
-	//args.camera._position *= mesh.normalize_verts();
-	//mesh.quantize_verts();
+	args.camera._position *= mesh.normalize_verts();
+	mesh.quantize_verts();
 
 	std::vector<rtm::BVH2::BuildObject> build_objects;
-	//mesh.get_build_objects(build_objects);
-	std::vector<rtm::TriangleStrip> strips;
-	mesh.make_strips(strips);
-	for(uint i = 0; i < strips.size(); ++i)
-	{
-		rtm::BVH2::BuildObject obj;
-		obj.aabb = strips[i].aabb();
-		obj.cost = strips[i].cost();
-		obj.index = i;
-		build_objects.push_back(obj);
-	}
+	mesh.get_build_objects(build_objects);
 
 	rtm::BVH2 bvh2("../../../datasets/cache/" + scene_name + ".bvh", build_objects, 2);
+	mesh.reorder(build_objects);
 	//args.nodes = bvh2.nodes.data();
 
-	rtm::WBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, mesh, build_objects);
 	//args.nodes = wbvh.nodes.data();
-	//mesh.reorder(build_objects);
-	{
-		std::vector<rtm::TriangleStrip> temp_strips(strips);
-		for(uint i = 0; i < build_objects.size(); ++i)
-		{
-			strips[i] = temp_strips[build_objects[i].index];
-			build_objects[i].index = i;
-		}
-	}
-	args.strips = strips.data();
+	mesh.reorder(build_objects);
+	args.strips = wbvh.triangle_strips.data();
+	printf("%d, %f", wbvh.triangle_strips.size(), (float)mesh.size() / wbvh.triangle_strips.size());
 
 	rtm::NVCWBVH cwbvh(wbvh);
-	args.nodes = cwbvh.nodes.data();
+	//args.nodes = cwbvh.nodes.data();
 
-	//rtm::HECWBVH hecwbvh(wbvh, strips);
-	//args.nodes = hecwbvh.nodes.data();
+	rtm::HECWBVH hecwbvh(wbvh, wbvh.triangle_strips);
+	args.nodes = hecwbvh.nodes.data();
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 	args.tris = tris.data();
 
-
-	uint bounce = 2;
+	uint bounce = 0;
 	std::string ray_file = scene_name + "-" + std::to_string(args.framebuffer_width) + "-" + std::to_string(bounce) + ".rays";
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);

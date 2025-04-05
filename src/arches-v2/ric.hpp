@@ -130,7 +130,7 @@ static RICKernelArgs initilize_buffers(Units::UnitMainMemoryBase* main_memory, p
 
 	args.ray_states = write_vector(main_memory, CACHE_BLOCK_SIZE, ray_states, heap_address);
 
-	rtm::WBVH wbvh(bvh2, build_objects);
+	rtm::WBVH wbvh(bvh2, mesh, build_objects);
 	mesh.reorder(build_objects);
 
 	rtm::NVCWBVH cwbvh(wbvh);
