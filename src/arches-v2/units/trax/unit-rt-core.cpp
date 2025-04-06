@@ -509,6 +509,6 @@ void UnitRTCore<NT, PT>::_issue_returns()
 template class UnitRTCore<rtm::WBVH::Node, rtm::TriangleStrip>;
 template class UnitRTCore<rtm::NVCWBVH::Node, rtm::Triangle>;
 template class UnitRTCore<rtm::NVCWBVH::Node, rtm::TriangleStrip>;
-template class UnitRTCore<rtm::HECWBVH::Node, rtm::HECWBVH::Strip>;
+template class UnitRTCore<rtm::HECWBVH::Node, rtm::QTriangleStrip>;
 
 }}}

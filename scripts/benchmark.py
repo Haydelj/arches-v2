@@ -4,7 +4,7 @@ import subprocess
 import shutil
 
 def get_test_configs():
-    framebuffer_dim = 512
+    framebuffer_dim = 1024
 
     base_config = {
         "arch_name" : "TRaX",

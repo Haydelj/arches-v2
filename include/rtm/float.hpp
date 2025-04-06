@@ -130,6 +130,7 @@ union float32_bf
 //careful to ensure correct behaviour for normal numbers < 1.0 which roundup to 2.0 when one is added
 inline uint32_t f32_to_u24(float f32)
 {
+	assert(f32 < 1.0f && f32 > -1.0f);
 	float32_bf bf(f32);
 	bf.f32 = f32;
 	bf.f32 += bf.sign ? -1.0f : 1.0f;
@@ -148,8 +149,15 @@ inline float u24_to_f32(uint32_t u24)
 
 inline uint32_t u24_to_u16(uint32_t u24)
 {
-	bool ru = u24 >> 23;
-	if(ru && (u24 & 0x7fffff) < 0x7fff00) u24 += 255; 
+	uint s = u24 >> 23;
+	uint v = u24 & 0x7fffff;
+	bool ru = s == 1; //round up if negative
+	if(ru)
+	{
+		if(v <= 0x7fff00)
+			u24 += 255;
+		else assert(false);
+	}
 	return u24 >> 8; 
 }
 

@@ -105,11 +105,14 @@ uint8_t* UnitCacheBase::_read_sector(paddr_t sector_addr)
 	if(found_index == ~0) 
 		return nullptr; //Didn't find line so we will leave lru alone and return nullptr
 
-	for(uint i = start; i < end; ++i)
-		if(_tag_array[i].lru < found_lru) 
-			_tag_array[i].lru++;
+	if(_policy != Policy::FIFO)
+	{
+		for(uint i = start; i < end; ++i)
+			if(_tag_array[i].lru < found_lru) 
+				_tag_array[i].lru++;
+		_tag_array[found_index].lru = 0;
+	}
 
-	_tag_array[found_index].lru = 0;
 	if(!((_tag_array[found_index].valid >> sector_index) & 0x1)) //Found sector but it was invalid
 		return nullptr;
 
@@ -162,7 +165,7 @@ UnitCacheBase::Victim UnitCacheBase::_allocate_block(paddr_t block_addr)
 	if(replacement_index == ~0u)
 	{
 		//find replacement block
-		if(_policy == Policy::LRU)
+		if(_policy == Policy::LRU || _policy == Policy::FIFO)
 		{
 			replacement_lru = _associativity - 1;
 		}

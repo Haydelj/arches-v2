@@ -6,6 +6,8 @@
 
 #define TRAX_KERNEL_ARGS_ADDRESS 256ull
 
+#define USE_HEBVH 0
+
 struct TRaXKernelArgs
 {
 	uint32_t framebuffer_width;
@@ -20,8 +22,11 @@ struct TRaXKernelArgs
 	rtm::Ray* rays;
 	//rtm::BVH2::Node* nodes;
 	//rtm::WBVH::Node* nodes;
+#if USE_HEBVH
+	rtm::HECWBVH::Node* nodes;
+#else
 	rtm::NVCWBVH::Node* nodes;
-	//rtm::HECWBVH::Node* nodes;
+#endif
 	rtm::Triangle* tris;
 	rtm::TriangleStrip* strips;
 };

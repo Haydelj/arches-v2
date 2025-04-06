@@ -56,8 +56,11 @@ inline static void kernel(const TRaXKernelArgs& args)
 		#if defined(__riscv) && (TRAX_USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-			//intersect(args.nodes, args.strips, ray, hit, node_steps, prim_steps);
-			intersect(args.nodes, (rtm::HECWBVH::Strip*)args.nodes, ray, hit, node_steps, prim_steps);
+		#if USE_HEBVH
+			intersect(args.nodes, (rtm::QTriangleStrip*)args.nodes, ray, hit, node_steps, prim_steps);
+		#else
+			intersect(args.nodes, args.strips, ray, hit, node_steps, prim_steps);
+		#endif
 		#endif
 
 		if(hit.id != ~0u)
@@ -129,8 +132,8 @@ int main()
 int main(int argc, char* argv[])
 {
 	TRaXKernelArgs args;
-	args.framebuffer_width = 256;
-	args.framebuffer_height = 256;
+	args.framebuffer_width = 1024;
+	args.framebuffer_height = 1024;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 
@@ -138,7 +141,10 @@ int main(int argc, char* argv[])
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
 
-	std::string scene_name = "crytek-sponza";
+	std::string scene_name = "intel-sponza";
+
+	if(scene_name.compare("sibenik") == 0)
+		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(3.0, -13.0, 0.0), rtm::vec3(0, -12.0, 0));
 
 	if(scene_name.compare("crytek-sponza") == 0)
 		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
@@ -151,11 +157,6 @@ int main(int argc, char* argv[])
 	if(scene_name.compare("san-miguel") == 0)
 		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 
-	// hairball camera
-	//args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0, 10, 10), rtm::vec3(10, 0, 0));
-
-	//args.camera = Camera(args.framebuffer_width, args.framebuffer_height, 24.0f, rtm::vec3(0.0f, 0.0f, 5.0f));
-
 	rtm::Mesh mesh("../../../datasets/" + scene_name + ".obj");
 	args.camera._position *= mesh.normalize_verts();
 	mesh.quantize_verts();
@@ -164,31 +165,33 @@ int main(int argc, char* argv[])
 	mesh.get_build_objects(build_objects);
 
 	rtm::BVH2 bvh2("../../../datasets/cache/" + scene_name + ".bvh", build_objects, 2);
-	mesh.reorder(build_objects);
 	//args.nodes = bvh2.nodes.data();
+	mesh.reorder(build_objects);
 
 	rtm::WBVH wbvh(bvh2, mesh, build_objects);
 	//args.nodes = wbvh.nodes.data();
 	mesh.reorder(build_objects);
 	args.strips = wbvh.triangle_strips.data();
-	printf("%d, %f", wbvh.triangle_strips.size(), (float)mesh.size() / wbvh.triangle_strips.size());
+	printf("%d, %f\n", wbvh.triangle_strips.size(), (float)mesh.size() / wbvh.triangle_strips.size());
 
-	rtm::NVCWBVH cwbvh(wbvh);
-	//args.nodes = cwbvh.nodes.data();
-
+#if USE_HEBVH
 	rtm::HECWBVH hecwbvh(wbvh, wbvh.triangle_strips);
 	args.nodes = hecwbvh.nodes.data();
+#else
+	rtm::NVCWBVH cwbvh(wbvh);
+	args.nodes = cwbvh.nodes.data();
+#endif
 
 	std::vector<rtm::Triangle> tris;
 	mesh.get_triangles(tris);
 	args.tris = tris.data();
 
-	uint bounce = 0;
-	std::string ray_file = scene_name + "-" + std::to_string(args.framebuffer_width) + "-" + std::to_string(bounce) + ".rays";
+	uint bounce = 1;
+	std::string ray_file = "";//scene_name + "-" + std::to_string(args.framebuffer_width) + "-" + std::to_string(bounce) + ".rays";
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, args.nodes, args.strips, args.tris, bounce, rays, ray_file);
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, wbvh.nodes.data(), wbvh.triangle_strips.data(), tris.data(), bounce, rays, ray_file);
 	args.rays = rays.data();
 	
 	auto start = std::chrono::high_resolution_clock::now();

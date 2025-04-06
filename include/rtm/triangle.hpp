@@ -52,10 +52,13 @@ inline uint decompress(const rtm::Triangle& in, uint id0, rtm::IntersectionTrian
 class alignas(64) TriangleStrip
 {
 public:
-	const static uint MAX_TRIS = 1;
-	uint32_t id : 29;
-	uint16_t num_tris : 4;
-	uint16_t edge_mask : 12;
+	const static uint MAX_TRIS = 8;
+	uint32_t id : 28;
+	//uint32_t num_tris : 2;
+	//uint32_t edge_mask : 2;
+	uint32_t num_tris : 4;
+	uint16_t edge_mask : MAX_TRIS;
+
 	rtm::vec3 vrts[2 + MAX_TRIS];
 
 public:
@@ -63,6 +66,7 @@ public:
 
 	AABB aabb() const
 	{
+		sizeof(TriangleStrip);
 		AABB aabb;
 		for(uint i = 0; i < num_tris + 2; ++i)
 			aabb.add(vrts[i]);
@@ -71,6 +75,27 @@ public:
 
 	float cost() { return 1.0f; }
 };
+
+struct alignas(32) QTriangleStrip
+{
+	const static uint MAX_TRIS = TriangleStrip::MAX_TRIS;
+	uint32_t id : 28;
+	uint32_t num_tris : 4;
+	uint16_t edge_mask : MAX_TRIS;
+
+	uint8_t data[9 * (2 + MAX_TRIS)];
+	QTriangleStrip(const rtm::TriangleStrip& other) : id(other.id), num_tris(other.num_tris), edge_mask(other.edge_mask)
+	{
+		assert(other.num_tris <= MAX_TRIS);
+		sizeof(QTriangleStrip);
+		for(uint i = 0; i < 3 * num_tris + 6; ++i)
+		{
+			uint32_t u24 = f32_to_u24(((float*)other.vrts)[i]);
+			std::memcpy(data + i * 3, &u24, 3);
+		}
+	}
+};
+
 
 inline uint decompress(const rtm::TriangleStrip& strip, uint strip_id, rtm::IntersectionTriangle* out)
 {
@@ -85,6 +110,21 @@ inline uint decompress(const rtm::TriangleStrip& strip, uint strip_id, rtm::Inte
 			out[i].tri = Triangle(out[i - 1].tri.vrts[2], out[i - 1].tri.vrts[1], strip.vrts[i + 2]);
 	}
 	return strip.num_tris;
+}
+
+inline uint decompress(const rtm::QTriangleStrip& strip, uint strip_id, rtm::IntersectionTriangle* tris)
+{
+	rtm::TriangleStrip temp_strip;
+	temp_strip.id = strip.id;
+	temp_strip.num_tris = strip.num_tris;
+	temp_strip.edge_mask = strip.edge_mask;
+	for(uint i = 0; i < 3 * (strip.num_tris + 2); ++i)
+	{
+		uint32_t u24;
+		std::memcpy(&u24, strip.data + i * 3, 3);
+		((float*)temp_strip.vrts)[i] = u24_to_f32(u24);
+	}
+	return decompress(temp_strip, strip_id, tris);
 }
 
 

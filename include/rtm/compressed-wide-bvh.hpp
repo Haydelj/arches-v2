@@ -201,14 +201,13 @@ class HECWBVH
 {
 public:
 	const static uint WIDTH = WBVH::WIDTH;
-	const static uint NODE_SIZE = 64;
 
-	struct alignas(NODE_SIZE) Node
+	struct alignas(32) Node
 	{
 		const static uint NQ = 7;
 		const static uint E_BIAS = 127 - 24;
 		const static uint BIT_PER_BOX = NQ * 6;
-		uint32_t base_index : 29;
+		uint32_t base_index : 27;
 		uint16_t e0 : 5;
 		uint16_t e1 : 5;
 		uint16_t e2 : 5;
@@ -216,20 +215,23 @@ public:
 		uint16_t p0;
 		uint16_t p1;
 		uint16_t p2;
-		uint16_t imask : WIDTH;
-		uint16_t count : 4;
-		BitArray<BIT_PER_BOX * WIDTH> bit_array;
+		BitArray<2 * WIDTH + BIT_PER_BOX * WIDTH> bit_array;
 
 		void set_e(uvec3 e) { e0 = max(e[0], E_BIAS) - E_BIAS, e1 = max(e[1], E_BIAS) - E_BIAS, e2 = max(e[2], E_BIAS) - E_BIAS; }
 		vec3 get_e() const { return vec3(float32_bf(0, e0 + E_BIAS, 0).f32, float32_bf(0, e1 + E_BIAS, 0).f32, float32_bf(0, e2 + E_BIAS, 0).f32); }
-		void set_p(vec3 p) { p0 = u24_to_u16(f32_to_u24(p[0])), p1 = u24_to_u16(f32_to_u24(p[1])), p2 = u24_to_u16(f32_to_u24(p[2])); }
+		void set_p(vec3 p)
+		{
+			p0 = u24_to_u16(f32_to_u24(p[0]));
+			p1 = u24_to_u16(f32_to_u24(p[1]));
+			p2 = u24_to_u16(f32_to_u24(p[2]));
+		}
 		vec3 get_p() const { return vec3(u24_to_f32(u16_to_u24(p0)), u24_to_f32(u16_to_u24(p1)), u24_to_f32(u16_to_u24(p2))); }
 		void set_qaabb(uint i, QAABB16 qaabb)
 		{
 			for(uint j = 0; j < 3; ++j)
 			{
-				bit_array.write(BIT_PER_BOX * i + NQ * (j + 0), NQ, qaabb.min[j]);
-				bit_array.write(BIT_PER_BOX * i + NQ * (j + 3), NQ, qaabb.max[j]);
+				bit_array.write(2 * WIDTH + BIT_PER_BOX * i + NQ * (j + 0), NQ, qaabb.min[j]);
+				bit_array.write(2 * WIDTH + BIT_PER_BOX * i + NQ * (j + 3), NQ, qaabb.max[j]);
 			}
 		}
 		QAABB16 get_qaabb(uint i) const
@@ -237,20 +239,18 @@ public:
 			QAABB16 qaabb;
 			for(uint j = 0; j < 3; ++j)
 			{
-				qaabb.min[j] = bit_array.read(BIT_PER_BOX * i + NQ * (j + 0), NQ);
-				qaabb.max[j] = bit_array.read(BIT_PER_BOX * i + NQ * (j + 3), NQ);
+				qaabb.min[j] = bit_array.read(2 * WIDTH + BIT_PER_BOX * i + NQ * (j + 0), NQ);
+				qaabb.max[j] = bit_array.read(2 * WIDTH + BIT_PER_BOX * i + NQ * (j + 3), NQ);
 			}
 			return qaabb;
 		}
-		uint is_int(uint i) const { return (imask >> i) & 0x1; }
-		uint is_valid(uint i) const { return i < count; }
+		void set_valid(uint i, uint v) { bit_array.write(i * 2 + 0, 1, v); }
+		uint is_valid(uint i) const { return bit_array.read(i * 2 + 0, 1); }
+		void set_int(uint i, uint v) { bit_array.write(i * 2 + 1, 1, v); }
+		uint is_int(uint i) const { return bit_array.read(i * 2 + 1, 1); }
 		uint offset(uint i) const
 		{
-			uint o = 0;
-			for(uint j = 0; j < i; ++j)
-				if((imask >> j) & 0x1) o++;
-				else o += sizeof(Strip) / sizeof(Node);
-			return o;
+			return i;
 		}
 
 		Node() = default;
@@ -270,9 +270,6 @@ public:
 				if(wnode.data[i].is_int) base_child_index = min(base_child_index, wnode.data[i].child_index);
 				else                     base_prim_index = min(base_prim_index, wnode.data[i].prim_index);
 			}
-
-			count = 0;
-			imask = 0;
 			set_p(aabb.min);
 
 			float32_bf e0((aabb.max.x - get_p().x) * denom);
@@ -287,10 +284,15 @@ public:
 			vec3 one_over_e(1.0f / get_e().x, 1.0f / get_e().y, 1.0f / get_e().z);
 			for(uint i = 0; i < WIDTH; i++)
 			{
-				if(!wnode.is_valid(i)) continue;
+				if(!wnode.is_valid(i))
+				{
+					set_int(i, 0);
+					set_valid(i, 0);
+					continue;
+				}
 
-				imask |= (wnode.data[i].is_int) << i;
-				count++;
+				set_int(i, wnode.data[i].is_int);
+				set_valid(i, 1);
 
 				QAABB16 qaabb16;
 				qaabb16.min[0] = floorf((wnode.aabb[i].min.x - get_p().x) * one_over_e.x);
@@ -311,30 +313,13 @@ public:
 	#endif
 	};
 
-	struct alignas(NODE_SIZE) Strip
-	{
-		const static uint MAX_TRIS = TriangleStrip::MAX_TRIS;
-		uint32_t id : 29;
-		uint8_t num_tris : 3;
-		uint8_t edge_mask : 5;
-		uint8_t data[9 * (2 + MAX_TRIS)];
-		Strip(const rtm::TriangleStrip& other) : id(other.id), num_tris(other.num_tris), edge_mask(other.edge_mask)
-		{
-			sizeof(Strip);
-			for(uint i = 0; i < 3 * num_tris + 6; ++i)
-			{
-				uint32_t u24 = f32_to_u24(((float*)other.vrts)[i]);
-				std::memcpy(data + i * 3, &u24, 3);
-			}
-		}
-	};
-
 #ifndef __riscv
 	std::vector<Node> nodes;
 	HECWBVH(const rtm::WBVH& wbvh, const std::vector<TriangleStrip>& strips)
 	{
-		//static_assert(sizeof(Node) == NODE_SIZE);
-		//static_assert(sizeof(Strip) == NODE_SIZE);
+		sizeof(Node);
+		sizeof(QTriangleStrip);
+		//static_assert(sizeof(Node) == sizeof(QTriangleStrip));
 		printf("Building HE%dCWBVH%d\n", Node::NQ, WIDTH);
 		assert(wbvh.nodes.size() != 0);
 		nodes.clear();
@@ -359,7 +344,7 @@ public:
 					else
 					{
 						prim_assignments[wnode.data[i].prim_index] = nodes.size();
-						for(uint j = 0; j < sizeof(Strip) / sizeof(Node); ++j) nodes.emplace_back();
+						for(uint j = 0; j < sizeof(QTriangleStrip) / sizeof(Node); ++j) nodes.emplace_back();
 					}
 				}
 			}
@@ -369,8 +354,8 @@ public:
 		for(auto& a : prim_assignments)
 		{
 			uint id = a.first;
-			Strip packet(strips[id]);
-			Strip& prim = *(Strip*)(nodes.data() + a.second);
+			QTriangleStrip packet(strips[id]);
+			QTriangleStrip& prim = *(QTriangleStrip*)(nodes.data() + a.second);
 			prim = packet;
 		}
 
@@ -411,19 +396,5 @@ inline WBVH::Node decompress(const HECWBVH::Node& cwnode)
 	return wnode;
 }
 
-inline uint decompress(const HECWBVH::Strip& strip, uint strip_id, rtm::IntersectionTriangle* tris)
-{
-	rtm::TriangleStrip temp_strip;
-	temp_strip.id = strip.id;
-	temp_strip.num_tris = strip.num_tris;
-	temp_strip.edge_mask = strip.edge_mask;
-	for(uint i = 0; i < 3 * (strip.num_tris + 2); ++i)
-	{
-		uint32_t u24;
-		std::memcpy(&u24, strip.data + i * 3, 3);
-		((float*)temp_strip.vrts)[i] = u24_to_f32(u24);
-	}
-	return decompress(temp_strip, strip_id, tris);
-}
 
 }

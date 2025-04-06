@@ -71,8 +71,8 @@ private:
 	cycles_t _current_cycle{ 0 };
 
 	std::vector<MemoryController> _controllers;
-	RequestCascade _request_network;
-	ReturnCascade _return_network;
+	RequestCrossBar _request_network;
+	ReturnCrossBar _return_network;
 
 	std::vector<MemoryReturn> _returns;
 	std::stack<uint> _free_return_ids;

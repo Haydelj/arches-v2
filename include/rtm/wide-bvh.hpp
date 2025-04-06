@@ -24,9 +24,7 @@ constexpr int INVALID_NODE = -1;
 class WBVH
 {
 public:
-	const static uint WIDTH = 6;
-
-	const static uint MAX_PRIMS = TriangleStrip::MAX_TRIS;
+	const static uint WIDTH = 12;
 	const static uint MAX_FOREST_SIZE = WIDTH - 1;
 
 	struct alignas(64) Node
@@ -90,6 +88,7 @@ public:
 	{
 		return node;
 	}
+
 
 	~WBVH() = default;
 
@@ -155,7 +154,7 @@ private:
 				float cost_leaf = INFINITY;
 
 				//if(num_primitives <= MAX_PRIMS)
-				if(prims.size() <= MAX_PRIMS)
+				if(prims.size() <= rtm::TriangleStrip::MAX_TRIS)
 				{
 					bool can_compress = mesh_graph.can_stripify(prims);
 					if(can_compress)
@@ -340,6 +339,7 @@ private:
 
 				std::vector<uint> prims;
 				collect_primitives(bvh2, child_index, prims);
+				assert(prims.size() <= TriangleStrip::MAX_TRIS);
 				triangle_strips.push_back(mesh_graph.make_strip(mesh, prims, indices));
 				break;
 			}

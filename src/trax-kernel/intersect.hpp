@@ -218,10 +218,8 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 		else
 		{
 		#if 1
-			uint tri_count = 0;
-			rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS * rtm::WBVH::MAX_PRIMS];
-			for(uint i = 0; i < current_entry.data.num_prims; ++i)
-				tri_count += rtm::decompress(prims[current_entry.data.prim_index + i], current_entry.data.prim_index + i, tris + tri_count);
+			rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS];
+			uint tri_count = rtm::decompress(prims[current_entry.data.prim_index], current_entry.data.prim_index, tris);
 
 			for(uint i = 0; i < tri_count; ++i)
 				if(_intersect(tris[i].tri, ray, hit))

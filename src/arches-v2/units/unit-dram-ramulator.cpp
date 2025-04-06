@@ -5,7 +5,7 @@ namespace Arches { namespace Units {
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
 UnitDRAMRamulator::UnitDRAMRamulator(Configuration config) : UnitMainMemoryBase(config.size),
-	_request_network(config.num_ports, config.num_controllers), _return_network(config.num_controllers, config.num_ports), _partition_mask(config.partition_stride)
+	_request_network(config.num_ports, config.num_controllers * 2, 1 << 12), _return_network(config.num_controllers * 2, config.num_ports), _partition_mask(config.partition_stride)
 {
 	YAML::Node yaml = Ramulator::Config::parse_config_file(config.config_path, {});
 
@@ -137,10 +137,11 @@ void UnitDRAMRamulator::clock_rise()
 	_request_network.clock();
 	
 	bool busy = _pending_requests > 0;
-	for(uint controller_index = 0; controller_index < _controllers.size(); ++controller_index)
+	for(uint i = 0; i < _request_network.num_sinks(); ++i)
 	{
-		if(_request_network.is_read_valid(controller_index) && _controllers[controller_index].req_pipline.is_write_valid())
-			_controllers[controller_index].req_pipline.write(_request_network.read(controller_index));
+		uint controller_index = i / 2;
+		if(_request_network.is_read_valid(i) && _controllers[controller_index].req_pipline.is_write_valid())
+			_controllers[controller_index].req_pipline.write(_request_network.read(i));
 		_controllers[controller_index].req_pipline.clock();
 
 		if(!_controllers[controller_index].req_pipline.empty()) busy = true;

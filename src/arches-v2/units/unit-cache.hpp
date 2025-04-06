@@ -26,12 +26,14 @@ public:
 
 		uint num_mshr{1};
 		uint num_subentries{1};
+		uint return_queue_size{32};
 		uint latency{1};
 
 		uint num_ports{1};
 		uint crossbar_width{1};
 		uint num_slices{1};
 		uint num_banks{1};
+
 
 		uint64_t slice_select_mask;
 		uint64_t bank_select_mask;

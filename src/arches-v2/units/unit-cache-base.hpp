@@ -13,7 +13,8 @@ public:
 	enum class Policy
 	{
 		LRU,
-		LRU_RANDOM
+		LRU_RANDOM,
+		FIFO,
 	};
 
 	UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size = 0, Policy policy = Policy::LRU);

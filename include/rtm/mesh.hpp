@@ -296,26 +296,22 @@ public:
 
 	float normalize_verts()
 	{
-		float32_bf bf(0.0f);
+		float32_bf max(0.0f);
+		for(auto& v : vertices)
+			for(uint i = 0; i < 3; ++i)
+				max.f32 = rtm::max(std::abs(v[i]), max.f32);
 
-		uint8_t max_exp = 0;
+		max.exp++;
+		max.mantisa = 0;
 		for(auto& v : vertices)
 			for(uint i = 0; i < 3; ++i)
 			{
-				bf.f32 = v[i];
-				max_exp = rtm::max(max_exp, bf.exp);
+				v[i] /= max.f32;
+				assert(v[i] < 1.0f && v[i] > -1.0f);
 			}
 
-		int delta = (126 - max_exp);
-		for(auto& v : vertices)
-			for(uint i = 0; i < 3; ++i)
-			{
-				bf.f32 = v[i];
-				bf.exp += delta;
-				v[i] = bf.f32;
-			}
 
-		return float32_bf(0, 127 + delta, 0).f32;
+		return 1.0 / max.f32;
 	}
 	
 	void quantize_verts()
