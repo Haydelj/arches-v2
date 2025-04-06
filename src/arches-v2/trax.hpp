@@ -128,7 +128,7 @@ typedef Units::UnitCache UnitL1Cache;
 #if USE_HEBVH
 typedef Units::TRaX::UnitRTCore<rtm::HECWBVH::Node, rtm::QTriangleStrip> UnitRTCore;
 #else
-typedef Units::TRaX::UnitRTCore<rtm::NVCWBVH::Node, rtm::TriangleStrip> UnitRTCore;
+typedef Units::TRaX::UnitRTCore<rtm::WBVH::Node, rtm::TriangleStrip> UnitRTCore;
 #endif
 
 static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
@@ -174,8 +174,14 @@ static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_addr
 	args.nodes = write_vector(main_memory, 256, hecwbvh.nodes, heap_address);
 #else
 	rtm::NVCWBVH cwbvh(wbvh);
-	args.nodes = write_vector(main_memory, 256, cwbvh.nodes, heap_address);
-	args.strips = write_vector(main_memory, 256, wbvh.triangle_strips, heap_address);;
+	args.nodes = write_vector(main_memory, 256, wbvh.nodes, heap_address);
+	args.strips = write_vector(main_memory, 256, wbvh.triangle_strips, heap_address);
+
+	//args.strips = write_vector(main_memory, 256, wbvh.index_strips, heap_address);
+	//std::vector<rtm::vec4> vrts;
+	//for(auto& v : mesh.vertices)
+	//	vrts.push_back(rtm::vec4(v.x, v.y, v.z, 0.0f));
+	//args.vrts = write_vector(main_memory, 256, vrts, heap_address);
 #endif
 
 	std::vector<rtm::Triangle> tris;
@@ -257,7 +263,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	rtc_config.max_rays = 128;
 	rtc_config.num_cache_ports = 4;
 
-#elif 1 //RTX 3090 ish
+#elif 0 //RTX 3090 ish
 	//Compute
 	double core_clock = 1500.0e6;
 	uint64_t stack_size = 512;
@@ -577,6 +583,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		rtc_config.tri_base_addr = (paddr_t)kernel_args.nodes;
 	#else
 		rtc_config.tri_base_addr = (paddr_t)kernel_args.strips;
+		//rtc_config.vrt_base_addr = (paddr_t)kernel_args.vrts;
 	#endif
 		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
 		rtc_config.cache = l1ds.back();

@@ -11,7 +11,7 @@ namespace Arches { namespace Units { namespace TRaX {
 
 template<typename NT, typename PT>
 UnitRTCore<NT, PT>::UnitRTCore(const Configuration& config) :
-	_max_rays(config.max_rays), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr),
+	_max_rays(config.max_rays), _node_base_addr(config.node_base_addr), _tri_base_addr(config.tri_base_addr), _vrt_base_addr(config.vrt_base_addr),
 	_cache(config.cache), _request_network(config.num_clients, 1), _return_network(1, config.num_clients),
 	_box_pipline(3), _tri_pipline(22), _cache_port(config.cache_port), _cache_port_stride(config.cache_port_stride)
 {
@@ -78,17 +78,20 @@ bool UnitRTCore<NT, PT>::_try_queue_node(uint ray_id, uint node_id)
 }
 
 template<typename NT, typename PT>
-bool UnitRTCore<NT, PT>::_try_queue_tris(uint ray_id, uint tri_id, uint num_tris)
+bool UnitRTCore<NT, PT>::_try_queue_tri(uint ray_id, uint tri_id)
 {
 	paddr_t start = _tri_base_addr + tri_id * sizeof(PT);
-	paddr_t end = start + sizeof(PT) * num_tris;
+	paddr_t end = start + sizeof(PT);
+	if(_vrt_base_addr != 0x0ull)
+	{
+		start = _tri_base_addr + tri_id * sizeof(rtm::IndexStrip);
+		end = start + sizeof(rtm::IndexStrip);
+	}
 
 	RayState& ray_state = _ray_states[ray_id];
 	ray_state.buffer.address = start;
 	ray_state.buffer.bytes_filled = 0;
 	ray_state.buffer.type = 1;
-	ray_state.buffer.prim_id = tri_id;
-	ray_state.buffer.num_prims = num_tris;
 
 	//split request at cache boundries
 	//queue the requests to fill the buffer
@@ -109,6 +112,31 @@ bool UnitRTCore<NT, PT>::_try_queue_tris(uint ray_id, uint tri_id, uint num_tris
 
 	return true;
 }
+
+template<typename NT, typename PT>
+bool UnitRTCore<NT, PT>::_try_queue_vrts(uint ray_id)
+{
+	RayState& ray_state = _ray_states[ray_id];
+	ray_state.buffer.bytes_filled = 0;
+	ray_state.buffer.type = 2;
+
+	rtm::IndexStrip& index_strip = ray_state.buffer.index_strip;
+	for(uint i = 0; i < index_strip.num_tris + 2; ++i)
+	{
+		uint index = index_strip.inds[i];
+
+		MemoryRequest req;
+		req.type = MemoryRequest::Type::LOAD;
+		req.paddr = _vrt_base_addr + 16 * index;
+		req.size = 16;
+		req.dst.push(i, 8);
+		req.dst.push(ray_id, 10);
+		_cache_fetch_queues[ray_id % _cache_fetch_queues.size()].push(req);
+	}
+
+	return true;
+}
+
 
 
 template<typename NT, typename PT>
@@ -188,19 +216,18 @@ void UnitRTCore<NT, PT>::_read_returns()
 		uint port = _cache_port + i * _cache_port_stride;
 		if(_cache->return_port_read_valid(port))
 		{
-			const MemoryReturn ret = _cache->read_return(port);
-			uint16_t ray_id = ret.dst.peek(10);
+			MemoryReturn ret = _cache->read_return(port);
+			uint16_t ray_id = ret.dst.pop(10);
 			RayState& ray_state = _ray_states[ray_id];
 			StagingBuffer& buffer = ray_state.buffer;
 
 			//if(ENABLE_RT_DEBUG_PRINTS) printf("ret %xll\n", ret.paddr);
 
-			uint offset = (ret.paddr - buffer.address);
-			std::memcpy((uint8_t*)&buffer.data + offset, ret.data, ret.size);
-			buffer.bytes_filled += ret.size;
-
 			if(buffer.type == 0)
 			{
+				uint offset = (ret.paddr - buffer.address);
+				std::memcpy((uint8_t*)&buffer.data + offset, ret.data, ret.size);
+				buffer.bytes_filled += ret.size;
 				if(buffer.bytes_filled == sizeof(NT))
 				{
 					ray_state.phase = RayState::Phase::NODE_ISECT;
@@ -209,7 +236,38 @@ void UnitRTCore<NT, PT>::_read_returns()
 			}
 			else if(buffer.type == 1)
 			{
-				if(buffer.bytes_filled == sizeof(PT) * buffer.num_prims)
+				uint offset = (ret.paddr - buffer.address);
+				std::memcpy((uint8_t*)&buffer.data + offset, ret.data, ret.size);
+				buffer.bytes_filled += ret.size;
+				if(_vrt_base_addr == 0x0ull)
+				{
+					if(buffer.bytes_filled == sizeof(PT))
+					{
+
+						ray_state.phase = RayState::Phase::TRI_ISECT;
+						_tri_isect_queue.push(ray_id);
+					}
+				}
+				else
+				{
+					if(buffer.bytes_filled == sizeof(rtm::IndexStrip))
+					{
+						ray_state.phase = RayState::Phase::VRT_FETCH;
+						_try_queue_vrts(ray_id);
+					}
+				}
+			}
+			else if(buffer.type == 2)
+			{
+				rtm::vec4 vrt;
+				std::memcpy(&vrt, ret.data, sizeof(rtm::vec4));
+				uint index = ret.dst.pop(8);
+				buffer.tri_strip.vrts[index].x = vrt.x;
+				buffer.tri_strip.vrts[index].y = vrt.y;
+				buffer.tri_strip.vrts[index].z = vrt.z;
+
+				buffer.bytes_filled += 12;
+				if((buffer.tri_strip.num_tris + 2) * 12 == buffer.bytes_filled)
 				{
 					ray_state.phase = RayState::Phase::TRI_ISECT;
 					_tri_isect_queue.push(ray_id);
@@ -290,8 +348,7 @@ void UnitRTCore<NT, PT>::_schedule_ray()
 			}
 			else
 			{
-			#if 1
-				_try_queue_tris(ray_id, entry.data.prim_index, 1);
+				_try_queue_tri(ray_id, entry.data.prim_index);
 				if(entry.data.num_prims > 1)
 				{
 					entry.data.num_prims--;
@@ -299,9 +356,6 @@ void UnitRTCore<NT, PT>::_schedule_ray()
 					ray_state.stack[ray_state.stack_size++] = entry;
 					ray_state.update_restart_trail = false;
 				}
-			#else
-				_try_queue_tris(ray_id, entry.data.prim_index, entry.data.num_prims);
-			#endif
 
 				ray_state.phase = RayState::Phase::TRI_FETCH;
 
@@ -421,10 +475,8 @@ void UnitRTCore<NT, PT>::_simualte_tri_pipline()
 		RayState& ray_state = _ray_states[ray_id];
 		StagingBuffer& buffer = ray_state.buffer;
 
-		uint tri_count = 0;
-		rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS * 3];
-		for(uint i = 0; i < buffer.num_prims; ++i)
-			tri_count += rtm::decompress(buffer.prims[i], buffer.prim_id + i, tris + tri_count);
+		rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS];
+		uint tri_count = rtm::decompress(buffer.prim, 13, tris);
 
 		_tri_issue_count += 1;
 		if(_tri_issue_count >= tri_count)
@@ -507,8 +559,8 @@ void UnitRTCore<NT, PT>::_issue_returns()
 }
 
 template class UnitRTCore<rtm::WBVH::Node, rtm::TriangleStrip>;
-template class UnitRTCore<rtm::NVCWBVH::Node, rtm::Triangle>;
 template class UnitRTCore<rtm::NVCWBVH::Node, rtm::TriangleStrip>;
 template class UnitRTCore<rtm::HECWBVH::Node, rtm::QTriangleStrip>;
+
 
 }}}

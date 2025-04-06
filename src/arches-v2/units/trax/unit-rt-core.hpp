@@ -17,6 +17,7 @@ public:
 		uint max_rays{1};
 		paddr_t node_base_addr{0x0ull};
 		paddr_t tri_base_addr{0x0ull};
+		paddr_t vrt_base_addr{0x0ull};
 
 		UnitMemoryBase* cache{nullptr};
 		uint cache_port{0};
@@ -53,12 +54,9 @@ private:
 		{
 			uint8_t data[1];
 			NT node;
-			struct
-			{
-				PT prims[3];
-				uint num_prims;
-				uint prim_id;
-			};
+			PT prim;
+			rtm::IndexStrip index_strip;
+			rtm::TriangleStrip tri_strip;
 		};
 
 		StagingBuffer() {}
@@ -73,6 +71,7 @@ private:
 			HIT_RETURN,
 			NODE_FETCH,
 			TRI_FETCH,
+			VRT_FETCH,
 			NODE_ISECT,
 			TRI_ISECT,
 			NUM_PHASES,
@@ -137,6 +136,7 @@ private:
 	uint _max_rays;
 	paddr_t _node_base_addr;
 	paddr_t _tri_base_addr;
+	paddr_t _vrt_base_addr;
 	uint _last_ray_id{0};
 
 	std::set<uint> _rows_accessed;
@@ -183,7 +183,8 @@ private:
 	}
 
 	bool _try_queue_node(uint ray_id, uint node_id);
-	bool _try_queue_tris(uint ray_id, uint tri_id, uint num_tris);
+	bool _try_queue_tri(uint ray_id, uint tri_id);
+	bool _try_queue_vrts(uint ray_id);
 	bool _try_queue_prefetch(paddr_t addr, uint size, uint cache_mask);
 
 	void _read_requests();
@@ -241,6 +242,7 @@ public:
 				"HIT_RETURN",
 				"NODE_FETCH",
 				"TRI_FETCH",
+				"VRT_FETCH",
 				"NODE_ISECT",
 				"TRI_ISECT",
 				"NUM_PHASES",

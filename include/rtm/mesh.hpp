@@ -451,7 +451,7 @@ public:
 		return !faces.empty();
 	}
 
-	TriangleStrip make_strip(const Mesh& mesh, const std::vector<uint> prims, std::vector<uint>& indices) const
+	IndexStrip make_strip(const Mesh& mesh, const std::vector<uint> prims, std::vector<uint>& indices) const
 	{
 		std::vector<uint> faces;
 		for(uint i = 0; i < prims.size(); ++i)
@@ -554,11 +554,11 @@ public:
 			last_face = mesh.vertex_indices[faces[i]];
 		}
 
-		TriangleStrip strip;
+		IndexStrip strip;
 		strip.id = indices.size();
 		strip.num_tris = faces.size();
 		strip.edge_mask = 0;
-		for(uint i = 0; i < vis.size(); ++i) strip.vrts[i] = mesh.vertices[vis[i]];
+		for(uint i = 0; i < vis.size(); ++i) strip.inds[i] = vis[i];
 		for(uint i = 0; i < exit_edges.size(); ++i) strip.edge_mask |= exit_edges[i] << i;
 		for(uint i = 0; i < faces.size(); ++i) indices.push_back(faces[i]);
 		return strip;

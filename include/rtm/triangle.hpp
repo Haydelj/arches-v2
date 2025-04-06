@@ -52,21 +52,23 @@ inline uint decompress(const rtm::Triangle& in, uint id0, rtm::IntersectionTrian
 class alignas(64) TriangleStrip
 {
 public:
-	const static uint MAX_TRIS = 8;
+	const static uint MAX_TRIS = 1;
 	uint32_t id : 28;
-	//uint32_t num_tris : 2;
-	//uint32_t edge_mask : 2;
-	uint32_t num_tris : 4;
-	uint16_t edge_mask : MAX_TRIS;
+	uint32_t num_tris : 2;
+	uint32_t edge_mask : 2;
+	//uint32_t num_tris : 4;
+	//uint8_t edge_mask : MAX_TRIS;
 
 	rtm::vec3 vrts[2 + MAX_TRIS];
 
 public:
-	TriangleStrip() = default;
+	TriangleStrip()
+	{
+		sizeof(TriangleStrip);
+	}
 
 	AABB aabb() const
 	{
-		sizeof(TriangleStrip);
 		AABB aabb;
 		for(uint i = 0; i < num_tris + 2; ++i)
 			aabb.add(vrts[i]);
@@ -74,6 +76,23 @@ public:
 	}
 
 	float cost() { return 1.0f; }
+};
+
+class alignas(32) IndexStrip
+{
+public:
+	const static uint MAX_TRIS = TriangleStrip::MAX_TRIS;
+	uint32_t id : 28;
+	uint32_t num_tris : 4;
+	uint8_t edge_mask : MAX_TRIS;
+
+	uint inds[2 + MAX_TRIS];
+
+public:
+	IndexStrip()
+	{
+		sizeof(IndexStrip);
+	}
 };
 
 struct alignas(32) QTriangleStrip
@@ -96,6 +115,16 @@ struct alignas(32) QTriangleStrip
 	}
 };
 
+inline TriangleStrip derefrence(const rtm::IndexStrip& strip, const rtm::vec3* verts)
+{
+	TriangleStrip tri_strip;
+	tri_strip.id = strip.id;
+	tri_strip.num_tris = strip.num_tris;
+	tri_strip.edge_mask = strip.edge_mask;
+	for(uint i = 0; i < strip.num_tris + 2; ++i)
+		tri_strip.vrts[i] = verts[strip.inds[i]];
+	return tri_strip;
+}
 
 inline uint decompress(const rtm::TriangleStrip& strip, uint strip_id, rtm::IntersectionTriangle* out)
 {

@@ -32,6 +32,7 @@ std::string get_project_folder_path()
 template <typename T>
 static T* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, T* data, size_t size, paddr_t& heap_address)
 {
+
 	paddr_t array_address = align_to(alignment, heap_address);
 	heap_address = array_address + size * sizeof(T);
 	main_memory->direct_write(data, size * sizeof(T), array_address);

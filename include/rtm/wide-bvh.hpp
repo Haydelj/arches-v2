@@ -24,7 +24,7 @@ constexpr int INVALID_NODE = -1;
 class WBVH
 {
 public:
-	const static uint WIDTH = 12;
+	const static uint WIDTH = 2;
 	const static uint MAX_FOREST_SIZE = WIDTH - 1;
 
 	struct alignas(64) Node
@@ -61,6 +61,7 @@ public:
 	std::vector<Node> nodes;
 	std::vector<uint> indices;
 	std::vector<TriangleStrip> triangle_strips;
+	std::vector<IndexStrip> index_strips;
 
 public:
 	WBVH(const rtm::BVH2& bvh2, const Mesh& mesh, std::vector<rtm::BVH2::BuildObject>& build_objects)
@@ -332,7 +333,6 @@ private:
 				//Caution: This wide bvh leaf node might have more than 1 leaf node
 			case Decision::Type::LEAF:
 			{
-
 				wbvh_node.data[index].is_int = 0;
 				wbvh_node.data[index].prim_index = triangle_strips.size();
 				wbvh_node.data[index].num_prims = 1;
@@ -340,7 +340,11 @@ private:
 				std::vector<uint> prims;
 				collect_primitives(bvh2, child_index, prims);
 				assert(prims.size() <= TriangleStrip::MAX_TRIS);
-				triangle_strips.push_back(mesh_graph.make_strip(mesh, prims, indices));
+
+				IndexStrip index_strip = mesh_graph.make_strip(mesh, prims, indices);
+				TriangleStrip tri_strip = derefrence(index_strip, mesh.vertices.data());
+				index_strips.push_back(index_strip);
+				triangle_strips.push_back(tri_strip);
 				break;
 			}
 

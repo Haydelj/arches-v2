@@ -59,7 +59,8 @@ inline static void kernel(const TRaXKernelArgs& args)
 		#if USE_HEBVH
 			intersect(args.nodes, (rtm::QTriangleStrip*)args.nodes, ray, hit, node_steps, prim_steps);
 		#else
-			intersect(args.nodes, args.strips, ray, hit, node_steps, prim_steps);
+			//intersect(args.nodes, args.strips, ray, hit, node_steps, prim_steps);
+			intersect(args.nodes, args.strips, args.vrts, ray, hit, node_steps, prim_steps);
 		#endif
 		#endif
 
@@ -171,8 +172,11 @@ int main(int argc, char* argv[])
 	rtm::WBVH wbvh(bvh2, mesh, build_objects);
 	//args.nodes = wbvh.nodes.data();
 	mesh.reorder(build_objects);
-	args.strips = wbvh.triangle_strips.data();
-	printf("%d, %f\n", wbvh.triangle_strips.size(), (float)mesh.size() / wbvh.triangle_strips.size());
+	//args.strips = wbvh.triangle_strips.data();
+	args.strips = wbvh.index_strips.data();
+	args.vrts = mesh.vertices.data();
+	printf("Strips: %d MB\n", sizeof(rtm::IndexStrip) * wbvh.index_strips.size() / (1 << 20));
+	printf("Vertices: %d MB\n", sizeof(rtm::vec3) * mesh.vertices.size() / (1 << 20));
 
 #if USE_HEBVH
 	rtm::HECWBVH hecwbvh(wbvh, wbvh.triangle_strips);
@@ -197,7 +201,7 @@ int main(int argc, char* argv[])
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::vector<std::thread> threads;
-	uint thread_count = 1;
+	uint thread_count = 0;
 	//uint thread_count = std::max(std::thread::hardware_concurrency() - 1u, 1u);
 	for (uint i = 1; i < thread_count; ++i) threads.emplace_back(kernel, args);
 	kernel(args);
