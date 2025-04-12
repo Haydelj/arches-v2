@@ -49,6 +49,7 @@ private:
 		paddr_t address;
 		uint bytes_filled;
 		uint type;
+		uint id;
 
 		union
 		{
@@ -82,7 +83,7 @@ private:
 		rtm::vec3 inv_d;
 		rtm::Hit hit;
 
-		const static uint STACK_SIZE = 4;
+		const static uint STACK_SIZE = 5;
 		rtm::RestartTrail restart_trail;
 		StackEntry stack[STACK_SIZE + rtm::WBVH::WIDTH];
 		uint8_t stack_size;
@@ -142,6 +143,7 @@ private:
 	std::set<uint> _rows_accessed;
 
 	bool _drain_phase{false};
+	bool _pop_culling{true};
 
 	uint _stall_cycles{0};
 public:

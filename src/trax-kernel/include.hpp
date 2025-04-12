@@ -21,14 +21,18 @@ struct TRaXKernelArgs
 	rtm::vec3 light_dir;
 	rtm::Ray* rays;
 	//rtm::BVH2::Node* nodes;
-	rtm::WBVH::Node* nodes;
+	//rtm::WBVH::Node* nodes;
 #if USE_HEBVH
 	rtm::HECWBVH::Node* nodes;
 #else
-	//rtm::NVCWBVH::Node* nodes;
+	rtm::NVCWBVH::Node* nodes;
 #endif
-	rtm::Triangle* tris;
-	rtm::TriangleStrip* strips;
+	rtm::DGFMesh::Block* dgf_blocks;
+	rtm::QTB* qt_blocks;
+	rtm::FTB* ft_blocks;
+
+	//rtm::Triangle* tris;
+	//rtm::TriangleStrip* strips;
 	//rtm::IndexStrip* strips;
 	//rtm::vec4* vrts;
 };

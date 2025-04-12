@@ -16,8 +16,7 @@
 #include <unordered_set>
 #include <deque>
 
-namespace rtm 
-{
+namespace rtm {
 
 class Mesh
 {
@@ -29,6 +28,8 @@ public:
 	std::vector<rtm::vec3> vertices;
 	std::vector<rtm::vec3> normals;
 	std::vector<rtm::vec2> tex_coords;
+	std::vector<uvec3> quantized_vertices;
+	uint8_t exp; //bias exponent
 
 	std::vector<uint> material_indices;
 	std::vector<std::string> material_names;
@@ -126,7 +127,7 @@ public:
 
 	bool load_obj(const char* file_path)
 	{
-		printf("Loading: %s\n", file_path);
+		printf("Mesh: Loading: %s\n", file_path);
 
 		std::ifstream is(file_path);
 		if(!is.is_open()) return false;
@@ -234,7 +235,7 @@ public:
 				break;
 
 			default:
-				printf("\nInvalid line: %jd\n", line_number);
+				printf("\nMesh: Invalid line: %jd\n", line_number);
 				break;
 			}
 
@@ -259,7 +260,8 @@ public:
 			}
 		}
 
-		printf("Loaded: %s\n", file_path);
+		printf("Mesh: Size: %.1f MiB\n", ((float)sizeof(rtm::vec3) * vertices.size() + (float)sizeof(rtm::uvec3) * vertex_indices.size()) / (1 << 20));
+
 		return true;
 	}
 
@@ -294,31 +296,30 @@ public:
 			build_objects.push_back(get_build_object(i));
 	}
 
-	float normalize_verts()
+	uint8_t quantize_verts()
 	{
 		float32_bf max(0.0f);
 		for(auto& v : vertices)
 			for(uint i = 0; i < 3; ++i)
 				max.f32 = rtm::max(std::abs(v[i]), max.f32);
 
-		max.exp++;
 		max.mantisa = 0;
+		max.exp++;
+		exp = max.exp;
+
 		for(auto& v : vertices)
+		{
+			quantized_vertices.push_back(0);
 			for(uint i = 0; i < 3; ++i)
 			{
-				v[i] /= max.f32;
-				assert(v[i] < 1.0f && v[i] > -1.0f);
+				quantized_vertices.back()[i] = f32_to_i24(v[i], exp);
+				v[i] = i24_to_f32(quantized_vertices.back()[i], exp);
 			}
+		}
+		printf("Mesh: Quantized with exp: %f\n", rtm::float32_bf(0, exp, 0).f32);
 
 
-		return 1.0 / max.f32;
-	}
-	
-	void quantize_verts()
-	{
-		for(auto& v : vertices)
-			for(uint i = 0; i < 3; ++i)
-				v[i] = u24_to_f32(f32_to_u24(v[i]));
+		return exp;
 	}
 
 	void reorder(std::vector<BVH2::BuildObject>& ordered_build_objects)

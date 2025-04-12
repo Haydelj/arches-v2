@@ -173,7 +173,7 @@ static STRaTARTKernel::Args initilize_buffers(Units::UnitMainMemoryBase* main_me
 	if(args.pregen_rays)
 		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, sim_config.get_int("pregen_bounce"), rays);
 
-	rtm::WBVH wbvh(bvh2, mesh, build_objects);
+	rtm::WBVH wbvh(bvh2, build_objects);
 	mesh.reorder(build_objects);
 
 	rtm::NVCWBVH cwbvh(wbvh);

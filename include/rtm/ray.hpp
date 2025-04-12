@@ -2,6 +2,9 @@
 
 #include "vec3.hpp"
 
+#define T_MAX (1.0f * (1 << 20))
+#define T_MIN (1.0f / (1 << 5))
+
 namespace rtm
 {
 

@@ -6,6 +6,7 @@
 #ifndef __riscv
 #include <cmath>
 #include <intrin.h>
+#include <cfenv>
 #endif
 
 namespace rtm
@@ -126,44 +127,57 @@ union float32_bf
 	float32_bf(uint8_t sign, uint8_t exp, uint32_t mantisa) : sign(sign), exp(exp), mantisa(mantisa) {}
 };
 
-//https://martinfullerblog.wordpress.com/2023/01/15/fast-near-lossless-compression-of-normal-floats/
-//careful to ensure correct behaviour for normal numbers < 1.0 which roundup to 2.0 when one is added
-inline uint32_t f32_to_u24(float f32)
+#ifndef __riscv
+inline int32_t f32_to_i24(float f32, uint8_t max_exp = 127, int rounding = 0)
 {
-	assert(f32 < 1.0f && f32 > -1.0f);
-	float32_bf bf(f32);
-	bf.f32 = f32;
-	bf.f32 += bf.sign ? -1.0f : 1.0f;
-	if(abs(bf.f32) >= 2.0f) bf.mantisa = 0x7fffff;
-	return bf.mantisa | (bf.sign << 23);
+	float32_bf mult(0, 2 * 127 - max_exp + 23, 0x0);
+	double norm = (double)f32 * mult.f32;
+
+	if(rounding == 0)
+		norm = std::round(norm);
+	else if(rounding == -1)
+		norm = std::floor(norm);
+	else if(rounding == 1)
+		norm = std::ceil(norm);
+	
+	if(norm > ((1 << 23) - 1) || norm < -(1 << 23)) __debugbreak();
+
+	return (int32_t)norm;
 }
+#endif
+
+inline float i24_to_f32(int32_t i24, uint8_t max_exp = 127)
+{
+	//ensure proper sign extension
+	i24 &= 0xffffff;
+	if(i24 >= 1 << 23) i24 |= 0xff000000;
+	float32_bf mult(0, max_exp - 23, 0x0);
+	return mult.f32 * i24;
+}
+
+#ifndef __riscv
+inline uint16_t f32_to_i16(float f32, uint8_t max_exp = 127, int rounding = 0)
+{
+	float32_bf mult(0, 2 * 127 - max_exp + 15, 0x0);
+	float norm = f32 * mult.f32;
+
+	if(rounding == 0)
+		norm = std::round(norm);
+	else if(rounding == -1)
+		norm = std::floor(norm);
+	else if(rounding == 1)
+		norm = std::ceil(norm);
+
+	if(norm > ((1 << 15) - 1) || norm < -(1 << 15)) __debugbreak();
+	return (int16_t)norm;
+}
+#endif
 
 //input needs to be low 24 bits, with 0 in the top 8 bits
-inline float u24_to_f32(uint32_t u24)
+inline float i16_to_f32(int16_t i16, uint8_t max_exp = 127)
 {
-	float32_bf bf(0, 127, u24);
-	bf.f32 -= 1.0f;
-	bf.sign = u24 >> 23;
-	return bf.f32;
-}
-
-inline uint32_t u24_to_u16(uint32_t u24)
-{
-	uint s = u24 >> 23;
-	uint v = u24 & 0x7fffff;
-	bool ru = s == 1; //round up if negative
-	if(ru)
-	{
-		if(v <= 0x7fff00)
-			u24 += 255;
-		else assert(false);
-	}
-	return u24 >> 8; 
-}
-
-inline uint32_t u16_to_u24(uint16_t u16)
-{
-	return (uint32_t)u16 << 8;
+	float32_bf mult(0, max_exp - 15, 0x0);
+	return mult.f32 * i16;
 }
 
 }

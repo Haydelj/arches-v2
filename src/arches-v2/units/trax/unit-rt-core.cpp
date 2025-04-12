@@ -1,4 +1,5 @@
 #include "unit-rt-core.hpp"
+#include "rtm/hecwbvh.hpp"
 
 namespace Arches { namespace Units { namespace TRaX {
 
@@ -56,6 +57,7 @@ bool UnitRTCore<NT, PT>::_try_queue_node(uint ray_id, uint node_id)
 	ray_state.buffer.address = start;
 	ray_state.buffer.bytes_filled = 0;
 	ray_state.buffer.type = 0;
+	ray_state.buffer.id = node_id;
 
 	//split request at cache boundries
 	//queue the requests to fill the buffer
@@ -81,6 +83,9 @@ template<typename NT, typename PT>
 bool UnitRTCore<NT, PT>::_try_queue_tri(uint ray_id, uint tri_id)
 {
 	paddr_t start = _tri_base_addr + tri_id * sizeof(PT);
+	if(typeid(NT) == typeid(rtm::HECWBVH::Node))
+		start = _node_base_addr + tri_id * sizeof(NT);
+
 	paddr_t end = start + sizeof(PT);
 	if(_vrt_base_addr != 0x0ull)
 	{
@@ -92,6 +97,7 @@ bool UnitRTCore<NT, PT>::_try_queue_tri(uint ray_id, uint tri_id)
 	ray_state.buffer.address = start;
 	ray_state.buffer.bytes_filled = 0;
 	ray_state.buffer.type = 1;
+	ray_state.buffer.id = tri_id;
 
 	//split request at cache boundries
 	//queue the requests to fill the buffer
@@ -335,7 +341,7 @@ void UnitRTCore<NT, PT>::_schedule_ray()
 
 		ray_state.update_restart_trail = true;
 
-		if(true || entry.t < ray_state.hit.t) 
+		if(!_pop_culling || entry.t < ray_state.hit.t)
 		{
 			if(entry.data.is_int)
 			{
@@ -475,10 +481,10 @@ void UnitRTCore<NT, PT>::_simualte_tri_pipline()
 		RayState& ray_state = _ray_states[ray_id];
 		StagingBuffer& buffer = ray_state.buffer;
 
-		rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS];
-		uint tri_count = rtm::decompress(buffer.prim, 13, tris);
+		rtm::IntersectionTriangle tris[DGF::MAX_TRIS];
+		uint tri_count = rtm::decompress(buffer.prim, buffer.id, tris);
 
-		_tri_issue_count += 1;
+		_tri_issue_count += tri_count;
 		if(_tri_issue_count >= tri_count)
 		{
 			rtm::Ray& ray = ray_state.ray;
@@ -487,7 +493,7 @@ void UnitRTCore<NT, PT>::_simualte_tri_pipline()
 
 			for(uint i = 0; i < tri_count; ++i)
 				if(rtm::intersect(tris[i].tri, ray, hit))
-					hit.id = tris[i].id;
+					hit.id = buffer.id + i;
 
 			_tri_pipline.write(ray_id);
 			_tri_isect_queue.pop();
@@ -558,9 +564,16 @@ void UnitRTCore<NT, PT>::_issue_returns()
 	}
 }
 
-template class UnitRTCore<rtm::WBVH::Node, rtm::TriangleStrip>;
-template class UnitRTCore<rtm::NVCWBVH::Node, rtm::TriangleStrip>;
-template class UnitRTCore<rtm::HECWBVH::Node, rtm::QTriangleStrip>;
+template class UnitRTCore<rtm::WBVH::Node, rtm::FTB>;
+template class UnitRTCore<rtm::WBVH::Node, rtm::QTB>;
+template class UnitRTCore<rtm::WBVH::Node, rtm::DGFMesh::Block>;
+template class UnitRTCore<rtm::NVCWBVH::Node, rtm::FTB>;
+template class UnitRTCore<rtm::NVCWBVH::Node, rtm::QTB>;
+template class UnitRTCore<rtm::NVCWBVH::Node, rtm::DGFMesh::Block>;
+template class UnitRTCore<rtm::HECWBVH::Node, rtm::FTB>;
+template class UnitRTCore<rtm::HECWBVH::Node, rtm::QTB>;
+template class UnitRTCore<rtm::HECWBVH::Node, rtm::DGFMesh::Block>;
+
 
 
 }}}

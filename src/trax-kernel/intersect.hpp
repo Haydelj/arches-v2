@@ -109,7 +109,7 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
-inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps)
+inline bool intersect(const rtm::BVH2& bvh, const rtm::Mesh& mesh, const rtm::Ray& ray, rtm::Hit& hit)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
@@ -121,8 +121,8 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 
 	NodeStackEntry node_stack[32];
 	uint32_t node_stack_size = 1u;
-	node_stack[0].t = _intersect(nodes[0].aabb, ray, inv_d);
-	node_stack[0].data = nodes[0].data;
+	node_stack[0].t = _intersect(bvh.nodes[0].aabb, ray, inv_d);
+	node_stack[0].data = bvh.nodes[0].data;
 	
 	bool found_hit = false;
 	do
@@ -134,29 +134,29 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 		if(!current_entry.data.is_leaf)
 		{
 			uint child_index = current_entry.data.child_index;
-			float t0 = _intersect(nodes[child_index + 0].aabb, ray, inv_d);
-			float t1 = _intersect(nodes[child_index + 1].aabb, ray, inv_d);
+			float t0 = _intersect(bvh.nodes[child_index + 0].aabb, ray, inv_d);
+			float t1 = _intersect(bvh.nodes[child_index + 1].aabb, ray, inv_d);
 			if(t0 < hit.t || t1 < hit.t)
 			{
 				if(t0 < t1)
 				{
-					current_entry = {t0, nodes[child_index + 0].data};
-					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data};
+					current_entry = {t0, bvh.nodes[child_index + 0].data};
+					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, bvh.nodes[child_index + 1].data};
 				}
 				else
 				{
-					current_entry = {t1, nodes[child_index + 1].data};
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data};
+					current_entry = {t1, bvh.nodes[child_index + 1].data};
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, bvh.nodes[child_index + 0].data};
 				}
 				goto POP_SKIP;
 			}
 		}
 		else
 		{
-			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
+			for(uint32_t i = 0; i < current_entry.data.num_prims; ++i)
 			{
 				uint32_t id = current_entry.data.prim_index + i;
-				if(_intersect(tris[id], ray, hit))
+				if(_intersect(mesh.get_triangle(id), ray, hit))
 				{
 					hit.id = id;
 				}
@@ -218,12 +218,19 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 		else
 		{
 		#if 1
-			rtm::IntersectionTriangle tris[rtm::TriangleStrip::MAX_TRIS];
-			uint tri_count = rtm::decompress(prims[current_entry.data.prim_index], current_entry.data.prim_index, tris);
+			for(uint j = 0; j < current_entry.data.num_prims; ++j)
+			{
+				rtm::IntersectionTriangle tris[DGF::MAX_TRIS];
+			#if USE_HEBVH
+				uint tri_count = rtm::decompress(*(P*)((N*)prims + current_entry.data.prim_index + j), current_entry.data.prim_index + j, tris);
+			#else
+				uint tri_count = rtm::decompress(prims[current_entry.data.prim_index], current_entry.data.prim_index, tris);
+			#endif
 
-			for(uint i = 0; i < tri_count; ++i)
-				if(_intersect(tris[i].tri, ray, hit))
-					hit.id = tris[i].id;
+				for(uint i = 0; i < tri_count; ++i)
+					if(_intersect(tris[i].tri, ray, hit))
+						hit.id = current_entry.data.prim_index * DGF::MAX_TRIS + i;
+			}
 		#else
 			if(current_entry.t < hit.t)
 			{
@@ -320,8 +327,7 @@ inline void deinterleave_bits(uint i, uint& x, uint& y)
 }
 
 #ifndef __riscv 
-template <typename N, typename P>
-inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera camera, const N* nodes, const P* prims, rtm::Triangle* tris, uint bounce, std::vector<rtm::Ray>& rays, std::string ray_file = "")
+inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const rtm::Camera& camera, const rtm::BVH2& bvh, const rtm::Mesh& mesh, uint bounce, std::vector<rtm::Ray>& rays, std::string ray_file = "")
 {
 	const uint framebuffer_size = framebuffer_width * framebuffer_height;
 	printf("Generating bounce %d rays from %d path\n", bounce, framebuffer_size);
@@ -331,7 +337,6 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 	{
 		uint32_t x = index % framebuffer_width;
 		uint32_t y = index / framebuffer_width;
-		//deinterleave_bits(index, x, y);
 		rtm::RNG rng(index);
 
 		rtm::Ray ray = camera.generate_ray_through_pixel(x, y); // Assuming spp = 1
@@ -340,10 +345,10 @@ inline void pregen_rays(uint framebuffer_width, uint framebuffer_height, const r
 		{
 			uint steps = 0;
 			rtm::Hit hit(ray.t_max, rtm::vec2(0.0f), ~0u);
-			intersect(nodes, prims, ray, hit, steps, steps);
+			intersect(bvh, mesh, ray, hit);
 			if(hit.id != ~0u)
 			{
-				rtm::vec3 normal = tris[hit.id].normal();
+				rtm::vec3 normal = mesh.get_triangle(hit.id).normal();
 				ray.o += ray.d * hit.t;
 				ray.d = cosine_sample_hemisphere(normal, rng); // generate secondray rays
 			}

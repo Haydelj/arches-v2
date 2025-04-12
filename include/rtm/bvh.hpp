@@ -5,6 +5,7 @@
 
 #ifndef __riscv
 #include <vector>
+#include <deque>
 #include <algorithm>
 #include <cassert>
 #include <fstream>
@@ -21,25 +22,25 @@ namespace rtm {
 class BVH2
 {
 public:
-	const static uint32_t VERSION = 2395794618; //random number used to validate the cache
+	const static uint32_t VERSION = 13; //used to validate the cache
 	const static uint MAX_PRIMS = 1;
 
 	struct BuildObject
 	{
 		AABB  aabb{};
 		float cost{0.0f};
-		uint  index{~0u};
+		uint index{~0u};
 		uint64_t morton_code{~0u};
 	};
 
 	struct alignas(32) Node
 	{
-		struct Data
+		union Data
 		{
 			struct
 			{
 				uint32_t is_leaf    : 1;
-				uint32_t num_prims  : 3; //num prim - 1
+				uint32_t num_prims  : 3; //num prim
 				uint32_t prim_index : 28; //first prim
 			};
 			struct
@@ -51,7 +52,6 @@ public:
 
 		AABB       aabb;
 		Data       data;
-		uint32_t   _pad;
 	};
 
 #ifndef __riscv
@@ -64,21 +64,21 @@ public:
 		uint end;
 		uint node_index;
 
-		uint split_build_objects(AABB aabb, BuildObject* build_objects, uint quality)
+		uint split_build_objects(BuildObject* build_objects, uint quality)
 		{
 			uint size = end - start;
 			if(size <= 1) return ~0u;
 
 			if(quality == 0 && size > MAX_PRIMS)
-				return split_build_objects_radix(aabb, build_objects);
+				return split_build_objects_radix(build_objects);
 
 			if(quality == 1 && size > 64)
-				return split_build_objects_radix(aabb, build_objects);
+				return split_build_objects_radix(build_objects);
 
-			return split_build_objects_sah(aabb, build_objects);
+			return split_build_objects_sah(build_objects);
 		}
 
-		uint split_build_objects_sah(AABB aabb, BuildObject* build_objects)
+		uint split_build_objects_sah(BuildObject* build_objects)
 		{
 			uint size = end - start;
 			if(size <= 1) return ~0u;
@@ -86,6 +86,10 @@ public:
 			uint best_axis = 0;
 			uint best_spliting_index = 0;
 			float best_spliting_cost = FLT_MAX;
+
+			AABB aabb;
+			for(uint i = start; i < end; ++i)
+				aabb.add(build_objects[i].aabb);
 
 			float aabb_sa = aabb.surface_area();
 			float inv_aabb_sa = 1.0f / aabb_sa;
@@ -154,7 +158,7 @@ public:
 			return best_spliting_index;
 		}
 
-		uint split_build_objects_radix(AABB aabb, BuildObject* build_objects)
+		uint split_build_objects_radix(BuildObject* build_objects)
 		{
 			uint size = end - start;
 			if(size <= 1) return ~0u;
@@ -244,7 +248,7 @@ public:
 
 	bool deserialize(std::string file_path, std::vector<BuildObject>& build_objects, uint quality = ~0u)
 	{
-		printf("Loading BVH2: %s\n", file_path.c_str());
+		printf("BVH2: Loading: %s\n", file_path.c_str());
 
 		bool succeeded = false;
 		std::ifstream file_stream(file_path, std::ios::binary);
@@ -263,23 +267,23 @@ public:
 				sah_cost = header.sah_cost;
 
 				succeeded = true;
-				printf("Loaded BVH2: %s\n", file_path.c_str());
-				printf("Quality: %d\n", header.quality);
-				printf("Cost: %f\n", header.sah_cost);
-				printf("Nodes: %d\n", header.num_nodes);
-				printf("Objects: %d\n", header.num_build_objects);
+				printf("BVH2: Size: %0.1f MiB\n", (float)sizeof(Node) * nodes.size() / (1 << 20));
+				printf("BVH2: Quality: %d\n", header.quality);
+				printf("BVH2: SAH Cost: %f\n", header.sah_cost);
+				printf("BVH2: Nodes: %d\n", header.num_nodes);
+				printf("BVH2: Prims: %d\n", header.num_build_objects);
 			}
 		}
 
 		if(!succeeded)
-			printf("Failed to load BVH2: %s\n", file_path.c_str());
+			printf("BVH2: Failed to load: %s\n", file_path.c_str());
 
 		return succeeded;
 	}
 
 	void build(std::vector<BuildObject>& build_objects, uint quality = 2)
 	{
-		printf("Building BVH2\n");
+		//printf("Building BVH2\n");
 		nodes.clear();
 
 		//Build morton codes for build objects
@@ -303,21 +307,21 @@ public:
 			build_object.morton_code |= _pdep_u64(z, 0b100100100100100100100100100100100100100100100100100100100100ull);
 		}
 
-		std::vector<BuildEvent> event_stack;
-		event_stack.emplace_back();
-		event_stack.back().start = 0;
-		event_stack.back().end = build_objects.size();
-		event_stack.back().node_index = 0; nodes.emplace_back();
+		std::deque<BuildEvent> event_queue;
+		event_queue.emplace_back();
+		event_queue.back().start = 0;
+		event_queue.back().end = build_objects.size();
+		event_queue.back().node_index = 0; nodes.emplace_back();
 
-		while(!event_stack.empty())
+		while(!event_queue.empty())
 		{
-			BuildEvent current_build_event = event_stack.back(); event_stack.pop_back();
+			BuildEvent current_build_event = event_queue.front(); event_queue.pop_front();
 
 			AABB aabb;
 			for(uint i = current_build_event.start; i < current_build_event.end; ++i)
 				aabb.add(build_objects[i].aabb);
 
-			uint splitting_index = current_build_event.split_build_objects(aabb, build_objects.data(), quality);
+			uint splitting_index = current_build_event.split_build_objects(build_objects.data(), quality);
 			if(splitting_index != ~0)
 			{
 				nodes[current_build_event.node_index].aabb = aabb;
@@ -327,8 +331,8 @@ public:
 				for(uint i = 0; i < 2; ++i)
 					nodes.emplace_back();
 
-				event_stack.push_back({splitting_index, current_build_event.end, (uint)nodes.size() - 1});
-				event_stack.push_back({current_build_event.start, splitting_index, (uint)nodes.size() - 2});
+				event_queue.push_back({current_build_event.start, splitting_index, (uint)nodes.size() - 2});
+				event_queue.push_back({splitting_index, current_build_event.end, (uint)nodes.size() - 1});
 			}
 			else
 			{
@@ -338,7 +342,7 @@ public:
 
 				nodes[current_build_event.node_index].aabb = aabb;
 				nodes[current_build_event.node_index].data.is_leaf = 1;
-				nodes[current_build_event.node_index].data.num_prims = size - 1;
+				nodes[current_build_event.node_index].data.num_prims = size;
 				nodes[current_build_event.node_index].data.prim_index = current_build_event.start;
 			}
 		}
@@ -350,7 +354,7 @@ public:
 			costs[i] = 0.0f;
 			if(nodes[i].data.is_leaf)
 			{
-				for(uint j = 0; j <= nodes[i].data.num_prims; ++j)
+				for(uint j = 0; j < nodes[i].data.num_prims; ++j)
 					costs[i] += build_objects[nodes[i].data.prim_index + j].cost;
 			}
 			else
@@ -368,11 +372,11 @@ public:
 		}
 		sah_cost = costs[0];
 
-		printf("Built BVH2\n");
-		printf("Quality: %d\n", quality);
-		printf("Cost: %f\n", sah_cost);
-		printf("Nodes: %d\n", (uint)nodes.size());
-		printf("Objects: %d\n", (uint)build_objects.size());
+		//printf("Built BVH2\n");
+		//printf("Quality: %d\n", quality);
+		//printf("Cost: %f\n", sah_cost);
+		//printf("Nodes: %d\n", (uint)nodes.size());
+		//printf("Objects: %d\n", (uint)build_objects.size());
 	}
 #endif
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aabb.hpp"
+#include <map>
 
 namespace rtm
 {
@@ -52,7 +53,7 @@ inline uint decompress(const rtm::Triangle& in, uint id0, rtm::IntersectionTrian
 class alignas(64) TriangleStrip
 {
 public:
-	const static uint MAX_TRIS = 1;
+	const static uint MAX_TRIS = 3;
 	uint32_t id : 28;
 	uint32_t num_tris : 2;
 	uint32_t edge_mask : 2;
@@ -105,15 +106,16 @@ struct alignas(32) QTriangleStrip
 	uint8_t data[9 * (2 + MAX_TRIS)];
 	QTriangleStrip(const rtm::TriangleStrip& other) : id(other.id), num_tris(other.num_tris), edge_mask(other.edge_mask)
 	{
-		assert(other.num_tris <= MAX_TRIS);
 		sizeof(QTriangleStrip);
 		for(uint i = 0; i < 3 * num_tris + 6; ++i)
 		{
-			uint32_t u24 = f32_to_u24(((float*)other.vrts)[i]);
-			std::memcpy(data + i * 3, &u24, 3);
+			int32_t i24 = f32_to_i24(((float*)other.vrts)[i]);
+			std::memcpy(data + i * 3, &i24, 3);
 		}
 	}
 };
+
+
 
 inline TriangleStrip derefrence(const rtm::IndexStrip& strip, const rtm::vec3* verts)
 {
@@ -149,9 +151,9 @@ inline uint decompress(const rtm::QTriangleStrip& strip, uint strip_id, rtm::Int
 	temp_strip.edge_mask = strip.edge_mask;
 	for(uint i = 0; i < 3 * (strip.num_tris + 2); ++i)
 	{
-		uint32_t u24;
-		std::memcpy(&u24, strip.data + i * 3, 3);
-		((float*)temp_strip.vrts)[i] = u24_to_f32(u24);
+		int32_t i24;
+		std::memcpy(&i24, strip.data + i * 3, 3);
+		((float*)temp_strip.vrts)[i] = i24_to_f32(i24);
 	}
 	return decompress(temp_strip, strip_id, tris);
 }

@@ -15,6 +15,7 @@ public:
 		LRU,
 		LRU_RANDOM,
 		FIFO,
+		FIFO_RANDOM,
 	};
 
 	UnitCacheBase(size_t size, uint block_size, uint associativity, uint sector_size = 0, Policy policy = Policy::LRU);

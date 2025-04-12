@@ -15,16 +15,6 @@ inline static uint32_t encode_pixel(rtm::vec3 in)
 	return out;
 }
 
-inline static uint f_to_u(float f)
-{
-	return *(uint*)&f;
-}
-
-inline static float u_to_f(uint u)
-{
-	return *(float*)&u;
-}
-
 inline static void kernel(const TRaXKernelArgs& args)
 {
 	constexpr uint TILE_X = 4;
@@ -56,12 +46,9 @@ inline static void kernel(const TRaXKernelArgs& args)
 		#if defined(__riscv) && (TRAX_USE_RT_CORE)
 			_traceray<0x0u>(index, ray, hit);
 		#else
-		#if USE_HEBVH
-			intersect(args.nodes, (rtm::QTriangleStrip*)args.nodes, ray, hit, node_steps, prim_steps);
-		#else
-			//intersect(args.nodes, args.strips, ray, hit, node_steps, prim_steps);
-			intersect(args.nodes, args.strips, args.vrts, ray, hit, node_steps, prim_steps);
-		#endif
+			//intersect(args.nodes, args.dgf_blocks, ray, hit, node_steps, prim_steps);
+			//intersect(args.nodes, args.qt_blocks, ray, hit, node_steps, prim_steps);
+			intersect(args.nodes, args.ft_blocks, ray, hit, node_steps, prim_steps);
 		#endif
 
 		if(hit.id != ~0u)
@@ -132,6 +119,9 @@ int main()
 
 int main(int argc, char* argv[])
 {
+	uint pregen_bounce = 0;
+	std::string scene_name = "san-miguel";
+
 	TRaXKernelArgs args;
 	args.framebuffer_width = 1024;
 	args.framebuffer_height = 1024;
@@ -141,63 +131,70 @@ int main(int argc, char* argv[])
 	args.pregen_rays = true;
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-
-	std::string scene_name = "intel-sponza";
-
 	if(scene_name.compare("sibenik") == 0)
 		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(3.0, -13.0, 0.0), rtm::vec3(0, -12.0, 0));
-
 	if(scene_name.compare("crytek-sponza") == 0)
 		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-
-	//intel sponza camera
 	if(scene_name.compare("intel-sponza") == 0)
 		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f));
-	
-	// san miguel camera
 	if(scene_name.compare("san-miguel") == 0)
 		args.camera = rtm::Camera(args.framebuffer_width, args.framebuffer_height, 12.0f, rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(7.448 + 0.608, 1.014 + 0.026, 12.357 - 0.794));
 
+	std::vector<rtm::BVH2::BuildObject> bos;
 	rtm::Mesh mesh("../../../datasets/" + scene_name + ".obj");
-	args.camera._position *= mesh.normalize_verts();
 	mesh.quantize_verts();
+	mesh.get_build_objects(bos);
+	rtm::BVH2 bvh2("../../../datasets/cache/" + scene_name + ".bvh", bos, 2);
+	mesh.reorder(bos);
+	printf("\n");
 
-	std::vector<rtm::BVH2::BuildObject> build_objects;
-	mesh.get_build_objects(build_objects);
-
-	rtm::BVH2 bvh2("../../../datasets/cache/" + scene_name + ".bvh", build_objects, 2);
-	//args.nodes = bvh2.nodes.data();
-	mesh.reorder(build_objects);
-
-	rtm::WBVH wbvh(bvh2, mesh, build_objects);
-	//args.nodes = wbvh.nodes.data();
-	mesh.reorder(build_objects);
-	//args.strips = wbvh.triangle_strips.data();
-	args.strips = wbvh.index_strips.data();
-	args.vrts = mesh.vertices.data();
-	printf("Strips: %d MB\n", sizeof(rtm::IndexStrip) * wbvh.index_strips.size() / (1 << 20));
-	printf("Vertices: %d MB\n", sizeof(rtm::vec3) * mesh.vertices.size() / (1 << 20));
-
-#if USE_HEBVH
-	rtm::HECWBVH hecwbvh(wbvh, wbvh.triangle_strips);
-	args.nodes = hecwbvh.nodes.data();
-#else
-	rtm::NVCWBVH cwbvh(wbvh);
-	args.nodes = cwbvh.nodes.data();
-#endif
-
-	std::vector<rtm::Triangle> tris;
-	mesh.get_triangles(tris);
-	args.tris = tris.data();
-
-	uint bounce = 1;
-	std::string ray_file = "";//scene_name + "-" + std::to_string(args.framebuffer_width) + "-" + std::to_string(bounce) + ".rays";
+	std::vector<rtm::BVH2::BuildObject> dgf_bos;
+	rtm::DGFMesh dgf_mesh("../../../datasets/" + scene_name + ".dgf");
+	dgf_mesh.get_build_objects(dgf_bos);
+	rtm::BVH2 dgf_bvh2("../../../datasets/cache/" + scene_name + ".dgf.bvh", dgf_bos, 2);
+	dgf_mesh.reorder(dgf_bos);
+	printf("\n");
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, wbvh.nodes.data(), wbvh.triangle_strips.data(), tris.data(), bounce, rays, ray_file);
-	args.rays = rays.data();
-	
+	{
+		std::string ray_file = scene_name + "-" + std::to_string(args.framebuffer_width) + "-" + std::to_string(pregen_bounce) + ".rays";
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, pregen_bounce, rays);
+		args.rays = rays.data();
+	}
+	printf("\n");
+
+#if USE_HEBVH
+	//rtm::WBVH dgf_wbvh(dgf_bvh2, dgf_bos);
+	//dgf_mesh.reorder(dgf_bos);
+	//rtm::HECWBVH hecwbvh(dgf_wbvh, (uint8_t*)dgf_mesh.blocks.data(), sizeof(rtm::DGFMesh::Block));
+	//args.nodes = hecwbvh.nodes.data();
+	//args.dgf_blocks = (rtm::DGFMesh::Block*)args.nodes;
+
+	//rtm::WBVH wbvh(bvh2, bos, &mesh, false);
+	//mesh.reorder(bos);
+	//rtm::HECWBVH hecwbvh(wbvh, (uint8_t*)wbvh.qt_blocks.data(), sizeof(rtm::QTB));
+	//args.nodes = hecwbvh.nodes.data();
+	//args.qt_blocks = (rtm::QTB*)args.nodes;
+
+	rtm::WBVH wbvh(bvh2, bos, &mesh, false);
+	mesh.reorder(bos);
+	rtm::HECWBVH hecwbvh(wbvh, (uint8_t*)wbvh.ft_blocks.data(), sizeof(rtm::FTB));
+	args.nodes = hecwbvh.nodes.data();
+	args.ft_blocks = (rtm::FTB*)args.nodes;
+#else
+	//rtm::NVCWBVH cwbvh(dgf_wbvh);
+	//args.nodes = cwbvh.nodes.data();
+	//args.dgf_blocks = dgf_mesh.blocks.data();
+
+	rtm::WBVH dgf_wbvh(dgf_bvh2, dgf_bos);
+	dgf_mesh.reorder(dgf_bos);
+	rtm::NVCWBVH cwbvh(dgf_wbvh);
+	args.nodes = cwbvh.nodes.data();
+	args.dgf_blocks = dgf_mesh.blocks.data();
+#endif
+
+	printf("\nStarting Taveral\n");
 	auto start = std::chrono::high_resolution_clock::now();
 
 	std::vector<std::thread> threads;
@@ -209,7 +206,7 @@ int main(int argc, char* argv[])
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-	std::cout << "Runtime: " << duration.count() << " ms\n\n";
+	printf("Runtime: %dms\n", (uint)duration.count());
 
 	stbi_flip_vertically_on_write(true);
 	stbi_write_png("./out.png", args.framebuffer_width, args.framebuffer_height, 4, args.framebuffer, 0);

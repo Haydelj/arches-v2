@@ -105,7 +105,7 @@ uint8_t* UnitCacheBase::_read_sector(paddr_t sector_addr)
 	if(found_index == ~0) 
 		return nullptr; //Didn't find line so we will leave lru alone and return nullptr
 
-	if(_policy != Policy::FIFO)
+	if(_policy != Policy::FIFO && _policy != Policy::FIFO_RANDOM)
 	{
 		for(uint i = start; i < end; ++i)
 			if(_tag_array[i].lru < found_lru) 
@@ -169,7 +169,7 @@ UnitCacheBase::Victim UnitCacheBase::_allocate_block(paddr_t block_addr)
 		{
 			replacement_lru = _associativity - 1;
 		}
-		else if(_policy == Policy::LRU_RANDOM)
+		else if(_policy == Policy::LRU_RANDOM || _policy == Policy::FIFO_RANDOM)
 		{
 			replacement_lru = _associativity * 3 / 4 + _hash % (_associativity / 4);
 			_hash = rtm::RNG::hash(_hash);

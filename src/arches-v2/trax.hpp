@@ -125,18 +125,23 @@ typedef Units::UnitCache UnitL1Cache;
 //typedef Units::TRaX::UnitRTCore<rtm::NVCWBVH::Node, rtm::Triangle> UnitRTCore;
 //typedef Units::TRaX::UnitRTCore<rtm::NVCWBVH::Node, rtm::TriangleStrip> UnitRTCore;
 
+
+//typedef rtm::DGFMesh::Block PrimBlocks;
+//typedef rtm::QTB PrimBlocks;
+typedef rtm::FTB PrimBlocks;
+
 #if USE_HEBVH
-typedef Units::TRaX::UnitRTCore<rtm::HECWBVH::Node, rtm::QTriangleStrip> UnitRTCore;
+typedef Units::TRaX::UnitRTCore<rtm::HECWBVH::Node, PrimBlocks> UnitRTCore;
 #else
-typedef Units::TRaX::UnitRTCore<rtm::WBVH::Node, rtm::TriangleStrip> UnitRTCore;
+typedef Units::TRaX::UnitRTCore<rtm::NVCWBVH::Node, PrimBlocks> UnitRTCore;
 #endif
 
 static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_address, const SimulationConfig& sim_config, uint page_size)
 {
 	std::string scene_name = sim_config.get_string("scene_name");
 	std::string project_folder = get_project_folder_path();
-	std::string scene_file = project_folder + "datasets\\" + scene_name + ".obj";
-	std::string bvh_cache_filename = project_folder + "datasets\\cache\\" + scene_name + ".bvh";
+	std::string datasets_folder = project_folder + "datasets\\";
+	std::string cache_folder = project_folder + "datasets\\cache\\";
 
 	TRaXKernelArgs args;
 	args.framebuffer_width = sim_config.get_int("framebuffer_width");
@@ -147,51 +152,95 @@ static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_addr
 	heap_address += args.framebuffer_size * sizeof(uint32_t);
 
 	args.pregen_rays = sim_config.get_int("pregen_rays");
+	uint pregen_bounce = sim_config.get_int("pregen_bounce");
 
 	args.light_dir = rtm::normalize(rtm::vec3(4.5f, 42.5f, 5.0f));
-
 	args.camera = sim_config.camera;
 
-	rtm::Mesh mesh(scene_file);
-	float scale = mesh.normalize_verts();
-	printf("Scale: %f\n", scale);
-	 mesh.quantize_verts();
-	args.camera._position *= scale;
-
-	std::vector<rtm::BVH2::BuildObject> build_objects;
-	mesh.get_build_objects(build_objects);
-
-	rtm::BVH2 bvh2(bvh_cache_filename, build_objects);
-	mesh.reorder(build_objects);
-
-	rtm::WBVH wbvh(bvh2, mesh, build_objects);
-	//args.nodes = write_vector(main_memory, 256, wbvh.nodes, heap_address);
-	mesh.reorder(build_objects);
-
-
-#if USE_HEBVH
-	rtm::HECWBVH hecwbvh(wbvh, wbvh.triangle_strips);
-	args.nodes = write_vector(main_memory, 256, hecwbvh.nodes, heap_address);
-#else
-	rtm::NVCWBVH cwbvh(wbvh);
-	args.nodes = write_vector(main_memory, 256, wbvh.nodes, heap_address);
-	args.strips = write_vector(main_memory, 256, wbvh.triangle_strips, heap_address);
-
-	//args.strips = write_vector(main_memory, 256, wbvh.index_strips, heap_address);
-	//std::vector<rtm::vec4> vrts;
-	//for(auto& v : mesh.vertices)
-	//	vrts.push_back(rtm::vec4(v.x, v.y, v.z, 0.0f));
-	//args.vrts = write_vector(main_memory, 256, vrts, heap_address);
-#endif
-
-	std::vector<rtm::Triangle> tris;
-	mesh.get_triangles(tris);
-	args.tris = write_vector(main_memory, 256, tris, heap_address);
+	std::vector<rtm::BVH2::BuildObject> bos;
+	rtm::Mesh mesh(datasets_folder + scene_name + ".obj");
+	//mesh.quantize_verts();
+	mesh.get_build_objects(bos);
+	rtm::BVH2 bvh2(cache_folder + scene_name + ".bvh", bos, 2);
+	mesh.reorder(bos);
 
 	std::vector<rtm::Ray> rays(args.framebuffer_size);
 	if(args.pregen_rays)
-		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, wbvh.nodes.data(), wbvh.triangle_strips.data(), tris.data(), sim_config.get_int("pregen_bounce"), rays);
-	args.rays = write_vector(main_memory, 256, rays, heap_address);
+	{
+		std::string ray_file = scene_name + "-" + std::to_string(args.framebuffer_width) + "-" + std::to_string(pregen_bounce) + ".rays";
+		pregen_rays(args.framebuffer_width, args.framebuffer_height, args.camera, bvh2, mesh, pregen_bounce, rays);
+		args.rays = write_vector(main_memory, 256, rays, heap_address);
+	}
+
+	rtm::DGFMesh dgf_mesh(datasets_folder + scene_name + ".dgf");
+
+	std::vector<rtm::BVH2::BuildObject> dgf_bo;
+	dgf_mesh.get_build_objects(dgf_bo);
+
+	rtm::BVH2 dgf_bvh2(cache_folder + scene_name + ".dgf.bvh", dgf_bo, 2);
+	dgf_mesh.reorder(dgf_bo);
+
+#if USE_HEBVH
+	//DGF
+	if(typeid(PrimBlocks) == typeid(rtm::DGFMesh::Block))
+	{ 
+		rtm::WBVH wbvh(dgf_bvh2, dgf_bo);
+		dgf_mesh.reorder(dgf_bo);
+		rtm::HECWBVH hecwbvh(wbvh, (uint8_t*)dgf_mesh.blocks.data(), sizeof(rtm::DGFMesh::Block));
+		args.nodes = write_vector(main_memory, 256, hecwbvh.nodes, heap_address);
+		args.dgf_blocks = (rtm::DGFMesh::Block*)args.nodes;
+	}
+
+	//QTB
+	if(typeid(PrimBlocks) == typeid(rtm::QTB))
+	{
+		rtm::WBVH wbvh(bvh2, bos, &mesh, true);
+		mesh.reorder(bos);
+		rtm::HECWBVH hecwbvh(wbvh, (uint8_t*)wbvh.qt_blocks.data(), sizeof(rtm::QTB));
+		args.nodes = write_vector(main_memory, 256, hecwbvh.nodes, heap_address);
+		args.qt_blocks = (rtm::QTB*)args.nodes;
+	}
+
+	//FTB
+	if(typeid(PrimBlocks) == typeid(rtm::FTB))
+	{
+		rtm::WBVH wbvh(bvh2, bos, &mesh, false);
+		mesh.reorder(bos);
+		rtm::HECWBVH hecwbvh(wbvh, (uint8_t*)wbvh.ft_blocks.data(), sizeof(rtm::FTB));
+		args.nodes = write_vector(main_memory, 256, hecwbvh.nodes, heap_address);
+		args.ft_blocks = (rtm::FTB*)args.nodes;
+	}
+#else
+	//DGF
+	if(typeid(PrimBlocks) == typeid(rtm::DGFMesh::Block))
+	{
+		rtm::WBVH wbvh(dgf_bvh2, dgf_bo);
+		dgf_mesh.reorder(dgf_bo);
+		rtm::NVCWBVH cwbvh(wbvh);
+		args.nodes = write_vector(main_memory, 256, cwbvh.nodes, heap_address);
+		args.dgf_blocks = write_vector(main_memory, 256, dgf_mesh.blocks, heap_address);
+	}
+
+	//QTB
+	if(typeid(PrimBlocks) == typeid(rtm::QTB))
+	{
+		rtm::WBVH wbvh(bvh2, bos, &mesh, true);
+		mesh.reorder(bos);
+		rtm::NVCWBVH cwbvh(wbvh);
+		args.nodes = write_vector(main_memory, 256, cwbvh.nodes, heap_address);
+		args.qt_blocks = write_vector(main_memory, 256, wbvh.qt_blocks, heap_address);
+	}
+
+	//FTB
+	if(typeid(PrimBlocks) == typeid(rtm::FTB))
+	{
+		rtm::WBVH wbvh(bvh2, bos, &mesh, false);
+		mesh.reorder(bos);
+		rtm::NVCWBVH cwbvh(wbvh);
+		args.nodes = write_vector(main_memory, 256, cwbvh.nodes, heap_address);
+		args.ft_blocks = write_vector(main_memory, 256, wbvh.ft_blocks, heap_address);
+	}
+#endif
 
 	std::memcpy(main_memory + TRAX_KERNEL_ARGS_ADDRESS, &args, sizeof(TRaXKernelArgs));
 	return args;
@@ -201,14 +250,14 @@ static void run_sim_trax(SimulationConfig& sim_config)
 {
 	std::string project_folder_path = get_project_folder_path();
 
-#if 0 //RTX 4090 ish
+#if 1 //RTX 4090 ish
 	//Compute
 	double core_clock = 2235.0e6;
 	double dram_clock = 5250.0e6;
 	uint64_t stack_size = 512;
 	uint num_tms = 128;
 	uint num_tps = 128;
-	uint num_threads = 8;
+	uint num_threads = 12;
 
 	//Memory
 	uint64_t block_size = CACHE_BLOCK_SIZE;
@@ -220,12 +269,12 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	dram_config.config_path = project_folder_path + "build\\src\\arches-v2\\config-files\\gddr6x_21000_config.yaml";
 	dram_config.size = 1ull << 30; //1GB per partition
 	dram_config.clock_ratio = dram_clock / core_clock;
-	dram_config.latency = 92;
+	dram_config.latency = 254;
 
 	//L2$
 	UnitL2Cache::Configuration l2_config;
 	l2_config.level = 2;
-	l2_config.block_prefetch = true;
+	//l2_config.block_prefetch = true;
 	l2_config.miss_alloc = true;
 	l2_config.size = 6 << 20;
 	l2_config.associativity = 16;
@@ -260,10 +309,10 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitL1Cache::PowerConfig l1d_power_config;
 
 	UnitRTCore::Configuration rtc_config;
-	rtc_config.max_rays = 128;
+	rtc_config.max_rays = 32;
 	rtc_config.num_cache_ports = 4;
 
-#elif 0 //RTX 3090 ish
+#elif 0 //RTX 3070 ish
 	//Compute
 	double core_clock = 1500.0e6;
 	uint64_t stack_size = 512;
@@ -310,7 +359,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	l1d_config.miss_alloc = true;
 	l1d_config.size = 128 << 10;
 	l1d_config.associativity = 32;
-	l1d_config.policy = Units::UnitCacheBase::Policy::LRU;
+	l1d_config.policy = Units::UnitCacheBase::Policy::FIFO;
 	l1d_config.num_banks = 4;
 	l1d_config.crossbar_width = l1d_config.num_banks;
 	l1d_config.num_mshr = 384;
@@ -377,9 +426,9 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitL1Cache::Configuration l1d_config;
 	l1d_config.level = 1;
 	l1d_config.miss_alloc = true;
+	l1d_config.policy = Units::UnitCacheBase::Policy::LRU;
 	l1d_config.size = 64 << 10;
 	l1d_config.associativity = 32;
-	l1d_config.policy = Units::UnitCacheBase::Policy::LRU;
 	l1d_config.num_banks = 4;
 	l1d_config.crossbar_width = l1d_config.num_banks;
 	l1d_config.num_mshr = 256;
@@ -389,7 +438,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitL1Cache::PowerConfig l1d_power_config;
 
 	UnitRTCore::Configuration rtc_config;
-	rtc_config.max_rays = 64;
+	rtc_config.max_rays = 32;
 	rtc_config.num_cache_ports = 2;
 #else //TRaX 1.0
 	double core_clock = 1000.0e6;
@@ -577,18 +626,14 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	#if TRAX_USE_RT_CORE
 		rtc_config.num_clients = num_tps;
 		rtc_config.node_base_addr = (paddr_t)kernel_args.nodes;
-		//rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
-		//rtc_config.tri_base_addr = (paddr_t)kernel_args.strips;
-	#if USE_HEBVH
-		rtc_config.tri_base_addr = (paddr_t)kernel_args.nodes;
-	#else
-		rtc_config.tri_base_addr = (paddr_t)kernel_args.strips;
-		//rtc_config.vrt_base_addr = (paddr_t)kernel_args.vrts;
-	#endif
-		//rtc_config.treelet_base_addr = (paddr_t)kernel_args.treelets;
+		if(typeid(PrimBlocks) == typeid(rtm::DGFMesh::Block))
+			rtc_config.tri_base_addr = (paddr_t)kernel_args.dgf_blocks;
+		if(typeid(PrimBlocks) == typeid(rtm::QTB))
+			rtc_config.tri_base_addr = (paddr_t)kernel_args.qt_blocks;
+		if(typeid(PrimBlocks) == typeid(rtm::FTB))
+			rtc_config.tri_base_addr = (paddr_t)kernel_args.ft_blocks;
 		rtc_config.cache = l1ds.back();
 		rtc_config.cache_port = num_tps;
-		rtc_config.num_cache_ports = 2;
 		rtc_config.cache_port_stride = num_tps / l1d_config.num_banks;
 
 		rtcs.push_back(_new  UnitRTCore(rtc_config));

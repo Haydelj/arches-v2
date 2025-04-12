@@ -32,11 +32,11 @@ std::string get_project_folder_path()
 template <typename T>
 static T* write_array(Units::UnitMainMemoryBase* main_memory, size_t alignment, T* data, size_t size, paddr_t& heap_address)
 {
-
 	paddr_t array_address = align_to(alignment, heap_address);
 	heap_address = array_address + size * sizeof(T);
 	main_memory->direct_write(data, size * sizeof(T), array_address);
 	return reinterpret_cast<T*>(array_address);
+
 
 }
 
@@ -186,22 +186,10 @@ public:
 
 		//Arch
 		set_param("arch_name", "TRaX");
-		set_param("num_threads", 4);
-		set_param("num_tms", 128);
-		set_param("num_tps", 128);
-		set_param("num_rt_cores", 1);
 		set_param("max_rays", 128);
 
-		set_param("l2_size", 72 << 20);
-		set_param("l2_associativity", 18);
-		set_param("l2_in_order", 0);
-
-		set_param("l1_size", 128 << 10);
-		set_param("l1_associativity", 16);
-		set_param("l1_in_order", 0);
-
 		//Workload
-		set_param("scene_name", "sponza");
+		set_param("scene_name", "sibenik");
 		set_param("framebuffer_width", 1024);
 		set_param("framebuffer_height", 1024);
 
@@ -276,6 +264,7 @@ public:
 		_assert(a != _params.end());
 		_assert(a->second.type == Param::Type::STRING);
 		return a->second.s;
+
 	}
 
 
@@ -313,18 +302,15 @@ public:
 			{
 				_params[key].s = std::string(str);
 			}
-			else _assert(false);
 		}
 		else
 		{
-			printf("Invalid Param!: %s\n", key.c_str());
-			_assert(false);
+			printf("Invalid Parameter!!!: %s\n", key.c_str());
 		}
 	}
 
 	void print()
 	{
-
 		printf("Simulation Parameters\n");
 		for(std::pair<const std::string, Param>& a : _params)
 		{
@@ -340,7 +326,6 @@ public:
 			{
 				printf("%s: %s\n", a.first.c_str(), a.second.s.c_str());
 			}
-			else _assert(false);
 		}
 		printf("\n");
 	}

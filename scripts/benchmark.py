@@ -15,8 +15,8 @@ def get_test_configs():
         "pregen_bounce": 0,
     }
     
-    #test_scenes = ["crytek-sponza", "intel-sponza" , "san-miguel"]
-    test_scenes = ["sibenik", "crytek-sponza", "intel-sponza", "san-miguel"]
+    test_scenes = ["crytek-sponza", "intel-sponza" , "san-miguel"]
+    #test_scenes = ["sibenik", "crytek-sponza", "intel-sponza", "san-miguel"]
     #test_scenes = ["intel-sponza", "sponza"]
     #test_arch = ["TRaX"]
     test_bounce_types = [0,1,2]

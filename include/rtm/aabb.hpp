@@ -58,4 +58,18 @@ public:
 	}
 };
 
+//Quantized aabb
+struct QAABB16
+{
+	uint16_t min[3];
+	uint16_t max[3];
+};
+
+//Quantized aabb
+struct QAABB8
+{
+	uint8_t min[3];
+	uint8_t max[3];
+};
+
 }
