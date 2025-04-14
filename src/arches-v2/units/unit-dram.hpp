@@ -38,8 +38,10 @@ private:
 	bool _busy{false};
 
 	std::vector<Channel> _channels;
-	RequestCascade _request_network;
-	ReturnCascade _return_network;
+	//RequestCascade _request_network;
+	RequestCrossBar _request_network;
+	//ReturnCascade _return_network;
+	ReturnCrossBar _return_network;
 	cycles_t _current_cycle{ 0 };
 
 	std::vector<MemoryReturn> returns;

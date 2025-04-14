@@ -30,5 +30,6 @@
 #include "compressed-wide-bvh-strata.hpp"
 #include "compressed-wide-treelet-bvh.hpp"
 #include "compressed-wide-treelet-bvh-strata.hpp"
+#include "bvh-simtrax.hpp"
 
 #include "intersect.hpp"

@@ -78,12 +78,12 @@ public:
 	{
 		for(uint pipline_index = 0; pipline_index < piplines.size(); ++pipline_index)
 		{
+			piplines[pipline_index].clock();
 			if(piplines[pipline_index].is_read_valid() && return_crossbar.is_write_valid(pipline_index))
 			{
 				SFURequest ret = piplines[pipline_index].read();
 				return_crossbar.write(ret, pipline_index);
 			}
-			piplines[pipline_index].clock();
 		}
 
 		return_crossbar.clock();

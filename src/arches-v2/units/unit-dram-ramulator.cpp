@@ -5,7 +5,7 @@ namespace Arches { namespace Units {
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
 UnitDRAMRamulator::UnitDRAMRamulator(Configuration config) : UnitMainMemoryBase(config.size),
-	_request_network(config.num_ports, config.num_controllers), _return_network(config.num_controllers, config.num_ports), _partition_mask(config.partition_stride)
+	_request_network(config.num_ports, config.num_controllers, 8 << 10), _return_network(config.num_controllers, config.num_ports), _partition_mask(config.partition_stride)
 {
 	YAML::Node yaml = Ramulator::Config::parse_config_file(config.config_path, {});
 

@@ -50,7 +50,7 @@ public:
 		uv -= rtm::vec2(0.5f);
 
 		Ray ray;
-		ray.d = (_x * uv.x + _y * uv.y - _z);
+		ray.d = rtm::normalize(_x * uv.x + _y * uv.y - _z);
 		ray.t_min = T_MIN;
 		ray.o = _position;
 		ray.t_max = T_MAX;

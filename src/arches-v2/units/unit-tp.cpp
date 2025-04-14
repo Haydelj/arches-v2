@@ -4,8 +4,8 @@ namespace Arches {
 namespace Units {
 
 //#define ENABLE_TP_DEBUG_PRINTS (_tp_index == 0 && _tm_index == 0 && this->simulator->current_cycle > 0)
-//#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x00000000000014a4 && thread_id == 0)
-#define TP_PRINT_STALL_CYCLES (true)
+//#define ENABLE_TP_DEBUG_PRINTS (unit_id == 0x000000000000000e && thread_id == 0 && this->simulator->current_cycle > 0x000000000000023e - 32)
+#define TP_PRINT_STALL_CYCLES (false)
 
 #ifndef ENABLE_TP_DEBUG_PRINTS 
 #define ENABLE_TP_DEBUG_PRINTS (false)
@@ -296,6 +296,8 @@ void UnitTP::clock_fall()
 
 	_log_instruction_issue(thread_id);
 	ISA::RISCV::ExecutionItem exec_item = {thread.pc, &thread.int_regs, &thread.float_regs};
+	if (ENABLE_TP_DEBUG_PRINTS)
+		thread.instr_info.print_regs(thread.instr, exec_item), printf("\n");
 
 	//Execute
 	bool jump = false;
@@ -309,6 +311,8 @@ void UnitTP::clock_fall()
 	}
 	else if (thread.instr_info.exec_type == ISA::RISCV::ExecType::EXECUTABLE)
 	{
+
+
 		thread.instr_info.execute(exec_item, thread.instr);
 		
 		//Because of forwarding instruction with latency 1 don't cause stalls so we don't need to set the pending bit

@@ -109,7 +109,10 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
-inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint& steps)
+//#define ENABLE_INTERSECT_DEBUG (ray_id == 0)
+#define ENABLE_INTERSECT_DEBUG 0
+
+inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint ray_id)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
 
@@ -117,12 +120,18 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 	{
 		float t;
 		rtm::BVH2::Node::Data data;
+		uint node_index;
 	};
 
 	NodeStackEntry node_stack[32];
 	uint32_t node_stack_size = 1u;
 	node_stack[0].t = _intersect(nodes[0].aabb, ray, inv_d);
 	node_stack[0].data = nodes[0].data;
+	node_stack[0].node_index = 0;
+#if ENABLE_INTERSECT_DEBUG
+	if(ray_id == 0)
+		printf("Ray id: %d, org: x = %f, y = %f, z = %f, dir: x = %f, y = %f, z = %f, Intersect with node: %d\n", ray_id, ray.o.x, ray.o.y, ray.o.z, ray.d.x, ray.d.y, ray.d.z, 0);
+#endif
 	
 	bool found_hit = false;
 	do
@@ -136,17 +145,25 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 			uint child_index = current_entry.data.child_index;
 			float t0 = _intersect(nodes[child_index + 0].aabb, ray, inv_d);
 			float t1 = _intersect(nodes[child_index + 1].aabb, ray, inv_d);
+#if ENABLE_INTERSECT_DEBUG
+			if (ray_id == 0)
+			{
+				printf("Ray id: %d, Intersect with node: %d\n", ray_id, child_index);
+				printf("Ray id: %d, Intersect with node: %d\n", ray_id, child_index + 1);
+			}
+#endif
+
 			if(t0 < hit.t || t1 < hit.t)
 			{
 				if(t0 < t1)
 				{
-					current_entry = {t0, nodes[child_index + 0].data};
-					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data};
+					current_entry = {t0, nodes[child_index + 0].data, child_index + 0};
+					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data, child_index + 1};
 				}
 				else
 				{
-					current_entry = {t1, nodes[child_index + 1].data};
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data};
+					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
 				}
 				goto POP_SKIP;
 			}
@@ -160,6 +177,86 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 				{
 					hit.id = id;
 				}
+#if ENABLE_INTERSECT_DEBUG
+				if (ray_id == 0)
+					printf("Ray id: %d, Intersect with tri: %d\n", ray_id, id);
+#endif
+			}
+		}
+	} while(node_stack_size);
+
+	return found_hit;
+}
+
+inline bool intersect(const rtm::BVHSIMTRAX::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint ray_id)
+{
+	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
+	struct NodeStackEntry
+	{
+		float t;
+		rtm::BVHSIMTRAX::Node::Data data;
+		uint node_index;
+	};
+
+	NodeStackEntry node_stack[32];
+	uint32_t node_stack_size = 1u;
+	node_stack[0].t = _intersect(nodes[0].aabb, ray, inv_d);
+	node_stack[0].data = nodes[0].data;
+	node_stack[0].node_index = 0;
+#if ENABLE_INTERSECT_DEBUG
+	if (ray_id == 0)
+		printf("Ray id: %d, org: x = %f, y = %f, z = %f, dir: x = %f, y = %f, z = %f, Intersect with node: %d\n", ray_id, ray.o.x, ray.o.y, ray.o.z, ray.d.x, ray.d.y, ray.d.z, 0);
+#endif
+	
+	bool found_hit = false;
+	do
+	{
+		NodeStackEntry current_entry = node_stack[--node_stack_size];
+		if(current_entry.t > hit.t) continue;
+
+	POP_SKIP:
+		if(!current_entry.data.is_leaf)
+		{
+			uint child_index = current_entry.data.child_index;
+			float t0 = _intersect(nodes[child_index + 0].aabb, ray, inv_d);
+			float t1 = _intersect(nodes[child_index + 1].aabb, ray, inv_d);
+#if ENABLE_INTERSECT_DEBUG
+			if (ray_id == 0)
+			{
+				printf("Ray id: %d, Intersect with node: %d\n", ray_id, child_index);
+				printf("Ray id: %d, Intersect with node: %d\n", ray_id, child_index + 1);
+			}
+#endif
+
+			if(t0 < hit.t || t1 < hit.t)
+			{
+				if(t0 < t1)
+				{
+					current_entry = {t0, nodes[child_index + 0].data, child_index + 0};
+					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data, child_index + 1};
+				}
+				else
+				{
+					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
+				}
+				goto POP_SKIP;
+			}
+		}
+		else
+		{
+			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
+			{
+				uint32_t id = current_entry.data.prim_index + i;
+				if(_intersect(tris[id], ray, hit))
+				{
+					hit.id = id;
+				}
+#if ENABLE_INTERSECT_DEBUG
+				if (ray_id == 0)
+					printf("Ray id: %d, Intersect with tri: %d\n", ray_id, id);
+#endif
 			}
 		}
 	} while(node_stack_size);
@@ -175,7 +272,8 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 	struct NodeStackEntry
 	{
 		float t;
-		rtm::WBVH::Node::Data data;
+		//rtm::WBVH::Node::Data data;
+		typename N::Data data;
 	};
 
 	NodeStackEntry node_stack[32 * (rtm::WBVH::WIDTH - 1)];
@@ -183,7 +281,8 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 
 	//Decompress and insert nodes
 	node_stack[0].t = ray.t_min;
-	node_stack[0].data.is_int = 1;
+	//node_stack[0].data.is_int = 1;
+	node_stack[0].data.is_leaf = 0;
 	node_stack[0].data.child_index = 0;
 
 	bool found_hit = false;
@@ -192,15 +291,17 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 		NodeStackEntry current_entry = node_stack[--node_stack_size];
 		if(current_entry.t >= hit.t) continue;
 
-		if(current_entry.data.is_int)
+		if(!current_entry.data.is_leaf)
 		{
 			uint max_insert_depth = node_stack_size;
-			const rtm::WBVH::Node node = decompress(nodes[current_entry.data.child_index]);
-			for(int i = 0; i < rtm::WBVH::WIDTH; i++)
+			//const rtm::WBVH::Node node = decompress(nodes[current_entry.data.child_index]);
+			const N node = nodes[current_entry.data.child_index];
+			//for(int i = 0; i < rtm::WBVH::WIDTH; i++)
 			{
-				if(!node.is_valid(i)) continue;
+				//if(!node.is_valid(i)) continue;
 
-				float t = _intersect(node.aabb[i], ray, inv_d);
+				//float t = _intersect(node.aabb[i], ray, inv_d);
+				float t = _intersect(node.aabb, ray, inv_d);
 				if(t < hit.t)
 				{
 					uint j = node_stack_size++;
@@ -210,7 +311,8 @@ inline bool intersect(const N* nodes, const P* prims, const rtm::Ray& ray, rtm::
 						node_stack[j] = node_stack[j - 1];
 					}
 					node_stack[j].t = t;
-					node_stack[j].data = node.data[i];
+					//node_stack[j].data = node.data[i];
+					node_stack[j].data = node.data;
 				}
 			}
 			node_steps++;

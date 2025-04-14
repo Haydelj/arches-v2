@@ -17,7 +17,7 @@ public:
 		uint _stride;
 
 	public:
-		RequestCrossBar(uint ports, uint banks, uint stride, uint width = 64) : CasscadedCrossBar<MemoryRequest>(ports, banks, width, width, 64, 64), _stride(stride) {}
+		RequestCrossBar(uint ports, uint banks, uint stride, uint width = 64) : CasscadedCrossBar<MemoryRequest>(ports, banks, width, width), _stride(stride) {}
 
 		uint get_sink(const MemoryRequest& request) override
 		{
@@ -30,7 +30,7 @@ public:
 	class ReturnCrossBar : public CasscadedCrossBar<MemoryReturn>
 	{
 	public:
-		ReturnCrossBar(uint banks, uint ports, uint width = 64) : CasscadedCrossBar<MemoryReturn>(banks, ports, width, width, 64, 64) {}
+		ReturnCrossBar(uint banks, uint ports, uint width = 64) : CasscadedCrossBar<MemoryReturn>(banks, ports, width, width) {}
 
 		uint get_sink(const MemoryReturn& ret) override
 		{

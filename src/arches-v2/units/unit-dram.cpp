@@ -7,7 +7,7 @@ namespace Arches { namespace Units {
 #define ENABLE_DRAM_DEBUG_PRINTS 0
 
 UnitDRAM::UnitDRAM(uint num_ports, uint64_t size) : UnitMainMemoryBase(size),
-	_request_network(num_ports, numDramChannels()), _return_network(numDramChannels(), num_ports)
+	_request_network(num_ports, numDramChannels(), 8 << 10), _return_network(numDramChannels(), num_ports)
 {
 	_channels.resize(numDramChannels());
 	registerUsimmListener(this);

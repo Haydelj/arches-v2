@@ -5,6 +5,7 @@
 #include "uvec3.hpp"
 #include "triangle.hpp"
 #include "bvh.hpp"
+#include "bvh-simtrax.hpp"
 
 #ifndef __riscv
 #include <vector>
@@ -292,6 +293,23 @@ public:
 		build_objects.clear();
 		for(uint32_t i = 0; i < vertex_indices.size(); ++i)
 			build_objects.push_back(get_build_object(i));
+	}
+
+	BVHSIMTRAX::BuildObject get_build_object_sim(uint i) const
+	{
+		Triangle triangle = get_triangle(i);
+		BVHSIMTRAX::BuildObject build_object;
+		build_object.aabb = triangle.aabb();
+		build_object.cost = triangle.cost();
+		build_object.index = i;
+		return build_object;
+	}
+
+	void get_build_objects(std::vector<BVHSIMTRAX::BuildObject>& build_objects) const
+	{
+		build_objects.clear();
+		for(uint32_t i = 0; i < vertex_indices.size(); ++i)
+			build_objects.push_back(get_build_object_sim(i));
 	}
 
 	float normalize_verts()
@@ -585,6 +603,23 @@ public:
 			normal_indices[i]    = tmp_nrml_inds[ordered_build_objects[i].index];
 			tex_coord_indices[i] = tmp_txcd_inds[ordered_build_objects[i].index];
 			material_indices[i]  = tmp_mat_inds [ordered_build_objects[i].index];
+			ordered_build_objects[i].index = i;
+		}
+	}
+
+	void reorder(std::vector<BVHSIMTRAX::BuildObject>& ordered_build_objects)
+	{
+		assert(ordered_build_objects.size() == vertex_indices.size());
+		std::vector<rtm::uvec3> tmp_vrt_inds(vertex_indices);
+		std::vector<rtm::uvec3> tmp_nrml_inds(normal_indices);
+		std::vector<rtm::uvec3> tmp_txcd_inds(tex_coord_indices);
+		std::vector<uint>       tmp_mat_inds(material_indices);
+		for (uint32_t i = 0; i < ordered_build_objects.size(); ++i)
+		{
+			vertex_indices[i] = tmp_vrt_inds[ordered_build_objects[i].index];
+			normal_indices[i] = tmp_nrml_inds[ordered_build_objects[i].index];
+			tex_coord_indices[i] = tmp_txcd_inds[ordered_build_objects[i].index];
+			material_indices[i] = tmp_mat_inds[ordered_build_objects[i].index];
 			ordered_build_objects[i].index = i;
 		}
 	}

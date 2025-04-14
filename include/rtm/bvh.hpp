@@ -22,7 +22,7 @@ class BVH2
 {
 public:
 	const static uint32_t VERSION = 2395794618; //random number used to validate the cache
-	const static uint MAX_PRIMS = 1;
+	const static uint MAX_PRIMS = 8;
 
 	struct BuildObject
 	{
@@ -39,8 +39,8 @@ public:
 			struct
 			{
 				uint32_t is_leaf    : 1;
-				uint32_t num_prims  : 3; //num prim - 1
-				uint32_t prim_index : 28; //first prim
+				uint32_t num_prims  : 5; //num prim - 1
+				uint32_t prim_index : 26; //first prim
 			};
 			struct
 			{
@@ -84,7 +84,7 @@ private:
 			uint size = end - start;
 			if(size <= 1) return ~0u;
 
-			uint best_axis = 0;
+			uint best_axis = ~0u;
 			uint best_spliting_index = 0;
 			float best_spliting_cost = FLT_MAX;
 
@@ -92,9 +92,19 @@ private:
 			float inv_aabb_sa = 1.0f / aabb_sa;
 
 			uint axis = aabb.longest_axis();
+			std::vector<float> costs;
+			costs.resize(3, FLT_MAX);
+			std::vector<int> splits;
+			splits.resize(3);
 			for(axis = 0; axis < 3; ++axis)
 			{
-				std::sort(build_objects + start, build_objects + end, [&](const BuildObject& a, const BuildObject& b)
+				std::vector<BuildObject> objects;
+				for(uint i = start; i < end; ++i)
+				{
+					objects.push_back(build_objects[i]);
+				}
+
+				std::sort(objects.begin(), objects.end(), [&](const BuildObject& a, const BuildObject& b)
 				{
 					return a.aabb.centroid()[axis] < b.aabb.centroid()[axis];
 				});
@@ -107,52 +117,75 @@ private:
 
 				for(uint i = 0; i < size; ++i)
 				{
-					cost_left[i] = AABB::cost() + left_cost_sum * left_aabb.surface_area() * inv_aabb_sa;
-					left_aabb.add(build_objects[start + i].aabb);
-					left_cost_sum += build_objects[start + i].cost;
+					if (start == 4 && end == 532 && (axis == 0) && (start + i == 471))
+						int te = 0;
+					cost_left[i] = left_cost_sum * left_aabb.surface_area() * inv_aabb_sa;
+					left_aabb.add(objects[i].aabb);
+					left_cost_sum += objects[i].cost;
 				}
 				cost_left[0] = 0.0f;
 
 				for(uint i = size - 1; i < size; --i)
 				{
-					right_cost_sum += build_objects[start + i].cost;
-					right_aabb.add(build_objects[start + i].aabb);
-					cost_right[i] = AABB::cost() + right_cost_sum * right_aabb.surface_area() * inv_aabb_sa;
+					right_cost_sum += objects[i].cost;
+					right_aabb.add(objects[i].aabb);
+					/*if (start == 4 && end == 532 && (axis == 0) && (start + i >= 471))
+						printf("i: %d, Right box: boxMin[0]: %f, boxMin[1]: %f, boxMin[2]: %f, boxMax[0]: %f, boxMax[1]: %f, boxMax[2]: %f\n", i, right_aabb.min[0], right_aabb.min[1], right_aabb.min[2], right_aabb.max[0], right_aabb.max[1], right_aabb.max[2]);*/
+					cost_right[i] = right_cost_sum * right_aabb.surface_area() * inv_aabb_sa;
 				}
 
-				std::vector<float> costs;
 				for(uint i = 0; i < size; ++i)
 				{
 					float cost;
 					if(i == 0) cost = left_cost_sum;
-					else       cost = cost_left[i] + cost_right[i];
-					costs.push_back(cost);
-
+					else cost = cost_left[i] + cost_right[i] + AABB::cost();
+					// costs.push_back(cost);
+					if(cost < costs[axis])
+					{
+						costs[axis] = cost;
+						splits[axis] = start + i;
+					}
+						
 					if(cost < best_spliting_cost)
 					{
 						best_spliting_index = start + i;
 						best_spliting_cost = cost;
 						best_axis = axis;
 					}
+					/*if(start == 4 && end == 532 && (axis == 0) && (start + i == 447 || start + i == 471))
+						printf("i = %d, cost = %f\n", start + i, cost);*/
 				}
 			}
-			if(axis == 3) axis = 2;
+			// if(axis == 3) axis = 2;
+			
+			/*if(start == 4 && end == 532)
+				printf("Start: %d, end: %d, best_axis: %d, best cost: %f, cost 0: %f, cost 1: %f, cost 2: %f, split 0: %d, split 1: %d, split 2: %d\n", start, end, best_axis, best_spliting_cost, costs[0], costs[1], costs[2], splits[0], splits[1], splits[2]);*/
+			
+			// float max_cost = 0.0f;
+			// for(uint i = start; i < end; ++i)
+			// 	max_cost += build_objects[i].cost;
 
-			if(axis != best_axis)
+			// if(best_spliting_cost >= max_cost)
+			// 	return ~0u;
+
+			if(best_axis != ~0u)
 			{
 				std::sort(build_objects + start, build_objects + end, [&](const BuildObject& a, const BuildObject& b)
 				{
 					return a.aabb.centroid()[best_axis] < b.aabb.centroid()[best_axis];
 				});
-			}
+				//printf("Resort from %d to %d, based on axis: %d\n", start, end, best_axis);
 
-			if(best_spliting_index == start)
-			{
-				if(size <= MAX_PRIMS) return ~0;
-				else                  return (start + end) / 2;
+				if((best_spliting_index == start) || (best_spliting_index == end))
+				{
+					if(size < MAX_PRIMS)  return ~0u;
+					else                  return (start + size / 2);
+				}
+				else
+					return best_spliting_index;
 			}
-
-			return best_spliting_index;
+			else
+				return ~0u;
 		}
 
 		uint split_build_objects_radix(AABB aabb, BuildObject* build_objects)
@@ -281,6 +314,7 @@ public:
 	{
 		printf("Building BVH2\n");
 		nodes.clear();
+		int num_int_nodes = 0, num_leaf_nodes = 0;
 
 		//Build morton codes for build objects
 		AABB cent_aabb;
@@ -308,6 +342,7 @@ public:
 		event_stack.back().start = 0;
 		event_stack.back().end = build_objects.size();
 		event_stack.back().node_index = 0; nodes.emplace_back();
+		printf("Start building, start: %d, end: %d\n", 0, build_objects.size());
 
 		while(!event_stack.empty())
 		{
@@ -320,6 +355,9 @@ public:
 			uint splitting_index = current_build_event.split_build_objects(aabb, build_objects.data(), quality);
 			if(splitting_index != ~0)
 			{
+				//if(num_int_nodes < 100)
+					//printf("Generate node: %d, start: %d, end: %d, split: %d\n", num_int_nodes, current_build_event.start, current_build_event.end, splitting_index);
+				num_int_nodes++;
 				nodes[current_build_event.node_index].aabb = aabb;
 				nodes[current_build_event.node_index].data.is_leaf = 0;
 				nodes[current_build_event.node_index].data.child_index = nodes.size();
@@ -332,9 +370,12 @@ public:
 			}
 			else
 			{
+				num_leaf_nodes++;
 				//didn't do any splitting meaning this build event can become a leaf node
 				uint size = current_build_event.end - current_build_event.start;
-				assert(size <= MAX_PRIMS && size >= 1);
+				//assert(size <= MAX_PRIMS && size >= 1);
+				//if(num_leaf_nodes < 100)
+					//printf("Generate tri: %d, start: %d, end: %d, num tris: %d\n", num_leaf_nodes, current_build_event.start, current_build_event.end, size);
 
 				nodes[current_build_event.node_index].aabb = aabb;
 				nodes[current_build_event.node_index].data.is_leaf = 1;
@@ -371,7 +412,7 @@ public:
 		printf("Built BVH2\n");
 		printf("Quality: %d\n", quality);
 		printf("Cost: %f\n", sah_cost);
-		printf("Nodes: %d\n", (uint)nodes.size());
+		printf("Nodes: %d, interior nodes: %d, leaf nodes: %d\n", (uint)nodes.size(), num_int_nodes, num_leaf_nodes);
 		printf("Objects: %d\n", (uint)build_objects.size());
 	}
 #endif

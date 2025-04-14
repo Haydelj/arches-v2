@@ -114,6 +114,8 @@ const static std::vector<SceneConfig> scene_configs =
 	{"hairball", rtm::vec3(0, 0, 10), rtm::vec3(0, 0, 0), 24.0f}, //HAIRBALL
 
 	{"cornellbox", rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
+
+	{"sibenik", rtm::vec3(3.0, -13.0, 0.0), rtm::vec3(0, -12.0, 0), 12.0f},
 };
 
 
@@ -175,7 +177,8 @@ public:
 	SimulationConfig(int argc, char* argv[])
 	{
 		//Simulation
-		set_param("logging_interval", 10000);
+		set_param("logging_interval", 100000);
+
 
 		//Arch
 		set_param("arch_name", "TRaX");
@@ -194,7 +197,8 @@ public:
 		set_param("l1_in_order", 0);
 
 		//Workload
-		set_param("scene_name", "sponza");
+		set_param("scene_name", "intel-sponza");
+
 		set_param("framebuffer_width", 1024);
 		set_param("framebuffer_height", 1024);
 
@@ -202,6 +206,7 @@ public:
 		set_param("warm_l2", 0);
 		set_param("pregen_rays", 0);
 		set_param("pregen_bounce", 0);
+
 
 		set_param("use_scene_buffer", 0);
 		set_param("rays_on_chip", 0);
@@ -213,6 +218,8 @@ public:
 		set_param("weight_scheme", 0);
 
 		//RIC
+
+
 		set_param("max_active_set_size", 20 << 20);
 
 		for(uint i = 1; i < argc; ++i)
@@ -249,6 +256,7 @@ public:
 
 	int get_int(const std::string& key) const
 	{
+
 		const auto& a = _params.find(key);
 		_assert(a != _params.end());
 		_assert(a->second.type == Param::Type::INT);
