@@ -119,6 +119,7 @@ private:
 	//ray scheduling hardware
 	std::queue<uint> _ray_scheduling_queue;
 	std::queue<uint> _ray_return_queue;
+	uint _divide_issue_count{0};
 
 	std::set<uint> _free_ray_ids;
 	std::vector<RayState> _ray_states;
@@ -139,7 +140,7 @@ private:
 	paddr_t _tri_base_addr;
 	paddr_t _vrt_base_addr;
 	uint _last_ray_id{0};
-
+	
 	std::set<uint> _rows_accessed;
 
 	bool _drain_phase{false};

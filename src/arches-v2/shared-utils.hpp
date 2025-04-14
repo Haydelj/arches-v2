@@ -23,6 +23,7 @@ namespace Arches {
 
 std::string get_project_folder_path()
 {
+
 	CHAR path[MAX_PATH];
 	GetModuleFileNameA(NULL, path, MAX_PATH);
 	std::string executable_path(path);
@@ -115,6 +116,8 @@ const static std::vector<SceneConfig> scene_configs =
 
 	{"crytek-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //CRYTEC SPONZA
 
+	{"bistro-interior", rtm::vec3(-0.813307f, 2.0811f, -1.28115f), rtm::vec3(-0.813307f + 1.0f, 2.0811f, -1.28115f), 24.0f}, //CRYTEC SPONZA
+
 	{"intel-sponza", rtm::vec3(-900.6f, 150.8f, 120.74f), rtm::vec3(79.7f, 14.0f, -17.4f), 12.0f}, //INTEL SPONZA
 	
 	{"san-miguel", rtm::vec3(7.448, 1.014, 12.357), rtm::vec3(8.056, 1.04, 11.563), 12.0f}, //SAN_MIGUEL
@@ -128,7 +131,6 @@ class SimulationConfig
 public:
 	struct Param
 	{
-
 		enum Type
 		{
 			INT,
@@ -136,6 +138,7 @@ public:
 			STRING,
 		}
 		type;
+
 
 		union
 		{

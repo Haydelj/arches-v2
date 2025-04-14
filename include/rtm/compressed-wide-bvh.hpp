@@ -13,9 +13,8 @@ class NVCWBVH
 {
 public:
 	const static uint WIDTH = WBVH::WIDTH;
-	const static uint NODE_SIZE = 64;
 
-	struct alignas(NODE_SIZE) Node
+	struct alignas(32) Node
 	{
 		struct MetaData
 		{

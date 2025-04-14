@@ -7,16 +7,15 @@ namespace rtm {
 //fp32 triangle block with compressed index buffer/primID
 struct alignas(32) FTB
 {
-	const static uint BLOCK_SIZE = 128;
-
-	const static uint DATA_SECTOR_SIZE = BLOCK_SIZE * 8 - 40;
-	const static uint MAX_PRIMS = 15;
+	const static uint BLOCK_SIZE = 64;
+	const static uint MAX_PRIMS = 1;
 	const static uint MAX_VRTS = 15;
 
 	uint32_t prim_id0 : 29;
 	uint8_t num_vrts : 4; //at most 15 vrtices
 	uint8_t num_tris : 4; //at most 15 triangles
 
+	const static uint DATA_SECTOR_SIZE = BLOCK_SIZE * 8 - 40;
 	BitArray<DATA_SECTOR_SIZE> data; //indices then vrtices
 };
 static_assert(sizeof(FTB) == FTB::BLOCK_SIZE);
@@ -25,8 +24,6 @@ static_assert(sizeof(FTB) == FTB::BLOCK_SIZE);
 struct alignas(32) QTB
 {
 	const static uint BLOCK_SIZE = 128;
-
-	const static uint DATA_SECTOR_SIZE = BLOCK_SIZE * 8 - 112;
 	const static uint MAX_PRIMS = 31;
 	const static uint MAX_VRTS = 31;
 
@@ -41,6 +38,7 @@ struct alignas(32) QTB
 	int16_t py;
 	int16_t pz;
 
+	const static uint DATA_SECTOR_SIZE = BLOCK_SIZE * 8 - 112;
 	BitArray<DATA_SECTOR_SIZE> data; //indices then vrtices
 };
 static_assert(sizeof(QTB) == QTB::BLOCK_SIZE);

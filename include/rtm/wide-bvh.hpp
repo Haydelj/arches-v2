@@ -135,15 +135,17 @@ private:
 	{
 		///starts with root node for SBVH 
 		const BVH2::Node& node = bvh2.nodes[node_index];
-		const float leaf_node_multiplier = 1.0;
+		const float leaf_node_multiplier = 1.0 * LEAF_RATIO;
 		
 		uint num_tris = 0u;
 		if(node.data.is_leaf)
 		{
+			num_tris = 1;
+
 			//SAH cost for leaf
 			const BVH2::BuildObject& build_object = build_objects[node.data.prim_index];
-			float cost_leaf = node.aabb.surface_area() * LEAF_RATIO * leaf_node_multiplier;
-			num_tris = 1;
+			float cost_leaf = node.aabb.surface_area() * leaf_node_multiplier;
+			//float cost_leaf = node.aabb.surface_area() * num_tris;
 
 			//initialize the forest to default value if leaf node
 			for(int i = 0; i < MAX_FOREST_SIZE; i++)
@@ -173,20 +175,21 @@ private:
 						{
 							rtm::QTB block;
 							if(rtm::compress(prims, num_prims, 0, *mesh, block))
-								cost_leaf = node.aabb.surface_area() * LEAF_RATIO * leaf_node_multiplier;
+								cost_leaf = node.aabb.surface_area() * leaf_node_multiplier;
 						}
 						else
 						{
 							rtm::FTB block;
 							if(rtm::compress(prims, num_prims, 0, *mesh, block))
-								cost_leaf = node.aabb.surface_area() * LEAF_RATIO * leaf_node_multiplier;
+								cost_leaf = node.aabb.surface_area() * leaf_node_multiplier;
+								//cost_leaf = node.aabb.surface_area() * num_tris;
 						}
 					}
 				}
 				else
 				{
 					if(num_tris <= MAX_PRIMS)
-						cost_leaf = node.aabb.surface_area() * num_tris * LEAF_RATIO;
+						cost_leaf = node.aabb.surface_area() * num_tris * leaf_node_multiplier;
 				}
 
 				float cost_distribute = INFINITY;

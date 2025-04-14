@@ -30,8 +30,8 @@ struct TRaXKernelArgs
 	rtm::DGFMesh::Block* dgf_blocks;
 	rtm::QTB* qt_blocks;
 	rtm::FTB* ft_blocks;
+	rtm::Triangle* tris;
 
-	//rtm::Triangle* tris;
 	//rtm::TriangleStrip* strips;
 	//rtm::IndexStrip* strips;
 	//rtm::vec4* vrts;

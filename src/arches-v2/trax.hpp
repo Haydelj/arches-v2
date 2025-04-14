@@ -129,6 +129,7 @@ typedef Units::UnitCache UnitL1Cache;
 //typedef rtm::DGFMesh::Block PrimBlocks;
 //typedef rtm::QTB PrimBlocks;
 typedef rtm::FTB PrimBlocks;
+//typedef rtm::Triangle PrimBlocks;
 
 #if USE_HEBVH
 typedef Units::TRaX::UnitRTCore<rtm::HECWBVH::Node, PrimBlocks> UnitRTCore;
@@ -240,6 +241,18 @@ static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_addr
 		args.nodes = write_vector(main_memory, 256, cwbvh.nodes, heap_address);
 		args.ft_blocks = write_vector(main_memory, 256, wbvh.ft_blocks, heap_address);
 	}
+
+	//Tri
+	if(typeid(PrimBlocks) == typeid(rtm::Triangle))
+	{
+		rtm::WBVH wbvh(bvh2, bos);
+		mesh.reorder(bos);
+		rtm::NVCWBVH cwbvh(wbvh);
+		args.nodes = write_vector(main_memory, 256, cwbvh.nodes, heap_address);
+		std::vector<rtm::Triangle> tris;
+		mesh.get_triangles(tris);
+		args.tris = write_vector(main_memory, 256, tris, heap_address);
+	}
 #endif
 
 	std::memcpy(main_memory + TRAX_KERNEL_ARGS_ADDRESS, &args, sizeof(TRaXKernelArgs));
@@ -250,7 +263,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 {
 	std::string project_folder_path = get_project_folder_path();
 
-#if 1 //RTX 4090 ish
+#if 0 //RTX 4090 ish
 	//Compute
 	double core_clock = 2235.0e6;
 	double dram_clock = 5250.0e6;
@@ -375,7 +388,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 #elif 1 //Turing spec
 #if 1 //RTX 2080
 	double core_clock = 1515.0e6;
-	uint num_threads = 16;
+	uint num_threads = 4;
 	uint num_tps = 64;
 	uint num_tms = 46;
 	uint64_t stack_size = 512;
@@ -426,7 +439,6 @@ static void run_sim_trax(SimulationConfig& sim_config)
 	UnitL1Cache::Configuration l1d_config;
 	l1d_config.level = 1;
 	l1d_config.miss_alloc = true;
-	l1d_config.policy = Units::UnitCacheBase::Policy::LRU;
 	l1d_config.size = 64 << 10;
 	l1d_config.associativity = 32;
 	l1d_config.num_banks = 4;
@@ -585,7 +597,7 @@ static void run_sim_trax(SimulationConfig& sim_config)
 		unit_table[(uint)ISA::RISCV::InstrType::LOAD] = l1ds.back();
 		unit_table[(uint)ISA::RISCV::InstrType::STORE] = l1ds.back();
 
-		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps, tm_index, &atomic_regs, 64));
+		thread_schedulers.push_back(_new  Units::UnitThreadScheduler(num_tps, tm_index, &atomic_regs, 32));
 		simulator.register_unit(thread_schedulers.back());
 		mem_list.push_back(thread_schedulers.back());
 		unit_table[(uint)ISA::RISCV::InstrType::CUSTOM0] = thread_schedulers.back();
@@ -632,6 +644,8 @@ static void run_sim_trax(SimulationConfig& sim_config)
 			rtc_config.tri_base_addr = (paddr_t)kernel_args.qt_blocks;
 		if(typeid(PrimBlocks) == typeid(rtm::FTB))
 			rtc_config.tri_base_addr = (paddr_t)kernel_args.ft_blocks;
+		if(typeid(PrimBlocks) == typeid(rtm::Triangle))
+			rtc_config.tri_base_addr = (paddr_t)kernel_args.tris;
 		rtc_config.cache = l1ds.back();
 		rtc_config.cache_port = num_tps;
 		rtc_config.cache_port_stride = num_tps / l1d_config.num_banks;

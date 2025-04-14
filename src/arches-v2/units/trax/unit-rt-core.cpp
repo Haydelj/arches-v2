@@ -567,9 +567,10 @@ void UnitRTCore<NT, PT>::_issue_returns()
 template class UnitRTCore<rtm::WBVH::Node, rtm::FTB>;
 template class UnitRTCore<rtm::WBVH::Node, rtm::QTB>;
 template class UnitRTCore<rtm::WBVH::Node, rtm::DGFMesh::Block>;
-template class UnitRTCore<rtm::NVCWBVH::Node, rtm::FTB>;
-template class UnitRTCore<rtm::NVCWBVH::Node, rtm::QTB>;
 template class UnitRTCore<rtm::NVCWBVH::Node, rtm::DGFMesh::Block>;
+template class UnitRTCore<rtm::NVCWBVH::Node, rtm::QTB>;
+template class UnitRTCore<rtm::NVCWBVH::Node, rtm::FTB>;
+template class UnitRTCore<rtm::NVCWBVH::Node, rtm::Triangle>;
 template class UnitRTCore<rtm::HECWBVH::Node, rtm::FTB>;
 template class UnitRTCore<rtm::HECWBVH::Node, rtm::QTB>;
 template class UnitRTCore<rtm::HECWBVH::Node, rtm::DGFMesh::Block>;
