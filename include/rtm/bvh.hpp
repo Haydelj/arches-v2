@@ -21,7 +21,7 @@ namespace rtm {
 class BVH2
 {
 public:
-	const static uint32_t VERSION = 2395794618; //random number used to validate the cache
+	const static uint32_t VERSION = 0; //random number used to validate the cache
 	const static uint MAX_PRIMS = 8;
 
 	struct BuildObject
@@ -34,7 +34,7 @@ public:
 
 	struct alignas(32) Node
 	{
-		struct Data
+		union Data
 		{
 			struct
 			{
@@ -53,6 +53,7 @@ public:
 		Data       data;
 		uint32_t   _pad;
 	};
+	static_assert(sizeof(Node) == 32);
 
 #ifndef __riscv
 	float sah_cost{0.0f};
@@ -247,6 +248,7 @@ public:
 
 	BVH2(std::vector<BuildObject>& build_objects, uint quality = 2)
 	{
+		sizeof(Node);
 		build(build_objects, quality);
 	}
 

@@ -177,6 +177,7 @@ static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_addr
 	// 	build_objects.push_back(obj);
 	// }
 
+	heap_address = align_to(64, heap_address) + 32;
 #if TRAX_USE_SIM_TRAX_BVH
 	rtm::BVHSIMTRAX bvh2(build_objects, 2);
 	//args.nodes = bvh2.build_nodes;
@@ -189,7 +190,6 @@ static TRaXKernelArgs initilize_buffers(uint8_t* main_memory, paddr_t& heap_addr
 
 
 	//rtm::WBVH wbvh(bvh2, build_objects);
-	heap_address = align_to(64, heap_address) + 32;
 
 	mesh.reorder(build_objects);
 	// {

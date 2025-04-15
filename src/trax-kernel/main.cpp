@@ -167,8 +167,8 @@ int main()
 int main(int argc, char* argv[])
 {
 	TRaXKernelArgs args;
-	args.framebuffer_width = 128;
-	args.framebuffer_height = 128;
+	args.framebuffer_width = 256;
+	args.framebuffer_height = 256;
 	args.framebuffer_size = args.framebuffer_width * args.framebuffer_height;
 	args.framebuffer = new uint32_t[args.framebuffer_size];
 

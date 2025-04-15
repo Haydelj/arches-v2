@@ -6,45 +6,45 @@ EXEC_P, HAS_SYMS, D_PAGED
 start address 0x00000000000100e8
 
 Program Header:
-0x70000003 off    0x0000000000001e2b vaddr 0x0000000000000000 paddr 0x0000000000000000 align 2**0
+0x70000003 off    0x0000000000001d5b vaddr 0x0000000000000000 paddr 0x0000000000000000 align 2**0
          filesz 0x0000000000000050 memsz 0x0000000000000000 flags r--
     LOAD off    0x0000000000000000 vaddr 0x0000000000010000 paddr 0x0000000000010000 align 2**12
-         filesz 0x0000000000001e10 memsz 0x0000000000001e10 flags r-x
+         filesz 0x0000000000001d40 memsz 0x0000000000001d40 flags r-x
    STACK off    0x0000000000000000 vaddr 0x0000000000000000 paddr 0x0000000000000000 align 2**4
          filesz 0x0000000000000000 memsz 0x0000000000000000 flags rw-
 
 Sections:
 Idx Name          Size      VMA               LMA               File off  Algn
-  0 .text         00000c40  00000000000100e8  00000000000100e8  000000e8  2**2
+  0 .text         00000b64  00000000000100e8  00000000000100e8  000000e8  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  1 .eh_frame     000000c8  0000000000010d28  0000000000010d28  00000d28  2**3
+  1 .eh_frame     000000d0  0000000000010c50  0000000000010c50  00000c50  2**3
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  2 .sdata        00000020  0000000000011df0  0000000000011df0  00001df0  2**2
+  2 .sdata        00000020  0000000000011d20  0000000000011d20  00001d20  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  3 .comment      0000001b  0000000000000000  0000000000000000  00001e10  2**0
+  3 .comment      0000001b  0000000000000000  0000000000000000  00001d40  2**0
                   CONTENTS, READONLY
-  4 .riscv.attributes 00000050  0000000000000000  0000000000000000  00001e2b  2**0
+  4 .riscv.attributes 00000050  0000000000000000  0000000000000000  00001d5b  2**0
                   CONTENTS, READONLY
-  5 .debug_aranges 00000040  0000000000000000  0000000000000000  00001e7b  2**0
+  5 .debug_aranges 00000040  0000000000000000  0000000000000000  00001dab  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
-  6 .debug_info   0000435f  0000000000000000  0000000000000000  00001ebb  2**0
+  6 .debug_info   000043c0  0000000000000000  0000000000000000  00001deb  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
-  7 .debug_abbrev 00000586  0000000000000000  0000000000000000  0000621a  2**0
+  7 .debug_abbrev 000005a7  0000000000000000  0000000000000000  000061ab  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
-  8 .debug_line   00002200  0000000000000000  0000000000000000  000067a0  2**0
+  8 .debug_line   00002131  0000000000000000  0000000000000000  00006752  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
-  9 .debug_str    000010d9  0000000000000000  0000000000000000  000089a0  2**0
+  9 .debug_str    00001132  0000000000000000  0000000000000000  00008883  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 10 .debug_line_str 00000272  0000000000000000  0000000000000000  00009a79  2**0
+ 10 .debug_line_str 00000272  0000000000000000  0000000000000000  000099b5  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 11 .debug_loclists 00001350  0000000000000000  0000000000000000  00009ceb  2**0
+ 11 .debug_loclists 000012b7  0000000000000000  0000000000000000  00009c27  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 12 .debug_rnglists 00000843  0000000000000000  0000000000000000  0000b03b  2**0
+ 12 .debug_rnglists 00000817  0000000000000000  0000000000000000  0000aede  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 SYMBOL TABLE:
 00000000000100e8 l    d  .text	0000000000000000 .text
-0000000000010d28 l    d  .eh_frame	0000000000000000 .eh_frame
-0000000000011df0 l    d  .sdata	0000000000000000 .sdata
+0000000000010c50 l    d  .eh_frame	0000000000000000 .eh_frame
+0000000000011d20 l    d  .sdata	0000000000000000 .sdata
 0000000000000000 l    d  .comment	0000000000000000 .comment
 0000000000000000 l    d  .riscv.attributes	0000000000000000 .riscv.attributes
 0000000000000000 l    d  .debug_aranges	0000000000000000 .debug_aranges
@@ -56,15 +56,17 @@ SYMBOL TABLE:
 0000000000000000 l    d  .debug_loclists	0000000000000000 .debug_loclists
 0000000000000000 l    d  .debug_rnglists	0000000000000000 .debug_rnglists
 0000000000000000 l    df *ABS*	0000000000000000 main.cpp
-0000000000010108 l     F .text	0000000000000c20 _ZL6kernelRK14TRaXKernelArgs.constprop.0
-00000000000125f0 g       *ABS*	0000000000000000 __global_pointer$
-0000000000011df0 g       .sdata	0000000000000000 __SDATA_BEGIN__
-0000000000011e10 g       .sdata	0000000000000000 __BSS_END__
-0000000000011e10 g       .sdata	0000000000000000 __bss_start
+0000000000010108 l     F .text	0000000000000adc _ZL6kernelRK14TRaXKernelArgs.constprop.0
+0000000000012520 g       *ABS*	0000000000000000 __global_pointer$
+0000000000010be4 g     F .text	0000000000000044 _Z9_load_triPKN3rtm8TriangleE
+0000000000010c28 g     F .text	0000000000000024 _Z10_load_nodePKN3rtm4BVH24NodeE
+0000000000011d20 g       .sdata	0000000000000000 __SDATA_BEGIN__
+0000000000011d40 g       .sdata	0000000000000000 __BSS_END__
+0000000000011d40 g       .sdata	0000000000000000 __bss_start
 00000000000100e8 g     F .text	0000000000000020 main
-0000000000011df0 g       .sdata	0000000000000000 __DATA_BEGIN__
-0000000000011e10 g       .sdata	0000000000000000 _edata
-0000000000011e10 g       .sdata	0000000000000000 _end
+0000000000011d20 g       .sdata	0000000000000000 __DATA_BEGIN__
+0000000000011d40 g       .sdata	0000000000000000 _edata
+0000000000011d40 g       .sdata	0000000000000000 _end
 
 
 
@@ -101,7 +103,7 @@ uint32_t inline fchthrd()
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
    1010c:	10802703          	lw	a4,264(zero) # 108 <main-0xffe0>
    10110:	0007879b          	sext.w	a5,a5
-   10114:	40e7f8e3          	bgeu	a5,a4,10d24 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xc1c>
+   10114:	2ce7f6e3          	bgeu	a5,a4,10be0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xad8>
 }
 
 inline vec2& vec2::operator+=(const vec2 &v)
@@ -109,9 +111,9 @@ inline vec2& vec2::operator+=(const vec2 &v)
 	e[0] += v[0];
 	e[1] += v[1];
    10118:	000128b7          	lui	a7,0x12
-   1011c:	df88a787          	flw	fa5,-520(a7) # 11df8 <__DATA_BEGIN__+0x8>
+   1011c:	d288a787          	flw	fa5,-728(a7) # 11d28 <__DATA_BEGIN__+0x8>
 inline static void kernel(const TRaXKernelArgs& args)
-   10120:	d1010113          	addi	sp,sp,-752
+   10120:	df010113          	addi	sp,sp,-528
 	return *this;
 }
 
@@ -122,7 +124,7 @@ inline vec2& vec2::operator-=(const vec2 &v)
 	e[1] += v[1];
    10128:	02f12027          	fsw	fa5,32(sp)
 	e[0] -= v[0];
-   1012c:	dfc82787          	flw	fa5,-516(a6) # 11dfc <__DATA_BEGIN__+0xc>
+   1012c:	d2c82787          	flw	fa5,-724(a6) # 11d2c <__DATA_BEGIN__+0xc>
 
 		Ray ray;
 		ray.d = rtm::normalize(_x * uv.x + _y * uv.y - _z);
@@ -130,1083 +132,1020 @@ inline vec2& vec2::operator-=(const vec2 &v)
 		ray.o = _position;
 		ray.t_max = T_MAX;
    10130:	00012537          	lui	a0,0x12
-   10134:	2d213c23          	sd	s2,728(sp)
+   10134:	000122b7          	lui	t0,0x12
    10138:	02f12227          	fsw	fa5,36(sp)
-   1013c:	df052787          	flw	fa5,-528(a0) # 11df0 <__DATA_BEGIN__>
-   10140:	00012937          	lui	s2,0x12
-		ray.t_min = T_MIN;
-   10144:	000125b7          	lui	a1,0x12
-   10148:	27b12027          	fsw	fs11,608(sp)
-		ray.t_max = T_MAX;
-   1014c:	02f12427          	fsw	fa5,40(sp)
+   1013c:	d2052787          	flw	fa5,-736(a0) # 11d20 <__DATA_BEGIN__>
+   10140:	1db12027          	fsw	fs11,448(sp)
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
 }
 
 inline vec3 operator/(const vec3 &a, const vec3 &b)
 {
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   10150:	e0092d87          	flw	fs11,-512(s2) # 11e00 <__DATA_BEGIN__+0x10>
+   10144:	d302ad87          	flw	fs11,-720(t0) # 11d30 <__DATA_BEGIN__+0x10>
 		ray.t_min = T_MIN;
-   10154:	df45a787          	flw	fa5,-524(a1) # 11df4 <__DATA_BEGIN__+0x4>
-   10158:	27712827          	fsw	fs7,624(sp)
-   1015c:	27812627          	fsw	fs8,620(sp)
-   10160:	27912427          	fsw	fs9,616(sp)
-   10164:	27a12227          	fsw	fs10,612(sp)
-   10168:	2e813423          	sd	s0,744(sp)
-   1016c:	2e913023          	sd	s1,736(sp)
-   10170:	2d313823          	sd	s3,720(sp)
-   10174:	2d413423          	sd	s4,712(sp)
-   10178:	2d513023          	sd	s5,704(sp)
-   1017c:	2b613c23          	sd	s6,696(sp)
-   10180:	2b713823          	sd	s7,688(sp)
-   10184:	2b813423          	sd	s8,680(sp)
-   10188:	2b913023          	sd	s9,672(sp)
-   1018c:	29a13c23          	sd	s10,664(sp)
-   10190:	28812627          	fsw	fs0,652(sp)
-   10194:	28912427          	fsw	fs1,648(sp)
-   10198:	29212227          	fsw	fs2,644(sp)
-   1019c:	29312027          	fsw	fs3,640(sp)
-   101a0:	27412e27          	fsw	fs4,636(sp)
-   101a4:	27512c27          	fsw	fs5,632(sp)
-   101a8:	27612a27          	fsw	fs6,628(sp)
+   10148:	000125b7          	lui	a1,0x12
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   101ac:	00012637          	lui	a2,0x12
-   101b0:	000126b7          	lui	a3,0x12
-   101b4:	00012737          	lui	a4,0x12
-   101b8:	02f12627          	fsw	fa5,44(sp)
+   1014c:	00012637          	lui	a2,0x12
+   10150:	000126b7          	lui	a3,0x12
+   10154:	00012737          	lui	a4,0x12
+		ray.t_max = T_MAX;
+   10158:	02f12427          	fsw	fa5,40(sp)
+		ray.t_min = T_MIN;
+   1015c:	d245a787          	flw	fa5,-732(a1) # 11d24 <__DATA_BEGIN__+0x4>
+   10160:	20813423          	sd	s0,520(sp)
+   10164:	1d712827          	fsw	fs7,464(sp)
+   10168:	1d812627          	fsw	fs8,460(sp)
+   1016c:	1d912427          	fsw	fs9,456(sp)
+   10170:	1da12227          	fsw	fs10,452(sp)
+   10174:	d3462c87          	flw	fs9,-716(a2) # 11d34 <__DATA_BEGIN__+0x14>
     rtm::vec3 e0     = tri.vrts[1] - tri.vrts[2];//2,2
     rtm::vec3 e1     = tri.vrts[0] - tri.vrts[2];//2
   	//rtm::vec3 normal = rtm::normalize(rtm::cross(e1, e0));
     rtm::vec3 r1     = rtm::cross(ray.d, e0);//4, 6
     float denom      = rtm::dot(e1, r1);//6, 12
     float rcp_denom  = 1.0f / denom; //2, 14
-   101bc:	21bd8d53          	fmv.s	fs10,fs11
-   101c0:	e0462c87          	flw	fs9,-508(a2) # 11e04 <__DATA_BEGIN__+0x14>
+   10178:	21bd8d53          	fmv.s	fs10,fs11
     do
     {
         x = rng.randf();
         y = rng.randf();
         x = x * 2.0f;
         x = x - 1.0f;
-   101c4:	e086ac07          	flw	fs8,-504(a3) # 11e08 <__DATA_BEGIN__+0x18>
-   101c8:	e0c72b87          	flw	fs7,-500(a4) # 11e0c <__DATA_BEGIN__+0x1c>
+   1017c:	d386ac07          	flw	fs8,-712(a3) # 11d38 <__DATA_BEGIN__+0x18>
+   10180:	d3c72b87          	flw	fs7,-708(a4) # 11d3c <__DATA_BEGIN__+0x1c>
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
-   101cc:	11804303          	lbu	t1,280(zero) # 118 <main-0xffd0>
+   10184:	11804403          	lbu	s0,280(zero) # 118 <main-0xffd0>
+   10188:	11003383          	ld	t2,272(zero) # 110 <main-0xffd8>
+inline static void kernel(const TRaXKernelArgs& args)
+   1018c:	20913023          	sd	s1,512(sp)
+   10190:	1f213c23          	sd	s2,504(sp)
+   10194:	1f313823          	sd	s3,496(sp)
+   10198:	1e812627          	fsw	fs0,492(sp)
+   1019c:	1e912427          	fsw	fs1,488(sp)
+   101a0:	1f212227          	fsw	fs2,484(sp)
+   101a4:	1f312027          	fsw	fs3,480(sp)
+   101a8:	1d412e27          	fsw	fs4,476(sp)
+   101ac:	1d512c27          	fsw	fs5,472(sp)
+   101b0:	1d612a27          	fsw	fs6,468(sp)
+   101b4:	02f12627          	fsw	fa5,44(sp)
 		uint32_t tile_x = tile_id % (args.framebuffer_width / TILE_X);
-   101d0:	10002683          	lw	a3,256(zero) # 100 <main-0xffe8>
+   101b8:	10002683          	lw	a3,256(zero) # 100 <main-0xffe8>
 		uint tile_id = index / TILE_SIZE;
-   101d4:	0057d71b          	srliw	a4,a5,0x5
+   101bc:	0057d71b          	srliw	a4,a5,0x5
 		uint thread_id = index % TILE_SIZE;
-   101d8:	01f7f793          	andi	a5,a5,31
+   101c0:	01f7f793          	andi	a5,a5,31
 		uint32_t tile_x = tile_id % (args.framebuffer_width / TILE_X);
-   101dc:	0056d59b          	srliw	a1,a3,0x5
+   101c4:	0056d59b          	srliw	a1,a3,0x5
 		uint32_t tile_y = tile_id / (args.framebuffer_width / TILE_X);
-   101e0:	02b7553b          	divuw	a0,a4,a1
+   101c8:	02b7553b          	divuw	a0,a4,a1
 	}
 
 public:
 	RNG(uint32_t seed = 0)
 	{
 		_state = hash(seed | (1 << 31u));
-   101e4:	80000637          	lui	a2,0x80000
+   101cc:	80000637          	lui	a2,0x80000
 		uint32_t tile_x = tile_id % (args.framebuffer_width / TILE_X);
-   101e8:	02b7773b          	remuw	a4,a4,a1
+   101d0:	02b7773b          	remuw	a4,a4,a1
 		uint fb_index = y * args.framebuffer_width + x;
-   101ec:	02a68ebb          	mulw	t4,a3,a0
+   101d4:	02a68ebb          	mulw	t4,a3,a0
 		uint32_t x = tile_x * TILE_X + thread_id % TILE_X;
-   101f0:	0057171b          	slliw	a4,a4,0x5
-   101f4:	00f707bb          	addw	a5,a4,a5
+   101d8:	0057171b          	slliw	a4,a4,0x5
+   101dc:	00f707bb          	addw	a5,a4,a5
 		uint fb_index = y * args.framebuffer_width + x;
-   101f8:	00fe8ebb          	addw	t4,t4,a5
-   101fc:	00cee733          	or	a4,t4,a2
-   10200:	00a7169b          	slliw	a3,a4,0xa
-   10204:	00e686bb          	addw	a3,a3,a4
+   101e0:	00fe8ebb          	addw	t4,t4,a5
+   101e4:	00cee733          	or	a4,t4,a2
+   101e8:	00a7169b          	slliw	a3,a4,0xa
+   101ec:	00e686bb          	addw	a3,a3,a4
 		u ^= u >> 6;
-   10208:	0066d71b          	srliw	a4,a3,0x6
-   1020c:	00d74733          	xor	a4,a4,a3
-   10210:	0037169b          	slliw	a3,a4,0x3
-   10214:	00e686bb          	addw	a3,a3,a4
+   101f0:	0066d71b          	srliw	a4,a3,0x6
+   101f4:	00d74733          	xor	a4,a4,a3
+   101f8:	0037169b          	slliw	a3,a4,0x3
+   101fc:	00e686bb          	addw	a3,a3,a4
 		u ^= u >> 11;
-   10218:	00b6d71b          	srliw	a4,a3,0xb
-   1021c:	00d74733          	xor	a4,a4,a3
-   10220:	00f7181b          	slliw	a6,a4,0xf
+   10200:	00b6d71b          	srliw	a4,a3,0xb
+   10204:	00d74733          	xor	a4,a4,a3
+   10208:	00f7169b          	slliw	a3,a4,0xf
 		rtm::Ray ray = args.pregen_rays ? args.rays[fb_index] : args.camera.generate_ray_through_pixel(x, y);
-   10224:	020e9e93          	slli	t4,t4,0x20
-   10228:	020ede93          	srli	t4,t4,0x20
-   1022c:	00e8083b          	addw	a6,a6,a4
-   10230:	240308e3          	beqz	t1,10c80 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xb78>
-   10234:	16803783          	ld	a5,360(zero) # 168 <main-0xff80>
-   10238:	005e9713          	slli	a4,t4,0x5
-   1023c:	00e787b3          	add	a5,a5,a4
-   10240:	0007a707          	flw	fa4,0(a5)
-   10244:	0047a687          	flw	fa3,4(a5)
-   10248:	0087a607          	flw	fa2,8(a5)
-   1024c:	00c7a587          	flw	fa1,12(a5)
-   10250:	0107a907          	flw	fs2,16(a5)
-   10254:	0147a987          	flw	fs3,20(a5)
-   10258:	0187a487          	flw	fs1,24(a5)
-   1025c:	01c7a087          	flw	ft1,28(a5)
+   1020c:	020e9e93          	slli	t4,t4,0x20
+   10210:	020ede93          	srli	t4,t4,0x20
+   10214:	00e686bb          	addw	a3,a3,a4
+   10218:	120402e3          	beqz	s0,10b3c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa34>
+   1021c:	16803783          	ld	a5,360(zero) # 168 <main-0xff80>
+   10220:	005e9713          	slli	a4,t4,0x5
+   10224:	00e787b3          	add	a5,a5,a4
+   10228:	0007a707          	flw	fa4,0(a5)
+   1022c:	0047a687          	flw	fa3,4(a5)
+   10230:	0087a607          	flw	fa2,8(a5)
+   10234:	00c7a587          	flw	fa1,12(a5)
+   10238:	0107a907          	flw	fs2,16(a5)
+   1023c:	0147a987          	flw	fs3,20(a5)
+   10240:	0187a487          	flw	fs1,24(a5)
+   10244:	01c7a087          	flw	ft1,28(a5)
 		for (uint depth = 0; depth < args.bounce + 1; ++depth)
-   10260:	11c02483          	lw	s1,284(zero) # 11c <main-0xffcc>
-   10264:	fff00793          	li	a5,-1
-   10268:	20f480e3          	beq	s1,a5,10c68 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xb60>
+   10248:	11c02f03          	lw	t5,284(zero) # 11c <main-0xffcc>
+   1024c:	fff00793          	li	a5,-1
+   10250:	0cff0ce3          	beq	t5,a5,10b28 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa20>
 			intersect(args.nodes, args.tris, ray, hit, fb_index);
-   1026c:	17003503          	ld	a0,368(zero) # 170 <main-0xff78>
-   10270:	17803f83          	ld	t6,376(zero) # 178 <main-0xff70>
-		return *((float*)(&bits)) - 1.0f;
-   10274:	e0092b07          	flw	fs6,-512(s2)
+   10254:	17003583          	ld	a1,368(zero) # 170 <main-0xff78>
+   10258:	17803883          	ld	a7,376(zero) # 178 <main-0xff70>
+    rtm::vec3 s       = ray.o - tri.vrts[2]; //2
+    float b1          = rtm::dot(s, r1) * rcp_denom;//2, 16
+    if (b1 < 0.0f || b1 > 1.0f) //1, 17
+   1025c:	f0000ad3          	fmv.w.x	fs5,zero
 	inline float operator[](int i) const { return e[i]; }
-   10278:	00c52407          	flw	fs0,12(a0)
-   1027c:	01052f87          	flw	ft11,16(a0)
-   10280:	01452787          	flw	fa5,20(a0)
-   10284:	00052a07          	flw	fs4,0(a0)
-   10288:	00452287          	flw	ft5,4(a0)
-   1028c:	20840553          	fmv.s	fa0,fs0
-   10290:	00f12e27          	fsw	fa5,28(sp)
-   10294:	21ff87d3          	fmv.s	fa5,ft11
-   10298:	20528453          	fmv.s	fs0,ft5
-   1029c:	214a0fd3          	fmv.s	ft11,fs4
-   102a0:	00852307          	flw	ft6,8(a0)
-   102a4:	20f78a53          	fmv.s	fs4,fa5
-   102a8:	20a502d3          	fmv.s	ft5,fa0
-#endif
-	
-	bool found_hit = false;
-	do
-	{
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-   102ac:	800002b7          	lui	t0,0x80000
-					current_entry = {t0, nodes[child_index + 0].data, child_index + 0};
-					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data, child_index + 1};
-				}
-				else
-				{
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   102b0:	04000e37          	lui	t3,0x4000
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-   102b4:	00f2c2b3          	xor	t0,t0,a5
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   102b8:	00fe0e33          	add	t3,t3,a5
+   10260:	00c5a407          	flw	fs0,12(a1)
+   10264:	0105af87          	flw	ft11,16(a1)
+   10268:	0145a787          	flw	fa5,20(a1)
+   1026c:	0005aa07          	flw	fs4,0(a1)
+   10270:	0045a287          	flw	ft5,4(a1)
+   10274:	20840553          	fmv.s	fa0,fs0
+   10278:	00f12e27          	fsw	fa5,28(sp)
+   1027c:	21ff87d3          	fmv.s	fa5,ft11
+   10280:	20528453          	fmv.s	fs0,ft5
+   10284:	214a0fd3          	fmv.s	ft11,fs4
+   10288:	0085a307          	flw	ft6,8(a1)
+   1028c:	0185af83          	lw	t6,24(a1)
+		return *((float*)(&bits)) - 1.0f;
+   10290:	d302ab07          	flw	fs6,-720(t0)
+   10294:	20f78a53          	fmv.s	fs4,fa5
+   10298:	20a502d3          	fmv.s	ft5,fa0
+		uint32_t bits = u & 0x007FFFFFu | 0x3F800000u;
+   1029c:	00800537          	lui	a0,0x800
+   102a0:	04088e13          	addi	t3,a7,64
+   102a4:	00f50533          	add	a0,a0,a5
 		for (uint depth = 0; depth < args.bounce + 1; ++depth)
-   102bc:	00000413          	li	s0,0
+   102a8:	00000313          	li	t1,0
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   102c0:	192df153          	fdiv.s	ft2,fs11,fs2
+   102ac:	192df153          	fdiv.s	ft2,fs11,fs2
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   102c4:	08eff053          	fsub.s	ft0,ft11,fa4
-   102c8:	08e2f853          	fsub.s	fa6,ft5,fa4
-   102cc:	01c12507          	flw	fa0,28(sp)
-   102d0:	08d473d3          	fsub.s	ft7,fs0,fa3
-   102d4:	08da7f53          	fsub.s	ft10,fs4,fa3
-   102d8:	08c57ed3          	fsub.s	ft9,fa0,fa2
-   102dc:	08c377d3          	fsub.s	fa5,ft6,fa2
+   102b0:	01c12187          	flw	ft3,28(sp)
+   102b4:	08eff7d3          	fsub.s	fa5,ft11,fa4
+   102b8:	08e2fe53          	fsub.s	ft8,ft5,fa4
+   102bc:	08c1f853          	fsub.s	fa6,ft3,fa2
+   102c0:	08d47053          	fsub.s	ft0,fs0,fa3
+   102c4:	08da78d3          	fsub.s	fa7,fs4,fa3
+   102c8:	08c37553          	fsub.s	fa0,ft6,fa2
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   102e0:	193df1d3          	fdiv.s	ft3,fs11,fs3
+   102cc:	193df1d3          	fdiv.s	ft3,fs11,fs3
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   102e4:	10207053          	fmul.s	ft0,ft0,ft2
-   102e8:	10287853          	fmul.s	fa6,fa6,ft2
-   102ec:	20000553          	fmv.s	fa0,ft0
-   102f0:	a00817d3          	flt.s	a5,fa6,ft0
+   102d0:	1027f7d3          	fmul.s	fa5,fa5,ft2
+   102d4:	102e7e53          	fmul.s	ft8,ft8,ft2
+   102d8:	20f783d3          	fmv.s	ft7,fa5
+   102dc:	a0fe17d3          	flt.s	a5,ft8,fa5
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   102f4:	189df253          	fdiv.s	ft4,fs11,fs1
+   102e0:	189df253          	fdiv.s	ft4,fs11,fs1
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   102f8:	1033f3d3          	fmul.s	ft7,ft7,ft3
-   102fc:	103f7f53          	fmul.s	ft10,ft10,ft3
-   10300:	1047f7d3          	fmul.s	fa5,fa5,ft4
-   10304:	104efed3          	fmul.s	ft9,ft9,ft4
+   102e4:	10307053          	fmul.s	ft0,ft0,ft3
+   102e8:	1038f8d3          	fmul.s	fa7,fa7,ft3
+   102ec:	10457553          	fmul.s	fa0,fa0,ft4
+   102f0:	10487853          	fmul.s	fa6,fa6,ft4
 	return v / length(v);
 }
 
 inline vec3 min(const vec3& a, const vec3& b)
 {
 	return vec3(rtm::min(a[0], b[0]), rtm::min(a[1], b[1]), rtm::min(a[2], b[2]));
-   10308:	00078463          	beqz	a5,10310 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x208>
-   1030c:	21080553          	fmv.s	fa0,fa6
-   10310:	a07f17d3          	flt.s	a5,ft10,ft7
-   10314:	20738e53          	fmv.s	ft8,ft7
-   10318:	00078463          	beqz	a5,10320 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x218>
-   1031c:	21ef0e53          	fmv.s	ft8,ft10
-   10320:	a0fe97d3          	flt.s	a5,ft9,fa5
-   10324:	20f788d3          	fmv.s	fa7,fa5
-   10328:	00078463          	beqz	a5,10330 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x228>
-   1032c:	21de88d3          	fmv.s	fa7,ft9
+   102f4:	00078463          	beqz	a5,102fc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x1f4>
+   102f8:	21ce03d3          	fmv.s	ft7,ft8
+   102fc:	a00897d3          	flt.s	a5,fa7,ft0
+   10300:	20000f53          	fmv.s	ft10,ft0
+   10304:	00078463          	beqz	a5,1030c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x204>
+   10308:	21188f53          	fmv.s	ft10,fa7
+   1030c:	a0a817d3          	flt.s	a5,fa6,fa0
+   10310:	20a50ed3          	fmv.s	ft9,fa0
+   10314:	00078463          	beqz	a5,1031c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x214>
+   10318:	21080ed3          	fmv.s	ft9,fa6
 }
 
 inline vec3 max(const vec3& a, const vec3& b)
 {
 	return vec3(rtm::max(a[0], b[0]), rtm::max(a[1], b[1]), rtm::max(a[2], b[2]));
-   10330:	a10017d3          	flt.s	a5,ft0,fa6
-   10334:	00078463          	beqz	a5,1033c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x234>
-   10338:	21080053          	fmv.s	ft0,fa6
-   1033c:	a1e397d3          	flt.s	a5,ft7,ft10
-   10340:	20738853          	fmv.s	fa6,ft7
-   10344:	00078463          	beqz	a5,1034c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x244>
-   10348:	21ef0853          	fmv.s	fa6,ft10
-   1034c:	a1d797d3          	flt.s	a5,fa5,ft9
-   10350:	20f783d3          	fmv.s	ft7,fa5
-   10354:	00078463          	beqz	a5,1035c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x254>
-   10358:	21de83d3          	fmv.s	ft7,ft9
+   1031c:	a1c797d3          	flt.s	a5,fa5,ft8
+   10320:	00078463          	beqz	a5,10328 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x220>
+   10324:	21ce07d3          	fmv.s	fa5,ft8
+   10328:	a11017d3          	flt.s	a5,ft0,fa7
+   1032c:	00078463          	beqz	a5,10334 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x22c>
+   10330:	21188053          	fmv.s	ft0,fa7
+   10334:	a10517d3          	flt.s	a5,fa0,fa6
+   10338:	00078463          	beqz	a5,10340 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x238>
+   1033c:	21080553          	fmv.s	fa0,fa6
 	float tmin = max(max(tminv.x, tminv.y), max(tminv.z, ray.t_min));
-   1035c:	a1c517d3          	flt.s	a5,fa0,ft8
-   10360:	00078463          	beqz	a5,10368 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x260>
-   10364:	21ce0553          	fmv.s	fa0,ft8
-   10368:	a0b897d3          	flt.s	a5,fa7,fa1
-   1036c:	00078463          	beqz	a5,10374 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x26c>
-   10370:	20b588d3          	fmv.s	fa7,fa1
-   10374:	a11517d3          	flt.s	a5,fa0,fa7
-   10378:	00078463          	beqz	a5,10380 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x278>
-   1037c:	21188553          	fmv.s	fa0,fa7
-   10380:	a00817d3          	flt.s	a5,fa6,ft0
-   10384:	20a507d3          	fmv.s	fa5,fa0
+   10340:	a1e397d3          	flt.s	a5,ft7,ft10
+   10344:	00078463          	beqz	a5,1034c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x244>
+   10348:	21ef03d3          	fmv.s	ft7,ft10
+   1034c:	a0be97d3          	flt.s	a5,ft9,fa1
+   10350:	00078463          	beqz	a5,10358 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x250>
+   10354:	20b58ed3          	fmv.s	ft9,fa1
+   10358:	a1d397d3          	flt.s	a5,ft7,ft9
+   1035c:	00078463          	beqz	a5,10364 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x25c>
+   10360:	21de83d3          	fmv.s	ft7,ft9
+   10364:	a0f017d3          	flt.s	a5,ft0,fa5
+   10368:	20738853          	fmv.s	fa6,ft7
 	float tmax = min(min(tmaxv.x, tmaxv.y), min(tmaxv.z, ray.t_max));
-   10388:	00078463          	beqz	a5,10390 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x288>
-   1038c:	21080053          	fmv.s	ft0,fa6
-   10390:	a07097d3          	flt.s	a5,ft1,ft7
-   10394:	00078463          	beqz	a5,1039c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x294>
-   10398:	201083d3          	fmv.s	ft7,ft1
-   1039c:	a00397d3          	flt.s	a5,ft7,ft0
-   103a0:	00078463          	beqz	a5,103a8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x2a0>
-   103a4:	20738053          	fmv.s	ft0,ft7
+   1036c:	00078463          	beqz	a5,10374 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x26c>
+   10370:	200007d3          	fmv.s	fa5,ft0
+   10374:	a0a097d3          	flt.s	a5,ft1,fa0
+   10378:	00078463          	beqz	a5,10380 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x278>
+   1037c:	20108553          	fmv.s	fa0,ft1
+   10380:	a0f517d3          	flt.s	a5,fa0,fa5
+   10384:	00078463          	beqz	a5,1038c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x284>
+   10388:	20a507d3          	fmv.s	fa5,fa0
 	if (tmin > tmax || tmax < ray.t_min) return ray.t_max;//no hit || behind
-   103a8:	a0a017d3          	flt.s	a5,ft0,fa0
-   103ac:	7e079863          	bnez	a5,10b9c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa94>
-   103b0:	a0b017d3          	flt.s	a5,ft0,fa1
-   103b4:	7e079463          	bnez	a5,10b9c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa94>
-	node_stack[0].data = nodes[0].data;
-   103b8:	01852683          	lw	a3,24(a0)
-   103bc:	01c52703          	lw	a4,28(a0)
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   103c0:	00100793          	li	a5,1
-   103c4:	fff00893          	li	a7,-1
+   1038c:	a07797d3          	flt.s	a5,fa5,ft7
+   10390:	6e079663          	bnez	a5,10a7c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x974>
+   10394:	a0b797d3          	flt.s	a5,fa5,fa1
+   10398:	6e079263          	bnez	a5,10a7c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x974>
 	float     t_max;
 	rtm::vec3 dx;
 	rtm::vec3 dy;
 };
 
 struct Hit
-   103c8:	20108f53          	fmv.s	ft10,ft1
-    rtm::vec3 s       = ray.o - tri.vrts[2]; //2
-    float b1          = rtm::dot(s, r1) * rcp_denom;//2, 16
-    if (b1 < 0.0f || b1 > 1.0f) //1, 17
-   103cc:	f0000ad3          	fmv.w.x	fs5,zero
-   103d0:	02079613          	slli	a2,a5,0x20
-   103d4:	02089893          	slli	a7,a7,0x20
+   1039c:	20108f53          	fmv.s	ft10,ft1
+		uint node_index;
+	};
+
+	NodeStackEntry node_stack[32];
+	uint32_t node_stack_size = 1u;
 	node_stack[0].t = _intersect(nodes[0].aabb, ray, inv_d);
-   103d8:	06f12027          	fsw	fa5,96(sp)
-	node_stack[0].node_index = 0;
-   103dc:	06012623          	sw	zero,108(sp)
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   103e0:	00f60cb3          	add	s9,a2,a5
-   103e4:	ffe88893          	addi	a7,a7,-2
+   103a0:	05012027          	fsw	fa6,64(sp)
 	node_stack[0].data = nodes[0].data;
-   103e8:	06d12223          	sw	a3,100(sp)
-   103ec:	06e12423          	sw	a4,104(sp)
-   103f0:	fff00f13          	li	t5,-1
-   103f4:	00000593          	li	a1,0
+   103a4:	05f12223          	sw	t6,68(sp)
+	node_stack[0].node_index = 0;
+   103a8:	04012423          	sw	zero,72(sp)
+   103ac:	fff00813          	li	a6,-1
+   103b0:	00000613          	li	a2,0
+   103b4:	01f12a27          	fsw	ft11,20(sp)
+   103b8:	00812c27          	fsw	fs0,24(sp)
+#endif
+	
+	bool found_hit = false;
+	do
+	{
 		NodeStackEntry current_entry = node_stack[--node_stack_size];
-   103f8:	06010d13          	addi	s10,sp,96
-   103fc:	040f8393          	addi	t2,t6,64
-   10400:	00912a27          	fsw	fs1,20(sp)
-   10404:	01f12c27          	fsw	ft11,24(sp)
-   10408:	02059713          	slli	a4,a1,0x20
-   1040c:	01c75793          	srli	a5,a4,0x1c
-   10410:	00278733          	add	a4,a5,sp
-   10414:	06073683          	ld	a3,96(a4)
-   10418:	06873703          	ld	a4,104(a4)
-   1041c:	04d13823          	sd	a3,80(sp)
-   10420:	04e13c23          	sd	a4,88(sp)
+   103bc:	02061713          	slli	a4,a2,0x20
+   103c0:	02075713          	srli	a4,a4,0x20
+   103c4:	00171793          	slli	a5,a4,0x1
+   103c8:	00e787b3          	add	a5,a5,a4
+   103cc:	00279793          	slli	a5,a5,0x2
+   103d0:	002787b3          	add	a5,a5,sp
+   103d4:	0407a483          	lw	s1,64(a5)
+   103d8:	0447a703          	lw	a4,68(a5)
+   103dc:	0487a783          	lw	a5,72(a5)
+   103e0:	02912823          	sw	s1,48(sp)
+   103e4:	02e12a23          	sw	a4,52(sp)
+   103e8:	02f12c23          	sw	a5,56(sp)
 		if(current_entry.t >= hit.t) continue;
-   10424:	a0ff0753          	fle.s	a4,ft10,fa5
-   10428:	02070063          	beqz	a4,10448 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x340>
+   103ec:	a10f07d3          	fle.s	a5,ft10,fa6
+   103f0:	02078663          	beqz	a5,1041c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x314>
 				if (ray_id == 0)
 					printf("Ray id: %d, Intersect with tri: %d\n", ray_id, id);
 #endif
 			}
 		}
 	} while(node_stack_size);
-   1042c:	52058263          	beqz	a1,10950 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x848>
+   103f4:	40060c63          	beqz	a2,1080c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x704>
 		NodeStackEntry current_entry = node_stack[--node_stack_size];
-   10430:	fff5859b          	addiw	a1,a1,-1
-   10434:	02059713          	slli	a4,a1,0x20
-   10438:	01c75793          	srli	a5,a4,0x1c
-   1043c:	002787b3          	add	a5,a5,sp
-   10440:	0607a787          	flw	fa5,96(a5)
-   10444:	fc5ff06f          	j	10408 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x300>
-   10448:	00fd07b3          	add	a5,s10,a5
-   1044c:	0047a683          	lw	a3,4(a5)
+   103f8:	fff6061b          	addiw	a2,a2,-1 # 7fffffff <__global_pointer$+0x7ffedadf>
+   103fc:	02061713          	slli	a4,a2,0x20
+   10400:	02075713          	srli	a4,a4,0x20
+   10404:	00171793          	slli	a5,a4,0x1
+   10408:	00e787b3          	add	a5,a5,a4
+   1040c:	00279793          	slli	a5,a5,0x2
+   10410:	002787b3          	add	a5,a5,sp
+   10414:	0407a807          	flw	fa6,64(a5)
+   10418:	fa5ff06f          	j	103bc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x2b4>
 		if(!current_entry.data.is_leaf)
-   10450:	05412983          	lw	s3,84(sp)
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-   10454:	0087b603          	ld	a2,8(a5)
-   10458:	0016d71b          	srliw	a4,a3,0x1
-		if(!current_entry.data.is_leaf)
-   1045c:	01f77a13          	andi	s4,a4,31
-   10460:	fc19f793          	andi	a5,s3,-63
-   10464:	001a1a1b          	slliw	s4,s4,0x1
-   10468:	0147e7b3          	or	a5,a5,s4
-   1046c:	fc06f993          	andi	s3,a3,-64
-   10470:	03f7f793          	andi	a5,a5,63
-   10474:	00f9e7b3          	or	a5,s3,a5
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-   10478:	00165613          	srli	a2,a2,0x1
-   1047c:	00567633          	and	a2,a2,t0
-		if(!current_entry.data.is_leaf)
-   10480:	04f12a23          	sw	a5,84(sp)
-   10484:	0017f793          	andi	a5,a5,1
-		NodeStackEntry current_entry = node_stack[--node_stack_size];
-   10488:	0006061b          	sext.w	a2,a2
-   1048c:	01f77713          	andi	a4,a4,31
-   10490:	0066d69b          	srliw	a3,a3,0x6
-		if(!current_entry.data.is_leaf)
-   10494:	06078e63          	beqz	a5,10510 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x408>
-   10498:	3740006f          	j	1080c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x704>
-	if (tmin > tmax || tmax < ray.t_min) return ray.t_max;//no hit || behind
-   1049c:	a0b796d3          	flt.s	a3,fa5,fa1
-   104a0:	26069c63          	bnez	a3,10718 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x610>
+   1041c:	0007079b          	sext.w	a5,a4
+   10420:	0017f793          	andi	a5,a5,1
+   10424:	02078a63          	beqz	a5,10458 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x350>
+   10428:	2980006f          	j	106c0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5b8>
+   1042c:	a0b799d3          	flt.s	s3,fa5,fa1
+   10430:	22099a63          	bnez	s3,10664 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x55c>
 			if(t0 < hit.t || t1 < hit.t)
-   104a4:	a1ef96d3          	flt.s	a3,ft11,ft10
-   104a8:	26069e63          	bnez	a3,10724 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x61c>
-   104ac:	a1e81753          	flt.s	a4,fa6,ft10
-   104b0:	f6070ee3          	beqz	a4,1042c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x324>
+   10434:	a1ef99d3          	flt.s	s3,ft11,ft10
+   10438:	22099c63          	bnez	s3,10670 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x568>
+   1043c:	a1e817d3          	flt.s	a5,fa6,ft10
+   10440:	fa078ae3          	beqz	a5,103f4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x2ec>
 					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   104b4:	0187b703          	ld	a4,24(a5)
-   104b8:	01c7a603          	lw	a2,28(a5)
-   104bc:	0198e7b3          	or	a5,a7,s9
-   104c0:	00e7f7b3          	and	a5,a5,a4
-   104c4:	00675693          	srli	a3,a4,0x6
-   104c8:	01c6f6b3          	and	a3,a3,t3
-   104cc:	4207d993          	srai	s3,a5,0x20
-   104d0:	00175713          	srli	a4,a4,0x1
-   104d4:	0016561b          	srliw	a2,a2,0x1
-   104d8:	0006869b          	sext.w	a3,a3
-   104dc:	02f13c23          	sd	a5,56(sp)
-   104e0:	04f12a23          	sw	a5,84(sp)
-   104e4:	05312c23          	sw	s3,88(sp)
-   104e8:	01f77713          	andi	a4,a4,31
+   10444:	01872783          	lw	a5,24(a4)
+   10448:	02f12a23          	sw	a5,52(sp)
 		if(!current_entry.data.is_leaf)
-   104ec:	05412983          	lw	s3,84(sp)
-   104f0:	00171a13          	slli	s4,a4,0x1
-   104f4:	0066979b          	slliw	a5,a3,0x6
-   104f8:	0019f993          	andi	s3,s3,1
-   104fc:	0149e9b3          	or	s3,s3,s4
-   10500:	0137e7b3          	or	a5,a5,s3
-   10504:	04f12a23          	sw	a5,84(sp)
-   10508:	0017f793          	andi	a5,a5,1
-   1050c:	30079063          	bnez	a5,1080c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x704>
-			float t0 = _intersect(nodes[child_index + 0].aabb, ray, inv_d);
-   10510:	02061793          	slli	a5,a2,0x20
-   10514:	01a7d713          	srli	a4,a5,0x1a
-   10518:	00e50733          	add	a4,a0,a4
-	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   1051c:	00072787          	flw	fa5,0(a4)
-   10520:	00c72e07          	flw	ft8,12(a4)
-   10524:	00472007          	flw	ft0,4(a4)
-   10528:	08e7f7d3          	fsub.s	fa5,fa5,fa4
-   1052c:	08ee7e53          	fsub.s	ft8,ft8,fa4
-   10530:	00872507          	flw	fa0,8(a4)
-   10534:	01072887          	flw	fa7,16(a4)
-   10538:	01472807          	flw	fa6,20(a4)
-	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   1053c:	1027f7d3          	fmul.s	fa5,fa5,ft2
-   10540:	102e7e53          	fmul.s	ft8,ft8,ft2
-	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10544:	08d07053          	fsub.s	ft0,ft0,fa3
-   10548:	08c57553          	fsub.s	fa0,fa0,fa2
-   1054c:	08d8f8d3          	fsub.s	fa7,fa7,fa3
-   10550:	08c87853          	fsub.s	fa6,fa6,fa2
-   10554:	a0fe17d3          	flt.s	a5,ft8,fa5
-	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10558:	10307053          	fmul.s	ft0,ft0,ft3
-   1055c:	10457553          	fmul.s	fa0,fa0,ft4
-   10560:	1038f8d3          	fmul.s	fa7,fa7,ft3
-   10564:	10487853          	fmul.s	fa6,fa6,ft4
-   10568:	20f783d3          	fmv.s	ft7,fa5
+   1044c:	03412783          	lw	a5,52(sp)
+   10450:	0017f793          	andi	a5,a5,1
+   10454:	26079663          	bnez	a5,106c0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5b8>
 			uint child_index = current_entry.data.child_index;
-   1056c:	00060993          	mv	s3,a2
+   10458:	03013703          	ld	a4,48(sp)
+			float t0 = _intersect(nodes[child_index + 0].aabb, ray, inv_d);
+   1045c:	02175793          	srli	a5,a4,0x21
+   10460:	00579793          	slli	a5,a5,0x5
+   10464:	00f587b3          	add	a5,a1,a5
+	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+   10468:	0007a787          	flw	fa5,0(a5)
+   1046c:	00c7ae07          	flw	ft8,12(a5)
+   10470:	0047a007          	flw	ft0,4(a5)
+   10474:	08e7f7d3          	fsub.s	fa5,fa5,fa4
+   10478:	08ee7e53          	fsub.s	ft8,ft8,fa4
+   1047c:	0087a507          	flw	fa0,8(a5)
+   10480:	0107a887          	flw	fa7,16(a5)
+   10484:	0147a807          	flw	fa6,20(a5)
+	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
+   10488:	1027f7d3          	fmul.s	fa5,fa5,ft2
+   1048c:	102e7e53          	fmul.s	ft8,ft8,ft2
+	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+   10490:	08d07053          	fsub.s	ft0,ft0,fa3
+   10494:	08c57553          	fsub.s	fa0,fa0,fa2
+   10498:	08d8f8d3          	fsub.s	fa7,fa7,fa3
+   1049c:	08c87853          	fsub.s	fa6,fa6,fa2
+   104a0:	a0fe1953          	flt.s	s2,ft8,fa5
+	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
+   104a4:	10307053          	fmul.s	ft0,ft0,ft3
+   104a8:	10457553          	fmul.s	fa0,fa0,ft4
+   104ac:	1038f8d3          	fmul.s	fa7,fa7,ft3
+   104b0:	10487853          	fmul.s	fa6,fa6,ft4
+   104b4:	20f783d3          	fmv.s	ft7,fa5
+			uint child_index = current_entry.data.child_index;
+   104b8:	02175493          	srli	s1,a4,0x21
 	return vec3(rtm::min(a[0], b[0]), rtm::min(a[1], b[1]), rtm::min(a[2], b[2]));
-   10570:	00078463          	beqz	a5,10578 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x470>
-   10574:	21ce03d3          	fmv.s	ft7,ft8
-   10578:	a00897d3          	flt.s	a5,fa7,ft0
-   1057c:	20000fd3          	fmv.s	ft11,ft0
-   10580:	00078463          	beqz	a5,10588 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x480>
-   10584:	21188fd3          	fmv.s	ft11,fa7
-   10588:	a0a817d3          	flt.s	a5,fa6,fa0
-   1058c:	20a50ed3          	fmv.s	ft9,fa0
-   10590:	00078463          	beqz	a5,10598 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x490>
-   10594:	21080ed3          	fmv.s	ft9,fa6
+   104bc:	00090463          	beqz	s2,104c4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3bc>
+   104c0:	21ce03d3          	fmv.s	ft7,ft8
+   104c4:	a0089753          	flt.s	a4,fa7,ft0
+   104c8:	20000fd3          	fmv.s	ft11,ft0
+   104cc:	00070463          	beqz	a4,104d4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3cc>
+   104d0:	21188fd3          	fmv.s	ft11,fa7
+   104d4:	a0a81753          	flt.s	a4,fa6,fa0
+   104d8:	20a50ed3          	fmv.s	ft9,fa0
+   104dc:	00070463          	beqz	a4,104e4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3dc>
+   104e0:	21080ed3          	fmv.s	ft9,fa6
 	return vec3(rtm::max(a[0], b[0]), rtm::max(a[1], b[1]), rtm::max(a[2], b[2]));
-   10598:	a1c797d3          	flt.s	a5,fa5,ft8
-   1059c:	00078463          	beqz	a5,105a4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x49c>
-   105a0:	21ce07d3          	fmv.s	fa5,ft8
-   105a4:	a11017d3          	flt.s	a5,ft0,fa7
-   105a8:	00078463          	beqz	a5,105b0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4a8>
-   105ac:	21188053          	fmv.s	ft0,fa7
-   105b0:	a10517d3          	flt.s	a5,fa0,fa6
-   105b4:	00078463          	beqz	a5,105bc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4b4>
-   105b8:	21080553          	fmv.s	fa0,fa6
+   104e4:	a1c79753          	flt.s	a4,fa5,ft8
+   104e8:	00070463          	beqz	a4,104f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3e8>
+   104ec:	21ce07d3          	fmv.s	fa5,ft8
+   104f0:	a1101753          	flt.s	a4,ft0,fa7
+   104f4:	00070463          	beqz	a4,104fc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3f4>
+   104f8:	21188053          	fmv.s	ft0,fa7
+   104fc:	a1051753          	flt.s	a4,fa0,fa6
+   10500:	00070463          	beqz	a4,10508 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x400>
+   10504:	21080553          	fmv.s	fa0,fa6
 	float tmin = max(max(tminv.x, tminv.y), max(tminv.z, ray.t_min));
-   105bc:	a1f397d3          	flt.s	a5,ft7,ft11
-   105c0:	00078463          	beqz	a5,105c8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4c0>
-   105c4:	21ff83d3          	fmv.s	ft7,ft11
-   105c8:	a0be97d3          	flt.s	a5,ft9,fa1
-   105cc:	00078463          	beqz	a5,105d4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4cc>
-   105d0:	20b58ed3          	fmv.s	ft9,fa1
-   105d4:	a1d397d3          	flt.s	a5,ft7,ft9
-   105d8:	00078463          	beqz	a5,105e0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4d8>
-   105dc:	21de83d3          	fmv.s	ft7,ft9
-   105e0:	a0f017d3          	flt.s	a5,ft0,fa5
-   105e4:	20738fd3          	fmv.s	ft11,ft7
+   10508:	a1f39753          	flt.s	a4,ft7,ft11
+   1050c:	00070463          	beqz	a4,10514 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x40c>
+   10510:	21ff83d3          	fmv.s	ft7,ft11
+   10514:	a0be9753          	flt.s	a4,ft9,fa1
+   10518:	00070463          	beqz	a4,10520 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x418>
+   1051c:	20b58ed3          	fmv.s	ft9,fa1
+   10520:	a1d39753          	flt.s	a4,ft7,ft9
+   10524:	00070463          	beqz	a4,1052c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x424>
+   10528:	21de83d3          	fmv.s	ft7,ft9
+   1052c:	a0f01753          	flt.s	a4,ft0,fa5
+   10530:	20738fd3          	fmv.s	ft11,ft7
 	float tmax = min(min(tmaxv.x, tmaxv.y), min(tmaxv.z, ray.t_max));
-   105e8:	00078463          	beqz	a5,105f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4e8>
-   105ec:	200007d3          	fmv.s	fa5,ft0
-   105f0:	a0a097d3          	flt.s	a5,ft1,fa0
-   105f4:	00078463          	beqz	a5,105fc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4f4>
-   105f8:	20108553          	fmv.s	fa0,ft1
-   105fc:	a0f517d3          	flt.s	a5,fa0,fa5
-   10600:	00078463          	beqz	a5,10608 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x500>
-   10604:	20a507d3          	fmv.s	fa5,fa0
+   10534:	00070463          	beqz	a4,1053c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x434>
+   10538:	200007d3          	fmv.s	fa5,ft0
+   1053c:	a0a09753          	flt.s	a4,ft1,fa0
+   10540:	00070463          	beqz	a4,10548 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x440>
+   10544:	20108553          	fmv.s	fa0,ft1
+   10548:	a0f51753          	flt.s	a4,fa0,fa5
+   1054c:	00070463          	beqz	a4,10554 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x44c>
+   10550:	20a507d3          	fmv.s	fa5,fa0
 	if (tmin > tmax || tmax < ray.t_min) return ray.t_max;//no hit || behind
-   10608:	a07797d3          	flt.s	a5,fa5,ft7
-   1060c:	18079863          	bnez	a5,1079c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x694>
-   10610:	a0b797d3          	flt.s	a5,fa5,fa1
-   10614:	18079463          	bnez	a5,1079c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x694>
+   10554:	a0779753          	flt.s	a4,fa5,ft7
+   10558:	4c071263          	bnez	a4,10a1c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x914>
+   1055c:	a0b79753          	flt.s	a4,fa5,fa1
+   10560:	4a071e63          	bnez	a4,10a1c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x914>
 			float t1 = _intersect(nodes[child_index + 1].aabb, ray, inv_d);
-   10618:	00160a1b          	addiw	s4,a2,1 # ffffffff80000001 <__global_pointer$+0xffffffff7ffeda11>
-   1061c:	020a1693          	slli	a3,s4,0x20
-   10620:	01a6d793          	srli	a5,a3,0x1a
-   10624:	00f507b3          	add	a5,a0,a5
+   10564:	0014891b          	addiw	s2,s1,1
+   10568:	02091993          	slli	s3,s2,0x20
+   1056c:	01b9d713          	srli	a4,s3,0x1b
+   10570:	00e58733          	add	a4,a1,a4
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10628:	0007a787          	flw	fa5,0(a5)
-   1062c:	00c7ae07          	flw	ft8,12(a5)
-   10630:	0047a007          	flw	ft0,4(a5)
-   10634:	08e7f7d3          	fsub.s	fa5,fa5,fa4
-   10638:	08ee7e53          	fsub.s	ft8,ft8,fa4
-   1063c:	0087a507          	flw	fa0,8(a5)
-   10640:	0107a887          	flw	fa7,16(a5)
-   10644:	0147a807          	flw	fa6,20(a5)
+   10574:	00072787          	flw	fa5,0(a4)
+   10578:	00c72e07          	flw	ft8,12(a4)
+   1057c:	00472007          	flw	ft0,4(a4)
+   10580:	08e7f7d3          	fsub.s	fa5,fa5,fa4
+   10584:	08ee7e53          	fsub.s	ft8,ft8,fa4
+   10588:	00872507          	flw	fa0,8(a4)
+   1058c:	01072887          	flw	fa7,16(a4)
+   10590:	01472807          	flw	fa6,20(a4)
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10648:	1027f7d3          	fmul.s	fa5,fa5,ft2
-   1064c:	102e7e53          	fmul.s	ft8,ft8,ft2
+   10594:	1027f7d3          	fmul.s	fa5,fa5,ft2
+   10598:	102e7e53          	fmul.s	ft8,ft8,ft2
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10650:	08d07053          	fsub.s	ft0,ft0,fa3
-   10654:	08c57553          	fsub.s	fa0,fa0,fa2
-   10658:	08d8f8d3          	fsub.s	fa7,fa7,fa3
-   1065c:	08c87853          	fsub.s	fa6,fa6,fa2
-   10660:	a0fe16d3          	flt.s	a3,ft8,fa5
+   1059c:	08d07053          	fsub.s	ft0,ft0,fa3
+   105a0:	08c57553          	fsub.s	fa0,fa0,fa2
+   105a4:	08d8f8d3          	fsub.s	fa7,fa7,fa3
+   105a8:	08c87853          	fsub.s	fa6,fa6,fa2
+   105ac:	a0fe19d3          	flt.s	s3,ft8,fa5
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10664:	10307053          	fmul.s	ft0,ft0,ft3
-   10668:	10457553          	fmul.s	fa0,fa0,ft4
-   1066c:	1038f8d3          	fmul.s	fa7,fa7,ft3
-   10670:	10487853          	fmul.s	fa6,fa6,ft4
+   105b0:	10307053          	fmul.s	ft0,ft0,ft3
+   105b4:	10457553          	fmul.s	fa0,fa0,ft4
+   105b8:	1038f8d3          	fmul.s	fa7,fa7,ft3
+   105bc:	10487853          	fmul.s	fa6,fa6,ft4
 	return vec3(rtm::min(a[0], b[0]), rtm::min(a[1], b[1]), rtm::min(a[2], b[2]));
-   10674:	20f783d3          	fmv.s	ft7,fa5
-   10678:	00068463          	beqz	a3,10680 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x578>
-   1067c:	21ce03d3          	fmv.s	ft7,ft8
-   10680:	a00896d3          	flt.s	a3,fa7,ft0
-   10684:	200004d3          	fmv.s	fs1,ft0
-   10688:	00068463          	beqz	a3,10690 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x588>
-   1068c:	211884d3          	fmv.s	fs1,fa7
-   10690:	a0a816d3          	flt.s	a3,fa6,fa0
-   10694:	20a50ed3          	fmv.s	ft9,fa0
-   10698:	00068463          	beqz	a3,106a0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x598>
-   1069c:	21080ed3          	fmv.s	ft9,fa6
+   105c0:	20f783d3          	fmv.s	ft7,fa5
+   105c4:	00098463          	beqz	s3,105cc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4c4>
+   105c8:	21ce03d3          	fmv.s	ft7,ft8
+   105cc:	a00899d3          	flt.s	s3,fa7,ft0
+   105d0:	20000453          	fmv.s	fs0,ft0
+   105d4:	00098463          	beqz	s3,105dc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4d4>
+   105d8:	21188453          	fmv.s	fs0,fa7
+   105dc:	a0a819d3          	flt.s	s3,fa6,fa0
+   105e0:	20a50ed3          	fmv.s	ft9,fa0
+   105e4:	00098463          	beqz	s3,105ec <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4e4>
+   105e8:	21080ed3          	fmv.s	ft9,fa6
 	return vec3(rtm::max(a[0], b[0]), rtm::max(a[1], b[1]), rtm::max(a[2], b[2]));
-   106a0:	a1c796d3          	flt.s	a3,fa5,ft8
-   106a4:	00068463          	beqz	a3,106ac <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5a4>
-   106a8:	21ce07d3          	fmv.s	fa5,ft8
-   106ac:	a11016d3          	flt.s	a3,ft0,fa7
-   106b0:	00068463          	beqz	a3,106b8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5b0>
-   106b4:	21188053          	fmv.s	ft0,fa7
-   106b8:	a10516d3          	flt.s	a3,fa0,fa6
-   106bc:	00068463          	beqz	a3,106c4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5bc>
-   106c0:	21080553          	fmv.s	fa0,fa6
+   105ec:	a1c799d3          	flt.s	s3,fa5,ft8
+   105f0:	00098463          	beqz	s3,105f8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4f0>
+   105f4:	21ce07d3          	fmv.s	fa5,ft8
+   105f8:	a11019d3          	flt.s	s3,ft0,fa7
+   105fc:	00098463          	beqz	s3,10604 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x4fc>
+   10600:	21188053          	fmv.s	ft0,fa7
+   10604:	a10519d3          	flt.s	s3,fa0,fa6
+   10608:	00098463          	beqz	s3,10610 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x508>
+   1060c:	21080553          	fmv.s	fa0,fa6
 	float tmin = max(max(tminv.x, tminv.y), max(tminv.z, ray.t_min));
-   106c4:	a09396d3          	flt.s	a3,ft7,fs1
-   106c8:	00068463          	beqz	a3,106d0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5c8>
-   106cc:	209483d3          	fmv.s	ft7,fs1
-   106d0:	a0be96d3          	flt.s	a3,ft9,fa1
-   106d4:	00068463          	beqz	a3,106dc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5d4>
-   106d8:	20b58ed3          	fmv.s	ft9,fa1
-   106dc:	a1d396d3          	flt.s	a3,ft7,ft9
-   106e0:	00068463          	beqz	a3,106e8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5e0>
-   106e4:	21de83d3          	fmv.s	ft7,ft9
-   106e8:	a0f016d3          	flt.s	a3,ft0,fa5
-   106ec:	20738853          	fmv.s	fa6,ft7
+   10610:	a08399d3          	flt.s	s3,ft7,fs0
+   10614:	00098463          	beqz	s3,1061c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x514>
+   10618:	208403d3          	fmv.s	ft7,fs0
+   1061c:	a0be99d3          	flt.s	s3,ft9,fa1
+   10620:	00098463          	beqz	s3,10628 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x520>
+   10624:	20b58ed3          	fmv.s	ft9,fa1
+   10628:	a1d399d3          	flt.s	s3,ft7,ft9
+   1062c:	00098463          	beqz	s3,10634 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x52c>
+   10630:	21de83d3          	fmv.s	ft7,ft9
+   10634:	a0f019d3          	flt.s	s3,ft0,fa5
+   10638:	20738853          	fmv.s	fa6,ft7
 	float tmax = min(min(tmaxv.x, tmaxv.y), min(tmaxv.z, ray.t_max));
-   106f0:	00068463          	beqz	a3,106f8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5f0>
-   106f4:	200007d3          	fmv.s	fa5,ft0
-   106f8:	a0a096d3          	flt.s	a3,ft1,fa0
-   106fc:	00068463          	beqz	a3,10704 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5fc>
-   10700:	20108553          	fmv.s	fa0,ft1
-   10704:	a0f516d3          	flt.s	a3,fa0,fa5
-   10708:	00068463          	beqz	a3,10710 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x608>
-   1070c:	20a507d3          	fmv.s	fa5,fa0
+   1063c:	00098463          	beqz	s3,10644 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x53c>
+   10640:	200007d3          	fmv.s	fa5,ft0
+   10644:	a0a099d3          	flt.s	s3,ft1,fa0
+   10648:	00098463          	beqz	s3,10650 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x548>
+   1064c:	20108553          	fmv.s	fa0,ft1
+   10650:	a0f519d3          	flt.s	s3,fa0,fa5
+   10654:	00098463          	beqz	s3,1065c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x554>
+   10658:	20a507d3          	fmv.s	fa5,fa0
 	if (tmin > tmax || tmax < ray.t_min) return ray.t_max;//no hit || behind
-   10710:	a07796d3          	flt.s	a3,fa5,ft7
-   10714:	d80684e3          	beqz	a3,1049c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x394>
+   1065c:	a07799d3          	flt.s	s3,fa5,ft7
+   10660:	dc0986e3          	beqz	s3,1042c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x324>
 			if(t0 < hit.t || t1 < hit.t)
-   10718:	a1ef96d3          	flt.s	a3,ft11,ft10
-   1071c:	20108853          	fmv.s	fa6,ft1
-   10720:	d80686e3          	beqz	a3,104ac <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3a4>
+   10664:	a1ef99d3          	flt.s	s3,ft11,ft10
+   10668:	20108853          	fmv.s	fa6,ft1
+   1066c:	dc0988e3          	beqz	s3,1043c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x334>
 				if(t0 < t1)
-   10724:	a10f96d3          	flt.s	a3,ft11,fa6
-   10728:	06068e63          	beqz	a3,107a4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x69c>
+   10670:	a10f99d3          	flt.s	s3,ft11,fa6
+   10674:	3a098863          	beqz	s3,10a24 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x91c>
 					current_entry = {t0, nodes[child_index + 0].data, child_index + 0};
-   1072c:	01873a83          	ld	s5,24(a4)
-   10730:	0198e9b3          	or	s3,a7,s9
-   10734:	01c72603          	lw	a2,28(a4)
-   10738:	0159f9b3          	and	s3,s3,s5
-   1073c:	4209d713          	srai	a4,s3,0x20
-   10740:	05313423          	sd	s3,72(sp)
-   10744:	05312a23          	sw	s3,84(sp)
+   10678:	0187a783          	lw	a5,24(a5)
+   1067c:	02f12a23          	sw	a5,52(sp)
 					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data, child_index + 1};
-   10748:	a1e819d3          	flt.s	s3,fa6,ft10
-					current_entry = {t0, nodes[child_index + 0].data, child_index + 0};
-   1074c:	006ad693          	srli	a3,s5,0x6
-   10750:	04e12c23          	sw	a4,88(sp)
-   10754:	01c6f6b3          	and	a3,a3,t3
-   10758:	001ad713          	srli	a4,s5,0x1
-   1075c:	0016561b          	srliw	a2,a2,0x1
-   10760:	0006869b          	sext.w	a3,a3
-   10764:	01f77713          	andi	a4,a4,31
+   10680:	a1e817d3          	flt.s	a5,fa6,ft10
+   10684:	dc0784e3          	beqz	a5,1044c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x344>
+   10688:	02061493          	slli	s1,a2,0x20
+   1068c:	0204d493          	srli	s1,s1,0x20
+   10690:	00149793          	slli	a5,s1,0x1
+   10694:	01872703          	lw	a4,24(a4)
+   10698:	009787b3          	add	a5,a5,s1
+   1069c:	00279793          	slli	a5,a5,0x2
+   106a0:	002787b3          	add	a5,a5,sp
+   106a4:	04e7a223          	sw	a4,68(a5)
+   106a8:	0507a027          	fsw	fa6,64(a5)
+   106ac:	0527a423          	sw	s2,72(a5)
+		if(!current_entry.data.is_leaf)
+   106b0:	03412783          	lw	a5,52(sp)
 					if(t1 < hit.t)  node_stack[node_stack_size++] = {t1, nodes[child_index + 1].data, child_index + 1};
-   10768:	d80982e3          	beqz	s3,104ec <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3e4>
-   1076c:	0187b983          	ld	s3,24(a5)
-   10770:	02059a93          	slli	s5,a1,0x20
-   10774:	01cad793          	srli	a5,s5,0x1c
-   10778:	002787b3          	add	a5,a5,sp
-   1077c:	4209da93          	srai	s5,s3,0x20
-   10780:	05313023          	sd	s3,64(sp)
-   10784:	0757a423          	sw	s5,104(a5)
-   10788:	0707a027          	fsw	fa6,96(a5)
-   1078c:	0737a223          	sw	s3,100(a5)
-   10790:	0747a623          	sw	s4,108(a5)
-   10794:	0015859b          	addiw	a1,a1,1
-   10798:	d55ff06f          	j	104ec <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3e4>
-   1079c:	20108fd3          	fmv.s	ft11,ft1
-   107a0:	e79ff06f          	j	10618 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x510>
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   107a4:	0187ba83          	ld	s5,24(a5)
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
-   107a8:	01873b03          	ld	s6,24(a4)
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   107ac:	01c7a603          	lw	a2,28(a5)
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
-   107b0:	02059713          	slli	a4,a1,0x20
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   107b4:	0198e7b3          	or	a5,a7,s9
-   107b8:	0157f7b3          	and	a5,a5,s5
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
-   107bc:	01c75a13          	srli	s4,a4,0x1c
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   107c0:	006ad693          	srli	a3,s5,0x6
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
-   107c4:	002a0a33          	add	s4,s4,sp
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   107c8:	01c6f6b3          	and	a3,a3,t3
-   107cc:	4207dc13          	srai	s8,a5,0x20
-   107d0:	001ad713          	srli	a4,s5,0x1
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
-   107d4:	420b5b93          	srai	s7,s6,0x20
-   107d8:	03613823          	sd	s6,48(sp)
-					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
-   107dc:	0016561b          	srliw	a2,a2,0x1
-   107e0:	0006869b          	sext.w	a3,a3
-   107e4:	02f13c23          	sd	a5,56(sp)
-   107e8:	04f12a23          	sw	a5,84(sp)
-   107ec:	05812c23          	sw	s8,88(sp)
-   107f0:	01f77713          	andi	a4,a4,31
-					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
-   107f4:	077a2423          	sw	s7,104(s4)
-   107f8:	07fa2027          	fsw	ft11,96(s4)
-   107fc:	076a2223          	sw	s6,100(s4)
-   10800:	073a2623          	sw	s3,108(s4)
-   10804:	0015859b          	addiw	a1,a1,1
-   10808:	ce5ff06f          	j	104ec <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x3e4>
+   106b4:	0016061b          	addiw	a2,a2,1
+		if(!current_entry.data.is_leaf)
+   106b8:	0017f793          	andi	a5,a5,1
+   106bc:	d8078ee3          	beqz	a5,10458 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x350>
+				uint32_t id = current_entry.data.prim_index + i;
+   106c0:	03013703          	ld	a4,48(sp)
+   106c4:	20108453          	fmv.s	fs0,ft1
+   106c8:	00212427          	fsw	ft2,8(sp)
 			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
-   1080c:	02069793          	slli	a5,a3,0x20
-   10810:	0207d793          	srli	a5,a5,0x20
-   10814:	00f70733          	add	a4,a4,a5
-   10818:	01412487          	flw	fs1,20(sp)
-   1081c:	00671713          	slli	a4,a4,0x6
-   10820:	00679793          	slli	a5,a5,0x6
-   10824:	00770733          	add	a4,a4,t2
-   10828:	00ff87b3          	add	a5,t6,a5
-   1082c:	00112227          	fsw	ft1,4(sp)
-   10830:	00212427          	fsw	ft2,8(sp)
-   10834:	00312627          	fsw	ft3,12(sp)
-   10838:	00412827          	fsw	ft4,16(sp)
+   106cc:	02175493          	srli	s1,a4,0x21
+   106d0:	02675793          	srli	a5,a4,0x26
+   106d4:	01f4f493          	andi	s1,s1,31
+   106d8:	00f484b3          	add	s1,s1,a5
+   106dc:	00649493          	slli	s1,s1,0x6
+   106e0:	00679793          	slli	a5,a5,0x6
+   106e4:	01c484b3          	add	s1,s1,t3
+   106e8:	00f887b3          	add	a5,a7,a5
+				uint32_t id = current_entry.data.prim_index + i;
+   106ec:	02675713          	srli	a4,a4,0x26
+   106f0:	00312627          	fsw	ft3,12(sp)
+   106f4:	00412827          	fsw	ft4,16(sp)
 	inline float operator[](int i) const { return e[i]; }
-   1083c:	0187a107          	flw	ft2,24(a5)
+   106f8:	0187a107          	flw	ft2,24(a5)
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10840:	00c7a387          	flw	ft7,12(a5)
+   106fc:	00c7a387          	flw	ft7,12(a5)
 	inline float operator[](int i) const { return e[i]; }
-   10844:	0207a087          	flw	ft1,32(a5)
-   10848:	01c7a187          	flw	ft3,28(a5)
+   10700:	0207a087          	flw	ft1,32(a5)
+   10704:	01c7a187          	flw	ft3,28(a5)
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   1084c:	0823f3d3          	fsub.s	ft7,ft7,ft2
-   10850:	0147a207          	flw	ft4,20(a5)
-   10854:	0107a807          	flw	fa6,16(a5)
-   10858:	0047ae07          	flw	ft8,4(a5)
-   1085c:	08127253          	fsub.s	ft4,ft4,ft1
-   10860:	08387853          	fsub.s	fa6,fa6,ft3
+   10708:	0823f3d3          	fsub.s	ft7,ft7,ft2
+   1070c:	0147a207          	flw	ft4,20(a5)
+   10710:	0107a807          	flw	fa6,16(a5)
+   10714:	0047ae07          	flw	ft8,4(a5)
+   10718:	08127253          	fsub.s	ft4,ft4,ft1
+   1071c:	08387853          	fsub.s	fa6,fa6,ft3
 		(-(a[0] * b[2] - a[2] * b[0])),
-   10864:	1074f053          	fmul.s	ft0,fs1,ft7
+   10720:	1093f053          	fmul.s	ft0,ft7,fs1
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10868:	083e7e53          	fsub.s	ft8,ft8,ft3
-   1086c:	0007a507          	flw	fa0,0(a5)
+   10724:	083e7e53          	fsub.s	ft8,ft8,ft3
+   10728:	0007a507          	flw	fa0,0(a5)
 		a[0] * b[1] - a[1] * b[0]);
-   10870:	1079f7d3          	fmul.s	fa5,fs3,ft7
+   1072c:	1133f7d3          	fmul.s	fa5,ft7,fs3
 	return vec3(a[1] * b[2] - a[2] * b[1],
-   10874:	1104f8d3          	fmul.s	fa7,fs1,fa6
+   10730:	109878d3          	fmul.s	fa7,fa6,fs1
 		a[0] * b[1] - a[1] * b[0]);
-   10878:	0049704b          	fnmsub.s	ft0,fs2,ft4,ft0
+   10734:	0122704b          	fnmsub.s	ft0,ft4,fs2,ft0
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   1087c:	08257ed3          	fsub.s	ft9,fa0,ft2
-   10880:	0087af87          	flw	ft11,8(a5)
+   10738:	08257ed3          	fsub.s	ft9,fa0,ft2
+   1073c:	0087af87          	flw	ft11,8(a5)
 		a[0] * b[1] - a[1] * b[0]);
-   10884:	790977c7          	fmsub.s	fa5,fs2,fa6,fa5
-   10888:	8849f8c7          	fmsub.s	fa7,fs3,ft4,fa7
+   10740:	792877c7          	fmsub.s	fa5,fa6,fs2,fa5
+   10744:	893278c7          	fmsub.s	fa7,ft4,fs3,fa7
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   1088c:	100e7553          	fmul.s	fa0,ft8,ft0
+   10748:	100e7553          	fmul.s	fa0,ft8,ft0
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10890:	081fffd3          	fsub.s	ft11,ft11,ft1
-   10894:	0836f1d3          	fsub.s	ft3,fa3,ft3
-   10898:	08277153          	fsub.s	ft2,fa4,ft2
-   1089c:	081670d3          	fsub.s	ft1,fa2,ft1
+   1074c:	081fffd3          	fsub.s	ft11,ft11,ft1
+   10750:	0836f1d3          	fsub.s	ft3,fa3,ft3
+   10754:	08277153          	fsub.s	ft2,fa4,ft2
+   10758:	081670d3          	fsub.s	ft1,fa2,ft1
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   108a0:	511ef543          	fmadd.s	fa0,ft9,fa7,fa0
-   108a4:	04078793          	addi	a5,a5,64
-   108a8:	10307053          	fmul.s	ft0,ft0,ft3
-   108ac:	50fff543          	fmadd.s	fa0,ft11,fa5,fa0
-   108b0:	0028f043          	fmadd.s	ft0,fa7,ft2,ft0
+   1075c:	511ef543          	fmadd.s	fa0,ft9,fa7,fa0
+			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
+   10760:	04078793          	addi	a5,a5,64
+   10764:	10307053          	fmul.s	ft0,ft0,ft3
+   10768:	50fff543          	fmadd.s	fa0,ft11,fa5,fa0
+   1076c:	0028f043          	fmadd.s	ft0,fa7,ft2,ft0
     float rcp_denom  = 1.0f / denom; //2, 14
-   108b4:	18adf553          	fdiv.s	fa0,fs11,fa0
-   108b8:	0017f7c3          	fmadd.s	fa5,fa5,ft1,ft0
+   10770:	18adf553          	fdiv.s	fa0,fs11,fa0
+   10774:	0017f7c3          	fmadd.s	fa5,fa5,ft1,ft0
     float b1          = rtm::dot(s, r1) * rcp_denom;//2, 16
-   108bc:	10f577d3          	fmul.s	fa5,fa0,fa5
+   10778:	10f577d3          	fmul.s	fa5,fa0,fa5
     if (b1 < 0.0f || b1 > 1.0f) //1, 17
-   108c0:	a1579653          	flt.s	a2,fa5,fs5
-   108c4:	06061863          	bnez	a2,10934 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x82c>
-   108c8:	a0fd1653          	flt.s	a2,fs10,fa5
-   108cc:	06061463          	bnez	a2,10934 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x82c>
+   1077c:	a1579953          	flt.s	s2,fa5,fs5
+   10780:	06091863          	bnez	s2,107f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x6e8>
+   10784:	a0fd1953          	flt.s	s2,fs10,fa5
+   10788:	06091463          	bnez	s2,107f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x6e8>
 		(-(a[0] * b[2] - a[2] * b[0])),
-   108d0:	101ef053          	fmul.s	ft0,ft9,ft1
+   1078c:	101ef053          	fmul.s	ft0,ft9,ft1
 	return vec3(a[1] * b[2] - a[2] * b[1],
-   108d4:	101e70d3          	fmul.s	ft1,ft8,ft1
+   10790:	101e70d3          	fmul.s	ft1,ft8,ft1
 		a[0] * b[1] - a[1] * b[0]);
-   108d8:	103efed3          	fmul.s	ft9,ft9,ft3
-   108dc:	002ff04b          	fnmsub.s	ft0,ft11,ft2,ft0
-   108e0:	083fffc7          	fmsub.s	ft11,ft11,ft3,ft1
-   108e4:	e82e7ec7          	fmsub.s	ft9,ft8,ft2,ft9
+   10794:	103efed3          	fmul.s	ft9,ft9,ft3
+   10798:	002ff04b          	fnmsub.s	ft0,ft11,ft2,ft0
+   1079c:	083fffc7          	fmsub.s	ft11,ft11,ft3,ft1
+   107a0:	e82e7ec7          	fmsub.s	ft9,ft8,ft2,ft9
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   108e8:	1009f0d3          	fmul.s	ft1,fs3,ft0
-   108ec:	09f970c3          	fmadd.s	ft1,fs2,ft11,ft1
-   108f0:	09d4f0c3          	fmadd.s	ft1,fs1,ft9,ft1
+   107a4:	113070d3          	fmul.s	ft1,ft0,fs3
+   107a8:	092ff0c3          	fmadd.s	ft1,ft11,fs2,ft1
+   107ac:	089ef0c3          	fmadd.s	ft1,ft9,fs1,ft1
         return false;
 
     rtm::vec3 r2 = rtm::cross(s, e1); //4
     float b2  = rtm::dot(ray.d, r2) * rcp_denom;//2, 16
-   108f4:	101570d3          	fmul.s	ft1,fa0,ft1
+   107b0:	101570d3          	fmul.s	ft1,fa0,ft1
     if (b2 < 0.0f || (b2 + b1) > 1.0f)//1, 18
-   108f8:	a1509653          	flt.s	a2,ft1,fs5
-   108fc:	02061c63          	bnez	a2,10934 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x82c>
-   10900:	0017f7d3          	fadd.s	fa5,fa5,ft1
-   10904:	a0fd1653          	flt.s	a2,fs10,fa5
-   10908:	02061663          	bnez	a2,10934 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x82c>
-   1090c:	10087853          	fmul.s	fa6,fa6,ft0
-   10910:	81f3f3c3          	fmadd.s	ft7,ft7,ft11,fa6
-   10914:	39d27243          	fmadd.s	ft4,ft4,ft9,ft7
+   107b4:	a1509953          	flt.s	s2,ft1,fs5
+   107b8:	02091c63          	bnez	s2,107f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x6e8>
+   107bc:	0017f7d3          	fadd.s	fa5,fa5,ft1
+   107c0:	a0fd1953          	flt.s	s2,fs10,fa5
+   107c4:	02091663          	bnez	s2,107f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x6e8>
+   107c8:	10087853          	fmul.s	fa6,fa6,ft0
+   107cc:	81f3f3c3          	fmadd.s	ft7,ft7,ft11,fa6
+   107d0:	39d27243          	fmadd.s	ft4,ft4,ft9,ft7
        	return false;
 
     float t = rtm::dot(e0, r2) * rcp_denom;//2, 16
-   10918:	10457553          	fmul.s	fa0,fa0,ft4
+   107d4:	10457553          	fmul.s	fa0,fa0,ft4
 	if(t < ray.t_min || t > hit.t) 
-   1091c:	a0b51653          	flt.s	a2,fa0,fa1
-   10920:	00061a63          	bnez	a2,10934 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x82c>
-   10924:	a0af1653          	flt.s	a2,ft10,fa0
-   10928:	00061663          	bnez	a2,10934 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x82c>
+   107d8:	a0b51953          	flt.s	s2,fa0,fa1
+   107dc:	00091a63          	bnez	s2,107f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x6e8>
+   107e0:	a0af1953          	flt.s	s2,ft10,fa0
+   107e4:	00091663          	bnez	s2,107f0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x6e8>
 		return false;
 
 	hit.bc = rtm::vec2(b1, b2); //20
 	hit.t = t;
-   1092c:	20a50f53          	fmv.s	ft10,fa0
+   107e8:	20a50f53          	fmv.s	ft10,fa0
 					hit.id = id;
-   10930:	00068f13          	mv	t5,a3
+   107ec:	00070813          	mv	a6,a4
 			for(uint32_t i = 0; i <= current_entry.data.num_prims; ++i)
-   10934:	0016869b          	addiw	a3,a3,1
-   10938:	f0e792e3          	bne	a5,a4,1083c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x734>
-   1093c:	00412087          	flw	ft1,4(sp)
-   10940:	00812107          	flw	ft2,8(sp)
-   10944:	00c12187          	flw	ft3,12(sp)
-   10948:	01012207          	flw	ft4,16(sp)
+   107f0:	0017071b          	addiw	a4,a4,1
+   107f4:	f0f492e3          	bne	s1,a5,106f8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x5f0>
+   107f8:	208400d3          	fmv.s	ft1,fs0
+   107fc:	00812107          	flw	ft2,8(sp)
+   10800:	00c12187          	flw	ft3,12(sp)
+   10804:	01012207          	flw	ft4,16(sp)
 	} while(node_stack_size);
-   1094c:	ae0592e3          	bnez	a1,10430 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x328>
+   10808:	be0618e3          	bnez	a2,103f8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x2f0>
 			if (hit.id != ~0u)
-   10950:	fff00793          	li	a5,-1
-   10954:	01412487          	flw	fs1,20(sp)
-   10958:	01812f87          	flw	ft11,24(sp)
-   1095c:	30ff0663          	beq	t5,a5,10c68 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xb60>
+   1080c:	fff00793          	li	a5,-1
+   10810:	01412f87          	flw	ft11,20(sp)
+   10814:	01812407          	flw	fs0,24(sp)
+   10818:	30f80863          	beq	a6,a5,10b28 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa20>
 				rtm::vec3 normal = args.tris[hit.id].normal();
-   10960:	020f1713          	slli	a4,t5,0x20
-   10964:	01a75793          	srli	a5,a4,0x1a
-   10968:	00ff87b3          	add	a5,t6,a5
+   1081c:	02081713          	slli	a4,a6,0x20
+   10820:	01a75793          	srli	a5,a4,0x1a
+   10824:	00f887b3          	add	a5,a7,a5
 	inline float operator[](int i) const { return e[i]; }
-   1096c:	0187a007          	flw	ft0,24(a5)
-   10970:	0207a507          	flw	fa0,32(a5)
+   10828:	0187a187          	flw	ft3,24(a5)
+   1082c:	0207a507          	flw	fa0,32(a5)
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10974:	00c7a807          	flw	fa6,12(a5)
-   10978:	0087a787          	flw	fa5,8(a5)
+   10830:	00c7a807          	flw	fa6,12(a5)
+   10834:	0087a787          	flw	fa5,8(a5)
 	inline float operator[](int i) const { return e[i]; }
-   1097c:	01c7a887          	flw	fa7,28(a5)
+   10838:	01c7a887          	flw	fa7,28(a5)
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10980:	08087853          	fsub.s	fa6,fa6,ft0
-   10984:	08a7f7d3          	fsub.s	fa5,fa5,fa0
-   10988:	0007a187          	flw	ft3,0(a5)
-   1098c:	0147a107          	flw	ft2,20(a5)
-   10990:	0107a387          	flw	ft7,16(a5)
-   10994:	0801f1d3          	fsub.s	ft3,ft3,ft0
+   1083c:	08387853          	fsub.s	fa6,fa6,ft3
+   10840:	08a7f7d3          	fsub.s	fa5,fa5,fa0
+   10844:	0007a107          	flw	ft2,0(a5)
+   10848:	0147a007          	flw	ft0,20(a5)
+   1084c:	0107a207          	flw	ft4,16(a5)
+   10850:	08317153          	fsub.s	ft2,ft2,ft3
+   10854:	08a07053          	fsub.s	ft0,ft0,fa0
 		(-(a[0] * b[2] - a[2] * b[0])),
-   10998:	1107f253          	fmul.s	ft4,fa5,fa6
+   10858:	1107f1d3          	fmul.s	ft3,fa5,fa6
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   1099c:	08a17153          	fsub.s	ft2,ft2,fa0
-   109a0:	0913f3d3          	fsub.s	ft7,ft7,fa7
-   109a4:	0047a507          	flw	fa0,4(a5)
+   1085c:	09127253          	fsub.s	ft4,ft4,fa7
+   10860:	0047a507          	flw	fa0,4(a5)
 		(-(a[0] * b[2] - a[2] * b[0])),
-   109a8:	2021f247          	fmsub.s	ft4,ft3,ft2,ft4
+   10864:	180171c7          	fmsub.s	ft3,ft2,ft0,ft3
 	return vec3(a[1] * b[2] - a[2] * b[1],
-   109ac:	1077f053          	fmul.s	ft0,fa5,ft7
+   10868:	1047f3d3          	fmul.s	ft7,fa5,ft4
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   109b0:	09157553          	fsub.s	fa0,fa0,fa7
+   1086c:	09157553          	fsub.s	fa0,fa0,fa7
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   109b4:	104277d3          	fmul.s	fa5,ft4,ft4
+   10870:	1031f7d3          	fmul.s	fa5,ft3,ft3
 		a[0] * b[1] - a[1] * b[0]);
-   109b8:	00257147          	fmsub.s	ft2,fa0,ft2,ft0
-   109bc:	11057553          	fmul.s	fa0,fa0,fa6
+   10874:	38057047          	fmsub.s	ft0,fa0,ft0,ft7
+   10878:	11057553          	fmul.s	fa0,fa0,fa6
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   109c0:	782177c3          	fmadd.s	fa5,ft2,ft2,fa5
+   1087c:	780077c3          	fmadd.s	fa5,ft0,ft0,fa5
 		a[0] * b[1] - a[1] * b[0]);
-   109c4:	5071f1c7          	fmsub.s	ft3,ft3,ft7,fa0
+   10880:	50417147          	fmsub.s	ft2,ft2,ft4,fa0
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   109c8:	7831f7c3          	fmadd.s	fa5,ft3,ft3,fa5
+   10884:	782177c3          	fmadd.s	fa5,ft2,ft2,fa5
 
 inline float sqrt(float input)
 {
     #ifdef __riscv
     float output;
 	asm volatile ("fsqrt.s %0, %1\n\t" : "=f" (output) : "f" (input));
-   109cc:	5807f7d3          	fsqrt.s	fa5,fa5
+   10888:	5807f7d3          	fsqrt.s	fa5,fa5
 		a[0] * b[1] - a[1] * b[0]);
-   109d0:	20421253          	fneg.s	ft4,ft4
+   1088c:	203191d3          	fneg.s	ft3,ft3
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   109d4:	18f17153          	fdiv.s	ft2,ft2,fa5
-				if (costheta > 0.0f)
-   109d8:	f0000553          	fmv.w.x	fa0,zero
-   109dc:	18f27253          	fdiv.s	ft4,ft4,fa5
-   109e0:	18f1f1d3          	fdiv.s	ft3,ft3,fa5
+   10890:	18f07053          	fdiv.s	ft0,ft0,fa5
+   10894:	18f1f1d3          	fdiv.s	ft3,ft3,fa5
+   10898:	18f17153          	fdiv.s	ft2,ft2,fa5
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   109e4:	1049f7d3          	fmul.s	fa5,fs3,ft4
-   109e8:	782977c3          	fmadd.s	fa5,fs2,ft2,fa5
-   109ec:	7834f7c3          	fmadd.s	fa5,fs1,ft3,fa5
-   109f0:	a0f517d3          	flt.s	a5,fa0,fa5
-   109f4:	00078863          	beqz	a5,10a04 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x8fc>
+   1089c:	1131f7d3          	fmul.s	fa5,ft3,fs3
+   108a0:	792077c3          	fmadd.s	fa5,ft0,fs2,fa5
+   108a4:	7824f7c3          	fmadd.s	fa5,fs1,ft2,fa5
+				if (costheta > 0.0f)
+   108a8:	a0fa97d3          	flt.s	a5,fs5,fa5
+   108ac:	00078863          	beqz	a5,108bc <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x7b4>
 	inline vec3 operator-() const { return vec3(-e[0], -e[1], -e[2]); }
-   109f8:	20211153          	fneg.s	ft2,ft2
-   109fc:	20421253          	fneg.s	ft4,ft4
-   10a00:	203191d3          	fneg.s	ft3,ft3
+   108b0:	20001053          	fneg.s	ft0,ft0
+   108b4:	203191d3          	fneg.s	ft3,ft3
+   108b8:	20211153          	fneg.s	ft2,ft2
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10a04:	11927553          	fmul.s	fa0,ft4,fs9
-   10a08:	1191f7d3          	fmul.s	fa5,ft3,fs9
-   10a0c:	11917053          	fmul.s	ft0,ft2,fs9
+   108bc:	1191f553          	fmul.s	fa0,ft3,fs9
+   108c0:	119177d3          	fmul.s	fa5,ft2,fs9
+   108c4:	11907253          	fmul.s	ft4,ft0,fs9
 		return 1664525 * u + 1013904223;
-   10a10:	001965b7          	lui	a1,0x196
-   10a14:	3c6ef637          	lui	a2,0x3c6ef
+   108c8:	001964b7          	lui	s1,0x196
+   108cc:	3c6ef637          	lui	a2,0x3c6ef
 	return vec3(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
-   10a18:	51e9f543          	fmadd.s	fa0,fs3,ft10,fa0
-   10a1c:	79e4f7c3          	fmadd.s	fa5,fs1,ft10,fa5
-   10a20:	01e97f43          	fmadd.s	ft10,fs2,ft10,ft0
-		uint32_t bits = u & 0x007FFFFFu | 0x3F800000u;
-   10a24:	008006b7          	lui	a3,0x800
-		return 1664525 * u + 1013904223;
-   10a28:	60d5859b          	addiw	a1,a1,1549 # 19660d <__global_pointer$+0x18401d>
+   108d0:	51e9f543          	fmadd.s	fa0,fs3,ft10,fa0
+   108d4:	79e4f7c3          	fmadd.s	fa5,fs1,ft10,fa5
+   108d8:	21e97f43          	fmadd.s	ft10,fs2,ft10,ft4
+   108dc:	60d4849b          	addiw	s1,s1,1549 # 19660d <__global_pointer$+0x1840ed>
+   108e0:	35f6061b          	addiw	a2,a2,863 # 3c6ef35f <__global_pointer$+0x3c6dce3f>
 	e[1] += v[1];
-   10a2c:	00a6f6d3          	fadd.s	fa3,fa3,fa0
+   108e4:	00a6f6d3          	fadd.s	fa3,fa3,fa0
 	e[2] += v[2];
-   10a30:	00f67653          	fadd.s	fa2,fa2,fa5
+   108e8:	00f67653          	fadd.s	fa2,fa2,fa5
 	e[0] += v[0];
-   10a34:	01e77753          	fadd.s	fa4,fa4,ft10
-   10a38:	35f6061b          	addiw	a2,a2,863 # 3c6ef35f <__global_pointer$+0x3c6dcd6f>
+   108ec:	01e77753          	fadd.s	fa4,fa4,ft10
 		uint32_t bits = u & 0x007FFFFFu | 0x3F800000u;
-   10a3c:	fff68693          	addi	a3,a3,-1 # 7fffff <__global_pointer$+0x7eda0f>
-   10a40:	3f8008b7          	lui	a7,0x3f800
+   108f0:	3f800937          	lui	s2,0x3f800
 		return 1664525 * u + 1013904223;
-   10a44:	02b807bb          	mulw	a5,a6,a1
+   108f4:	029687bb          	mulw	a5,a3,s1
 		uint32_t bits = u & 0x007FFFFFu | 0x3F800000u;
-   10a48:	00d87833          	and	a6,a6,a3
+   108f8:	00a6f6b3          	and	a3,a3,a0
 		return *((float*)(&bits)) - 1.0f;
-   10a4c:	01186833          	or	a6,a6,a7
-   10a50:	f00807d3          	fmv.w.x	fa5,a6
-   10a54:	0967f7d3          	fsub.s	fa5,fa5,fs6
+   108fc:	0126e6b3          	or	a3,a3,s2
+   10900:	f00687d3          	fmv.w.x	fa5,a3
+   10904:	0967f7d3          	fsub.s	fa5,fa5,fs6
 		return 1664525 * u + 1013904223;
-   10a58:	00f607bb          	addw	a5,a2,a5
+   10908:	00f607bb          	addw	a5,a2,a5
 		uint32_t bits = u & 0x007FFFFFu | 0x3F800000u;
-   10a5c:	00d7f733          	and	a4,a5,a3
+   1090c:	00a7f733          	and	a4,a5,a0
 		return *((float*)(&bits)) - 1.0f;
-   10a60:	01176733          	or	a4,a4,a7
-   10a64:	f0070553          	fmv.w.x	fa0,a4
-   10a68:	b987f7c3          	fmadd.s	fa5,fa5,fs8,fs7
+   10910:	01276733          	or	a4,a4,s2
+   10914:	f0070553          	fmv.w.x	fa0,a4
+   10918:	b987f7c3          	fmadd.s	fa5,fa5,fs8,fs7
 		return 1664525 * u + 1013904223;
-   10a6c:	02f587bb          	mulw	a5,a1,a5
+   1091c:	02f487bb          	mulw	a5,s1,a5
 		return *((float*)(&bits)) - 1.0f;
-   10a70:	09657553          	fsub.s	fa0,fa0,fs6
+   10920:	09657553          	fsub.s	fa0,fa0,fs6
         y = y * 2.0f;
         y = y - 1.0f;
         x_2 = x * x;
-   10a74:	10f7f053          	fmul.s	ft0,fa5,fa5
+   10924:	10f7f253          	fmul.s	ft4,fa5,fa5
         y = y - 1.0f;
-   10a78:	b9857543          	fmadd.s	fa0,fa0,fs8,fs7
+   10928:	b9857543          	fmadd.s	fa0,fa0,fs8,fs7
 		return 1664525 * u + 1013904223;
-   10a7c:	00f6083b          	addw	a6,a2,a5
+   1092c:	00f606bb          	addw	a3,a2,a5
         y_2 = y * y;
-   10a80:	10a573d3          	fmul.s	ft7,fa0,fa0
+   10930:	10a573d3          	fmul.s	ft7,fa0,fa0
     } while ((x_2 + y_2) >= 1.0f); // cut out points outside the disk
-   10a84:	00707853          	fadd.s	fa6,ft0,ft7
-   10a88:	a10b07d3          	fle.s	a5,fs6,fa6
-   10a8c:	fa079ce3          	bnez	a5,10a44 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x93c>
+   10934:	00727853          	fadd.s	fa6,ft4,ft7
+   10938:	a10b07d3          	fle.s	a5,fs6,fa6
+   1093c:	fa079ce3          	bnez	a5,108f4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x7ec>
 
     z = sqrt(1.0f - x_2 - y_2);
-   10a90:	080b7053          	fsub.s	ft0,fs6,ft0
-   10a94:	08707053          	fsub.s	ft0,ft0,ft7
-   10a98:	58007053          	fsqrt.s	ft0,ft0
+   10940:	084b7253          	fsub.s	ft4,fs6,ft4
+   10944:	08727253          	fsub.s	ft4,ft4,ft7
+   10948:	58027253          	fsqrt.s	ft4,ft4
     if (f > 0.0f)
-   10a9c:	f00003d3          	fmv.w.x	ft7,zero
+   1094c:	a00a97d3          	flt.s	a5,fs5,ft0
         return f;
-   10aa0:	20210f53          	fmv.s	ft10,ft2
+   10950:	20000853          	fmv.s	fa6,ft0
     if (f > 0.0f)
-   10aa4:	a02397d3          	flt.s	a5,ft7,ft2
-   10aa8:	00079463          	bnez	a5,10ab0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x9a8>
+   10954:	00079463          	bnez	a5,1095c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x854>
     return f * -1.0f;
-   10aac:	20211f53          	fneg.s	ft10,ft2
+   10958:	20001853          	fneg.s	fa6,ft0
     if (f > 0.0f)
-   10ab0:	f00003d3          	fmv.w.x	ft7,zero
+   1095c:	a03a97d3          	flt.s	a5,fs5,ft3
         return f;
-   10ab4:	20420853          	fmv.s	fa6,ft4
+   10960:	203183d3          	fmv.s	ft7,ft3
     if (f > 0.0f)
-   10ab8:	a04397d3          	flt.s	a5,ft7,ft4
-   10abc:	00079463          	bnez	a5,10ac4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x9bc>
+   10964:	00079463          	bnez	a5,1096c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x864>
     return f * -1.0f;
-   10ac0:	20421853          	fneg.s	fa6,ft4
+   10968:	203193d3          	fneg.s	ft7,ft3
     if (f > 0.0f)
-   10ac4:	f00003d3          	fmv.w.x	ft7,zero
+   1096c:	a02a97d3          	flt.s	a5,fs5,ft2
         return f;
-   10ac8:	203184d3          	fmv.s	fs1,ft3
+   10970:	20210f53          	fmv.s	ft10,ft2
     if (f > 0.0f)
-   10acc:	a03397d3          	flt.s	a5,ft7,ft3
-   10ad0:	00079463          	bnez	a5,10ad8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x9d0>
+   10974:	00079463          	bnez	a5,1097c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x874>
     return f * -1.0f;
-   10ad4:	203194d3          	fneg.s	fs1,ft3
-	return vec3(a[1] * b[2] - a[2] * b[1],
-   10ad8:	f00003d3          	fmv.w.x	ft7,zero
+   10978:	20211f53          	fneg.s	ft10,ft2
     if (ax < ay && ax < az)
-   10adc:	a10f17d3          	flt.s	a5,ft10,fa6
-   10ae0:	1071fed3          	fmul.s	ft9,ft3,ft7
-		a[0] * b[1] - a[1] * b[0]);
-   10ae4:	107178d3          	fmul.s	fa7,ft2,ft7
-   10ae8:	10727e53          	fmul.s	ft8,ft4,ft7
-   10aec:	08078863          	beqz	a5,10b7c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa74>
-   10af0:	a09f17d3          	flt.s	a5,ft10,fs1
-   10af4:	08078463          	beqz	a5,10b7c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa74>
-   10af8:	21ce03d3          	fmv.s	ft7,ft8
-   10afc:	20318f53          	fmv.s	ft10,ft3
-   10b00:	21188853          	fmv.s	fa6,fa7
-   10b04:	20420e53          	fmv.s	ft8,ft4
-   10b08:	09d3f3d3          	fsub.s	ft7,ft7,ft9
-   10b0c:	09c8f8d3          	fsub.s	fa7,fa7,ft8
-		(-(a[0] * b[2] - a[2] * b[0])),
-   10b10:	09e87853          	fsub.s	fa6,fa6,ft10
-   10b14:	1071fed3          	fmul.s	ft9,ft3,ft7
-		a[0] * b[1] - a[1] * b[0]);
-   10b18:	10727f53          	fmul.s	ft10,ft4,ft7
+   1097c:	a07817d3          	flt.s	a5,fa6,ft7
 	return vec3(a[1] * b[2] - a[2] * b[1],
-   10b1c:	1101fe53          	fmul.s	ft8,ft3,fa6
+   10980:	11517e53          	fmul.s	ft8,ft2,fs5
 		a[0] * b[1] - a[1] * b[0]);
-   10b20:	e9117ecb          	fnmsub.s	ft9,ft2,fa7,ft9
-   10b24:	f1017f4f          	fnmadd.s	ft10,ft2,fa6,ft10
-   10b28:	e1127e43          	fmadd.s	ft8,ft4,fa7,ft8
+   10984:	115078d3          	fmul.s	fa7,ft0,fs5
+   10988:	1151fed3          	fmul.s	ft9,ft3,fs5
+   1098c:	0c078863          	beqz	a5,10a5c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x954>
+   10990:	a1e817d3          	flt.s	a5,fa6,ft10
+   10994:	0c078463          	beqz	a5,10a5c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x954>
+   10998:	21de83d3          	fmv.s	ft7,ft9
+   1099c:	20210f53          	fmv.s	ft10,ft2
+   109a0:	21188853          	fmv.s	fa6,fa7
+   109a4:	20318ed3          	fmv.s	ft9,ft3
+   109a8:	09c3f3d3          	fsub.s	ft7,ft7,ft8
+   109ac:	09d8f8d3          	fsub.s	fa7,fa7,ft9
+		(-(a[0] * b[2] - a[2] * b[0])),
+   109b0:	09e87853          	fsub.s	fa6,fa6,ft10
+   109b4:	10717ed3          	fmul.s	ft9,ft2,ft7
+		a[0] * b[1] - a[1] * b[0]);
+   109b8:	1071ff53          	fmul.s	ft10,ft3,ft7
+	return vec3(a[1] * b[2] - a[2] * b[1],
+   109bc:	11017e53          	fmul.s	ft8,ft2,fa6
+		a[0] * b[1] - a[1] * b[0]);
+   109c0:	e9107ecb          	fnmsub.s	ft9,ft0,fa7,ft9
+   109c4:	f1007f4f          	fnmadd.s	ft10,ft0,fa6,ft10
+   109c8:	e111fe43          	fmadd.s	ft8,ft3,fa7,ft8
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10b2c:	11d57ed3          	fmul.s	ft9,fa0,ft9
-   10b30:	11c57e53          	fmul.s	ft8,fa0,ft8
-   10b34:	11e57553          	fmul.s	fa0,fa0,ft10
+   109cc:	11d57ed3          	fmul.s	ft9,fa0,ft9
+   109d0:	11c57e53          	fmul.s	ft8,fa0,ft8
+   109d4:	11e57553          	fmul.s	fa0,fa0,ft10
 	return vec3(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
-   10b38:	e907f84b          	fnmsub.s	fa6,fa5,fa6,ft9
-   10b3c:	e077f3c3          	fmadd.s	ft7,fa5,ft7,ft8
-   10b40:	5117f7c3          	fmadd.s	fa5,fa5,fa7,fa0
-   10b44:	80027243          	fmadd.s	ft4,ft4,ft0,fa6
-   10b48:	38017143          	fmadd.s	ft2,ft2,ft0,ft7
-   10b4c:	7801f1c3          	fmadd.s	ft3,ft3,ft0,fa5
+   109d8:	e907f84b          	fnmsub.s	fa6,fa5,fa6,ft9
+   109dc:	e077f3c3          	fmadd.s	ft7,fa5,ft7,ft8
+   109e0:	5117f7c3          	fmadd.s	fa5,fa5,fa7,fa0
+   109e4:	8041f1c3          	fmadd.s	ft3,ft3,ft4,fa6
+   109e8:	38407043          	fmadd.s	ft0,ft0,ft4,ft7
+   109ec:	78417143          	fmadd.s	ft2,ft2,ft4,fa5
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   10b50:	104274d3          	fmul.s	fs1,ft4,ft4
-   10b54:	482174c3          	fmadd.s	fs1,ft2,ft2,fs1
-   10b58:	4831f4c3          	fmadd.s	fs1,ft3,ft3,fs1
-   10b5c:	5804f4d3          	fsqrt.s	fs1,fs1
+   109f0:	1031f4d3          	fmul.s	fs1,ft3,ft3
+   109f4:	480074c3          	fmadd.s	fs1,ft0,ft0,fs1
+   109f8:	482174c3          	fmadd.s	fs1,ft2,ft2,fs1
+   109fc:	5804f4d3          	fsqrt.s	fs1,fs1
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   10b60:	18917953          	fdiv.s	fs2,ft2,fs1
+   10a00:	18907953          	fdiv.s	fs2,ft0,fs1
 		for (uint depth = 0; depth < args.bounce + 1; ++depth)
-   10b64:	0014079b          	addiw	a5,s0,1
-   10b68:	189279d3          	fdiv.s	fs3,ft4,fs1
-   10b6c:	1891f4d3          	fdiv.s	fs1,ft3,fs1
-   10b70:	04940263          	beq	s0,s1,10bb4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xaac>
-   10b74:	00078413          	mv	s0,a5
-   10b78:	f48ff06f          	j	102c0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x1b8>
-    else if (ay < az)
-   10b7c:	a09817d3          	flt.s	a5,fa6,fs1
-   10b80:	02078263          	beqz	a5,10ba4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa9c>
-   10b84:	21de8f53          	fmv.s	ft10,ft9
-   10b88:	21188853          	fmv.s	fa6,fa7
-   10b8c:	21ce03d3          	fmv.s	ft7,ft8
-   10b90:	20318ed3          	fmv.s	ft9,ft3
-   10b94:	202108d3          	fmv.s	fa7,ft2
-   10b98:	f71ff06f          	j	10b08 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa00>
+   10a04:	0013079b          	addiw	a5,t1,1
+   10a08:	1891f9d3          	fdiv.s	fs3,ft3,fs1
+   10a0c:	189174d3          	fdiv.s	fs1,ft2,fs1
+   10a10:	086f0263          	beq	t5,t1,10a94 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x98c>
+   10a14:	00078313          	mv	t1,a5
+   10a18:	895ff06f          	j	102ac <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x1a4>
 	if (tmin > tmax || tmax < ray.t_min) return ray.t_max;//no hit || behind
-   10b9c:	201087d3          	fmv.s	fa5,ft1
-   10ba0:	819ff06f          	j	103b8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x2b0>
-   10ba4:	204203d3          	fmv.s	ft7,ft4
-   10ba8:	21de8f53          	fmv.s	ft10,ft9
-   10bac:	20210853          	fmv.s	fa6,ft2
-   10bb0:	f59ff06f          	j	10b08 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xa00>
+   10a1c:	20108fd3          	fmv.s	ft11,ft1
+   10a20:	b45ff06f          	j	10564 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x45c>
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
+   10a24:	02061913          	slli	s2,a2,0x20
+   10a28:	02095913          	srli	s2,s2,0x20
+					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
+   10a2c:	01872983          	lw	s3,24(a4)
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
+   10a30:	0187a703          	lw	a4,24(a5)
+   10a34:	00191793          	slli	a5,s2,0x1
+   10a38:	012787b3          	add	a5,a5,s2
+   10a3c:	00279793          	slli	a5,a5,0x2
+   10a40:	002787b3          	add	a5,a5,sp
+					current_entry = {t1, nodes[child_index + 1].data, child_index + 1};
+   10a44:	03312a23          	sw	s3,52(sp)
+					if(t0 < hit.t)  node_stack[node_stack_size++] = {t0, nodes[child_index + 0].data, child_index + 0};
+   10a48:	0016061b          	addiw	a2,a2,1
+   10a4c:	04e7a223          	sw	a4,68(a5)
+   10a50:	05f7a027          	fsw	ft11,64(a5)
+   10a54:	0497a423          	sw	s1,72(a5)
+   10a58:	9f5ff06f          	j	1044c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x344>
+    else if (ay < az)
+   10a5c:	a1e397d3          	flt.s	a5,ft7,ft10
+   10a60:	02078263          	beqz	a5,10a84 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x97c>
+   10a64:	21ce0f53          	fmv.s	ft10,ft8
+   10a68:	21188853          	fmv.s	fa6,fa7
+   10a6c:	21de83d3          	fmv.s	ft7,ft9
+   10a70:	20210e53          	fmv.s	ft8,ft2
+   10a74:	200008d3          	fmv.s	fa7,ft0
+   10a78:	f31ff06f          	j	109a8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x8a0>
+   10a7c:	20108853          	fmv.s	fa6,ft1
+   10a80:	91dff06f          	j	1039c <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x294>
+   10a84:	203183d3          	fmv.s	ft7,ft3
+   10a88:	21ce0f53          	fmv.s	ft10,ft8
+   10a8c:	20000853          	fmv.s	fa6,ft0
+   10a90:	f19ff06f          	j	109a8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x8a0>
 		u += u << 10;
-   10bb4:	00af179b          	slliw	a5,t5,0xa
-   10bb8:	01e787bb          	addw	a5,a5,t5
+   10a94:	00a8179b          	slliw	a5,a6,0xa
+   10a98:	010787bb          	addw	a5,a5,a6
 		u ^= u >> 6;
-   10bbc:	0067d71b          	srliw	a4,a5,0x6
-   10bc0:	00f74733          	xor	a4,a4,a5
-   10bc4:	0037179b          	slliw	a5,a4,0x3
-   10bc8:	00e787bb          	addw	a5,a5,a4
+   10a9c:	0067d71b          	srliw	a4,a5,0x6
+   10aa0:	00f74733          	xor	a4,a4,a5
+   10aa4:	0037179b          	slliw	a5,a4,0x3
+   10aa8:	00e787bb          	addw	a5,a5,a4
 		u ^= u >> 11;
-   10bcc:	00b7d71b          	srliw	a4,a5,0xb
-   10bd0:	00f74733          	xor	a4,a4,a5
+   10aac:	00b7d71b          	srliw	a4,a5,0xb
+   10ab0:	00f74733          	xor	a4,a4,a5
 			args.framebuffer[fb_index] = rtm::RNG::hash(hit.id) | 0xff000000;
-   10bd4:	11003683          	ld	a3,272(zero) # 110 <main-0xffd8>
-   10bd8:	00f7179b          	slliw	a5,a4,0xf
-   10bdc:	00e787bb          	addw	a5,a5,a4
-   10be0:	002e9e93          	slli	t4,t4,0x2
-   10be4:	ff000637          	lui	a2,0xff000
-   10be8:	01d68733          	add	a4,a3,t4
-   10bec:	00c7e7b3          	or	a5,a5,a2
-   10bf0:	00f72023          	sw	a5,0(a4)
-   10bf4:	0000078b          	fchthrd	a5
+   10ab4:	00f7179b          	slliw	a5,a4,0xf
+   10ab8:	00e787bb          	addw	a5,a5,a4
+   10abc:	002e9e93          	slli	t4,t4,0x2
+   10ac0:	ff0006b7          	lui	a3,0xff000
+   10ac4:	01d38733          	add	a4,t2,t4
+   10ac8:	00d7e7b3          	or	a5,a5,a3
+   10acc:	00f72023          	sw	a5,0(a4)
+   10ad0:	0000078b          	fchthrd	a5
 	for (uint index = fchthrd(); index < args.framebuffer_size; index = fchthrd())
-   10bf8:	10802703          	lw	a4,264(zero) # 108 <main-0xffe0>
-   10bfc:	0007879b          	sext.w	a5,a5
-   10c00:	dce7e863          	bltu	a5,a4,101d0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xc8>
+   10ad4:	10802703          	lw	a4,264(zero) # 108 <main-0xffe0>
+   10ad8:	0007879b          	sext.w	a5,a5
+   10adc:	ece7ee63          	bltu	a5,a4,101b8 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xb0>
 }
-   10c04:	2e813403          	ld	s0,744(sp)
-   10c08:	2e013483          	ld	s1,736(sp)
-   10c0c:	2d813903          	ld	s2,728(sp)
-   10c10:	2d013983          	ld	s3,720(sp)
-   10c14:	2c813a03          	ld	s4,712(sp)
-   10c18:	2c013a83          	ld	s5,704(sp)
-   10c1c:	2b813b03          	ld	s6,696(sp)
-   10c20:	2b013b83          	ld	s7,688(sp)
-   10c24:	2a813c03          	ld	s8,680(sp)
-   10c28:	2a013c83          	ld	s9,672(sp)
-   10c2c:	29813d03          	ld	s10,664(sp)
-   10c30:	28c12407          	flw	fs0,652(sp)
-   10c34:	28812487          	flw	fs1,648(sp)
-   10c38:	28412907          	flw	fs2,644(sp)
-   10c3c:	28012987          	flw	fs3,640(sp)
-   10c40:	27c12a07          	flw	fs4,636(sp)
-   10c44:	27812a87          	flw	fs5,632(sp)
-   10c48:	27412b07          	flw	fs6,628(sp)
-   10c4c:	27012b87          	flw	fs7,624(sp)
-   10c50:	26c12c07          	flw	fs8,620(sp)
-   10c54:	26812c87          	flw	fs9,616(sp)
-   10c58:	26412d07          	flw	fs10,612(sp)
-   10c5c:	26012d87          	flw	fs11,608(sp)
-   10c60:	2f010113          	addi	sp,sp,752
-   10c64:	00008067          	ret
+   10ae0:	20813403          	ld	s0,520(sp)
+   10ae4:	20013483          	ld	s1,512(sp)
+   10ae8:	1f813903          	ld	s2,504(sp)
+   10aec:	1f013983          	ld	s3,496(sp)
+   10af0:	1ec12407          	flw	fs0,492(sp)
+   10af4:	1e812487          	flw	fs1,488(sp)
+   10af8:	1e412907          	flw	fs2,484(sp)
+   10afc:	1e012987          	flw	fs3,480(sp)
+   10b00:	1dc12a07          	flw	fs4,476(sp)
+   10b04:	1d812a87          	flw	fs5,472(sp)
+   10b08:	1d412b07          	flw	fs6,468(sp)
+   10b0c:	1d012b87          	flw	fs7,464(sp)
+   10b10:	1cc12c07          	flw	fs8,460(sp)
+   10b14:	1c812c87          	flw	fs9,456(sp)
+   10b18:	1c412d07          	flw	fs10,452(sp)
+   10b1c:	1c012d87          	flw	fs11,448(sp)
+   10b20:	21010113          	addi	sp,sp,528
+   10b24:	00008067          	ret
 			args.framebuffer[fb_index] = 0xff000000;
-   10c68:	11003783          	ld	a5,272(zero) # 110 <main-0xffd8>
-   10c6c:	002e9e93          	slli	t4,t4,0x2
-   10c70:	ff000737          	lui	a4,0xff000
-   10c74:	01d787b3          	add	a5,a5,t4
-   10c78:	00e7a023          	sw	a4,0(a5)
-   10c7c:	f79ff06f          	j	10bf4 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0xaec>
+   10b28:	002e9793          	slli	a5,t4,0x2
+   10b2c:	00f387b3          	add	a5,t2,a5
+   10b30:	ff000737          	lui	a4,0xff000
+   10b34:	00e7a023          	sw	a4,0(a5)
+   10b38:	f99ff06f          	j	10ad0 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x9c8>
 	e[1] += v[1];
-   10c80:	02012587          	flw	fa1,32(sp)
+   10b3c:	02012587          	flw	fa1,32(sp)
 		rtm::vec2 uv((float)i, (float)j);
-   10c84:	d0057753          	fcvt.s.w	fa4,a0
+   10b40:	d0057753          	fcvt.s.w	fa4,a0
 	e[1] -= v[1];
-   10c88:	02412507          	flw	fa0,36(sp)
+   10b44:	02412507          	flw	fa0,36(sp)
 }
 
 inline vec2& vec2::operator*=(const vec2 &v)
 {
 	e[0] *= v.e[0];
 	e[1] *= v.e[1];
-   10c8c:	12802687          	flw	fa3,296(zero) # 128 <main-0xffc0>
+   10b48:	12802687          	flw	fa3,296(zero) # 128 <main-0xffc0>
 	e[1] += v[1];
-   10c90:	00b77753          	fadd.s	fa4,fa4,fa1
-   10c94:	d017f7d3          	fcvt.s.wu	fa5,a5
+   10b4c:	00b77753          	fadd.s	fa4,fa4,fa1
+   10b50:	d017f7d3          	fcvt.s.wu	fa5,a5
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10c98:	14802607          	flw	fa2,328(zero) # 148 <main-0xffa0>
+   10b54:	14802607          	flw	fa2,328(zero) # 148 <main-0xffa0>
 	inline float operator[](int i) const { return e[i]; }
-   10c9c:	13c02987          	flw	fs3,316(zero) # 13c <main-0xffac>
+   10b58:	13c02987          	flw	fs3,316(zero) # 13c <main-0xffac>
 	e[0] += v[0];
-   10ca0:	00b7f7d3          	fadd.s	fa5,fa5,fa1
+   10b5c:	00b7f7d3          	fadd.s	fa5,fa5,fa1
 	e[1] -= v[1];
-   10ca4:	50d77743          	fmadd.s	fa4,fa4,fa3,fa0
+   10b60:	50d77743          	fmadd.s	fa4,fa4,fa3,fa0
 	e[0] -= v[0];
-   10ca8:	12402587          	flw	fa1,292(zero) # 124 <main-0xffc4>
+   10b64:	12402587          	flw	fa1,292(zero) # 124 <main-0xffc4>
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10cac:	14402687          	flw	fa3,324(zero) # 144 <main-0xffa4>
+   10b68:	14402687          	flw	fa3,324(zero) # 144 <main-0xffa4>
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10cb0:	15402007          	flw	ft0,340(zero) # 154 <main-0xff94>
-   10cb4:	50b7f7c3          	fmadd.s	fa5,fa5,fa1,fa0
+   10b6c:	15402007          	flw	ft0,340(zero) # 154 <main-0xff94>
+   10b70:	50b7f7c3          	fmadd.s	fa5,fa5,fa1,fa0
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10cb8:	10c77653          	fmul.s	fa2,fa4,fa2
-   10cbc:	10d776d3          	fmul.s	fa3,fa4,fa3
+   10b74:	10c77653          	fmul.s	fa2,fa4,fa2
+   10b78:	10d776d3          	fmul.s	fa3,fa4,fa3
 	return vec3(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
-   10cc0:	13802907          	flw	fs2,312(zero) # 138 <main-0xffb0>
+   10b7c:	13802907          	flw	fs2,312(zero) # 138 <main-0xffb0>
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10cc4:	14c02087          	flw	ft1,332(zero) # 14c <main-0xff9c>
+   10b80:	14c02087          	flw	ft1,332(zero) # 14c <main-0xff9c>
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10cc8:	15002507          	flw	fa0,336(zero) # 150 <main-0xff98>
+   10b84:	15002507          	flw	fa0,336(zero) # 150 <main-0xff98>
 	return vec3(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
-   10ccc:	6137f9c3          	fmadd.s	fs3,fa5,fs3,fa2
-   10cd0:	6927f943          	fmadd.s	fs2,fa5,fs2,fa3
+   10b88:	6137f9c3          	fmadd.s	fs3,fa5,fs3,fa2
+   10b8c:	6927f943          	fmadd.s	fs2,fa5,fs2,fa3
 	return vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
-   10cd4:	10177753          	fmul.s	fa4,fa4,ft1
+   10b90:	10177753          	fmul.s	fa4,fa4,ft1
 	inline float operator[](int i) const { return e[i]; }
-   10cd8:	14002587          	flw	fa1,320(zero) # 140 <main-0xffa8>
+   10b94:	14002587          	flw	fa1,320(zero) # 140 <main-0xffa8>
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10cdc:	15802687          	flw	fa3,344(zero) # 158 <main-0xff90>
-   10ce0:	0809f9d3          	fsub.s	fs3,fs3,ft0
-   10ce4:	08a97953          	fsub.s	fs2,fs2,fa0
+   10b98:	15802687          	flw	fa3,344(zero) # 158 <main-0xff90>
+   10b9c:	0809f9d3          	fsub.s	fs3,fs3,ft0
+   10ba0:	08a97953          	fsub.s	fs2,fs2,fa0
 	return vec3(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
-   10ce8:	70b7f4c3          	fmadd.s	fs1,fa5,fa1,fa4
+   10ba4:	70b7f4c3          	fmadd.s	fs1,fa5,fa1,fa4
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   10cec:	1139f7d3          	fmul.s	fa5,fs3,fs3
+   10ba8:	1139f7d3          	fmul.s	fa5,fs3,fs3
 	return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-   10cf0:	08d4f4d3          	fsub.s	fs1,fs1,fa3
+   10bac:	08d4f4d3          	fsub.s	fs1,fs1,fa3
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-   10cf4:	792977c3          	fmadd.s	fa5,fs2,fs2,fa5
-   10cf8:	7894f7c3          	fmadd.s	fa5,fs1,fs1,fa5
-   10cfc:	5807f7d3          	fsqrt.s	fa5,fa5
+   10bb0:	792977c3          	fmadd.s	fa5,fs2,fs2,fa5
+   10bb4:	7894f7c3          	fmadd.s	fa5,fs1,fs1,fa5
+   10bb8:	5807f7d3          	fsqrt.s	fa5,fa5
 	inline float operator[](int i) const { return e[i]; }
-   10d00:	12c02707          	flw	fa4,300(zero) # 12c <main-0xffbc>
+   10bbc:	12c02707          	flw	fa4,300(zero) # 12c <main-0xffbc>
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   10d04:	18f97953          	fdiv.s	fs2,fs2,fa5
+   10bc0:	18f97953          	fdiv.s	fs2,fs2,fa5
 		ray.t_max = T_MAX;
-   10d08:	02812087          	flw	ft1,40(sp)
+   10bc4:	02812087          	flw	ft1,40(sp)
 		ray.t_min = T_MIN;
-   10d0c:	02c12587          	flw	fa1,44(sp)
+   10bc8:	02c12587          	flw	fa1,44(sp)
 	inline float operator[](int i) const { return e[i]; }
-   10d10:	13002687          	flw	fa3,304(zero) # 130 <main-0xffb8>
-   10d14:	13402607          	flw	fa2,308(zero) # 134 <main-0xffb4>
+   10bcc:	13002687          	flw	fa3,304(zero) # 130 <main-0xffb8>
+   10bd0:	13402607          	flw	fa2,308(zero) # 134 <main-0xffb4>
 	return vec3(a[0] / b[0], a[1] / b[1], a[2] / b[2]);
-   10d18:	18f9f9d3          	fdiv.s	fs3,fs3,fa5
-   10d1c:	18f4f4d3          	fdiv.s	fs1,fs1,fa5
+   10bd4:	18f9f9d3          	fdiv.s	fs3,fs3,fa5
+   10bd8:	18f4f4d3          	fdiv.s	fs1,fs1,fa5
 
 		return ray;
-   10d20:	d40ff06f          	j	10260 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x158>
-   10d24:	00008067          	ret
+   10bdc:	e6cff06f          	j	10248 <_ZL6kernelRK14TRaXKernelArgs.constprop.0+0x140>
+   10be0:	00008067          	ret
+
+0000000000010be4 <_Z9_load_triPKN3rtm8TriangleE>:
+	return *addr;
+   10be4:	0005be83          	ld	t4,0(a1)
+   10be8:	0085be03          	ld	t3,8(a1)
+   10bec:	0105b303          	ld	t1,16(a1)
+   10bf0:	0185b883          	ld	a7,24(a1)
+   10bf4:	0205b803          	ld	a6,32(a1)
+   10bf8:	0285b603          	ld	a2,40(a1)
+   10bfc:	0305b683          	ld	a3,48(a1)
+   10c00:	0385b703          	ld	a4,56(a1)
+   10c04:	01d53023          	sd	t4,0(a0) # 800000 <__global_pointer$+0x7edae0>
+   10c08:	01c53423          	sd	t3,8(a0)
+   10c0c:	00653823          	sd	t1,16(a0)
+   10c10:	01153c23          	sd	a7,24(a0)
+   10c14:	03053023          	sd	a6,32(a0)
+   10c18:	02c53423          	sd	a2,40(a0)
+   10c1c:	02d53823          	sd	a3,48(a0)
+   10c20:	02e53c23          	sd	a4,56(a0)
+}
+   10c24:	00008067          	ret
+
+0000000000010c28 <_Z10_load_nodePKN3rtm4BVH24NodeE>:
+	return *addr;
+   10c28:	0005b803          	ld	a6,0(a1)
+   10c2c:	0085b603          	ld	a2,8(a1)
+   10c30:	0105b683          	ld	a3,16(a1)
+   10c34:	0185b703          	ld	a4,24(a1)
+   10c38:	01053023          	sd	a6,0(a0)
+   10c3c:	00c53423          	sd	a2,8(a0)
+   10c40:	00d53823          	sd	a3,16(a0)
+   10c44:	00e53c23          	sd	a4,24(a0)
+}
+   10c48:	00008067          	ret

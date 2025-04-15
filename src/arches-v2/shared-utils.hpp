@@ -116,6 +116,7 @@ const static std::vector<SceneConfig> scene_configs =
 	{"cornellbox", rtm::vec3(0, 2, 4), rtm::vec3(0, 0, 0), 24.0f}, //CORNELLBOX
 
 	{"sibenik", rtm::vec3(3.0, -13.0, 0.0), rtm::vec3(0, -12.0, 0), 12.0f},
+
 };
 
 

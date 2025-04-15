@@ -109,6 +109,66 @@ inline bool _intersect(const rtm::Triangle& tri, const rtm::Ray& ray, rtm::Hit& 
 #endif
 }
 
+
+rtm::Triangle _load_tri(const rtm::Triangle* addr)
+{
+#if 0
+	rtm::Triangle tri;
+	asm volatile(
+		"flw %0, 0(%9) \n\t"
+		"flw %1, 4(%9) \n\t"
+		"flw %2, 8(%9) \n\t"
+		"flw %3, 12(%9) \n\t"
+		"flw %4, 16(%9) \n\t"
+		"flw %5, 20(%9) \n\t"
+		"flw %6, 24(%9) \n\t"
+		"flw %7, 28(%9) \n\t"
+		"flw %8, 32(%9) \n\t"
+		: 
+		"=f" (tri.vrts[0].x), 
+		"=f" (tri.vrts[0].y),
+		"=f" (tri.vrts[0].z),
+		"=f" (tri.vrts[1].x),
+		"=f" (tri.vrts[1].y),
+		"=f" (tri.vrts[1].z),
+		"=f" (tri.vrts[2].x),
+		"=f" (tri.vrts[2].y),
+		"=f" (tri.vrts[2].z)
+		: "r" (addr));
+	return tri;
+#else
+	return *addr;
+#endif
+}
+
+
+rtm::BVH2::Node _load_node(const rtm::BVH2::Node* addr)
+{
+#if 0
+	rtm::BVH2::Node node;
+	asm volatile(
+		"flw %0, 0(%7) \n\t"
+		"flw %1, 4(%7) \n\t"
+		"flw %2, 8(%7) \n\t"
+		"flw %3, 12(%7) \n\t"
+		"flw %4, 16(%7) \n\t"
+		"flw %5, 20(%7) \n\t"
+		"lw %6, 24(%7) \n\t"
+		:
+		"=f" (node.aabb.min.x),
+		"=f" (node.aabb.min.y),
+		"=f" (node.aabb.min.z),
+		"=f" (node.aabb.max.x),
+		"=f" (node.aabb.max.y),
+		"=f" (node.aabb.max.z),
+		"=r" (node.data)
+		: "r" (addr));
+	return node;
+#else
+	return *addr;
+#endif
+}
+
 //#define ENABLE_INTERSECT_DEBUG (ray_id == 0)
 #define ENABLE_INTERSECT_DEBUG 0
 
@@ -191,6 +251,7 @@ inline bool intersect(const rtm::BVH2::Node* nodes, const rtm::Triangle* tris, c
 inline bool intersect(const rtm::BVHSIMTRAX::Node* nodes, const rtm::Triangle* tris, const rtm::Ray& ray, rtm::Hit& hit, uint ray_id)
 {
 	rtm::vec3 inv_d = rtm::vec3(1.0f) / ray.d;
+
 
 	struct NodeStackEntry
 	{
